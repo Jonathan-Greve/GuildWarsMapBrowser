@@ -1,0 +1,364 @@
+#include <std/core.pat>
+
+struct MapBounds {
+  float map_min_x;
+  float map_min_y;
+  float map_max_x;
+  float map_max_y;
+};
+
+struct Chunk1 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// Map params
+struct Chunk2 {
+  u32 chunk_id;
+  u32 chunk_size;
+  // Chunk data start
+  u32 magic_num;
+  u8 always_2;
+  MapBounds map_bounds;
+  u32 f0;
+  u32 f1;
+  u32 f2;
+  u32 f3;
+  u32 f4;
+};
+
+struct PropInfo {
+  u16 f1;
+  float x;
+  float y;
+  float z;
+  float f4;
+  float f5;
+  float f6;
+  float cos_angle; // cos of angle in radians
+  float sin_angle; // sin of angle in radians
+  float f9;
+  float f10;
+  float f11;
+  u8 f12;
+  u8 num_some_structs;
+  u8 some_structs[num_some_structs*8];
+};
+
+struct PropArray{
+  u16 num_props;
+  PropInfo props_info[num_props];
+};
+
+struct SomeVertex{
+  float x;
+  float y;
+  float z;
+  u32 f6;
+  u32 f7;
+  u32 f8;
+};
+
+struct Vertex2 {
+  float x;
+  float y;
+};
+
+struct SomeVertexData {
+  u8 f0;
+  u32 array_size_in_bytes;
+  u32 num_elements;
+  SomeVertex vertices[num_elements];
+};
+
+struct SomeData {
+  u8 f0;
+  u32 array_size_in_bytes;
+  u32 num_elements;
+  u16 array[num_elements];
+};
+
+struct SomeData1 {
+  u8 f0;
+  u32 array_size_in_bytes;
+  u32 num_elements;
+  Vertex2 array[num_elements];
+};
+
+struct SomeData2Struct {
+  u16 f0;
+  u16 prop_index;
+};
+
+struct SomeData2 {
+  u8 f0;
+  u32 array_size_in_bytes;
+  u16 num_elements;
+  SomeData2Struct array[num_elements];
+};
+
+struct Chunk3 {
+  u32 chunk_id;
+  u32 chunk_size;
+  // Chunk data start
+  u32 magic_number;
+  u16 magic_number2; // checked if 0x11 or 0x12 in-game.
+  u32 prop_array_size_in_bytes;
+  PropArray prop_array;
+  SomeVertexData some_vertex_data;
+  SomeData some_data0;
+  SomeData1 some_data1;
+  SomeData2 some_data2;
+  u8 chunk_data[chunk_size-10-sizeof(prop_array)-sizeof(some_vertex_data)-sizeof(some_data0)-sizeof(some_data1)-sizeof(some_data2)];
+};
+
+struct Chunk4DataHeader { 
+  u32 signature;
+  u8 version;
+};
+
+// To get file hash from name do:
+// (id0 - 0xff00ff) + (id2 * 0xff00);
+struct FileName{
+  u16 id0;
+  u16 id1;
+};
+
+struct Chunk4DataElement{
+  u16 f1;
+  FileName filename;
+};
+
+struct Chunk4 {
+  u32 chunk_id;
+  u32 chunk_size;
+  Chunk4DataHeader data_header;
+  FileName file_name;
+  //Chunk4DataElement array[228];
+  Chunk4DataElement array[(chunk_size-sizeof(data_header)-sizeof(file_name))/6];
+  u8 chunk_data[chunk_size-sizeof(data_header)-sizeof(file_name)-sizeof(array)];
+};
+
+struct Chunk5Element{
+  u8 tag;
+  u32 size;
+  u8 data[size];
+};
+
+struct Chunk5Element1{
+  u8 tag;
+  u32 size;
+  u32 num_zones;
+};
+
+struct Chunk5Element2{
+  u8 unknown[20];
+  u8 unknown1;
+  u16 some_size;
+  u16 unknown2;
+  if (some_size <= 0){
+    u32 unknown3;
+    u32 count2;
+    Vertex2 vertices[count2];
+  } else{
+    u8 some_data[some_size];
+  }
+};
+
+struct Chunk5 {
+  u32 chunk_id;
+  u32 chunk_size;
+  // Data start
+  u32 magic_num; // 0x59220329
+  u32 magic_num1; // 0xA0
+  Chunk5Element element_0;
+  Chunk5Element element_1;
+  Chunk5Element1 element_2;
+  Chunk5Element element_3;
+  if (element_2.num_zones > 0){
+    u32 unknown0;
+    u32 unknown1;
+    float unknown2[8];
+    Chunk5Element2 some_array[element_2.num_zones];
+    u8 chunk_data[chunk_size-8-sizeof(element_0)-sizeof(element_1)-
+      sizeof(element_2)-sizeof(element_3)-8-sizeof(unknown2)-sizeof(some_array)];
+  }
+  else {
+    u8 chunk_data[chunk_size-8-sizeof(element_0)-sizeof(element_1)-sizeof(element_2)-sizeof(element_3)];
+  }
+};
+
+
+struct Chunk7 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk8 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u32 magic_num;
+  u32 magic_num1;
+  u8 tag;
+  u32 some_size;
+  u32 terrain_x_dims; // Not sure what dims refer to. Maybe the terrain is divided into grid tiles?
+  u32 terrain_y_dims;
+  float some_float;
+  float some_small_float; // checked that it is less than 1.570796 and >=0
+  u16 some_size1;
+  float some_float1;
+  float some_float2;
+  u8 tag1;
+  u32 terrain_height_size_bytes;
+  float terrain_height_vertices[terrain_x_dims*terrain_y_dims]; // same as [terrain_height_size_bytes/4]
+  u8 tag2;
+  u32 num_terrain_tiles; // num terrain height vertices
+  u8 something_for_each_tile[num_terrain_tiles];
+  u8 tag3;
+  u32 some_size2;
+  u8 some_size3;
+  u8 some_data3[some_size3];
+  u8 tag4;
+  u32 some_size4;
+  u8 some_data4[some_size4];
+  u8 tag5;
+  u32 some_size5;
+  u8 some_data5[some_size5];
+  u8 tag6;
+  u32 num_terrain_tiles1;
+  u8 something_for_each_tile1[num_terrain_tiles1];
+  u8 tag7;
+  u32 some_size7;
+  u8 some_data7[some_size7];
+  u8 chunk_data[chunk_size-75-sizeof(terrain_height_vertices)
+    -sizeof(something_for_each_tile)-sizeof(some_data3)-sizeof(some_data4)
+    -sizeof(some_data5)-sizeof(something_for_each_tile1)-sizeof(some_data7)];
+};
+
+struct Chunk9 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk10 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk11 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk12 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk13 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk14 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk15 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk16 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk17 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk18 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk19 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk20 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk21 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk22 {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+enum FFNAType : u8 {
+  Type0,
+  Type1,
+  Model,
+  Map,
+  Type4,
+  Type5,
+  Type6,
+  Type7
+};
+
+
+
+struct MapFile {
+ char ffna_signature[4];
+ FFNAType ffna_type;
+ Chunk1 chunk1;
+ Chunk2 chunk2;
+ Chunk3 chunk3;
+ Chunk4 prop_filenames_chunk; // Not sure if only prop filenames
+ Chunk5 chunk5;
+ Chunk4 more_filnames_chunk; // Not sure what filenames yet
+ Chunk7 chunk7;
+ Chunk8 map_zones_and_terrain;
+ Chunk9 chunk9;
+ Chunk10 chunk10;
+ Chunk11 chunk11;
+ Chunk12 chunk12;
+ Chunk13 chunk13;
+ Chunk14 chunk14;
+ Chunk15 chunk15;
+ Chunk16 chunk16;
+ Chunk17 chunk17;
+ Chunk18 chunk18;
+ Chunk19 chunk19;
+ Chunk20 chunk20;
+ Chunk21 chunk21;
+ Chunk22 chunk22;
+};
+
+MapFile map_file @ 0;
