@@ -3,7 +3,7 @@
 //
 
 #include "pch.h"
-#include "Game.h"
+#include "MapBrowser.h"
 
 using namespace DirectX;
 
@@ -16,13 +16,13 @@ using namespace DirectX;
 
 namespace
 {
-    std::unique_ptr<Game> g_game;
+std::unique_ptr<MapBrowser> g_map_browser;
 }
 
 LPCWSTR g_szAppName = L"GuildWarsMapBrowser";
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
-void ExitGame() noexcept;
+void ExitMapBrowser() noexcept;
 
 // Indicates to hybrid graphics systems to prefer the discrete part by default
 extern "C"
@@ -32,19 +32,20 @@ extern "C"
 }
 
 // Entry point
-int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
+int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine,
+                    _In_ int nCmdShow)
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    if (!XMVerifyCPUSupport())
+    if (! XMVerifyCPUSupport())
         return 1;
 
     HRESULT hr = CoInitializeEx(nullptr, COINITBASE_MULTITHREADED);
     if (FAILED(hr))
         return 1;
 
-    g_game = std::make_unique<Game>();
+    g_map_browser = std::make_unique<MapBrowser>();
 
     // Register class and create window
     {
@@ -59,34 +60,34 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         wcex.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
         wcex.lpszClassName = L"GuildWarsMapBrowserWindowClass";
         wcex.hIconSm = LoadIconW(wcex.hInstance, L"IDI_ICON");
-        if (!RegisterClassExW(&wcex))
+        if (! RegisterClassExW(&wcex))
             return 1;
 
         // Create window
         int w, h;
-        g_game->GetDefaultSize(w, h);
+        g_map_browser->GetDefaultSize(w, h);
 
-        RECT rc = { 0, 0, static_cast<LONG>(w), static_cast<LONG>(h) };
+        RECT rc = {0, 0, static_cast<LONG>(w), static_cast<LONG>(h)};
 
         AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 
         HWND hwnd = CreateWindowExW(0, L"GuildWarsMapBrowserWindowClass", g_szAppName, WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance,
-            nullptr);
+                                    CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top,
+                                    nullptr, nullptr, hInstance, nullptr);
         // TODO: Change to CreateWindowExW(WS_EX_TOPMOST, L"GuildWarsMapBrowserWindowClass", g_szAppName, WS_POPUP,
         // to default to fullscreen.
 
-        if (!hwnd)
+        if (! hwnd)
             return 1;
 
         ShowWindow(hwnd, nCmdShow);
         // TODO: Change nCmdShow to SW_SHOWMAXIMIZED to default to fullscreen.
 
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(g_game.get()));
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(g_map_browser.get()));
 
         GetClientRect(hwnd, &rc);
 
-        g_game->Initialize(hwnd, rc.right - rc.left, rc.bottom - rc.top);
+        g_map_browser->Initialize(hwnd, rc.right - rc.left, rc.bottom - rc.top);
     }
 
     // Main message loop
@@ -100,11 +101,11 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         }
         else
         {
-            g_game->Tick();
+            g_map_browser->Tick();
         }
     }
 
-    g_game.reset();
+    g_map_browser.reset();
 
     CoUninitialize();
 
@@ -120,14 +121,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     static bool s_fullscreen = false;
     // TODO: Set s_fullscreen to true if defaulting to fullscreen.
 
-    auto game = reinterpret_cast<Game*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    auto map_browser = reinterpret_cast<MapBrowser*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
     switch (message)
     {
     case WM_PAINT:
-        if (s_in_sizemove && game)
+        if (s_in_sizemove && map_browser)
         {
-            game->Tick();
+            map_browser->Tick();
         }
         else
         {
@@ -138,40 +139,40 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_DISPLAYCHANGE:
-        if (game)
+        if (map_browser)
         {
-            game->OnDisplayChange();
+            map_browser->OnDisplayChange();
         }
         break;
 
     case WM_MOVE:
-        if (game)
+        if (map_browser)
         {
-            game->OnWindowMoved();
+            map_browser->OnWindowMoved();
         }
         break;
 
     case WM_SIZE:
         if (wParam == SIZE_MINIMIZED)
         {
-            if (!s_minimized)
+            if (! s_minimized)
             {
                 s_minimized = true;
-                if (!s_in_suspend && game)
-                    game->OnSuspending();
+                if (! s_in_suspend && map_browser)
+                    map_browser->OnSuspending();
                 s_in_suspend = true;
             }
         }
         else if (s_minimized)
         {
             s_minimized = false;
-            if (s_in_suspend && game)
-                game->OnResuming();
+            if (s_in_suspend && map_browser)
+                map_browser->OnResuming();
             s_in_suspend = false;
         }
-        else if (!s_in_sizemove && game)
+        else if (! s_in_sizemove && map_browser)
         {
-            game->OnWindowSizeChanged(LOWORD(lParam), HIWORD(lParam));
+            map_browser->OnWindowSizeChanged(LOWORD(lParam), HIWORD(lParam));
         }
         break;
 
@@ -181,12 +182,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     case WM_EXITSIZEMOVE:
         s_in_sizemove = false;
-        if (game)
+        if (map_browser)
         {
             RECT rc;
             GetClientRect(hWnd, &rc);
 
-            game->OnWindowSizeChanged(rc.right - rc.left, rc.bottom - rc.top);
+            map_browser->OnWindowSizeChanged(rc.right - rc.left, rc.bottom - rc.top);
         }
         break;
 
@@ -200,15 +201,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_ACTIVATEAPP:
-        if (game)
+        if (map_browser)
         {
             if (wParam)
             {
-                game->OnActivated();
+                map_browser->OnActivated();
             }
             else
             {
-                game->OnDeactivated();
+                map_browser->OnDeactivated();
             }
         }
         break;
@@ -217,16 +218,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         switch (wParam)
         {
         case PBT_APMQUERYSUSPEND:
-            if (!s_in_suspend && game)
-                game->OnSuspending();
+            if (! s_in_suspend && map_browser)
+                map_browser->OnSuspending();
             s_in_suspend = true;
             return TRUE;
 
         case PBT_APMRESUMESUSPEND:
-            if (!s_minimized)
+            if (! s_minimized)
             {
-                if (s_in_suspend && game)
-                    game->OnResuming();
+                if (s_in_suspend && map_browser)
+                    map_browser->OnResuming();
                 s_in_suspend = false;
             }
             return TRUE;
@@ -248,24 +249,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 int width = 800;
                 int height = 600;
-                if (game)
-                    game->GetDefaultSize(width, height);
+                if (map_browser)
+                    map_browser->GetDefaultSize(width, height);
 
                 ShowWindow(hWnd, SW_SHOWNORMAL);
 
-                SetWindowPos(hWnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
+                SetWindowPos(hWnd, HWND_TOP, 0, 0, width, height,
+                             SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
             }
             else
             {
                 SetWindowLongPtr(hWnd, GWL_STYLE, WS_POPUP);
                 SetWindowLongPtr(hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
 
-                SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+                SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0,
+                             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 
                 ShowWindow(hWnd, SW_SHOWMAXIMIZED);
             }
 
-            s_fullscreen = !s_fullscreen;
+            s_fullscreen = ! s_fullscreen;
         }
         break;
 
@@ -279,7 +282,4 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 
 // Exit helper
-void ExitGame() noexcept
-{
-    PostQuitMessage(0);
-}
+void ExitMapBrowser() noexcept { PostQuitMessage(0); }

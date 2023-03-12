@@ -1,5 +1,5 @@
 //
-// Game.h
+// MapBrowser.h
 //
 
 #pragma once
@@ -7,26 +7,24 @@
 #include "DeviceResources.h"
 #include "StepTimer.h"
 
-
-// A basic game implementation that creates a D3D11 device and
-// provides a game loop.
-class Game final : public DX::IDeviceNotify
+// A basic MapBrowser implementation that creates a D3D11 device and
+// provides a MapBrowser loop.
+class MapBrowser final : public DX::IDeviceNotify
 {
 public:
+    MapBrowser() noexcept(false);
+    ~MapBrowser() = default;
 
-    Game() noexcept(false);
-    ~Game() = default;
+    MapBrowser(MapBrowser&&) = default;
+    MapBrowser& operator=(MapBrowser&&) = default;
 
-    Game(Game&&) = default;
-    Game& operator= (Game&&) = default;
-
-    Game(Game const&) = delete;
-    Game& operator= (Game const&) = delete;
+    MapBrowser(MapBrowser const&) = delete;
+    MapBrowser& operator=(MapBrowser const&) = delete;
 
     // Initialization and management
     void Initialize(HWND window, int width, int height);
 
-    // Basic game loop
+    // Basic MapBrowser loop
     void Tick();
 
     // IDeviceNotify
@@ -43,10 +41,9 @@ public:
     void OnWindowSizeChanged(int width, int height);
 
     // Properties
-    void GetDefaultSize( int& width, int& height ) const noexcept;
+    void GetDefaultSize(int& width, int& height) const noexcept;
 
 private:
-
     void Update(DX::StepTimer const& timer);
     void Render();
 
@@ -56,8 +53,8 @@ private:
     void CreateWindowSizeDependentResources();
 
     // Device resources.
-    std::unique_ptr<DX::DeviceResources>    m_deviceResources;
+    std::unique_ptr<DX::DeviceResources> m_deviceResources;
 
     // Rendering loop timer.
-    DX::StepTimer                           m_timer;
+    DX::StepTimer m_timer;
 };
