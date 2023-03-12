@@ -50,6 +50,12 @@
 #include <stdexcept>
 #include <system_error>
 #include <tuple>
+#include <string>
+#include <format>
+
+#include "GWUnpacker.h"
+#include "AtexAsm.h"
+#include "AtexReader.h"
 
 #ifdef _DEBUG
 #include <dxgidebug.h>

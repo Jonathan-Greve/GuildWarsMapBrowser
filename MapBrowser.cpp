@@ -37,6 +37,9 @@ void MapBrowser::Initialize(HWND window, int width, int height)
     m_timer.SetFixedTimeStep(true);
     m_timer.SetTargetElapsedSeconds(1.0 / 60);
     */
+
+    std::wstring gwpath = L"C:\\Users\\jonag\\source\\repos\\GWDatBrowser\\GWDatBrowser\\Gw.dat";
+    m_dat_manager.Init(gwpath);
 }
 
 #pragma region Frame Update

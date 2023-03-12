@@ -6,6 +6,7 @@
 
 #include "DeviceResources.h"
 #include "StepTimer.h"
+#include "DATManager.h"
 
 // A basic MapBrowser implementation that creates a D3D11 device and
 // provides a MapBrowser loop.
@@ -57,4 +58,7 @@ private:
 
     // Rendering loop timer.
     DX::StepTimer m_timer;
+
+    // dat file manager
+    DATManager m_dat_manager;
 };

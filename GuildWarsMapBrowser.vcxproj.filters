@@ -8,6 +8,9 @@
       <UniqueIdentifier>0b6dc6a4-7b0a-4ba6-9a5e-bf83cf5b0a35</UniqueIdentifier>
       <Extensions>ico;cur;bmp;dds;dlg;fbx;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tga;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Dat reader">
+      <UniqueIdentifier>{56623841-5e47-4f82-8447-75f3e46bb931}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -18,6 +21,21 @@
     <ClInclude Include="DeviceResources.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="AtexAsm.h">
+      <Filter>Dat reader</Filter>
+    </ClInclude>
+    <ClInclude Include="AtexReader.h">
+      <Filter>Dat reader</Filter>
+    </ClInclude>
+    <ClInclude Include="GWUnpacker.h">
+      <Filter>Dat reader</Filter>
+    </ClInclude>
+    <ClInclude Include="xentax.h">
+      <Filter>Dat reader</Filter>
+    </ClInclude>
+    <ClInclude Include="DATManager.h">
+      <Filter>Dat reader</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -25,6 +43,21 @@
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="DeviceResources.cpp">
       <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="AtexAsm.cpp">
+      <Filter>Dat reader</Filter>
+    </ClCompile>
+    <ClCompile Include="AtexReader.cpp">
+      <Filter>Dat reader</Filter>
+    </ClCompile>
+    <ClCompile Include="GWUnpacker.cpp">
+      <Filter>Dat reader</Filter>
+    </ClCompile>
+    <ClCompile Include="xentax.cpp">
+      <Filter>Dat reader</Filter>
+    </ClCompile>
+    <ClCompile Include="DATManager.cpp">
+      <Filter>Dat reader</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
