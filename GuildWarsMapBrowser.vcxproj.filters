@@ -11,6 +11,9 @@
     <Filter Include="Dat reader">
       <UniqueIdentifier>{56623841-5e47-4f82-8447-75f3e46bb931}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dear ImGui">
+      <UniqueIdentifier>{9fbd45fa-c8eb-4913-b676-8dc7dc89a27f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -36,6 +39,30 @@
     <ClInclude Include="DATManager.h">
       <Filter>Dat reader</Filter>
     </ClInclude>
+    <ClInclude Include="DearImGui\imconfig.h">
+      <Filter>Dear ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="DearImGui\imgui.h">
+      <Filter>Dear ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="DearImGui\imgui_impl_dx11.h">
+      <Filter>Dear ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="DearImGui\imgui_impl_win32.h">
+      <Filter>Dear ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="DearImGui\imgui_internal.h">
+      <Filter>Dear ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="DearImGui\imstb_rectpack.h">
+      <Filter>Dear ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="DearImGui\imstb_textedit.h">
+      <Filter>Dear ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="DearImGui\imstb_truetype.h">
+      <Filter>Dear ImGui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -59,6 +86,27 @@
     <ClCompile Include="DATManager.cpp">
       <Filter>Dat reader</Filter>
     </ClCompile>
+    <ClCompile Include="DearImGui\imgui.cpp">
+      <Filter>Dear ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="DearImGui\imgui_demo.cpp">
+      <Filter>Dear ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="DearImGui\imgui_impl_dx11.cpp">
+      <Filter>Dear ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="DearImGui\imgui_impl_win32.cpp">
+      <Filter>Dear ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="DearImGui\imgui_tables.cpp">
+      <Filter>Dear ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="DearImGui\imgui_widgets.cpp">
+      <Filter>Dear ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="DearImGui\imgui_draw.cpp">
+      <Filter>Dear ImGui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />
@@ -72,5 +120,10 @@
     <Manifest Include="settings.manifest">
       <Filter>Assets</Filter>
     </Manifest>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="DearImGui\LICENSE.txt">
+      <Filter>Dear ImGui</Filter>
+    </Text>
   </ItemGroup>
 </Project>

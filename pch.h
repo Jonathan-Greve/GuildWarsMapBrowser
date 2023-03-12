@@ -53,6 +53,12 @@
 #include <string>
 #include <format>
 
+// Dear ImGui
+#include "DearImGui/imconfig.h"
+#include "DearImGui/imgui.h"
+#include "DearImGui/imgui_impl_win32.h"
+#include "DearImGui/imgui_impl_dx11.h"
+
 #include "GWUnpacker.h"
 #include "AtexAsm.h"
 #include "AtexReader.h"

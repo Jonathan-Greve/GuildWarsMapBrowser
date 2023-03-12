@@ -186,6 +186,14 @@
     <ClInclude Include="AtexAsm.h" />
     <ClInclude Include="AtexReader.h" />
     <ClInclude Include="DATManager.h" />
+    <ClInclude Include="DearImGui\imconfig.h" />
+    <ClInclude Include="DearImGui\imgui.h" />
+    <ClInclude Include="DearImGui\imgui_impl_dx11.h" />
+    <ClInclude Include="DearImGui\imgui_impl_win32.h" />
+    <ClInclude Include="DearImGui\imgui_internal.h" />
+    <ClInclude Include="DearImGui\imstb_rectpack.h" />
+    <ClInclude Include="DearImGui\imstb_textedit.h" />
+    <ClInclude Include="DearImGui\imstb_truetype.h" />
     <ClInclude Include="DeviceResources.h" />
     <ClInclude Include="GWUnpacker.h" />
     <ClInclude Include="MapBrowser.h" />
@@ -197,6 +205,27 @@
     <ClCompile Include="AtexAsm.cpp" />
     <ClCompile Include="AtexReader.cpp" />
     <ClCompile Include="DATManager.cpp" />
+    <ClCompile Include="DearImGui\imgui.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="DearImGui\imgui_demo.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="DearImGui\imgui_draw.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="DearImGui\imgui_impl_dx11.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="DearImGui\imgui_impl_win32.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="DearImGui\imgui_tables.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="DearImGui\imgui_widgets.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="DeviceResources.cpp" />
     <ClCompile Include="GWUnpacker.cpp" />
     <ClCompile Include="MapBrowser.cpp" />
@@ -217,6 +246,9 @@
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="settings.manifest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="DearImGui\LICENSE.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
