@@ -5,6 +5,63 @@
 #include "pch.h"
 #include "MapBrowser.h"
 
+std::wstring gw_dat_path = L"C:\\Users\\jonag\\source\\repos\\GWDatBrowser\\GWDatBrowser\\Gw.dat";
+bool gw_dat_path_set = false;
+
+void DrawGuiForOpenDatFile()
+{
+    constexpr auto window_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground;
+    constexpr auto window_name = "Select your Gw.dat file";
+    ImGui::SetNextWindowSize(ImVec2(300, 200));
+    ImGui::Begin(window_name, nullptr, window_flags);
+
+    ImVec2 window_size = ImGui::GetWindowSize();
+    ImVec2 screen_size = ImGui::GetIO().DisplaySize;
+    ImVec2 window_pos = (screen_size - window_size) * 0.5f;
+
+    ImGui::SetWindowPos(window_pos);
+
+    // Get the size of the button
+    ImVec2 button_size = ImVec2(200, 40);
+
+    // Calculate the position of the button
+    float x = (window_size.x - button_size.x) / 2.0f;
+    float y = (window_size.y - button_size.y) / 2.0f;
+
+    // Set the position of the button
+    ImGui::SetCursorPos(ImVec2(x, y));
+
+    // Set the background color for a button
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
+    if (ImGui::Button("Select a \"Gw.dat\" File", button_size))
+    {
+        ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".dat", ".");
+    }
+    // Restore the original style
+    ImGui::PopStyleColor(3);
+
+    // Display File Dialog
+    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
+    {
+        if (ImGuiFileDialog::Instance()->IsOk())
+        {
+            std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+            std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+
+            std::wstring wstr(filePathName.begin(), filePathName.end());
+            gw_dat_path = wstr;
+            gw_dat_path_set = true;
+        }
+
+        // close
+        ImGuiFileDialog::Instance()->Close();
+    }
+    ImGui::End();
+}
+
 extern void ExitMapBrowser() noexcept;
 
 using namespace DirectX;
@@ -38,8 +95,16 @@ void MapBrowser::Initialize(HWND window, int width, int height)
     m_timer.SetTargetElapsedSeconds(1.0 / 60);
     */
 
-    std::wstring gwpath = L"C:\\Users\\jonag\\source\\repos\\GWDatBrowser\\GWDatBrowser\\Gw.dat";
-    m_dat_manager.Init(gwpath);
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplWin32_Init(window);
+    ImGui_ImplDX11_Init(m_deviceResources->GetD3DDevice(), m_deviceResources->GetD3DDeviceContext());
 }
 
 #pragma region Frame Update
@@ -54,6 +119,11 @@ void MapBrowser::Tick()
 // Updates the world.
 void MapBrowser::Update(DX::StepTimer const& timer)
 {
+    if (gw_dat_path_set && m_dat_manager.m_initialization_state == InitializationState::NotStarted)
+    {
+        m_dat_manager.Init(gw_dat_path);
+    }
+
     float elapsedTime = float(timer.GetElapsedSeconds());
 
     // TODO: Add your map browser logic here.
@@ -76,8 +146,23 @@ void MapBrowser::Render()
     m_deviceResources->PIXBeginEvent(L"Render");
     auto context = m_deviceResources->GetD3DDeviceContext();
 
-    // TODO: Add your rendering code here.
-    context;
+    // Start the Dear ImGui frame
+    ImGui_ImplDX11_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    if (! gw_dat_path_set)
+    {
+        DrawGuiForOpenDatFile();
+    }
+
+    static bool show_demo_window = false;
+    if (show_demo_window)
+        ImGui::ShowDemoWindow(&show_demo_window);
+
+    // Dear ImGui Render
+    ImGui::Render();
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
     m_deviceResources->PIXEndEvent();
 

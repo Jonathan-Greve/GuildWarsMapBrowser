@@ -88,7 +88,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\jonag\source\repos\GuildWarsMapBrowser\ImGuiFileDialog-Lib_Only;C:\Users\jonag\source\repos\GuildWarsMapBrowser\DearImGui;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
@@ -196,6 +196,9 @@
     <ClInclude Include="DearImGui\imstb_truetype.h" />
     <ClInclude Include="DeviceResources.h" />
     <ClInclude Include="GWUnpacker.h" />
+    <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h" />
+    <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
+    <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
     <ClInclude Include="MapBrowser.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="StepTimer.h" />
@@ -228,6 +231,9 @@
     </ClCompile>
     <ClCompile Include="DeviceResources.cpp" />
     <ClCompile Include="GWUnpacker.cpp" />
+    <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="MapBrowser.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="pch.cpp">
@@ -249,6 +255,13 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="DearImGui\LICENSE.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ImGuiFileDialog-Lib_Only\dirent\ChangeLog" />
+    <None Include="ImGuiFileDialog-Lib_Only\dirent\LICENSE" />
+    <None Include="ImGuiFileDialog-Lib_Only\dirent\README.md" />
+    <None Include="ImGuiFileDialog-Lib_Only\LICENSE" />
+    <None Include="ImGuiFileDialog-Lib_Only\README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

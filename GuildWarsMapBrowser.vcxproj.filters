@@ -14,6 +14,12 @@
     <Filter Include="Dear ImGui">
       <UniqueIdentifier>{9fbd45fa-c8eb-4913-b676-8dc7dc89a27f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dear ImGui\ImGuiFileDialog">
+      <UniqueIdentifier>{3521ebb7-dacf-4a31-916d-69e6b2c176f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Dear ImGui\ImGuiFileDialog\dirent">
+      <UniqueIdentifier>{0b366aa0-4fe5-47ea-815b-a482f1ba2ac0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -63,6 +69,15 @@
     <ClInclude Include="DearImGui\imstb_truetype.h">
       <Filter>Dear ImGui</Filter>
     </ClInclude>
+    <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h">
+      <Filter>Dear ImGui\ImGuiFileDialog</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h">
+      <Filter>Dear ImGui\ImGuiFileDialog</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h">
+      <Filter>Dear ImGui\ImGuiFileDialog\dirent</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -107,6 +122,9 @@
     <ClCompile Include="DearImGui\imgui_draw.cpp">
       <Filter>Dear ImGui</Filter>
     </ClCompile>
+    <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">
+      <Filter>Dear ImGui\ImGuiFileDialog</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />
@@ -125,5 +143,22 @@
     <Text Include="DearImGui\LICENSE.txt">
       <Filter>Dear ImGui</Filter>
     </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ImGuiFileDialog-Lib_Only\LICENSE">
+      <Filter>Dear ImGui\ImGuiFileDialog</Filter>
+    </None>
+    <None Include="ImGuiFileDialog-Lib_Only\README.md">
+      <Filter>Dear ImGui\ImGuiFileDialog</Filter>
+    </None>
+    <None Include="ImGuiFileDialog-Lib_Only\dirent\ChangeLog">
+      <Filter>Dear ImGui\ImGuiFileDialog\dirent</Filter>
+    </None>
+    <None Include="ImGuiFileDialog-Lib_Only\dirent\LICENSE">
+      <Filter>Dear ImGui\ImGuiFileDialog\dirent</Filter>
+    </None>
+    <None Include="ImGuiFileDialog-Lib_Only\dirent\README.md">
+      <Filter>Dear ImGui\ImGuiFileDialog\dirent</Filter>
+    </None>
   </ItemGroup>
 </Project>
