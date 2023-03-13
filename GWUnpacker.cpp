@@ -7,6 +7,61 @@
 
 using namespace std;
 
+std::string typeToString(int type)
+{
+    switch (type)
+    {
+    case AMAT:
+        return "AMAT";
+    case AMP:
+        return "Amp";
+    case ATEXDXT1:
+        return "ATEXDXT1";
+    case ATEXDXT2:
+        return "ATEXDXT2";
+    case ATEXDXT3:
+        return "ATEXDXT3";
+    case ATEXDXT4:
+        return "ATEXDXT4";
+    case ATEXDXT5:
+        return "ATEXDXT5";
+    case ATEXDXTL:
+        return "ATEXDXTL";
+    case ATEXDXTN:
+        return "ATEXDXTN";
+    case ATEXDXTA:
+        return "ATEXDXTA";
+    case ATTXDXT1:
+        return "ATTXDXT1";
+    case ATTXDXT3:
+        return "ATTXDXT3";
+    case ATTXDXT5:
+        return "ATTXDXT5";
+    case ATTXDXTN:
+        return "ATTXDXTN";
+    case ATTXDXTA:
+        return "ATTXDXTA";
+    case ATTXDXTL:
+        return "ATTXDXTL";
+    case DDS:
+        return "DDS";
+    case FFNA:
+        return "FFNA";
+    case MFTBASE:
+        return "MFTBase";
+    case NOTREAD:
+        return "";
+    case SOUND:
+        return "Sound";
+    case TEXT:
+        return "Text";
+    case UNKNOWN:
+        return "Unknown";
+    default:
+        return "Unknown";
+    }
+}
+
 void GWDat::seek(__int64 offset, int origin)
 {
     LARGE_INTEGER i;

@@ -69,8 +69,6 @@ struct MFTExpansion
     int FileOffset;
 };
 
-TCHAR* typeToString(int type);
-
 class GWDat
 {
 public:
@@ -78,6 +76,9 @@ public:
     unsigned char* readFile(unsigned int n, bool translate = true);
 
     MFTEntry& operator[](const int n) { return MFT[n]; }
+
+    MFTEntry* get_MFT_entry_ptr(const int n) { return &MFT[n]; }
+    std::vector<MFTEntry>& get_MFT() { return MFT; }
 
     int getSectorSize() { return GWHead.SectorSize; }
 
@@ -133,3 +134,5 @@ protected:
     void seek(__int64 offset, int origin);
     void read(void* buffer, int size, int count);
 };
+
+std::string typeToString(int type);
