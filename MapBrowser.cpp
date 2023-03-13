@@ -64,17 +64,17 @@ void DrawGuiForOpenDatFile()
 
 void drawUI()
 {
-    constexpr auto window_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar;
+    constexpr auto window_flags =
+      ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 
     const int left_panel_width = 300;
     const int right_panel_width = 300;
+    const float panel_padding = 6.0f;
 
     // set up the left panel
-    ImGui::SetNextWindowPos(ImVec2(0, 0));
-    ImGui::SetNextWindowSize(ImVec2(left_panel_width, ImGui::GetIO().DisplaySize.y));
-    ImGui::PushStyleColor(ImGuiCol_WindowBg,
-                          ImVec4(0.5f, 0.5f, 0.5f, 1.0f)); // set background color to light gray
+    ImGui::SetNextWindowPos(ImVec2(panel_padding, panel_padding));
+    ImGui::SetNextWindowSize(ImVec2(left_panel_width, ImGui::GetIO().DisplaySize.y - 2 * panel_padding));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(panel_padding, panel_padding)); // add padding
     ImGui::Begin("Left Panel", NULL, window_flags);
 
     // draw the contents of the left panel
@@ -83,15 +83,16 @@ void drawUI()
     ImGui::End();
 
     // set up the right panel
-    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - left_panel_width, 0));
-    ImGui::SetNextWindowSize(ImVec2(right_panel_width, ImGui::GetIO().DisplaySize.y));
+    ImGui::SetNextWindowPos(
+      ImVec2(ImGui::GetIO().DisplaySize.x - left_panel_width - panel_padding, panel_padding));
+    ImGui::SetNextWindowSize(ImVec2(right_panel_width, ImGui::GetIO().DisplaySize.y - 2 * panel_padding));
     ImGui::Begin("Right Panel", NULL, window_flags);
 
     // draw the contents of the right panel
     ImGui::Text("This is the right panel");
 
     ImGui::End();
-    ImGui::PopStyleColor(); // restore original background color
+    ImGui::PopStyleVar();
 }
 
 extern void ExitMapBrowser() noexcept;
@@ -133,6 +134,16 @@ void MapBrowser::Initialize(HWND window, int width, int height)
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    // Modify the style to have rounded corners
+    style.WindowRounding = 5.0f;
+    style.ChildRounding = 5.0f;
+    style.FrameRounding = 5.0f;
+    style.GrabRounding = 5.0f;
+
+    ImGui::PushStyleColor(ImGuiCol_TitleBg, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(window);
@@ -274,8 +285,8 @@ void MapBrowser::OnWindowSizeChanged(int width, int height)
 void MapBrowser::GetDefaultSize(int& width, int& height) const noexcept
 {
     // TODO: Change to desired default window size (note minimum size is 320x200).
-    width = 800;
-    height = 600;
+    width = 1600;
+    height = 900;
 }
 #pragma endregion
 
