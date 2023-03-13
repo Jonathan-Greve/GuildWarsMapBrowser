@@ -4,6 +4,7 @@
 
 #include "pch.h"
 #include "MapBrowser.h"
+#include "draw_dat_browser.h"
 
 std::wstring gw_dat_path = L"C:\\Users\\jonag\\source\\repos\\GWDatBrowser\\GWDatBrowser\\Gw.dat";
 bool gw_dat_path_set = true;
@@ -126,7 +127,13 @@ void draw_dat_load_progress_bar(int num_files_read, int total_num_files)
     ImGui::SetCursorPosX(progress_bar_window_size.x / 2);
     const auto progress_str =
       std::format("{:.1f}%% ({}/{})", progress * 100, num_files_read, total_num_files);
+    // Create a yellow color
+    ImVec4 yellowColor = ImVec4(0.9f, 0.4f, 0.0f, 1.0f); // RGBA values: (1.0, 1.0, 0.0, 1.0)
+
+    // Set the text color to yellow
+    ImGui::PushStyleColor(ImGuiCol_Text, yellowColor);
     ImGui::Text(progress_str.c_str());
+    ImGui::PopStyleColor();
 
     ImGui::End();
 }
@@ -230,6 +237,7 @@ void MapBrowser::Render()
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
+    ImGui::ShowDemoWindow();
     if (! gw_dat_path_set)
     {
         DrawGuiForOpenDatFile();
@@ -241,6 +249,10 @@ void MapBrowser::Render()
         {
             draw_dat_load_progress_bar(m_dat_manager.get_num_files_type_read(),
                                        m_dat_manager.get_num_files());
+        }
+        if (m_dat_manager.m_initialization_state == InitializationState::Completed)
+        {
+            draw_data_browser(m_dat_manager.get_MFT());
         }
     }
 

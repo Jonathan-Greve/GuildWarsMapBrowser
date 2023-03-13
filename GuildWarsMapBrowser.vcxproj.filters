@@ -20,6 +20,9 @@
     <Filter Include="Dear ImGui\ImGuiFileDialog\dirent">
       <UniqueIdentifier>{0b366aa0-4fe5-47ea-815b-a482f1ba2ac0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GUI">
+      <UniqueIdentifier>{8f5f4689-366c-4a1f-b66c-78e4af6dbe96}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -78,6 +81,7 @@
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h">
       <Filter>Dear ImGui\ImGuiFileDialog\dirent</Filter>
     </ClInclude>
+    <ClInclude Include="draw_dat_browser.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -125,6 +129,7 @@
     <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">
       <Filter>Dear ImGui\ImGuiFileDialog</Filter>
     </ClCompile>
+    <ClCompile Include="draw_dat_browser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />

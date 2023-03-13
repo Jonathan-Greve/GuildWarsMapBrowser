@@ -27,9 +27,14 @@ public:
     int get_num_files_type_read() { return m_num_types_read; }
     int get_num_files() { return m_dat.getNumFiles(); }
 
+    std::vector<MFTEntry>& get_MFT() { return m_dat.get_MFT(); }
+
 private:
     std::wstring m_dat_filepath;
     GWDat m_dat;
+
+    // Index the MFTEntry vector for fast lookups.
+    std::unordered_map<uint32_t, MFTEntry*> ffna_MFTEntry_LUT;
 
     std::atomic<int> m_num_types_read{0};
 
@@ -44,6 +49,14 @@ private:
         }
 
         assert(m_num_types_read == m_dat.getNumFiles());
+
+        for (size_t i = 0; i < m_dat.getNumFiles(); i++)
+        {
+            auto* mft_entry = m_dat.get_MFT_entry_ptr(i);
+            if (mft_entry->type == FFNA)
+                ffna_MFTEntry_LUT.insert({i, mft_entry});
+        }
+
         m_initialization_state = InitializationState::Completed;
     }
 
