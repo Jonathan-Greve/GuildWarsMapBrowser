@@ -8,6 +8,11 @@
 std::wstring gw_dat_path = L"C:\\Users\\jonag\\source\\repos\\GWDatBrowser\\GWDatBrowser\\Gw.dat";
 bool gw_dat_path_set = true;
 
+// Some ImGui layout vars:
+const int left_panel_width = 300;
+const int right_panel_width = 300;
+const float panel_padding = 6.0f;
+
 void DrawGuiForOpenDatFile()
 {
     constexpr auto window_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
@@ -67,10 +72,6 @@ void drawUI()
     constexpr auto window_flags =
       ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 
-    const int left_panel_width = 300;
-    const int right_panel_width = 300;
-    const float panel_padding = 6.0f;
-
     // set up the left panel
     ImGui::SetNextWindowPos(ImVec2(panel_padding, panel_padding));
     ImGui::SetNextWindowSize(ImVec2(left_panel_width, ImGui::GetIO().DisplaySize.y - 2 * panel_padding));
@@ -93,6 +94,41 @@ void drawUI()
 
     ImGui::End();
     ImGui::PopStyleVar();
+}
+
+void draw_dat_load_progress_bar(int num_files_read, int total_num_files)
+{
+    ImVec2 progress_bar_window_size =
+      ImVec2(ImGui::GetIO().DisplaySize.x - (left_panel_width + panel_padding * 2) -
+               (right_panel_width + panel_padding * 2),
+             30);
+    ImVec2 progress_bar_window_pos =
+      ImVec2(left_panel_width + panel_padding * 2,
+             ImGui::GetIO().DisplaySize.y - progress_bar_window_size.y - panel_padding - 2);
+    ImGui::SetNextWindowPos(progress_bar_window_pos);
+    ImGui::SetNextWindowSize(progress_bar_window_size);
+    ImGui::Begin("Progress Bar", NULL,
+                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+
+    const int curr_index = 40;
+    const int max_index = 100;
+
+    float progress = static_cast<float>(num_files_read) / static_cast<float>(total_num_files);
+    ImVec2 size = ImVec2(ImGui::GetContentRegionAvail().x * progress, ImGui::GetContentRegionAvail().y);
+    ImVec2 pos = ImVec2(ImGui::GetCursorScreenPos().x, ImGui::GetCursorScreenPos().y);
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+    ImVec2 clip_min = draw_list->GetClipRectMin();
+    ImVec2 clip_max = draw_list->GetClipRectMax();
+    draw_list->PushClipRect(clip_min, ImVec2(clip_min.x + size.x, clip_max.y), true);
+    draw_list->AddRectFilled(pos, ImVec2(pos.x + size.x, pos.y + size.y), ImColor(255, 255, 255, 255));
+    draw_list->PopClipRect();
+
+    ImGui::SetCursorPosX(progress_bar_window_size.x / 2);
+    const auto progress_str =
+      std::format("{:.1f}%% ({}/{})", progress * 100, num_files_read, total_num_files);
+    ImGui::Text(progress_str.c_str());
+
+    ImGui::End();
 }
 
 extern void ExitMapBrowser() noexcept;
@@ -201,6 +237,11 @@ void MapBrowser::Render()
     else
     {
         drawUI();
+        if (m_dat_manager.m_initialization_state == InitializationState::Started)
+        {
+            draw_dat_load_progress_bar(m_dat_manager.get_num_files_type_read(),
+                                       m_dat_manager.get_num_files());
+        }
     }
 
     static bool show_demo_window = false;

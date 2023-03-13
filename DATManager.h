@@ -24,6 +24,9 @@ public:
 
     std::atomic<InitializationState> m_initialization_state{NotStarted};
 
+    int get_num_files_type_read() { return m_num_types_read; }
+    int get_num_files() { return m_dat.getNumFiles(); }
+
 private:
     std::wstring m_dat_filepath;
     GWDat m_dat;
