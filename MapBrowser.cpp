@@ -6,7 +6,7 @@
 #include "MapBrowser.h"
 
 std::wstring gw_dat_path = L"C:\\Users\\jonag\\source\\repos\\GWDatBrowser\\GWDatBrowser\\Gw.dat";
-bool gw_dat_path_set = false;
+bool gw_dat_path_set = true;
 
 void DrawGuiForOpenDatFile()
 {
@@ -60,6 +60,38 @@ void DrawGuiForOpenDatFile()
         ImGuiFileDialog::Instance()->Close();
     }
     ImGui::End();
+}
+
+void drawUI()
+{
+    constexpr auto window_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar;
+
+    const int left_panel_width = 300;
+    const int right_panel_width = 300;
+
+    // set up the left panel
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImVec2(left_panel_width, ImGui::GetIO().DisplaySize.y));
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,
+                          ImVec4(0.5f, 0.5f, 0.5f, 1.0f)); // set background color to light gray
+    ImGui::Begin("Left Panel", NULL, window_flags);
+
+    // draw the contents of the left panel
+    ImGui::Text("This is the left panel");
+
+    ImGui::End();
+
+    // set up the right panel
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - left_panel_width, 0));
+    ImGui::SetNextWindowSize(ImVec2(right_panel_width, ImGui::GetIO().DisplaySize.y));
+    ImGui::Begin("Right Panel", NULL, window_flags);
+
+    // draw the contents of the right panel
+    ImGui::Text("This is the right panel");
+
+    ImGui::End();
+    ImGui::PopStyleColor(); // restore original background color
 }
 
 extern void ExitMapBrowser() noexcept;
@@ -154,6 +186,10 @@ void MapBrowser::Render()
     if (! gw_dat_path_set)
     {
         DrawGuiForOpenDatFile();
+    }
+    else
+    {
+        drawUI();
     }
 
     static bool show_demo_window = false;
