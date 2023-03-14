@@ -73,7 +73,7 @@ class GWDat
 {
 public:
     unsigned int readDat(const TCHAR* file);
-    unsigned char* readFile(unsigned int n, bool translate = true);
+    unsigned char* readFile(HANDLE file_handle, unsigned int n, bool translate = true);
 
     MFTEntry& operator[](const int n) { return MFT[n]; }
 
@@ -86,20 +86,6 @@ public:
 
     void sort(unsigned int* index, int column, bool ascending);
 
-    GWDat()
-        : fileHandle(0)
-    {
-        InitializeCriticalSection(&criticalSection);
-    };
-
-    ~GWDat()
-    {
-        if (fileHandle)
-            CloseHandle(fileHandle);
-
-        DeleteCriticalSection(&criticalSection);
-    }
-
     unsigned int getFilesRead() const { return filesRead; }
     unsigned int getTextureFiles() const { return textureFiles; }
     unsigned int getSoundFiles() const { return soundFiles; }
@@ -109,15 +95,15 @@ public:
     unsigned int getMftBaseFiles() const { return mftBaseFiles; }
     unsigned int getAmatFiles() const { return amatFiles; }
 
+    HANDLE get_dat_filehandle(const TCHAR* file);
+
 protected:
-    HANDLE fileHandle;
     MainHeader GWHead;
     MFTHeader MFTH;
     std::vector<MFTExpansion> MFTX;
     std::vector<MFTEntry> MFT;
 
     //Critical Section to make readFile thread safe
-    CRITICAL_SECTION criticalSection;
 
     //Counters for statistics
     unsigned int filesRead;
@@ -131,8 +117,8 @@ protected:
 
 protected:
     //wrappers for the OS seek and read functions
-    void seek(__int64 offset, int origin);
-    void read(void* buffer, int size, int count);
+    void seek(HANDLE file_handle, __int64 offset, int origin);
+    void read(HANDLE file_handle, void* buffer, int size, int count);
 };
 
 std::string typeToString(int type);

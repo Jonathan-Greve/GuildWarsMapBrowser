@@ -62,17 +62,35 @@ std::string typeToString(int type)
     }
 }
 
-void GWDat::seek(__int64 offset, int origin)
+HANDLE GWDat::get_dat_filehandle(const TCHAR* file)
+{
+    auto file_handle = CreateFile(file, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+
+    if (file_handle == INVALID_HANDLE_VALUE)
+    {
+        TCHAR text[2048];
+        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, 0, GetLastError(), 0, text, 2048, NULL);
+
+        std::wstring s;
+        s = std::format(L"Error while opening \"{}\": {}", file, text);
+        MessageBox(NULL, s.c_str(), L"Error", MB_ICONERROR | MB_OK);
+        return 0;
+    }
+
+    return file_handle;
+}
+
+void GWDat::seek(HANDLE file_handle, __int64 offset, int origin)
 {
     LARGE_INTEGER i;
     i.QuadPart = offset;
-    SetFilePointerEx(fileHandle, i, NULL, FILE_BEGIN);
+    SetFilePointerEx(file_handle, i, NULL, FILE_BEGIN);
 }
 
-void GWDat::read(void* buffer, int size, int count)
+void GWDat::read(HANDLE file_handle, void* buffer, int size, int count)
 {
     DWORD bread;
-    int errcde = ReadFile(fileHandle, buffer, size * count, &bread, NULL);
+    int errcde = ReadFile(file_handle, buffer, size * count, &bread, NULL);
     if (! errcde)
     {
         TCHAR text[2048];
@@ -81,14 +99,12 @@ void GWDat::read(void* buffer, int size, int count)
     }
 }
 
-unsigned char* GWDat::readFile(unsigned int n, bool translate /* = true*/)
+unsigned char* GWDat::readFile(HANDLE file_handle, unsigned int n, bool translate /* = true*/)
 {
     MFTEntry& m = MFT[n];
 
-    EnterCriticalSection(&criticalSection);
     if (m.type == NOTREAD)
         filesRead += 1;
-    LeaveCriticalSection(&criticalSection);
 
     //Don't read files that were already read if we just need the type
     if (m.type != NOTREAD && ! translate)
@@ -98,11 +114,9 @@ unsigned char* GWDat::readFile(unsigned int n, bool translate /* = true*/)
 
     if (! m.b)
     {
-        EnterCriticalSection(&criticalSection);
         m.type = MFTBASE;
         m.uncompressedSize = 0;
         mftBaseFiles += 1;
-        LeaveCriticalSection(&criticalSection);
         return NULL;
     }
 
@@ -110,12 +124,8 @@ unsigned char* GWDat::readFile(unsigned int n, bool translate /* = true*/)
     unsigned char* Output = NULL;
     int OutSize = 0;
 
-    EnterCriticalSection(&criticalSection);
-
-    seek(m.Offset, 0);
-    read(Input, m.Size, 1);
-
-    LeaveCriticalSection(&criticalSection);
+    seek(file_handle, m.Offset, 0);
+    read(file_handle, Input, m.Size, 1);
 
     if (m.a)
         UnpackGWDat(Input, m.Size, Output, OutSize);
@@ -131,7 +141,6 @@ unsigned char* GWDat::readFile(unsigned int n, bool translate /* = true*/)
     {
         if (m.type == NOTREAD)
         {
-            EnterCriticalSection(&criticalSection);
             int type = 0;
             unsigned int i = ((unsigned int*)Output)[0];
             unsigned int k = ((unsigned int*)Output)[1];
@@ -243,7 +252,6 @@ unsigned char* GWDat::readFile(unsigned int n, bool translate /* = true*/)
 
             m.type = type;
             m.uncompressedSize = OutSize;
-            LeaveCriticalSection(&criticalSection);
         }
     }
     return Output;
@@ -253,38 +261,26 @@ bool compareH(MFTExpansion& a, MFTExpansion b) { return a.FileOffset < b.FileOff
 
 unsigned int GWDat::readDat(const TCHAR* file)
 {
-    fileHandle =
-      CreateFile(file, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    auto file_handle = get_dat_filehandle(file);
 
-    if (fileHandle == INVALID_HANDLE_VALUE)
-    {
-        TCHAR text[2048];
-        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, 0, GetLastError(), 0, text, 2048, NULL);
-
-        std::wstring s;
-        s = std::format(L"Error while opening \"{}\": {}", file, text);
-        MessageBox(NULL, s.c_str(), L"Error", MB_ICONERROR | MB_OK);
-        return 0;
-    }
-
-    read(&GWHead, sizeof(GWHead), 1);
+    read(file_handle, &GWHead, sizeof(GWHead), 1);
 
     if (! (GWHead.ID[0] == 0x33 && GWHead.ID[1] == 0x41 && GWHead.ID[2] == 0x4e && GWHead.ID[3] == 0x1a))
     {
         std::wstring s;
         s = std::format(L"The input file \"{}\"is not a Guild Wars datafile!", file);
         MessageBox(NULL, s.c_str(), L"Error", MB_ICONERROR | MB_OK);
-        CloseHandle(fileHandle);
+        CloseHandle(file_handle);
         return 0;
     }
 
     //read reserved MFT entries
-    seek(GWHead.MFTOffset, SEEK_SET);
-    read(&MFTH, sizeof(MFTH), 1);
+    seek(file_handle, GWHead.MFTOffset, SEEK_SET);
+    read(file_handle, &MFTH, sizeof(MFTH), 1);
     for (int x = 0; x < 15; ++x)
     {
         MFTEntry ME;
-        read(&ME, 0x18, 1);
+        read(file_handle, &ME, 0x18, 1);
         ME.type = NOTREAD;
         ME.uncompressedSize = -1;
         ME.Hash = 0;
@@ -292,12 +288,12 @@ unsigned int GWDat::readDat(const TCHAR* file)
     }
 
     //read Hashlist
-    seek(MFT[1].Offset, SEEK_SET);
+    seek(file_handle, MFT[1].Offset, SEEK_SET);
     int mftxsize = MFT[1].Size / sizeof(MFTExpansion);
     for (unsigned int x = 0; x < MFT[1].Size / sizeof(MFTExpansion); x++)
     {
         MFTExpansion _MFTX;
-        read(&_MFTX, sizeof(MFTExpansion), 1);
+        read(file_handle, &_MFTX, sizeof(MFTExpansion), 1);
         MFTX.push_back(_MFTX);
     }
 
@@ -308,11 +304,11 @@ unsigned int GWDat::readDat(const TCHAR* file)
     while (MFTX[hashcounter].FileOffset < 16)
         ++hashcounter;
 
-    seek(GWHead.MFTOffset + 24 * 16, SEEK_SET);
+    seek(file_handle, GWHead.MFTOffset + 24 * 16, SEEK_SET);
     for (int x = 16; x < MFTH.EntryCount - 1; ++x)
     {
         MFTEntry ME;
-        read(&ME, 0x18, 1);
+        read(file_handle, &ME, 0x18, 1);
         ME.type = NOTREAD;
         ME.uncompressedSize = -1;
 
@@ -337,6 +333,7 @@ unsigned int GWDat::readDat(const TCHAR* file)
             MFT.push_back(ME);
         }
     }
+    CloseHandle(file_handle);
 
     filesRead = 0;
     textureFiles = 0;

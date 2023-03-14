@@ -17,9 +17,47 @@ public:
         m_dat_filepath = dat_filepath;
         m_dat.readDat(m_dat_filepath.c_str());
 
-        // Start the file reading thread
-        std::thread fileThread(&DATManager::read_files_thread, this);
-        fileThread.detach();
+        const auto num_files = m_dat.getNumFiles();
+
+        // Get the number of available threads
+        const auto num_threads = std::thread::hardware_concurrency();
+        m_num_running_dat_reader_threads = num_threads;
+
+        // Split the file indices into n chunks
+        int chunk_size = num_files / num_threads;
+        int remainder = num_files % num_threads;
+
+        std::vector<std::vector<int>> chunks(num_threads);
+
+        int current_index = 0;
+        for (int i = 0; i < num_threads; i++)
+        {
+            int chunk_end = current_index + chunk_size;
+            if (i < remainder)
+            {
+                chunk_end++;
+            }
+
+            chunks[i].resize(chunk_end - current_index);
+            for (int j = current_index; j < chunk_end; j++)
+            {
+                chunks[i][j - current_index] = j;
+            }
+            current_index = chunk_end;
+        }
+
+        // Start the file reading threads
+        std::vector<std::thread> threads;
+        for (int i = 0; i < num_threads; ++i)
+        {
+            threads.emplace_back(&DATManager::read_files_thread, this, std::ref(chunks[i]));
+        }
+
+        // Wait for all threads to finish
+        for (auto& thread : threads)
+        {
+            thread.detach();
+        }
     }
 
     std::atomic<InitializationState> m_initialization_state{NotStarted};
@@ -38,27 +76,25 @@ private:
 
     std::atomic<int> m_num_types_read{0};
 
-    void read_files_thread()
+    std::atomic<int> m_num_running_dat_reader_threads{0};
+    void read_files_thread(std::vector<int> file_indices)
     {
+        HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
         unsigned char* data;
-        for (unsigned int i = 0; i < m_dat.getNumFiles(); ++i)
+        for (const auto index : file_indices)
         {
-            data = m_dat.readFile(i, false);
+            data = m_dat.readFile(file_handle, index, false);
             delete[] data;
-            increment(m_num_types_read);
+
+            auto _ = m_num_types_read.fetch_add(1, std::memory_order_relaxed);
         }
+        CloseHandle(file_handle);
 
-        assert(m_num_types_read == m_dat.getNumFiles());
-
-        for (size_t i = 0; i < m_dat.getNumFiles(); i++)
+        if (m_num_running_dat_reader_threads == 1)
         {
-            auto* mft_entry = m_dat.get_MFT_entry_ptr(i);
-            if (mft_entry->type == FFNA)
-                ffna_MFTEntry_LUT.insert({i, mft_entry});
+            m_initialization_state = InitializationState::Completed;
         }
 
-        m_initialization_state = InitializationState::Completed;
+        auto _ = m_num_running_dat_reader_threads.fetch_sub(1, std::memory_order_relaxed);
     }
-
-    void increment(std::atomic<int>& value) { value.fetch_add(1, std::memory_order_relaxed); }
 };
