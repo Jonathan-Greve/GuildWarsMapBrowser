@@ -24,11 +24,7 @@ void draw_data_browser(std::vector<MFTEntry>& entries)
       ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
       ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY;
 
-    // Using those as a base value to create width/height that are factor of the size of our font
-    const float TEXT_BASE_WIDTH = ImGui::CalcTextSize("A").x;
-    const float TEXT_BASE_HEIGHT = ImGui::GetTextLineHeightWithSpacing();
-
-    if (ImGui::BeginTable("data browser", 4, flags, ImVec2(0.0f, TEXT_BASE_HEIGHT * 15), 0.0f))
+    if (ImGui::BeginTable("data browser", 4, flags))
     {
         // Declare columns
         // We use the "user_id" parameter of TableSetupColumn() to specify a user id that will be stored in the sort specifications.
