@@ -84,6 +84,9 @@
     <ClInclude Include="draw_dat_browser.h">
       <Filter>GUI</Filter>
     </ClInclude>
+    <ClInclude Include="GuiGlobalConstants.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -132,6 +135,9 @@
       <Filter>Dear ImGui\ImGuiFileDialog</Filter>
     </ClCompile>
     <ClCompile Include="draw_dat_browser.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="GuiGlobalConstants.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
   </ItemGroup>

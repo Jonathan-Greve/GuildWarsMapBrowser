@@ -1,10 +1,23 @@
 #include "pch.h"
 #include "draw_dat_browser.h"
+#include "GuiGlobalConstants.h"
 
 const ImGuiTableSortSpecs* DatBrowserItem::s_current_sort_specs = NULL;
 
 void draw_data_browser(std::vector<MFTEntry>& entries)
 {
+    ImVec2 dat_browser_window_size =
+      ImVec2(ImGui::GetIO().DisplaySize.x -
+               (GuiGlobalConstants::left_panel_width + GuiGlobalConstants::panel_padding * 2) -
+               (GuiGlobalConstants::right_panel_width + GuiGlobalConstants::panel_padding * 2),
+             300);
+    ImVec2 dat_browser_window_pos =
+      ImVec2(GuiGlobalConstants::left_panel_width + GuiGlobalConstants::panel_padding * 2,
+             GuiGlobalConstants::panel_padding);
+    ImGui::SetNextWindowPos(dat_browser_window_pos);
+    ImGui::SetNextWindowSize(dat_browser_window_size);
+
+    ImGui::Begin("Browse .dat file contents");
     // Create item list
     static ImVector<DatBrowserItem> items;
     if (items.Size == 0)
@@ -59,15 +72,34 @@ void draw_data_browser(std::vector<MFTEntry>& entries)
         // Demonstrate using clipper for large vertical lists
         ImGuiListClipper clipper;
         clipper.Begin(items.Size);
+
+        static int selected_item_id = -1;
+        ImGuiSelectableFlags selectable_flags =
+          ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap;
+
         while (clipper.Step())
             for (int row_n = clipper.DisplayStart; row_n < clipper.DisplayEnd; row_n++)
             {
-                // Display a data item
                 DatBrowserItem* item = &items[row_n];
+
+                const bool item_is_selected = selected_item_id == item->id;
+                auto label = std::format("{}", row_n);
+
+                // Display a data item
                 ImGui::PushID(item->id);
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
-                ImGui::Text("%04d", item->id);
+                if (ImGui::Selectable(label.c_str(), item_is_selected, selectable_flags))
+                {
+                    if (ImGui::GetIO().KeyCtrl)
+                    {
+                    }
+                    else
+                    {
+                        selected_item_id = item->id;
+                    }
+                }
+
                 ImGui::TableNextColumn();
                 const auto file_hash_text = std::format("0x{:X} ({})", item->hash, item->hash);
                 ImGui::Text(file_hash_text.c_str());
@@ -79,6 +111,8 @@ void draw_data_browser(std::vector<MFTEntry>& entries)
             }
         ImGui::EndTable();
     }
+
+    ImGui::End();
 }
 
 inline int IMGUI_CDECL DatBrowserItem::CompareWithSortSpecs(const void* lhs, const void* rhs)

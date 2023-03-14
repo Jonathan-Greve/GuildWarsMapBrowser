@@ -5,14 +5,10 @@
 #include "pch.h"
 #include "MapBrowser.h"
 #include "draw_dat_browser.h"
+#include "GuiGlobalConstants.h"
 
 std::wstring gw_dat_path = L"C:\\Users\\jonag\\source\\repos\\GWDatBrowser\\GWDatBrowser\\Gw.dat";
 bool gw_dat_path_set = true;
-
-// Some ImGui layout vars:
-const int left_panel_width = 300;
-const int right_panel_width = 300;
-const float panel_padding = 6.0f;
 
 void DrawGuiForOpenDatFile()
 {
@@ -70,13 +66,15 @@ void DrawGuiForOpenDatFile()
 
 void drawUI()
 {
-    constexpr auto window_flags =
-      ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    constexpr auto window_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 
     // set up the left panel
-    ImGui::SetNextWindowPos(ImVec2(panel_padding, panel_padding));
-    ImGui::SetNextWindowSize(ImVec2(left_panel_width, ImGui::GetIO().DisplaySize.y - 2 * panel_padding));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(panel_padding, panel_padding)); // add padding
+    ImGui::SetNextWindowPos(ImVec2(GuiGlobalConstants::panel_padding, GuiGlobalConstants::panel_padding));
+    ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::left_panel_width,
+                                    ImGui::GetIO().DisplaySize.y - 2 * GuiGlobalConstants::panel_padding));
+    ImGui::PushStyleVar(
+      ImGuiStyleVar_WindowPadding,
+      ImVec2(GuiGlobalConstants::panel_padding, GuiGlobalConstants::panel_padding)); // add padding
     ImGui::Begin("Left Panel", NULL, window_flags);
 
     // draw the contents of the left panel
@@ -85,9 +83,11 @@ void drawUI()
     ImGui::End();
 
     // set up the right panel
-    ImGui::SetNextWindowPos(
-      ImVec2(ImGui::GetIO().DisplaySize.x - left_panel_width - panel_padding, panel_padding));
-    ImGui::SetNextWindowSize(ImVec2(right_panel_width, ImGui::GetIO().DisplaySize.y - 2 * panel_padding));
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::left_panel_width -
+                                     GuiGlobalConstants::panel_padding,
+                                   GuiGlobalConstants::panel_padding));
+    ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width,
+                                    ImGui::GetIO().DisplaySize.y - 2 * GuiGlobalConstants::panel_padding));
     ImGui::Begin("Right Panel", NULL, window_flags);
 
     // draw the contents of the right panel
@@ -100,12 +100,13 @@ void drawUI()
 void draw_dat_load_progress_bar(int num_files_read, int total_num_files)
 {
     ImVec2 progress_bar_window_size =
-      ImVec2(ImGui::GetIO().DisplaySize.x - (left_panel_width + panel_padding * 2) -
-               (right_panel_width + panel_padding * 2),
+      ImVec2(ImGui::GetIO().DisplaySize.x -
+               (GuiGlobalConstants::left_panel_width + GuiGlobalConstants::panel_padding * 2) -
+               (GuiGlobalConstants::right_panel_width + GuiGlobalConstants::panel_padding * 2),
              30);
-    ImVec2 progress_bar_window_pos =
-      ImVec2(left_panel_width + panel_padding * 2,
-             ImGui::GetIO().DisplaySize.y - progress_bar_window_size.y - panel_padding - 2);
+    ImVec2 progress_bar_window_pos = ImVec2(
+      GuiGlobalConstants::left_panel_width + GuiGlobalConstants::panel_padding * 2,
+      ImGui::GetIO().DisplaySize.y - progress_bar_window_size.y - GuiGlobalConstants::panel_padding - 2);
     ImGui::SetNextWindowPos(progress_bar_window_pos);
     ImGui::SetNextWindowSize(progress_bar_window_size);
     ImGui::Begin("Progress Bar", NULL,
