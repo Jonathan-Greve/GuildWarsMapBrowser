@@ -17,6 +17,26 @@ public:
         m_dat_filepath = dat_filepath;
         m_dat.readDat(m_dat_filepath.c_str());
 
+        auto read_all_thread = std::thread(&DATManager::read_all_files, this);
+        read_all_thread.detach();
+    }
+
+    std::atomic<InitializationState> m_initialization_state{NotStarted};
+
+    int get_num_files_type_read() { return m_num_types_read; }
+    int get_num_files() { return m_dat.getNumFiles(); }
+
+    std::vector<MFTEntry>& get_MFT() { return m_dat.get_MFT(); }
+
+private:
+    std::wstring m_dat_filepath;
+    GWDat m_dat;
+
+    std::atomic<int> m_num_types_read{0};
+    std::atomic<int> m_num_running_dat_reader_threads{0};
+
+    void read_all_files()
+    {
         const auto num_files = m_dat.getNumFiles();
 
         // Get the number of available threads
@@ -56,27 +76,10 @@ public:
         // Wait for all threads to finish
         for (auto& thread : threads)
         {
-            thread.detach();
+            thread.join();
         }
     }
 
-    std::atomic<InitializationState> m_initialization_state{NotStarted};
-
-    int get_num_files_type_read() { return m_num_types_read; }
-    int get_num_files() { return m_dat.getNumFiles(); }
-
-    std::vector<MFTEntry>& get_MFT() { return m_dat.get_MFT(); }
-
-private:
-    std::wstring m_dat_filepath;
-    GWDat m_dat;
-
-    // Index the MFTEntry vector for fast lookups.
-    std::unordered_map<uint32_t, MFTEntry*> ffna_MFTEntry_LUT;
-
-    std::atomic<int> m_num_types_read{0};
-
-    std::atomic<int> m_num_running_dat_reader_threads{0};
     void read_files_thread(std::vector<int> file_indices)
     {
         HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());

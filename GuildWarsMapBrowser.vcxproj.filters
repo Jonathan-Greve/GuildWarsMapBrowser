@@ -81,7 +81,9 @@
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h">
       <Filter>Dear ImGui\ImGuiFileDialog\dirent</Filter>
     </ClInclude>
-    <ClInclude Include="draw_dat_browser.h" />
+    <ClInclude Include="draw_dat_browser.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -129,7 +131,9 @@
     <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">
       <Filter>Dear ImGui\ImGuiFileDialog</Filter>
     </ClCompile>
-    <ClCompile Include="draw_dat_browser.cpp" />
+    <ClCompile Include="draw_dat_browser.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />
