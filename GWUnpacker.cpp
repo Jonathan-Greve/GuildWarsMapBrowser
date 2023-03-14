@@ -11,6 +11,8 @@ std::string typeToString(int type)
 {
     switch (type)
     {
+    case NONE:
+        return " ";
     case AMAT:
         return "AMAT";
     case AMP:

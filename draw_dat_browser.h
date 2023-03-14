@@ -7,6 +7,7 @@ enum DatBrowserItemColumnID
     DatBrowserItemColumnID_hash,
     DatBrowserItemColumnID_type,
     DatBrowserItemColumnID_size,
+    DatBrowserItemColumnID_decompressed_size,
 };
 
 struct DatBrowserItem
@@ -15,6 +16,7 @@ struct DatBrowserItem
     uint32_t hash;
     uint32_t type;
     uint32_t size;
+    uint32_t decompressed_size;
 
     static const ImGuiTableSortSpecs* s_current_sort_specs;
 

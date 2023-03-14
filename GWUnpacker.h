@@ -24,6 +24,7 @@ struct MFTHeader
 
 enum FileType
 {
+    NONE,
     AMAT,
     AMP,
     ATEXDXT1,

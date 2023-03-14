@@ -2,6 +2,12 @@
 #include "draw_dat_browser.h"
 #include "GuiGlobalConstants.h"
 
+const char* type_strings[26] = {
+  " ",        "AMAT",     "Amp",      "ATEXDXT1", "ATEXDXT2",     "ATEXDXT3",   "ATEXDXT4",
+  "ATEXDXT5", "ATEXDXTN", "ATEXDXTA", "ATEXDXTL", "ATTXDXT1",     "ATTXDXT3",   "ATTXDXT5",
+  "ATTXDXTN", "ATTXDXTA", "ATTXDXTL", "DDS",      "FFNA - Model", "FFNA - Map", "FFNA - Unknown",
+  "MFTBase",  "NOT_READ", "Sound",    "Text",     "Unknown"};
+
 const ImGuiTableSortSpecs* DatBrowserItem::s_current_sort_specs = NULL;
 
 void parse_file(DATManager& dat_manager, int index)
@@ -25,9 +31,10 @@ void parse_file(DATManager& dat_manager, int index)
     }
 }
 
+int custom_stoi(const std::string& input);
+
 void draw_data_browser(DATManager& dat_manager)
 {
-    const auto& entries = dat_manager.get_MFT();
 
     ImVec2 dat_browser_window_size =
       ImVec2(ImGui::GetIO().DisplaySize.x -
@@ -43,16 +50,104 @@ void draw_data_browser(DATManager& dat_manager)
     ImGui::Begin("Browse .dat file contents");
     // Create item list
     static ImVector<DatBrowserItem> items;
+    static ImVector<DatBrowserItem> filtered_items;
     if (items.Size == 0)
     {
+        const auto& entries = dat_manager.get_MFT();
         items.resize(entries.size(), DatBrowserItem());
+        filtered_items.resize(entries.size(), DatBrowserItem());
         for (int i = 0; i < entries.size(); i++)
         {
             const auto& entry = entries[i];
-            DatBrowserItem new_item{i, entry.Hash, entry.type, entry.Size};
+            DatBrowserItem new_item{i, entry.Hash, entry.type, entry.Size, entry.uncompressedSize};
             items[i] = new_item;
+            filtered_items[i] = new_item;
         }
     }
+
+    // Set after filtering is complete.
+    static std::string curr_id_filter = "";
+    static std::string curr_hash_filter = "";
+    static FileType curr_type_filter = NONE;
+
+    // The values set by the user in the GUI
+    static std::string id_filter_text;
+    static std::string hash_filter_text;
+    static FileType type_filter_value = NONE;
+
+    // Only re-run the filter when the user changed filter params in the GUI.
+    if (curr_id_filter != id_filter_text || curr_hash_filter != hash_filter_text ||
+        curr_type_filter != type_filter_value)
+    {
+
+        filtered_items.clear();
+        filtered_items.resize(0);
+
+        std::unordered_set<int> to_remove;
+        for (const auto& item : items)
+        {
+            if (id_filter_text != "")
+            {
+                int id_filter_value = custom_stoi(id_filter_text);
+
+                if (id_filter_value >= 0 && item.id != id_filter_value)
+                {
+                    to_remove.insert(item.id);
+                    continue;
+                }
+            }
+
+            if (hash_filter_text != "")
+            {
+                int hash_filter_value = custom_stoi(hash_filter_text);
+
+                if (hash_filter_value >= 0 && item.hash != hash_filter_value)
+                {
+                    to_remove.insert(item.id);
+                    continue;
+                }
+            }
+
+            if (type_filter_value != NONE && item.type != type_filter_value)
+            {
+                to_remove.insert(item.id);
+                continue;
+            }
+        }
+
+        for (const auto& item : items)
+        {
+            if (! to_remove.contains(item.id))
+            {
+                filtered_items.push_back(item);
+            }
+        }
+        // Set them equal so that the filter won't run again until the filter changes.
+        curr_id_filter = id_filter_text;
+        curr_hash_filter = hash_filter_text;
+        curr_type_filter = type_filter_value;
+    }
+
+    // Filter table
+    // Render the filter inputs and the table
+    ImGui::Columns(3);
+    ImGui::Text("Id filter:");
+    ImGui::SameLine();
+    ImGui::InputText("##IdFilter", &id_filter_text, sizeof(id_filter_text));
+    ImGui::NextColumn();
+
+    ImGui::Text("Hash filter:");
+    ImGui::SameLine();
+    ImGui::InputText("##HashFilter", &hash_filter_text, sizeof(hash_filter_text));
+    ImGui::NextColumn();
+
+    ImGui::Text("Type filter:");
+    ImGui::SameLine();
+    ImGui::Combo("##EnumFilter", reinterpret_cast<int*>(&type_filter_value), type_strings,
+                 25); // add the combo box
+    ImGui::Columns(1);
+
+    ImGui::Separator();
 
     // Options
     static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
@@ -60,7 +155,7 @@ void draw_data_browser(DATManager& dat_manager)
       ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
       ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY;
 
-    if (ImGui::BeginTable("data browser", 4, flags))
+    if (ImGui::BeginTable("data browser", 5, flags))
     {
         // Declare columns
         // We use the "user_id" parameter of TableSetupColumn() to specify a user id that will be stored in the sort specifications.
@@ -76,7 +171,12 @@ void draw_data_browser(DATManager& dat_manager)
         ImGui::TableSetupColumn(
           "Size", ImGuiTableColumnFlags_PreferSortDescending | ImGuiTableColumnFlags_WidthStretch, 0.0f,
           DatBrowserItemColumnID_size);
+        ImGui::TableSetupColumn("Decompressed size",
+                                ImGuiTableColumnFlags_PreferSortDescending |
+                                  ImGuiTableColumnFlags_WidthStretch,
+                                0.0f, DatBrowserItemColumnID_decompressed_size);
         ImGui::TableSetupScrollFreeze(0, 1); // Make row always visible
+
         ImGui::TableHeadersRow();
 
         // Sort our data if sort specs have been changed!
@@ -85,8 +185,8 @@ void draw_data_browser(DATManager& dat_manager)
             {
                 DatBrowserItem::s_current_sort_specs =
                   sorts_specs; // Store in variable accessible by the sort function.
-                if (items.Size > 1)
-                    qsort(&items[0], (size_t)items.Size, sizeof(items[0]),
+                if (filtered_items.Size > 1)
+                    qsort(&filtered_items[0], (size_t)filtered_items.Size, sizeof(filtered_items[0]),
                           DatBrowserItem::CompareWithSortSpecs);
                 DatBrowserItem::s_current_sort_specs = NULL;
                 sorts_specs->SpecsDirty = false;
@@ -94,7 +194,7 @@ void draw_data_browser(DATManager& dat_manager)
 
         // Demonstrate using clipper for large vertical lists
         ImGuiListClipper clipper;
-        clipper.Begin(items.Size);
+        clipper.Begin(filtered_items.Size);
 
         static int selected_item_id = -1;
         ImGuiSelectableFlags selectable_flags =
@@ -103,13 +203,14 @@ void draw_data_browser(DATManager& dat_manager)
         while (clipper.Step())
             for (int row_n = clipper.DisplayStart; row_n < clipper.DisplayEnd; row_n++)
             {
-                DatBrowserItem* item = &items[row_n];
+                DatBrowserItem& item = filtered_items[row_n];
 
-                const bool item_is_selected = selected_item_id == item->id;
-                auto label = std::format("{}", row_n);
+                const bool item_is_selected = selected_item_id == item.id;
+
+                auto label = std::format("{}", item.id);
 
                 // Display a data item
-                ImGui::PushID(item->id);
+                ImGui::PushID(item.id);
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 if (ImGui::Selectable(label.c_str(), item_is_selected, selectable_flags))
@@ -119,18 +220,20 @@ void draw_data_browser(DATManager& dat_manager)
                     }
                     else
                     {
-                        selected_item_id = item->id;
-                        parse_file(dat_manager, item->id);
+                        selected_item_id = item.id;
+                        parse_file(dat_manager, item.id);
                     }
                 }
 
                 ImGui::TableNextColumn();
-                const auto file_hash_text = std::format("0x{:X} ({})", item->hash, item->hash);
+                const auto file_hash_text = std::format("0x{:X} ({})", item.hash, item.hash);
                 ImGui::Text(file_hash_text.c_str());
                 ImGui::TableNextColumn();
-                ImGui::Text(typeToString(item->type).c_str());
+                ImGui::Text(typeToString(item.type).c_str());
                 ImGui::TableNextColumn();
-                ImGui::Text("%04d", item->size);
+                ImGui::Text("%04d", item.size);
+                ImGui::TableNextColumn();
+                ImGui::Text("%04d", item.decompressed_size);
                 ImGui::PopID();
             }
         ImGui::EndTable();
@@ -163,6 +266,9 @@ inline int IMGUI_CDECL DatBrowserItem::CompareWithSortSpecs(const void* lhs, con
         case DatBrowserItemColumnID_size:
             delta = (a->size - b->size);
             break;
+        case DatBrowserItemColumnID_decompressed_size:
+            delta = (a->decompressed_size - b->decompressed_size);
+            break;
         default:
             IM_ASSERT(0);
             break;
@@ -176,4 +282,76 @@ inline int IMGUI_CDECL DatBrowserItem::CompareWithSortSpecs(const void* lhs, con
     // qsort() is instable so always return a way to differenciate items.
     // Your own compare function may want to avoid fallback on implicit sort specs e.g. a Name compare if it wasn't already part of the sort specs.
     return (a->id - b->id);
+}
+
+int custom_stoi(const std::string& input)
+{
+    const char* str = input.c_str();
+    int value = 0;
+    bool negative = false;
+
+    // skip leading whitespace
+    while (*str == ' ' || *str == '\t' || *str == '\r' || *str == '\n')
+    {
+        ++str;
+    }
+
+    // check for sign
+    if (*str == '-')
+    {
+        negative = true;
+        ++str;
+    }
+    else if (*str == '+')
+    {
+        ++str;
+    }
+
+    // check for hex prefix
+    if (std::strlen(str) >= 2 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
+    {
+        str += 2;
+
+        // read hex digits
+        while (*str != '\0')
+        {
+            if (*str >= '0' && *str <= '9')
+            {
+                value = value * 16 + (*str - '0');
+            }
+            else if (*str >= 'a' && *str <= 'f')
+            {
+                value = value * 16 + (*str - 'a' + 10);
+            }
+            else if (*str >= 'A' && *str <= 'F')
+            {
+                value = value * 16 + (*str - 'A' + 10);
+            }
+            else
+            {
+                return -1; // invalid character
+            }
+
+            ++str;
+        }
+    }
+    else
+    {
+        // read decimal digits
+        while (*str != '\0')
+        {
+            if (*str >= '0' && *str <= '9')
+            {
+                value = value * 10 + (*str - '0');
+            }
+            else
+            {
+                return -1; // invalid character
+            }
+
+            ++str;
+        }
+    }
+
+    return negative ? -value : value;
 }
