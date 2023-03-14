@@ -23,6 +23,9 @@
     <Filter Include="GUI">
       <UniqueIdentifier>{8f5f4689-366c-4a1f-b66c-78e4af6dbe96}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Render">
+      <UniqueIdentifier>{63f4bdcd-7104-45e6-b225-dce245392bda}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -87,6 +90,18 @@
     <ClInclude Include="GuiGlobalConstants.h">
       <Filter>GUI</Filter>
     </ClInclude>
+    <ClInclude Include="DirectionalLight.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Vertex.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="MeshInstance.h">
+      <Filter>Render</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -139,6 +154,18 @@
     </ClCompile>
     <ClCompile Include="GuiGlobalConstants.cpp">
       <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectionalLight.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="Vertex.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="Mesh.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="MeshInstance.cpp">
+      <Filter>Render</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

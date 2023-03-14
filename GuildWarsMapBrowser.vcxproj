@@ -195,6 +195,7 @@
     <ClInclude Include="DearImGui\imstb_textedit.h" />
     <ClInclude Include="DearImGui\imstb_truetype.h" />
     <ClInclude Include="DeviceResources.h" />
+    <ClInclude Include="DirectionalLight.h" />
     <ClInclude Include="draw_dat_browser.h" />
     <ClInclude Include="GuiGlobalConstants.h" />
     <ClInclude Include="GWUnpacker.h" />
@@ -202,8 +203,11 @@
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
     <ClInclude Include="MapBrowser.h" />
+    <ClInclude Include="Mesh.h" />
+    <ClInclude Include="MeshInstance.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="StepTimer.h" />
+    <ClInclude Include="Vertex.h" />
     <ClInclude Include="xentax.h" />
   </ItemGroup>
   <ItemGroup>
@@ -253,6 +257,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DeviceResources.cpp" />
+    <ClCompile Include="DirectionalLight.cpp" />
     <ClCompile Include="draw_dat_browser.cpp" />
     <ClCompile Include="GuiGlobalConstants.cpp" />
     <ClCompile Include="GWUnpacker.cpp" />
@@ -264,12 +269,15 @@
     </ClCompile>
     <ClCompile Include="MapBrowser.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="MeshInstance.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Vertex.cpp" />
     <ClCompile Include="xentax.cpp" />
   </ItemGroup>
   <ItemGroup>

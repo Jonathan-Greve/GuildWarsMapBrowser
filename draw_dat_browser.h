@@ -1,4 +1,5 @@
 #pragma once
+#include "DATManager.h"
 
 enum DatBrowserItemColumnID
 {
@@ -20,4 +21,6 @@ struct DatBrowserItem
     static int IMGUI_CDECL CompareWithSortSpecs(const void* lhs, const void* rhs);
 };
 
-void draw_data_browser(std::vector<MFTEntry>& entries);
+void parse_file(DATManager& dat_manager, int index);
+
+void draw_data_browser(DATManager& dat_manager);

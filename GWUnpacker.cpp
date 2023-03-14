@@ -45,8 +45,12 @@ std::string typeToString(int type)
         return "ATTXDXTL";
     case DDS:
         return "DDS";
-    case FFNA:
-        return "FFNA";
+    case FFNA_Type2:
+        return "FFNA - Model";
+    case FFNA_Type3:
+        return "FFNA - Map";
+    case FFNA_Unknown:
+        return "FFNA - Unknown";
     case MFTBASE:
         return "MFTBase";
     case NOTREAD:
@@ -142,6 +146,7 @@ unsigned char* GWDat::readFile(HANDLE file_handle, unsigned int n, bool translat
         if (m.type == NOTREAD)
         {
             int type = 0;
+            auto sub_type = ((unsigned char*)Output)[4];
             unsigned int i = ((unsigned int*)Output)[0];
             unsigned int k = ((unsigned int*)Output)[1];
             int i2 = i & 0xffff;
@@ -209,7 +214,18 @@ unsigned char* GWDat::readFile(HANDLE file_handle, unsigned int n, bool translat
                 textFiles += 1;
                 break;
             case 'anff':
-                type = FFNA;
+                if (sub_type == 2)
+                {
+                    type = FFNA_Type2;
+                }
+                else if (sub_type == 3)
+                {
+                    type = FFNA_Type3;
+                }
+                else
+                {
+                    type = FFNA_Unknown;
+                }
                 ffnaFiles += 1;
                 break;
             case ' SDD':

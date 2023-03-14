@@ -4,8 +4,31 @@
 
 const ImGuiTableSortSpecs* DatBrowserItem::s_current_sort_specs = NULL;
 
-void draw_data_browser(std::vector<MFTEntry>& entries)
+void parse_file(DATManager& dat_manager, int index)
 {
+    const auto MFT = dat_manager.get_MFT();
+    if (index >= MFT.size())
+        return;
+
+    const auto* entry = &MFT[index];
+    if (! entry)
+        return;
+
+    switch (entry->type)
+    {
+    case FFNA_Type2:
+    case FFNA_Type3:
+        auto ffna_map_file = dat_manager.parse_ffna_map_file(index);
+        break;
+    default:
+        break;
+    }
+}
+
+void draw_data_browser(DATManager& dat_manager)
+{
+    const auto& entries = dat_manager.get_MFT();
+
     ImVec2 dat_browser_window_size =
       ImVec2(ImGui::GetIO().DisplaySize.x -
                (GuiGlobalConstants::left_panel_width + GuiGlobalConstants::panel_padding * 2) -
@@ -97,6 +120,7 @@ void draw_data_browser(std::vector<MFTEntry>& entries)
                     else
                     {
                         selected_item_id = item->id;
+                        parse_file(dat_manager, item->id);
                     }
                 }
 

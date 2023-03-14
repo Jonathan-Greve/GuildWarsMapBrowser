@@ -253,7 +253,7 @@ void MapBrowser::Render()
         }
         if (m_dat_manager.m_initialization_state == InitializationState::Completed)
         {
-            draw_data_browser(m_dat_manager.get_MFT());
+            draw_data_browser(m_dat_manager);
         }
     }
 

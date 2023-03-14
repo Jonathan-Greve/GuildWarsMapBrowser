@@ -41,7 +41,9 @@ enum FileType
     ATTXDXTA,
     ATTXDXTL,
     DDS,
-    FFNA,
+    FFNA_Type2,
+    FFNA_Type3,
+    FFNA_Unknown,
     MFTBASE,
     NOTREAD,
     SOUND,
@@ -77,7 +79,12 @@ public:
 
     MFTEntry& operator[](const int n) { return MFT[n]; }
 
-    MFTEntry* get_MFT_entry_ptr(const int n) { return &MFT[n]; }
+    MFTEntry* get_MFT_entry_ptr(const int n)
+    {
+        if (n < MFT.size())
+            return &MFT[n];
+        return nullptr;
+    }
     std::vector<MFTEntry>& get_MFT() { return MFT; }
 
     int getSectorSize() { return GWHead.SectorSize; }

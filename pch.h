@@ -52,6 +52,7 @@
 #include <tuple>
 #include <string>
 #include <format>
+#include <span>
 
 // Dear ImGui
 #define IMGUI_DEFINE_MATH_OPERATORS
