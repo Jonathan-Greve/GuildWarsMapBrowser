@@ -26,6 +26,9 @@
     <Filter Include="Render">
       <UniqueIdentifier>{63f4bdcd-7104-45e6-b225-dce245392bda}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dat reader\Dat file parsers">
+      <UniqueIdentifier>{339e02d8-b05a-4499-ac80-8f19761020d6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -105,6 +108,12 @@
     <ClInclude Include="DearImGui\misc\cpp\imgui_stdlib.h">
       <Filter>Dear ImGui</Filter>
     </ClInclude>
+    <ClInclude Include="FFNA_MapFile.h">
+      <Filter>Dat reader\Dat file parsers</Filter>
+    </ClInclude>
+    <ClInclude Include="FFNAType.h">
+      <Filter>Dat reader\Dat file parsers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -172,6 +181,9 @@
     </ClCompile>
     <ClCompile Include="DearImGui\misc\cpp\imgui_stdlib.cpp">
       <Filter>Dear ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="FFNA_MapFile.cpp">
+      <Filter>Dat reader\Dat file parsers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

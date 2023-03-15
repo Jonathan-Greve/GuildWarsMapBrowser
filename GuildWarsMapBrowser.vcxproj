@@ -198,6 +198,8 @@
     <ClInclude Include="DeviceResources.h" />
     <ClInclude Include="DirectionalLight.h" />
     <ClInclude Include="draw_dat_browser.h" />
+    <ClInclude Include="FFNAType.h" />
+    <ClInclude Include="FFNA_MapFile.h" />
     <ClInclude Include="GuiGlobalConstants.h" />
     <ClInclude Include="GWUnpacker.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h" />
@@ -264,6 +266,7 @@
     <ClCompile Include="DeviceResources.cpp" />
     <ClCompile Include="DirectionalLight.cpp" />
     <ClCompile Include="draw_dat_browser.cpp" />
+    <ClCompile Include="FFNA_MapFile.cpp" />
     <ClCompile Include="GuiGlobalConstants.cpp" />
     <ClCompile Include="GWUnpacker.cpp" />
     <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">

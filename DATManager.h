@@ -1,14 +1,11 @@
 #pragma once
+#include "FFNA_MapFile.h"
 
 enum InitializationState
 {
     NotStarted,
     Started,
     Completed
-};
-
-struct FFNA_MapFile
-{
 };
 
 class DATManager

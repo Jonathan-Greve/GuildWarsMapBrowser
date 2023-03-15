@@ -13,7 +13,7 @@ FFNA_MapFile DATManager::parse_ffna_map_file(int index)
     std::span<unsigned char> file_data(data, mft_entry->uncompressedSize);
     CloseHandle(file_handle);
 
-    FFNA_MapFile ffna_map_file;
+    FFNA_MapFile ffna_map_file(0, file_data);
 
     return ffna_map_file;
 }

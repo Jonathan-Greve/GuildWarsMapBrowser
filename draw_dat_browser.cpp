@@ -20,11 +20,13 @@ void parse_file(DATManager& dat_manager, int index)
     if (! entry)
         return;
 
+    FFNA_MapFile ffna_map_file;
+
     switch (entry->type)
     {
     case FFNA_Type2:
     case FFNA_Type3:
-        auto ffna_map_file = dat_manager.parse_ffna_map_file(index);
+        ffna_map_file = dat_manager.parse_ffna_map_file(index);
         break;
     default:
         break;
