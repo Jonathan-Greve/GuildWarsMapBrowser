@@ -41,17 +41,24 @@ public:
 
     int GetMeshID() const { return m_mesh_id; }
 
+    const PerObjectCB& GetPerObjectData() const { return m_per_object_data; }
+    void SetPerObjectData(const PerObjectCB& data) { m_per_object_data = data; }
+
+    void SetTexture(ID3D11ShaderResourceView* texture) { m_texture = texture; }
+    void SetSamplerState(ID3D11SamplerState* samplerState) { m_samplerState = samplerState; }
+
     void Draw(ID3D11DeviceContext* context)
     {
         UINT stride = sizeof(Vertex);
         UINT offset = 0;
         context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
         context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+        context->PSSetShaderResources(0, 1, m_texture.GetAddressOf());
+        context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
+
         context->DrawIndexed(m_mesh.indices.size(), 0, 0);
     }
-
-    const PerObjectCB& GetPerObjectData() const { return m_per_object_data; }
-    void SetPerObjectData(const PerObjectCB& data) { m_per_object_data = data; }
 
 private:
     Mesh m_mesh;
@@ -60,4 +67,6 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_texture;
+    Microsoft::WRL::ComPtr<ID3D11SamplerState> m_samplerState;
 };
