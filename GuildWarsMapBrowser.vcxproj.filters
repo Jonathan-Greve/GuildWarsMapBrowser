@@ -29,6 +29,21 @@
     <Filter Include="Dat reader\Dat file parsers">
       <UniqueIdentifier>{339e02d8-b05a-4499-ac80-8f19761020d6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Render\Shaders">
+      <UniqueIdentifier>{225caeae-25de-421d-8366-50c2e0f93d13}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Constant buffers">
+      <UniqueIdentifier>{5f85670d-2780-4536-aca3-cb44b059264a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Render constants">
+      <UniqueIdentifier>{58da3290-5890-4187-a825-10265d9a4b6d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Input">
+      <UniqueIdentifier>{530770c3-8d33-49c7-8cd9-9cc4c604a87b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Camera">
+      <UniqueIdentifier>{e3a0949c-9bcd-47c4-924b-29280e2d6ea5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -114,6 +129,30 @@
     <ClInclude Include="FFNAType.h">
       <Filter>Dat reader\Dat file parsers</Filter>
     </ClInclude>
+    <ClInclude Include="ConstantBufferManager.h">
+      <Filter>Render\Constant buffers</Filter>
+    </ClInclude>
+    <ClInclude Include="PerFrameCB.h">
+      <Filter>Render\Constant buffers</Filter>
+    </ClInclude>
+    <ClInclude Include="PerCameraCB.h">
+      <Filter>Render\Constant buffers</Filter>
+    </ClInclude>
+    <ClInclude Include="PerObjectCB.h">
+      <Filter>Render\Constant buffers</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderConstants.h">
+      <Filter>Render\Render constants</Filter>
+    </ClInclude>
+    <ClInclude Include="InputManager.h">
+      <Filter>Input</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>Render\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="MouseMoveListener.h">
+      <Filter>Input</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -185,6 +224,30 @@
     <ClCompile Include="FFNA_MapFile.cpp">
       <Filter>Dat reader\Dat file parsers</Filter>
     </ClCompile>
+    <ClCompile Include="ConstantBufferManager.cpp">
+      <Filter>Render\Constant buffers</Filter>
+    </ClCompile>
+    <ClCompile Include="PerFrameCB.cpp">
+      <Filter>Render\Constant buffers</Filter>
+    </ClCompile>
+    <ClCompile Include="PerCameraCB.cpp">
+      <Filter>Render\Constant buffers</Filter>
+    </ClCompile>
+    <ClCompile Include="PerObjectCB.cpp">
+      <Filter>Render\Constant buffers</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderConstants.cpp">
+      <Filter>Render\Render constants</Filter>
+    </ClCompile>
+    <ClCompile Include="InputManager.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>Render\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="MouseMoveListener.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />
@@ -220,5 +283,13 @@
     <None Include="ImGuiFileDialog-Lib_Only\dirent\README.md">
       <Filter>Dear ImGui\ImGuiFileDialog\dirent</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="VertexShader.hlsl">
+      <Filter>Render\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="PixelShader.hlsl">
+      <Filter>Render\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

@@ -1,0 +1,6 @@
+#ifndef RENDER_CONSTANTS_H
+#define RENDER_CONSTANTS_H
+
+#define MAX_LIGHTS 8
+
+#endif // RENDER_CONSTANTS_H

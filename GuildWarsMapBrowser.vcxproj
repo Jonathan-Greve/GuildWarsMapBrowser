@@ -185,6 +185,8 @@
   <ItemGroup>
     <ClInclude Include="AtexAsm.h" />
     <ClInclude Include="AtexReader.h" />
+    <ClInclude Include="Camera.h" />
+    <ClInclude Include="ConstantBufferManager.h" />
     <ClInclude Include="DATManager.h" />
     <ClInclude Include="DearImGui\imconfig.h" />
     <ClInclude Include="DearImGui\imgui.h" />
@@ -205,10 +207,16 @@
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
+    <ClInclude Include="InputManager.h" />
     <ClInclude Include="MapBrowser.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="MeshInstance.h" />
+    <ClInclude Include="MouseMoveListener.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="PerCameraCB.h" />
+    <ClInclude Include="PerFrameCB.h" />
+    <ClInclude Include="PerObjectCB.h" />
+    <ClInclude Include="RenderConstants.h" />
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="Vertex.h" />
     <ClInclude Include="xentax.h" />
@@ -216,6 +224,8 @@
   <ItemGroup>
     <ClCompile Include="AtexAsm.cpp" />
     <ClCompile Include="AtexReader.cpp" />
+    <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="ConstantBufferManager.cpp" />
     <ClCompile Include="DATManager.cpp" />
     <ClCompile Include="DearImGui\imgui.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
@@ -275,16 +285,22 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="InputManager.cpp" />
     <ClCompile Include="MapBrowser.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshInstance.cpp" />
+    <ClCompile Include="MouseMoveListener.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="PerCameraCB.cpp" />
+    <ClCompile Include="PerFrameCB.cpp" />
+    <ClCompile Include="PerObjectCB.cpp" />
+    <ClCompile Include="RenderConstants.cpp" />
     <ClCompile Include="Vertex.cpp" />
     <ClCompile Include="xentax.cpp" />
   </ItemGroup>
@@ -306,6 +322,20 @@
     <None Include="ImGuiFileDialog-Lib_Only\dirent\README.md" />
     <None Include="ImGuiFileDialog-Lib_Only\LICENSE" />
     <None Include="ImGuiFileDialog-Lib_Only\README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="PixelShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="VertexShader.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
