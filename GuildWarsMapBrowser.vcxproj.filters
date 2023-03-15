@@ -44,6 +44,18 @@
     <Filter Include="Render\Camera">
       <UniqueIdentifier>{e3a0949c-9bcd-47c4-924b-29280e2d6ea5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Render\Terrain renderer">
+      <UniqueIdentifier>{f9aafacb-1ef7-42b2-af72-0f5f02ae2798}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Basic shapes">
+      <UniqueIdentifier>{a0ff3d44-5316-46df-8ed5-b6c0db385dd7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Renderer">
+      <UniqueIdentifier>{eeef9eef-ab2e-4957-b093-0e82fd7ad737}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Structs">
+      <UniqueIdentifier>{a12abb2f-d2f6-42d1-9c3e-f4bd797227db}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -108,18 +120,6 @@
     <ClInclude Include="GuiGlobalConstants.h">
       <Filter>GUI</Filter>
     </ClInclude>
-    <ClInclude Include="DirectionalLight.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="Vertex.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="Mesh.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="MeshInstance.h">
-      <Filter>Render</Filter>
-    </ClInclude>
     <ClInclude Include="DearImGui\misc\cpp\imgui_stdlib.h">
       <Filter>Dear ImGui</Filter>
     </ClInclude>
@@ -152,6 +152,39 @@
     </ClInclude>
     <ClInclude Include="MouseMoveListener.h">
       <Filter>Input</Filter>
+    </ClInclude>
+    <ClInclude Include="TerrainRenderer.h">
+      <Filter>Render\Terrain renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="MeshManager.h">
+      <Filter>Render\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="MeshInstance.h">
+      <Filter>Render\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Vertex.h">
+      <Filter>Render\Structs</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectionalLight.h">
+      <Filter>Render\Structs</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.h">
+      <Filter>Render\Structs</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderCommand.h">
+      <Filter>Render\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderBatch.h">
+      <Filter>Render\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Box.h">
+      <Filter>Render\Basic shapes</Filter>
+    </ClInclude>
+    <ClInclude Include="Sphere.h">
+      <Filter>Render\Basic shapes</Filter>
+    </ClInclude>
+    <ClInclude Include="Line.h">
+      <Filter>Render\Basic shapes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -206,18 +239,6 @@
     <ClCompile Include="GuiGlobalConstants.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
-    <ClCompile Include="DirectionalLight.cpp">
-      <Filter>Render</Filter>
-    </ClCompile>
-    <ClCompile Include="Vertex.cpp">
-      <Filter>Render</Filter>
-    </ClCompile>
-    <ClCompile Include="Mesh.cpp">
-      <Filter>Render</Filter>
-    </ClCompile>
-    <ClCompile Include="MeshInstance.cpp">
-      <Filter>Render</Filter>
-    </ClCompile>
     <ClCompile Include="DearImGui\misc\cpp\imgui_stdlib.cpp">
       <Filter>Dear ImGui</Filter>
     </ClCompile>
@@ -247,6 +268,39 @@
     </ClCompile>
     <ClCompile Include="MouseMoveListener.cpp">
       <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="TerrainRenderer.cpp">
+      <Filter>Render\Terrain renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="MeshManager.cpp">
+      <Filter>Render\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="MeshInstance.cpp">
+      <Filter>Render\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectionalLight.cpp">
+      <Filter>Render\Structs</Filter>
+    </ClCompile>
+    <ClCompile Include="Mesh.cpp">
+      <Filter>Render\Structs</Filter>
+    </ClCompile>
+    <ClCompile Include="Vertex.cpp">
+      <Filter>Render\Structs</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderCommand.cpp">
+      <Filter>Render\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderBatch.cpp">
+      <Filter>Render\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Box.cpp">
+      <Filter>Render\Basic shapes</Filter>
+    </ClCompile>
+    <ClCompile Include="Sphere.cpp">
+      <Filter>Render\Basic shapes</Filter>
+    </ClCompile>
+    <ClCompile Include="Line.cpp">
+      <Filter>Render\Basic shapes</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -185,6 +185,7 @@
   <ItemGroup>
     <ClInclude Include="AtexAsm.h" />
     <ClInclude Include="AtexReader.h" />
+    <ClInclude Include="Box.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ConstantBufferManager.h" />
     <ClInclude Include="DATManager.h" />
@@ -208,22 +209,29 @@
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
     <ClInclude Include="InputManager.h" />
+    <ClInclude Include="Line.h" />
     <ClInclude Include="MapBrowser.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="MeshInstance.h" />
+    <ClInclude Include="MeshManager.h" />
     <ClInclude Include="MouseMoveListener.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="PerCameraCB.h" />
     <ClInclude Include="PerFrameCB.h" />
     <ClInclude Include="PerObjectCB.h" />
+    <ClInclude Include="RenderBatch.h" />
+    <ClInclude Include="RenderCommand.h" />
     <ClInclude Include="RenderConstants.h" />
+    <ClInclude Include="Sphere.h" />
     <ClInclude Include="StepTimer.h" />
+    <ClInclude Include="TerrainRenderer.h" />
     <ClInclude Include="Vertex.h" />
     <ClInclude Include="xentax.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AtexAsm.cpp" />
     <ClCompile Include="AtexReader.cpp" />
+    <ClCompile Include="Box.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ConstantBufferManager.cpp" />
     <ClCompile Include="DATManager.cpp" />
@@ -286,10 +294,12 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="InputManager.cpp" />
+    <ClCompile Include="Line.cpp" />
     <ClCompile Include="MapBrowser.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshInstance.cpp" />
+    <ClCompile Include="MeshManager.cpp" />
     <ClCompile Include="MouseMoveListener.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -300,7 +310,11 @@
     <ClCompile Include="PerCameraCB.cpp" />
     <ClCompile Include="PerFrameCB.cpp" />
     <ClCompile Include="PerObjectCB.cpp" />
+    <ClCompile Include="RenderBatch.cpp" />
+    <ClCompile Include="RenderCommand.cpp" />
     <ClCompile Include="RenderConstants.cpp" />
+    <ClCompile Include="Sphere.cpp" />
+    <ClCompile Include="TerrainRenderer.cpp" />
     <ClCompile Include="Vertex.cpp" />
     <ClCompile Include="xentax.cpp" />
   </ItemGroup>

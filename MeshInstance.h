@@ -1,10 +1,12 @@
 #pragma once
 #include "Mesh.h"
+#include "PerObjectCB.h"
 
 class MeshInstance
 {
 public:
-    MeshInstance(ID3D11Device* device, Mesh mesh)
+    MeshInstance(ID3D11Device* device, Mesh mesh, int mesh_id)
+        : m_mesh_id(mesh_id)
     {
         m_mesh = mesh;
 
@@ -37,6 +39,8 @@ public:
             m_indexBuffer->Release();
     }
 
+    int GetMeshID() const { return m_mesh_id; }
+
     void Draw(ID3D11DeviceContext* context)
     {
         UINT stride = sizeof(Vertex);
@@ -46,8 +50,14 @@ public:
         context->DrawIndexed(m_mesh.indices.size(), 0, 0);
     }
 
+    const PerObjectCB& GetPerObjectData() const { return m_per_object_data; }
+    void SetPerObjectData(const PerObjectCB& data) { m_per_object_data = data; }
+
 private:
     Mesh m_mesh;
+    int m_mesh_id;
+    PerObjectCB m_per_object_data;
+
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
 };
