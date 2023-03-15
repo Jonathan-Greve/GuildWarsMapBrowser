@@ -1,7 +1,7 @@
 #include "RenderConstants.h"
 
-Texture2D shaderTexture;
-SamplerState SampleType;
+Texture2D shaderTexture : register(t0);
+SamplerState SampleType : register(s0);
 
 struct DirectionalLight
 {
