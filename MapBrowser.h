@@ -6,6 +6,8 @@
 
 #include "DeviceResources.h"
 #include "StepTimer.h"
+#include "InputManager.h"
+#include "Camera.h"
 #include "DATManager.h"
 
 // A basic MapBrowser implementation that creates a D3D11 device and
@@ -13,7 +15,7 @@
 class MapBrowser final : public DX::IDeviceNotify
 {
 public:
-    MapBrowser() noexcept(false);
+    MapBrowser(InputManager* input_manager) noexcept(false);
     ~MapBrowser() = default;
 
     MapBrowser(MapBrowser&&) = default;
@@ -58,6 +60,12 @@ private:
 
     // Rendering loop timer.
     DX::StepTimer m_timer;
+
+    // Cameras
+    std::unique_ptr<Camera> m_user_camera;
+
+    // Input manager
+    InputManager* m_input_manager;
 
     // dat file manager
     DATManager m_dat_manager;

@@ -4,6 +4,7 @@
 
 #include "pch.h"
 #include "MapBrowser.h"
+#include "InputManager.h"
 
 using namespace DirectX;
 
@@ -17,6 +18,7 @@ using namespace DirectX;
 namespace
 {
 std::unique_ptr<MapBrowser> g_map_browser;
+std::unique_ptr<InputManager> g_input_manager;
 }
 
 LPCWSTR g_szAppName = L"GuildWarsMapBrowser";
@@ -45,7 +47,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     if (FAILED(hr))
         return 1;
 
-    g_map_browser = std::make_unique<MapBrowser>();
+    g_input_manager = std::make_unique<InputManager>();
+    g_map_browser = std::make_unique<MapBrowser>(g_input_manager.get());
 
     // Register class and create window
     {
@@ -132,6 +135,32 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     switch (message)
     {
+    case WM_KEYDOWN:
+        g_input_manager->OnKeyDown(static_cast<UINT>(wParam), hWnd);
+        break;
+
+    case WM_KEYUP:
+        g_input_manager->OnKeyUp(static_cast<UINT>(wParam), hWnd);
+        break;
+
+    case WM_MOUSEMOVE:
+        g_input_manager->OnMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd);
+        break;
+
+    case WM_LBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+        g_input_manager->OnMouseDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd);
+        break;
+
+    case WM_LBUTTONUP:
+    case WM_MBUTTONUP:
+    case WM_RBUTTONUP:
+        g_input_manager->OnMouseUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd);
+        break;
+    case WM_MOUSEWHEEL:
+        g_input_manager->OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam), hWnd);
+        break;
     case WM_PAINT:
         if (s_in_sizemove && map_browser)
         {
