@@ -25,6 +25,7 @@ void parse_file(DATManager& dat_manager, int index)
     switch (entry->type)
     {
     case FFNA_Type2:
+        break;
     case FFNA_Type3:
         ffna_map_file = dat_manager.parse_ffna_map_file(index);
         break;
@@ -37,6 +38,9 @@ int custom_stoi(const std::string& input);
 
 void draw_data_browser(DATManager& dat_manager)
 {
+    static std::unordered_map<int, std::vector<int>> id_index;
+    static std::unordered_map<int, std::vector<int>> hash_index;
+    static std::unordered_map<FileType, std::vector<int>> type_index;
 
     ImVec2 dat_browser_window_size =
       ImVec2(ImGui::GetIO().DisplaySize.x -
@@ -61,9 +65,20 @@ void draw_data_browser(DATManager& dat_manager)
         for (int i = 0; i < entries.size(); i++)
         {
             const auto& entry = entries[i];
-            DatBrowserItem new_item{i, entry.Hash, entry.type, entry.Size, entry.uncompressedSize};
+            DatBrowserItem new_item{i, entry.Hash, (FileType)entry.type, entry.Size, entry.uncompressedSize};
             items[i] = new_item;
             filtered_items[i] = new_item;
+        }
+    }
+
+    if (items.Size != 0 && id_index.empty())
+    {
+        for (int i = 0; i < items.Size; i++)
+        {
+            const auto& item = items[i];
+            id_index[item.id].push_back(i);
+            hash_index[item.hash].push_back(i);
+            type_index[item.type].push_back(i);
         }
     }
 
@@ -77,53 +92,102 @@ void draw_data_browser(DATManager& dat_manager)
     static std::string hash_filter_text;
     static FileType type_filter_value = NONE;
 
-    // Only re-run the filter when the user changed filter params in the GUI.
-    if (curr_id_filter != id_filter_text || curr_hash_filter != hash_filter_text ||
-        curr_type_filter != type_filter_value)
+    static bool filter_update_required = true;
+
+    if (curr_id_filter != id_filter_text)
     {
+        curr_id_filter = id_filter_text;
+        filter_update_required = true;
+    }
+
+    if (curr_hash_filter != hash_filter_text)
+    {
+        curr_hash_filter = hash_filter_text;
+        filter_update_required = true;
+    }
+
+    if (curr_type_filter != type_filter_value)
+    {
+        curr_type_filter = type_filter_value;
+        filter_update_required = true;
+    }
+
+    // Only re-run the filter when the user changed filter params in the GUI.
+    if (filter_update_required)
+    {
+        filter_update_required = false;
 
         filtered_items.clear();
-        filtered_items.resize(0);
 
-        std::unordered_set<int> to_remove;
-        for (const auto& item : items)
+        std::unordered_set<int> intersection;
+
+        if (! id_filter_text.empty())
         {
-            if (id_filter_text != "")
+            int id_filter_value = custom_stoi(id_filter_text);
+            if (id_filter_value >= 0 && id_index.count(id_filter_value))
             {
-                int id_filter_value = custom_stoi(id_filter_text);
-
-                if (id_filter_value >= 0 && item.id != id_filter_value)
-                {
-                    to_remove.insert(item.id);
-                    continue;
-                }
-            }
-
-            if (hash_filter_text != "")
-            {
-                int hash_filter_value = custom_stoi(hash_filter_text);
-
-                if (hash_filter_value >= 0 && item.hash != hash_filter_value)
-                {
-                    to_remove.insert(item.id);
-                    continue;
-                }
-            }
-
-            if (type_filter_value != NONE && item.type != type_filter_value)
-            {
-                to_remove.insert(item.id);
-                continue;
+                intersection.insert(id_index[id_filter_value].begin(), id_index[id_filter_value].end());
             }
         }
 
-        for (const auto& item : items)
+        if (! hash_filter_text.empty())
         {
-            if (! to_remove.contains(item.id))
+            int hash_filter_value = custom_stoi(hash_filter_text);
+            if (hash_filter_value >= 0 && hash_index.count(hash_filter_value))
             {
-                filtered_items.push_back(item);
+                if (id_filter_text.empty())
+                {
+                    intersection.insert(hash_index[hash_filter_value].begin(),
+                                        hash_index[hash_filter_value].end());
+                }
+                else
+                {
+                    std::unordered_set<int> new_intersection;
+                    for (int id : hash_index[hash_filter_value])
+                    {
+                        if (intersection.count(id))
+                        {
+                            new_intersection.insert(id);
+                        }
+                    }
+                    intersection = std::move(new_intersection);
+                }
             }
         }
+
+        if (type_filter_value != NONE)
+        {
+            if (id_filter_text.empty() && hash_filter_text.empty())
+            {
+                intersection.insert(type_index[type_filter_value].begin(),
+                                    type_index[type_filter_value].end());
+            }
+            else
+            {
+                std::unordered_set<int> new_intersection;
+                for (int id : type_index[type_filter_value])
+                {
+                    if (intersection.count(id))
+                    {
+                        new_intersection.insert(id);
+                    }
+                }
+                intersection = std::move(new_intersection);
+            }
+        }
+
+        if (id_filter_text.empty() && hash_filter_text.empty() && type_filter_value == NONE)
+        {
+            filtered_items = items;
+        }
+        else
+        {
+            for (const auto& id : intersection)
+            {
+                filtered_items.push_back(items[id]);
+            }
+        }
+
         // Set them equal so that the filter won't run again until the filter changes.
         curr_id_filter = id_filter_text;
         curr_hash_filter = hash_filter_text;

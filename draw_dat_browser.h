@@ -14,7 +14,7 @@ struct DatBrowserItem
 {
     uint32_t id;
     uint32_t hash;
-    uint32_t type;
+    FileType type;
     uint32_t size;
     uint32_t decompressed_size;
 
