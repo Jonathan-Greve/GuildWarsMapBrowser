@@ -121,23 +121,31 @@ void Camera::Update(float deltaTime, bool is_a_key_down, bool is_w_key_down, boo
     XMStoreFloat4x4(&m_projectionMatrix, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
 }
 
-void Camera::OnMouseMove(float dx, float dy)
+void Camera::OnMouseMove(float pitch_angle_radians, int rotate_world_axis_angle)
 {
-    // Update the camera's rotation based on the mouse movement
-    m_rotation.x += dy;
-    m_rotation.y += dx;
+    // Calculate the new pitch and yaw based on the input pitch and yaw changes
+    m_rotation.x += pitch_angle_radians;
+    m_rotation.y += rotate_world_axis_angle;
 
-    // Clamp the pitch rotation to prevent camera flipping
+    // Clamp the pitch to prevent camera flipping
     m_rotation.x = std::max(std::min(m_rotation.x, XM_PI / 2.0f - 0.01f), -XM_PI / 2.0f + 0.01f);
 
-    // Calculate the new target position based on the camera's updated rotation
-    XMFLOAT3 newTarget;
-    newTarget.x = m_position.x + sinf(m_rotation.y) * cosf(m_rotation.x);
-    newTarget.y = m_position.y + sinf(m_rotation.x);
-    newTarget.z = m_position.z + cosf(m_rotation.y) * cosf(m_rotation.x);
+    // Calculate the new forward vector based on the new pitch and yaw
+    XMFLOAT3 forward;
+    forward.x = cosf(m_rotation.x) * cosf(m_rotation.y);
+    forward.y = sinf(m_rotation.x);
+    forward.z = cosf(m_rotation.x) * sinf(m_rotation.y);
+    XMVECTOR forward_normalized = XMVector3Normalize(XMLoadFloat3(&forward));
 
-    m_target = newTarget;
+    // Calculate the new target by adding the forward vector to the camera's position
+    XMStoreFloat3(&m_target, XMLoadFloat3(&m_position) + forward_normalized);
+
+    // Update the view matrix using the new target
+    XMStoreFloat4x4(
+      &m_viewMatrix,
+      XMMatrixLookAtLH(XMLoadFloat3(&m_position), XMLoadFloat3(&m_target), XMLoadFloat3(&m_up)));
 }
+
 DirectX::XMMATRIX Camera::GetViewMatrix() const { return XMLoadFloat4x4(&m_viewMatrix); }
 
 DirectX::XMMATRIX Camera::GetProjectionMatrix() const { return XMLoadFloat4x4(&m_projectionMatrix); }

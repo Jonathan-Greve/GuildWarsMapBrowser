@@ -25,7 +25,7 @@ public:
     {
         // Initialize cameras
         float fov_degrees = 80.0f;
-        m_user_camera->Initialize(XMFLOAT3(1.0f, 1000.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f),
+        m_user_camera->Initialize(XMFLOAT3(0.0f, 1000.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f),
                                   XMFLOAT3(0.0f, 1.0f, 0.0f), fov_degrees * (XM_PI / 180.0f),
                                   viewport_width / viewport_height, 0.1, 10000);
 
@@ -128,7 +128,7 @@ public:
         // Override for testing purposes
         const auto pos = XMFLOAT3{0, 2000, 0};
         const auto target = XMFLOAT3{1, 0, 1};
-        m_user_camera->LookAt(pos, target);
+        //m_user_camera->LookAt(pos, target);
 
         DirectionalLight m_directionalLight;
         m_directionalLight.ambient = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);

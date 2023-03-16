@@ -15,14 +15,14 @@ public:
     void Update(float deltaTime, bool is_a_key_down, bool is_w_key_down, bool is_s_key_down,
                 bool is_d_key_down);
 
-    virtual void OnMouseMove(float dx, float dy) override;
+    virtual void OnMouseMove(float pitch_angle_radians, int rotate_world_axis_angle) override;
 
     DirectX::XMMATRIX GetViewMatrix() const;
     DirectX::XMMATRIX GetProjectionMatrix() const;
 
 private:
-    float m_walk_speed = 100;
-    float m_strafe_speed = 100;
+    float m_walk_speed = 500;
+    float m_strafe_speed = 500;
 
     DirectX::XMFLOAT3 m_world_up{0.0f, 1.0f, 0.0f};
     DirectX::XMFLOAT3 m_rotation;
