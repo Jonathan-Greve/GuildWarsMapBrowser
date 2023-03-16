@@ -1,151 +1,143 @@
 #include "pch.h"
 #include "Camera.h"
 
-using namespace DirectX;
-
 Camera::Camera() { }
 
 Camera::~Camera() { }
 
-void Camera::Initialize(const XMFLOAT3& position, const XMFLOAT3& target, const XMFLOAT3& up, float fov,
-                        float aspectRatio, float nearZ, float farZ)
+void Camera::Update(float dt) { UpdateViewMatrix(); }
+
+XMVECTOR Camera::GetPosition() const { return XMLoadFloat3(&m_position); }
+
+XMFLOAT3 Camera::GetPosition3f() const { return m_position; }
+
+void Camera::SetPosition(float x, float y, float z)
 {
-    m_position = position;
-    m_target = target;
-    m_up = up;
-    m_fov = fov;
+    m_position = XMFLOAT3(x, y, z);
+    m_view_should_update = true;
+}
+
+XMVECTOR Camera::GetRight() const { return XMLoadFloat3(&m_right); }
+
+XMFLOAT3 Camera::GetRight3f() const { return m_right; }
+
+XMVECTOR Camera::GetUp() const { return XMLoadFloat3(&m_up); }
+
+XMFLOAT3 Camera::GetUp3f() const { return m_up; }
+
+XMVECTOR Camera::GetLook() const { return XMLoadFloat3(&m_look); }
+
+XMFLOAT3 Camera::GetLook3f() const { return m_look; }
+
+void Camera::SetFrustumAsPerspective(float fovY, float aspectRatio, float zNear, float zFar)
+{
+    XMStoreFloat4x4(&m_proj, XMMatrixPerspectiveFovLH(fovY, aspectRatio, zNear, zFar));
+    m_fov = fovY;
     m_aspectRatio = aspectRatio;
-    m_nearZ = nearZ;
-    m_farZ = farZ;
-    m_rotation = XMFLOAT3(0, 0, 0);
-
-    XMStoreFloat4x4(
-      &m_viewMatrix,
-      XMMatrixLookAtLH(XMLoadFloat3(&m_position), XMLoadFloat3(&m_target), XMLoadFloat3(&m_up)));
-    XMStoreFloat4x4(&m_projectionMatrix, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
+    m_nearZ = zNear;
+    m_farZ = zFar;
 }
 
-void Camera::OnViewPortChanged(float viewport_width, float viewport_height)
+void Camera::SetFrustumAsOrthographic(float view_width, float view_height, float zn, float zf)
 {
-    // Update the aspect ratio
-    m_aspectRatio = viewport_width / viewport_height;
-
-    // Recalculate the projection matrix
-    XMStoreFloat4x4(&m_projectionMatrix, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
+    XMStoreFloat4x4(&m_proj, XMMatrixOrthographicLH(view_width, view_height, zn, zf));
 }
 
-void Camera::LookAt(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& target)
+void Camera::LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp)
 {
-    // Store the position and target in the class members
-    m_position = pos;
-    m_target = target;
+    XMVECTOR look = XMVector3Normalize(XMVectorSubtract(target, pos));
+    XMVECTOR right = XMVector3Normalize(XMVector3Cross(worldUp, look));
+    if (XMVector3Equal(right, g_XMZero))
+    {
+        right = {1, 0, 0, 0};
+    }
+    XMVECTOR up = XMVector3Cross(right, look);
 
-    // Calculate the forward vector from position to target
-    XMVECTOR forward = XMVector3Normalize(XMLoadFloat3(&target) - XMLoadFloat3(&pos));
-
-    // Calculate the right vector by crossing the forward vector with the world up vector
-    XMVECTOR right = XMVector3Normalize(XMVector3Cross(XMLoadFloat3(&m_world_up), forward));
-
-    // Calculate the up vector by crossing the forward and right vectors
-    XMVECTOR up = XMVector3Cross(forward, right);
-
-    // Store the up vector in the class member
+    XMStoreFloat3(&m_look, look);
+    XMStoreFloat3(&m_right, right);
     XMStoreFloat3(&m_up, up);
-
-    // Update the view matrix
-    XMStoreFloat4x4(&m_viewMatrix, XMMatrixLookAtLH(XMLoadFloat3(&pos), XMLoadFloat3(&target), up));
+    XMStoreFloat3(&m_position, pos);
+    m_view_should_update = true;
 }
 
-void Camera::SetPosition(const DirectX::XMFLOAT3& position)
+void Camera::Strafe(float velocity, double dt)
 {
-    // Update the position
-    m_position = position;
-
-    // Recalculate the target and up vectors based on the new position
-    LookAt(m_position, m_target);
+    XMVECTOR dVec = XMVectorReplicate(velocity);
+    XMVECTOR newPos = XMVectorMultiplyAdd(XMLoadFloat3(&m_right), dVec, XMLoadFloat3(&m_position));
+    XMStoreFloat3(&m_position, newPos);
+    m_view_should_update = true;
 }
 
-void Camera::Update(float deltaTime, bool is_a_key_down, bool is_w_key_down, bool is_s_key_down,
-                    bool is_d_key_down)
+void Camera::Walk(float velocity, double dt)
 {
-    // Calculate the camera's forward vector
-    XMFLOAT3 forward;
-    XMStoreFloat3(&forward, XMVector3Normalize(XMLoadFloat3(&m_target) - XMLoadFloat3(&m_position)));
+    XMVECTOR dVec = XMVectorReplicate(velocity);
+    XMVECTOR newPos = XMVectorMultiplyAdd(XMLoadFloat3(&m_look), dVec, XMLoadFloat3(&m_position));
 
-    // Compute the camera's right vector (assuming Y is the up direction)
-    XMFLOAT3 right;
-    XMStoreFloat3(&right, XMVector3Cross(XMLoadFloat3(&m_world_up), XMLoadFloat3(&forward)));
-    XMVECTOR rightNormalized = XMVector3Normalize(XMLoadFloat3(&right));
-
-    // Calculate the camera's up vector by crossing the forward and right vectors
-    XMFLOAT3 up;
-    XMStoreFloat3(&up, XMVector3Cross(XMLoadFloat3(&forward), rightNormalized));
-    m_up = up;
-
-    // Calculate the camera's movement vector
-    XMFLOAT3 movement = XMFLOAT3(0, 0, 0);
-    if (is_w_key_down)
-    {
-        movement.x += forward.x * m_walk_speed * deltaTime;
-        movement.y += forward.y * m_walk_speed * deltaTime;
-        movement.z += forward.z * m_walk_speed * deltaTime;
-    }
-    if (is_s_key_down)
-    {
-        movement.x -= forward.x * m_walk_speed * deltaTime;
-        movement.y -= forward.y * m_walk_speed * deltaTime;
-        movement.z -= forward.z * m_walk_speed * deltaTime;
-    }
-    if (is_a_key_down)
-    {
-        movement.x -= right.x * m_strafe_speed * deltaTime;
-        movement.y -= right.y * m_strafe_speed * deltaTime;
-        movement.z -= right.z * m_strafe_speed * deltaTime;
-    }
-    if (is_d_key_down)
-    {
-        movement.x += right.x * m_strafe_speed * deltaTime;
-        movement.y += right.y * m_strafe_speed * deltaTime;
-        movement.z += right.z * m_strafe_speed * deltaTime;
-    }
-
-    // Update position using movement
-    m_position.x += movement.x;
-    m_position.y += movement.y;
-    m_position.z += movement.z;
-
-    // Update view and projection matrices
-    XMStoreFloat4x4(
-      &m_viewMatrix,
-      XMMatrixLookAtLH(XMLoadFloat3(&m_position), XMLoadFloat3(&m_target), XMLoadFloat3(&m_up)));
-    XMStoreFloat4x4(&m_projectionMatrix, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
+    XMStoreFloat3(&m_position, newPos);
+    m_view_should_update = true;
 }
 
-void Camera::OnMouseMove(float pitch_angle_radians, int rotate_world_axis_angle)
+void Camera::Pitch(float angle)
 {
-    // Calculate the new pitch and yaw based on the input pitch and yaw changes
-    m_rotation.x += pitch_angle_radians;
-    m_rotation.y += rotate_world_axis_angle;
-
-    // Clamp the pitch to prevent camera flipping
-    m_rotation.x = std::max(std::min(m_rotation.x, XM_PI / 2.0f - 0.01f), -XM_PI / 2.0f + 0.01f);
-
-    // Calculate the new forward vector based on the new pitch and yaw
-    XMFLOAT3 forward;
-    forward.x = cosf(m_rotation.x) * cosf(m_rotation.y);
-    forward.y = sinf(m_rotation.x);
-    forward.z = cosf(m_rotation.x) * sinf(m_rotation.y);
-    XMVECTOR forward_normalized = XMVector3Normalize(XMLoadFloat3(&forward));
-
-    // Calculate the new target by adding the forward vector to the camera's position
-    XMStoreFloat3(&m_target, XMLoadFloat3(&m_position) + forward_normalized);
-
-    // Update the view matrix using the new target
-    XMStoreFloat4x4(
-      &m_viewMatrix,
-      XMMatrixLookAtLH(XMLoadFloat3(&m_position), XMLoadFloat3(&m_target), XMLoadFloat3(&m_up)));
+    auto rotationMatrix = XMMatrixRotationAxis(XMLoadFloat3(&m_right), angle);
+    XMVECTOR up = XMVector3TransformNormal(XMLoadFloat3(&m_up), rotationMatrix);
+    XMVECTOR look = XMVector3TransformNormal(XMLoadFloat3(&m_look), rotationMatrix);
+    XMStoreFloat3(&m_up, up);
+    XMStoreFloat3(&m_look, look);
+    m_view_should_update = true;
 }
 
-DirectX::XMMATRIX Camera::GetViewMatrix() const { return XMLoadFloat4x4(&m_viewMatrix); }
+void Camera::RotateWorldY(float angle)
+{
+    auto rotationMatrix = XMMatrixRotationY(angle);
+    XMStoreFloat3(&m_up, XMVector3TransformNormal(XMLoadFloat3(&m_up), rotationMatrix));
+    XMStoreFloat3(&m_right, XMVector3TransformNormal(XMLoadFloat3(&m_right), rotationMatrix));
+    XMStoreFloat3(&m_look, XMVector3TransformNormal(XMLoadFloat3(&m_look), rotationMatrix));
+    m_view_should_update = true;
+}
 
-DirectX::XMMATRIX Camera::GetProjectionMatrix() const { return XMLoadFloat4x4(&m_projectionMatrix); }
+XMMATRIX Camera::GetView() const { return XMLoadFloat4x4(&m_view); }
+
+XMFLOAT4X4 Camera::GetView4x4() const { return m_view; }
+
+XMMATRIX Camera::GetProj() const { return XMLoadFloat4x4(&m_proj); }
+
+XMFLOAT4X4 Camera::GetProj4x4() const { return m_proj; }
+
+void Camera::OnViewPortChanged(const float viewport_width, const float viewport_height)
+{
+    m_aspectRatio = viewport_width / viewport_height;
+    XMStoreFloat4x4(&m_proj, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
+    m_view_should_update = true;
+}
+
+void Camera::UpdateViewMatrix()
+{
+    if (m_view_should_update)
+    {
+        XMVECTOR look = XMLoadFloat3(&m_look);
+        XMVECTOR up = XMLoadFloat3(&m_up);
+        XMVECTOR right = XMLoadFloat3(&m_right);
+        XMVECTOR position = XMLoadFloat3(&m_position);
+
+        // Re-orthorganize the camera basis
+        look = XMVector3Normalize(look);
+        up = XMVector3Normalize(XMVector3Cross(look, right));
+        right = XMVector3Normalize(XMVector3Cross(up, look));
+
+        XMStoreFloat4x4(&m_view, XMMatrixLookToLH(position, look, up));
+
+        XMStoreFloat3(&m_look, look);
+        XMStoreFloat3(&m_up, up);
+        XMStoreFloat3(&m_right, right);
+        XMStoreFloat3(&m_position, position);
+
+        m_view_should_update = false;
+    }
+}
+
+void Camera::OnMouseMove(float yaw_angle_radians, float pitch_angle_radians)
+{
+    Pitch(pitch_angle_radians);
+    RotateWorldY(yaw_angle_radians);
+}

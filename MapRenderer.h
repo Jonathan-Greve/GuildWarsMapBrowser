@@ -25,9 +25,18 @@ public:
     {
         // Initialize cameras
         float fov_degrees = 80.0f;
-        m_user_camera->Initialize(XMFLOAT3(0.0f, 1000.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f),
-                                  XMFLOAT3(0.0f, 1.0f, 0.0f), fov_degrees * (XM_PI / 180.0f),
-                                  viewport_width / viewport_height, 0.1, 10000);
+        float aspect_ratio = viewport_width / viewport_height;
+        m_user_camera->SetFrustumAsPerspective(static_cast<float>(fov_degrees * XM_PI / 180.0), aspect_ratio,
+                                               0.1f, 20000);
+        // Override for testing purposes
+        const auto pos = FXMVECTOR{0, 2000, 1, 0};
+        const auto target = FXMVECTOR{0, 0, 0, 0};
+        const auto world_up = FXMVECTOR{0, 1, 0, 0};
+        m_user_camera->LookAt(pos, target, world_up);
+
+        //m_user_camera->Initialize(XMFLOAT3(0.0f, 1000.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f),
+        //                          XMFLOAT3(0.0f, 1.0f, 0.0f), fov_degrees * (XM_PI / 180.0f),
+        //                          viewport_width / viewport_height, 0.1, 10000);
 
         m_input_manager->AddMouseMoveListener(m_user_camera.get());
 
@@ -119,16 +128,25 @@ public:
 
     void Update(const float dt)
     {
-        const bool is_w_down = m_input_manager->IsKeyDown('W');
-        const bool is_a_down = m_input_manager->IsKeyDown('A');
-        const bool is_s_down = m_input_manager->IsKeyDown('S');
-        const bool is_d_down = m_input_manager->IsKeyDown('D');
-        m_user_camera->Update(dt, is_a_down, is_w_down, is_s_down, is_d_down);
+        // Walk
+        if (m_input_manager->IsKeyDown('W'))
+            m_user_camera->Walk(20, dt);
+        if (m_input_manager->IsKeyDown('S'))
+            m_user_camera->Walk(-20, dt);
 
-        // Override for testing purposes
-        const auto pos = XMFLOAT3{0, 2000, 0};
-        const auto target = XMFLOAT3{1, 0, 1};
-        //m_user_camera->LookAt(pos, target);
+        // Strafe
+        if (m_input_manager->IsKeyDown('Q') || (m_input_manager->IsKeyDown('A')))
+            m_user_camera->Strafe(-20, dt);
+        if (m_input_manager->IsKeyDown('E') || (m_input_manager->IsKeyDown('D')))
+            m_user_camera->Strafe(20, dt);
+
+        m_user_camera->Update(dt);
+
+        //// Override for testing purposes
+        //const auto pos = FXMVECTOR{0, 2000, 1, 0};
+        //const auto target = FXMVECTOR{0, 0, 0, 0};
+        //const auto world_up = FXMVECTOR{0, 1, 0, 0};
+        //m_user_camera->LookAt(pos, target, world_up);
 
         DirectionalLight m_directionalLight;
         m_directionalLight.ambient = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
@@ -150,8 +168,8 @@ public:
 
         // Update camera CB
         static auto cameraCB = PerCameraCB();
-        XMStoreFloat4x4(&cameraCB.view, XMMatrixTranspose(m_user_camera->GetViewMatrix()));
-        XMStoreFloat4x4(&cameraCB.projection, XMMatrixTranspose(m_user_camera->GetProjectionMatrix()));
+        XMStoreFloat4x4(&cameraCB.view, XMMatrixTranspose(m_user_camera->GetView()));
+        XMStoreFloat4x4(&cameraCB.projection, XMMatrixTranspose(m_user_camera->GetProj()));
         D3D11_MAPPED_SUBRESOURCE mappedResource;
         ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
         m_deviceContext->Map(m_per_camera_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);

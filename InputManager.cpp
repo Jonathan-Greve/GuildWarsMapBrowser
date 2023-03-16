@@ -43,9 +43,15 @@ void InputManager::OnMouseMove(int x, int y, WPARAM wParam, HWND hWnd)
     m_mouse_pos.y = y;
 }
 
-void InputManager::OnMouseDown(int x, int y, WPARAM wParam, HWND hWnd) { }
+void InputManager::OnMouseDown(int x, int y, WPARAM wParam, HWND hWnd)
+{
+    m_mouse_pos.x = x;
+    m_mouse_pos.y = y;
 
-void InputManager::OnMouseUp(int x, int y, WPARAM wParam, HWND hWnd) { }
+    SetCapture(hWnd);
+}
+
+void InputManager::OnMouseUp(int x, int y, WPARAM wParam, HWND hWnd) { ReleaseCapture(); }
 void InputManager::OnMouseWheel(short wheel_delta, HWND hWnd)
 {
     // Determine the direction of the mouse wheel rotation
