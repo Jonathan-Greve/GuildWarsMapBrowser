@@ -25,14 +25,14 @@ public:
     {
         // Initialize cameras
         float fov_degrees = 80.0f;
-        m_user_camera->Initialize(XMFLOAT3(1.0f, 2000.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f),
+        m_user_camera->Initialize(XMFLOAT3(1.0f, 1000.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f),
                                   XMFLOAT3(0.0f, 1.0f, 0.0f), fov_degrees * (XM_PI / 180.0f),
-                                  viewport_width / viewport_height, 0.1, 1000);
+                                  viewport_width / viewport_height, 0.1, 10000);
 
         m_input_manager->AddMouseMoveListener(m_user_camera.get());
 
         // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
-        m_mesh_manager->AddBox({1, 1, 1});
+        m_mesh_manager->AddBox({200, 200, 200});
 
         // Create and initialize the VertexShader
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
