@@ -239,6 +239,8 @@ void MapBrowser::Render()
     m_deviceResources->PIXBeginEvent(L"Render");
     auto context = m_deviceResources->GetD3DDeviceContext();
 
+    m_map_renderer->Render();
+
     // Start the Dear ImGui frame
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
@@ -270,8 +272,6 @@ void MapBrowser::Render()
     // Dear ImGui Render
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
-    m_map_renderer->Render();
 
     m_deviceResources->PIXEndEvent();
 
