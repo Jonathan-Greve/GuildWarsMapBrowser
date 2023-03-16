@@ -9,6 +9,7 @@
 #include "InputManager.h"
 #include "Camera.h"
 #include "DATManager.h"
+#include "MapRenderer.h"
 
 // A basic MapBrowser implementation that creates a D3D11 device and
 // provides a MapBrowser loop.
@@ -66,4 +67,6 @@ private:
 
     // dat file manager
     DATManager m_dat_manager;
+
+    std::unique_ptr<MapRenderer> m_map_renderer;
 };

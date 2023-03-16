@@ -166,6 +166,9 @@ void MapBrowser::Initialize(HWND window, int width, int height)
     m_deviceResources->CreateWindowSizeDependentResources();
     CreateWindowSizeDependentResources();
 
+    m_map_renderer = std::make_unique<MapRenderer>(m_deviceResources->GetD3DDevice(),
+                                                   m_deviceResources->GetD3DDeviceContext(), m_input_manager);
+
     // TODO: Change the timer settings if you want something other than the default variable timestep mode.
     // e.g. for 60 FPS fixed timestep update logic, call:
     /*
