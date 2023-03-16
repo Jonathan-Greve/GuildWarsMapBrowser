@@ -1,5 +1,3 @@
-#include "RenderConstants.h"
-
 Texture2D shaderTexture : register(t0);
 SamplerState SampleType : register(s0);
 
@@ -44,5 +42,10 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 ambient = directionalLight.ambient * textureColor;
     float4 specular = specularIntensity * directionalLight.specular;
 
-    return ambient + diffuse + specular;
+    /*return ambient + diffuse + specular;*/
+
+    // Set the constant color (for example, red)
+    float4 debugColor = float4(1.0, 0.0, 0.0, 1.0);
+
+    return debugColor;
 }

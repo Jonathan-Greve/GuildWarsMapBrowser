@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "MeshManager.h"
 #include "VertexShader.h"
+#include "PixelShader.h"
 #include "PerFrameCB.h"
 #include "PerCameraCB.h"
 
@@ -31,11 +32,15 @@ public:
         m_input_manager->AddMouseMoveListener(m_user_camera.get());
 
         // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
-        m_mesh_manager->AddBox({100, 100, 100});
+        m_mesh_manager->AddBox({1, 1, 1});
 
         // Create and initialize the VertexShader
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
         m_vertex_shader->Initialize(L"VertexShader.hlsl");
+
+        // Create and initialize the PixelShader
+        m_pixel_shader = std::make_unique<PixelShader>(m_device, m_deviceContext);
+        m_pixel_shader->Initialize(L"PixelShader.hlsl");
 
         // Set up the constant buffer for the camera
         D3D11_BUFFER_DESC buffer_desc = {};
@@ -52,6 +57,11 @@ public:
 
         m_deviceContext->VSSetShader(m_vertex_shader->GetShader(), nullptr, 0);
         m_deviceContext->IASetInputLayout(m_vertex_shader->GetInputLayout());
+
+        // Set the pixel shader and sampler state
+        m_deviceContext->PSSetShader(m_pixel_shader->GetShader(), nullptr, 0);
+        const auto sampler_state = m_pixel_shader->GetSamplerState();
+        m_deviceContext->PSSetSamplers(0, 1, &sampler_state);
     }
 
     void SetTerrain(const Mesh& terrain_mesh)
@@ -164,6 +174,7 @@ private:
     std::unique_ptr<MeshManager> m_mesh_manager;
     std::unique_ptr<Camera> m_user_camera;
     std::unique_ptr<VertexShader> m_vertex_shader;
+    std::unique_ptr<PixelShader> m_pixel_shader;
 
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_frame_cb;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_camera_cb;

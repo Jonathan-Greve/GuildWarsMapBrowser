@@ -220,6 +220,7 @@
     <ClInclude Include="PerCameraCB.h" />
     <ClInclude Include="PerFrameCB.h" />
     <ClInclude Include="PerObjectCB.h" />
+    <ClInclude Include="PixelShader.h" />
     <ClInclude Include="RenderBatch.h" />
     <ClInclude Include="RenderCommand.h" />
     <ClInclude Include="RenderConstants.h" />
@@ -313,6 +314,7 @@
     <ClCompile Include="PerCameraCB.cpp" />
     <ClCompile Include="PerFrameCB.cpp" />
     <ClCompile Include="PerObjectCB.cpp" />
+    <ClCompile Include="PixelShader.cpp" />
     <ClCompile Include="RenderBatch.cpp" />
     <ClCompile Include="RenderCommand.cpp" />
     <ClCompile Include="RenderConstants.cpp" />
