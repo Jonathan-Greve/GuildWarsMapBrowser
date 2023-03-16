@@ -7,6 +7,7 @@
 #include "Box.h"
 #include "Sphere.h"
 #include "Line.h"
+#include "RenderConstants.h"
 
 class MeshManager
 {
@@ -27,13 +28,14 @@ public:
 
         // Set the constant buffer for the vertex shader
         ID3D11Buffer* constantBuffers[] = {m_perObjectCB.Get()};
-        m_deviceContext->VSSetConstantBuffers(0, 1, constantBuffers);
+        m_deviceContext->VSSetConstantBuffers(PER_OBJECT_CB_SLOT, 1, constantBuffers);
     }
 
     int AddBox(const DirectX::XMFLOAT3& size)
     {
         int meshID = m_nextMeshID++;
         m_triangleMeshes[meshID] = std::make_shared<Box>(m_device, size, meshID);
+        m_needsUpdate = true;
         return meshID;
     }
 
@@ -41,6 +43,7 @@ public:
     {
         int meshID = m_nextMeshID++;
         m_triangleMeshes[meshID] = std::make_shared<Sphere>(m_device, radius, numSlices, numStacks, meshID);
+        m_needsUpdate = true;
         return meshID;
     }
 
@@ -48,6 +51,7 @@ public:
     {
         int meshID = m_nextMeshID++;
         m_lineMeshes[meshID] = std::make_shared<Line>(m_device, start, end, meshID);
+        m_needsUpdate = true;
         return meshID;
     }
 
@@ -55,6 +59,7 @@ public:
     {
         int meshID = m_nextMeshID++;
         m_triangleMeshes[meshID] = std::make_shared<MeshInstance>(m_device, mesh, meshID);
+        m_needsUpdate = true;
         return meshID;
     }
 

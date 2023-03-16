@@ -227,6 +227,7 @@
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="TerrainRenderer.h" />
     <ClInclude Include="Vertex.h" />
+    <ClInclude Include="VertexShader.h" />
     <ClInclude Include="xentax.h" />
   </ItemGroup>
   <ItemGroup>
@@ -318,6 +319,7 @@
     <ClCompile Include="Sphere.cpp" />
     <ClCompile Include="TerrainRenderer.cpp" />
     <ClCompile Include="Vertex.cpp" />
+    <ClCompile Include="VertexShader.cpp" />
     <ClCompile Include="xentax.cpp" />
   </ItemGroup>
   <ItemGroup>

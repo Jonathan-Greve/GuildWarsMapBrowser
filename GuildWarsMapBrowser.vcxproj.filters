@@ -192,6 +192,7 @@
     <ClInclude Include="MapRenderer.h">
       <Filter>Render\Renderer\Map renderer</Filter>
     </ClInclude>
+    <ClInclude Include="VertexShader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -311,6 +312,7 @@
     <ClCompile Include="MapRenderer.cpp">
       <Filter>Render\Renderer\Map renderer</Filter>
     </ClCompile>
+    <ClCompile Include="VertexShader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />

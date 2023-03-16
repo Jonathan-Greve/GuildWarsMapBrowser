@@ -2,6 +2,8 @@
 #include "InputManager.h"
 #include "Camera.h"
 #include "MeshManager.h"
+#include "VertexShader.h"
+#include "PerFrameCB.h"
 
 using namespace DirectX;
 
@@ -26,6 +28,27 @@ public:
                                   viewport_width / viewport_height, 0.1, 1000);
 
         m_input_manager->AddMouseMoveListener(m_user_camera.get());
+
+        // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
+        m_mesh_manager->AddBox({100, 100, 100});
+
+        // Create and initialize the VertexShader
+        m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
+        m_vertex_shader->Initialize(L"VertexShader.hlsl");
+
+        // Set up the constant buffer for the camera
+        D3D11_BUFFER_DESC buffer_desc = {};
+        buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
+        buffer_desc.ByteWidth = sizeof(PerFrameCB);
+        buffer_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        m_device->CreateBuffer(&buffer_desc, nullptr, m_constant_buffer.GetAddressOf());
+
+        m_deviceContext->VSSetConstantBuffers(PER_FRAME_CB_SLOT, 1, m_constant_buffer.GetAddressOf());
+
+        // Assume shader and input layout stays the same.
+        m_deviceContext->VSSetShader(m_vertex_shader->GetShader(), nullptr, 0);
+        m_deviceContext->IASetInputLayout(m_vertex_shader->GetInputLayout());
     }
 
     void SetTerrain(const Mesh& terrain_mesh)
@@ -73,6 +96,9 @@ private:
     InputManager* m_input_manager;
     std::unique_ptr<MeshManager> m_mesh_manager;
     std::unique_ptr<Camera> m_user_camera;
+    std::unique_ptr<VertexShader> m_vertex_shader;
+
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_constant_buffer;
 
     bool m_is_terrain_mesh_set = false;
     int m_terrain_mesh_id = -1;

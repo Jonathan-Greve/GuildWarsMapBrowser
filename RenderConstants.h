@@ -2,5 +2,7 @@
 #define RENDER_CONSTANTS_H
 
 #define MAX_LIGHTS 8
+#define PER_FRAME_CB_SLOT 0
+#define PER_OBJECT_CB_SLOT 1
 
 #endif // RENDER_CONSTANTS_H
