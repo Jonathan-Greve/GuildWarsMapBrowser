@@ -12,7 +12,13 @@ public:
 private:
     Mesh GenerateLineMesh(const DirectX::XMFLOAT3& start, const DirectX::XMFLOAT3& end)
     {
-        // Generate line mesh here
+        std::vector<Vertex> vertices = {
+          {start, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+          {end, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+        };
+        std::vector<uint32_t> indices = {0, 1};
+
+        return Mesh(vertices, indices);
     }
 
     std::unique_ptr<MeshInstance> m_meshInstance;
