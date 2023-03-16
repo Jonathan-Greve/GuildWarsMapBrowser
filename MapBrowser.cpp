@@ -168,6 +168,8 @@ void MapBrowser::Initialize(HWND window, int width, int height)
 
     m_map_renderer = std::make_unique<MapRenderer>(m_deviceResources->GetD3DDevice(),
                                                    m_deviceResources->GetD3DDeviceContext(), m_input_manager);
+    m_map_renderer->Initialize(m_deviceResources->GetScreenViewport().Width,
+                               m_deviceResources->GetScreenViewport().Height);
 
     // TODO: Change the timer settings if you want something other than the default variable timestep mode.
     // e.g. for 60 FPS fixed timestep update logic, call:
@@ -218,6 +220,7 @@ void MapBrowser::Update(DX::StepTimer const& timer)
     float elapsedTime = float(timer.GetElapsedSeconds());
 
     // TODO: Add your map browser logic here.
+    m_map_renderer->Update(elapsedTime);
 }
 #pragma endregion
 
@@ -267,6 +270,8 @@ void MapBrowser::Render()
     // Dear ImGui Render
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+    m_map_renderer->Render();
 
     m_deviceResources->PIXEndEvent();
 
