@@ -25,6 +25,15 @@ void Camera::Initialize(const XMFLOAT3& position, const XMFLOAT3& target, const 
     XMStoreFloat4x4(&m_projectionMatrix, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
 }
 
+void Camera::OnViewPortChanged(float viewport_width, float viewport_height)
+{
+    // Update the aspect ratio
+    m_aspectRatio = viewport_width / viewport_height;
+
+    // Recalculate the projection matrix
+    XMStoreFloat4x4(&m_projectionMatrix, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
+}
+
 void Camera::Update(float deltaTime, bool is_a_key_down, bool is_w_key_down, bool is_s_key_down,
                     bool is_d_key_down)
 {
