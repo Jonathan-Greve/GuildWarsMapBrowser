@@ -61,9 +61,6 @@ private:
     // Rendering loop timer.
     DX::StepTimer m_timer;
 
-    // Cameras
-    std::unique_ptr<Camera> m_user_camera;
-
     // Input manager
     InputManager* m_input_manager;
 

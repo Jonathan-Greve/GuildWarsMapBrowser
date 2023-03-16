@@ -56,6 +56,9 @@
     <Filter Include="Render\Structs">
       <UniqueIdentifier>{a12abb2f-d2f6-42d1-9c3e-f4bd797227db}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Render\Renderer\Map renderer">
+      <UniqueIdentifier>{449a272d-07f5-43c1-a994-bb0e36e6fced}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -186,6 +189,9 @@
     <ClInclude Include="Line.h">
       <Filter>Render\Basic shapes</Filter>
     </ClInclude>
+    <ClInclude Include="MapRenderer.h">
+      <Filter>Render\Renderer\Map renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -301,6 +307,9 @@
     </ClCompile>
     <ClCompile Include="Line.cpp">
       <Filter>Render\Basic shapes</Filter>
+    </ClCompile>
+    <ClCompile Include="MapRenderer.cpp">
+      <Filter>Render\Renderer\Map renderer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

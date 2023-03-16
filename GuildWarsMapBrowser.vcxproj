@@ -211,6 +211,7 @@
     <ClInclude Include="InputManager.h" />
     <ClInclude Include="Line.h" />
     <ClInclude Include="MapBrowser.h" />
+    <ClInclude Include="MapRenderer.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="MeshInstance.h" />
     <ClInclude Include="MeshManager.h" />
@@ -297,6 +298,7 @@
     <ClCompile Include="Line.cpp" />
     <ClCompile Include="MapBrowser.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="MapRenderer.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshInstance.cpp" />
     <ClCompile Include="MeshManager.cpp" />

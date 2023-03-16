@@ -149,7 +149,6 @@ MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
     : m_input_manager(input_manager)
 {
     m_deviceResources = std::make_unique<DX::DeviceResources>();
-    m_user_camera = std::make_unique<Camera>();
     // TODO: Provide parameters for swapchain format, depth/stencil format, and backbuffer count.
     //   Add DX::DeviceResources::c_AllowTearing to opt-in to variable rate displays.
     //   Add DX::DeviceResources::c_EnableHDR for HDR10 display.
@@ -194,15 +193,6 @@ void MapBrowser::Initialize(HWND window, int width, int height)
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(window);
     ImGui_ImplDX11_Init(m_deviceResources->GetD3DDevice(), m_deviceResources->GetD3DDeviceContext());
-
-    // Initialize cameras
-    float fov_degrees = 80.0f;
-    m_user_camera->Initialize(XMFLOAT3(1.0f, 2000.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f),
-                              XMFLOAT3(0.0f, 1.0f, 0.0f), fov_degrees * (XM_PI / 180.0f),
-                              m_deviceResources->GetScreenViewport().Width /
-                                m_deviceResources->GetScreenViewport().Height,
-                              0.1, 1000);
-    m_input_manager->AddMouseMoveListener(m_user_camera.get());
 }
 
 #pragma region Frame Update
@@ -225,11 +215,6 @@ void MapBrowser::Update(DX::StepTimer const& timer)
     float elapsedTime = float(timer.GetElapsedSeconds());
 
     // TODO: Add your map browser logic here.
-    const bool is_w_down = m_input_manager->IsKeyDown('W');
-    const bool is_a_down = m_input_manager->IsKeyDown('A');
-    const bool is_s_down = m_input_manager->IsKeyDown('S');
-    const bool is_d_down = m_input_manager->IsKeyDown('D');
-    m_user_camera->Update(elapsedTime, is_a_down, is_w_down, is_s_down, is_d_down);
 }
 #pragma endregion
 
