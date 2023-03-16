@@ -12,47 +12,69 @@ public:
 private:
     Mesh GenerateBoxMesh(const DirectX::XMFLOAT3& size)
     {
+        float half_width = size.x / 2.0f;
+        float half_height = size.y / 2.0f;
+        float half_depth = size.z / 2.0f;
+
         std::vector<Vertex> vertices = {
-          // Front face
-          {{-size.x / 2, -size.y / 2, size.z / 2}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-          {{size.x / 2, -size.y / 2, size.z / 2}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-          {{size.x / 2, size.y / 2, size.z / 2}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-          {{-size.x / 2, size.y / 2, size.z / 2}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-
-          // Back face
-          {{-size.x / 2, -size.y / 2, -size.z / 2}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}},
-          {{size.x / 2, -size.y / 2, -size.z / 2}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}},
-          {{size.x / 2, size.y / 2, -size.z / 2}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},
-          {{-size.x / 2, size.y / 2, -size.z / 2}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},
-
-          // Left face
-          {{-size.x / 2, -size.y / 2, -size.z / 2}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-          {{-size.x / 2, -size.y / 2, size.z / 2}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-          {{-size.x / 2, size.y / 2, size.z / 2}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-          {{-size.x / 2, size.y / 2, -size.z / 2}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-
-          // Right face
-          {{size.x / 2, -size.y / 2, -size.z / 2}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-          {{size.x / 2, -size.y / 2, size.z / 2}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-          {{size.x / 2, size.y / 2, size.z / 2}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-          {{size.x / 2, size.y / 2, -size.z / 2}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-
-          // Top face
-          {{-size.x / 2, size.y / 2, -size.z / 2}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}},
-          {{-size.x / 2, size.y / 2, size.z / 2}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-          {{size.x / 2, size.y / 2, size.z / 2}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-          {{size.x / 2, size.y / 2, -size.z / 2}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
-
-          // Bottom face
-          {{-size.x / 2, -size.y / 2, -size.z / 2}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
-          {{-size.x / 2, -size.y / 2, size.z / 2}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}},
-          {{size.x / 2, -size.y / 2, size.z / 2}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}},
-          {{size.x / 2, -size.y / 2, -size.z / 2}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
+          {{-half_width, -half_height, half_depth}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+          {{-half_width, half_height, half_depth}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+          {{half_width, half_height, half_depth}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+          {{half_width, -half_height, half_depth}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+          {{-half_width, -half_height, -half_depth}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}},
+          {{-half_width, half_height, -half_depth}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},
+          {{half_width, half_height, -half_depth}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},
+          {{half_width, -half_height, -half_depth}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}},
         };
 
         std::vector<uint32_t> indices = {
-          0,  1,  2,  0,  2,  3,  4,  5,  6,  4,  6,  7,  8,  9,  10, 8,  10, 11, 12, 13,
-          14, 12, 13, 14, 12, 14, 15, 16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23,
+          // Front face
+          0,
+          1,
+          2,
+          0,
+          2,
+          3,
+
+          // Back face
+          4,
+          6,
+          5,
+          4,
+          7,
+          6,
+
+          // Left face
+          4,
+          5,
+          1,
+          4,
+          1,
+          0,
+
+          // Right face
+          3,
+          2,
+          6,
+          3,
+          6,
+          7,
+
+          // Top face
+          1,
+          5,
+          6,
+          1,
+          6,
+          2,
+
+          // Bottom face
+          4,
+          0,
+          3,
+          4,
+          3,
+          7,
         };
 
         return Mesh(vertices, indices);
