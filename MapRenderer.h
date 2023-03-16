@@ -4,6 +4,7 @@
 #include "MeshManager.h"
 #include "VertexShader.h"
 #include "PerFrameCB.h"
+#include "PerCameraCB.h"
 
 using namespace DirectX;
 
@@ -42,11 +43,13 @@ public:
         buffer_desc.ByteWidth = sizeof(PerFrameCB);
         buffer_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
         buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        m_device->CreateBuffer(&buffer_desc, nullptr, m_constant_buffer.GetAddressOf());
+        m_device->CreateBuffer(&buffer_desc, nullptr, m_per_frame_cb.GetAddressOf());
+        buffer_desc.ByteWidth = sizeof(PerCameraCB);
+        m_device->CreateBuffer(&buffer_desc, nullptr, m_per_camera_cb.GetAddressOf());
 
-        m_deviceContext->VSSetConstantBuffers(PER_FRAME_CB_SLOT, 1, m_constant_buffer.GetAddressOf());
+        m_deviceContext->VSSetConstantBuffers(PER_FRAME_CB_SLOT, 1, m_per_frame_cb.GetAddressOf());
+        m_deviceContext->VSSetConstantBuffers(PER_CAMERA_CB_SLOT, 1, m_per_camera_cb.GetAddressOf());
 
-        // Assume shader and input layout stays the same.
         m_deviceContext->VSSetShader(m_vertex_shader->GetShader(), nullptr, 0);
         m_deviceContext->IASetInputLayout(m_vertex_shader->GetInputLayout());
     }
@@ -77,6 +80,33 @@ public:
         m_user_camera->OnViewPortChanged(viewport_width, viewport_height);
     }
 
+    void CreateRasterizerStates()
+    {
+        // Setup various rasterizer states
+        D3D11_RASTERIZER_DESC rsDesc;
+        ZeroMemory(&rsDesc, sizeof(D3D11_RASTERIZER_DESC));
+        rsDesc.FillMode = D3D11_FILL_SOLID;
+        rsDesc.CullMode = D3D11_CULL_NONE;
+        rsDesc.FrontCounterClockwise = false;
+        rsDesc.DepthClipEnable = true;
+
+        auto hr = m_device->CreateRasterizerState(&rsDesc, m_solid_no_cull_rs.GetAddressOf());
+        if (FAILED(hr))
+            throw "Failed creating solid frame rasterizer state.";
+        rsDesc.FillMode = D3D11_FILL_WIREFRAME;
+        hr = m_device->CreateRasterizerState(&rsDesc, m_wireframe_no_cull_rs.GetAddressOf());
+        if (FAILED(hr))
+            throw "Failed creating solid frame rasterizer state.";
+        rsDesc.CullMode = D3D11_CULL_BACK;
+        hr = m_device->CreateRasterizerState(&rsDesc, m_wireframe_rs.GetAddressOf());
+        if (FAILED(hr))
+            throw "Failed creating solid frame rasterizer state.";
+        rsDesc.FillMode = D3D11_FILL_SOLID;
+        hr = m_device->CreateRasterizerState(&rsDesc, m_solid_rs.GetAddressOf());
+        if (FAILED(hr))
+            throw "Failed creating solid frame rasterizer state.";
+    }
+
     void Update(const float dt)
     {
         const bool is_w_down = m_input_manager->IsKeyDown('W');
@@ -85,10 +115,47 @@ public:
         const bool is_d_down = m_input_manager->IsKeyDown('D');
         m_user_camera->Update(dt, is_a_down, is_w_down, is_s_down, is_d_down);
 
+        // Override for testing purposes
+        const auto pos = XMFLOAT3{0, 2000, 0};
+        const auto target = XMFLOAT3{1, 0, 1};
+        m_user_camera->LookAt(pos, target);
+
+        DirectionalLight m_directionalLight;
+        m_directionalLight.ambient = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
+        m_directionalLight.diffuse = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+        m_directionalLight.specular = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+        m_directionalLight.direction = XMFLOAT3(0.577f, -0.577f, 0.577f);
+        m_directionalLight.pad = 0.0f;
+
+        // Update per frame CB
+        static auto frameCB = PerFrameCB();
+        frameCB.directionalLight = m_directionalLight;
+
+        // Update the per frame constant buffer
+        D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
+        ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
+        m_deviceContext->Map(m_per_frame_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
+        memcpy(mappedResourceFrame.pData, &frameCB, sizeof(PerFrameCB));
+        m_deviceContext->Unmap(m_per_frame_cb.Get(), 0);
+
+        // Update camera CB
+        static auto cameraCB = PerCameraCB();
+        XMStoreFloat4x4(&cameraCB.view, XMMatrixTranspose(m_user_camera->GetViewMatrix()));
+        XMStoreFloat4x4(&cameraCB.projection, XMMatrixTranspose(m_user_camera->GetProjectionMatrix()));
+        D3D11_MAPPED_SUBRESOURCE mappedResource;
+        ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+        m_deviceContext->Map(m_per_camera_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        memcpy(mappedResource.pData, &cameraCB, sizeof(PerCameraCB));
+        m_deviceContext->Unmap(m_per_camera_cb.Get(), 0);
+
         m_mesh_manager->Update(dt);
     }
 
-    void Render() { m_mesh_manager->Render(); }
+    void Render()
+    {
+        m_deviceContext->RSSetState(m_solid_no_cull_rs.Get());
+        m_mesh_manager->Render();
+    }
 
 private:
     ID3D11Device* m_device;
@@ -98,7 +165,13 @@ private:
     std::unique_ptr<Camera> m_user_camera;
     std::unique_ptr<VertexShader> m_vertex_shader;
 
-    Microsoft::WRL::ComPtr<ID3D11Buffer> m_constant_buffer;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_frame_cb;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_camera_cb;
+
+    Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_wireframe_rs;
+    Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_wireframe_no_cull_rs;
+    Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_solid_rs;
+    Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_solid_no_cull_rs;
 
     bool m_is_terrain_mesh_set = false;
     int m_terrain_mesh_id = -1;

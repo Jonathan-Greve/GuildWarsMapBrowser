@@ -34,6 +34,37 @@ void Camera::OnViewPortChanged(float viewport_width, float viewport_height)
     XMStoreFloat4x4(&m_projectionMatrix, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
 }
 
+void Camera::LookAt(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& target)
+{
+    // Store the position and target in the class members
+    m_position = pos;
+    m_target = target;
+
+    // Calculate the forward vector from position to target
+    XMVECTOR forward = XMVector3Normalize(XMLoadFloat3(&target) - XMLoadFloat3(&pos));
+
+    // Calculate the right vector by crossing the forward vector with the world up vector
+    XMVECTOR right = XMVector3Normalize(XMVector3Cross(XMLoadFloat3(&m_world_up), forward));
+
+    // Calculate the up vector by crossing the forward and right vectors
+    XMVECTOR up = XMVector3Cross(forward, right);
+
+    // Store the up vector in the class member
+    XMStoreFloat3(&m_up, up);
+
+    // Update the view matrix
+    XMStoreFloat4x4(&m_viewMatrix, XMMatrixLookAtLH(XMLoadFloat3(&pos), XMLoadFloat3(&target), up));
+}
+
+void Camera::SetPosition(const DirectX::XMFLOAT3& position)
+{
+    // Update the position
+    m_position = position;
+
+    // Recalculate the target and up vectors based on the new position
+    LookAt(m_position, m_target);
+}
+
 void Camera::Update(float deltaTime, bool is_a_key_down, bool is_w_key_down, bool is_s_key_down,
                     bool is_d_key_down)
 {

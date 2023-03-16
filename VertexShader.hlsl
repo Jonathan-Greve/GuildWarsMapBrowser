@@ -1,9 +1,3 @@
-cbuffer ConstantBuffer : register(b0)
-{
-    matrix World;
-    matrix View;
-    matrix Projection;
-};
 
 struct DirectionalLight
 {
@@ -14,11 +8,21 @@ struct DirectionalLight
     float pad;
 };
 
-cbuffer DirectionalLightBuffer : register(b1)
+cbuffer PerFrameCB: register(b0)
 {
     DirectionalLight directionalLight;
 };
 
+cbuffer PerObjectCB : register(b1)
+{
+    matrix World;
+};
+
+cbuffer PerCameraCB : register(b2)
+{
+    matrix View;
+    matrix Projection;
+};
 
 struct VertexInputType
 {

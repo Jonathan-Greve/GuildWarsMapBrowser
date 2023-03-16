@@ -10,6 +10,8 @@ public:
     void Initialize(const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& target,
                     const DirectX::XMFLOAT3& up, float fov, float aspectRatio, float nearZ, float farZ);
     void OnViewPortChanged(float viewport_width, float viewport_height);
+    void LookAt(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& target);
+    void SetPosition(const DirectX::XMFLOAT3& position);
     void Update(float deltaTime, bool is_a_key_down, bool is_w_key_down, bool is_s_key_down,
                 bool is_d_key_down);
 

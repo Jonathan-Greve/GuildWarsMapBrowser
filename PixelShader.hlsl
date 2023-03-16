@@ -12,7 +12,7 @@ struct DirectionalLight
     float pad;
 };
 
-cbuffer DirectionalLightBuffer : register(b1)
+cbuffer PerFrameCB: register(b0)
 {
     DirectionalLight directionalLight;
 };
