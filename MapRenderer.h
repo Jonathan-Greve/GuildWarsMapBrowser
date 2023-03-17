@@ -28,7 +28,7 @@ public:
         float aspect_ratio = viewport_width / viewport_height;
         m_user_camera->SetFrustumAsPerspective(static_cast<float>(fov_degrees * XM_PI / 180.0), aspect_ratio,
                                                0.1f, 20000);
-        const auto pos = FXMVECTOR{0, 2000, 1, 0};
+        const auto pos = FXMVECTOR{0, 0, -1000, 0};
         const auto target = FXMVECTOR{0, 0, 0, 0};
         const auto world_up = FXMVECTOR{0, 1, 0, 0};
         m_user_camera->LookAt(pos, target, world_up);
@@ -37,7 +37,7 @@ public:
 
         // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
         auto box_id = m_mesh_manager->AddBox({200, 200, 200});
-        auto sphere_id = m_mesh_manager->AddSphere(300, 100, 100);
+        //auto sphere_id = m_mesh_manager->AddSphere(300, 100, 100);
         auto line_id = m_mesh_manager->AddLine({-400, 500, 0}, {400, 500, 0});
 
         // Create and initialize the VertexShader
@@ -147,7 +147,7 @@ public:
         m_directionalLight.ambient = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
         m_directionalLight.diffuse = XMFLOAT4(0.6f, 0.5f, 0.5f, 1.0f);
         m_directionalLight.specular = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
-        m_directionalLight.direction = XMFLOAT3(0.0f, 0.0f, -1.0f);
+        m_directionalLight.direction = XMFLOAT3(0.0f, -1.0f, 0.0f);
         m_directionalLight.pad = 0.0f;
 
         // Update per frame CB
