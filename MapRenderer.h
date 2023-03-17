@@ -28,20 +28,16 @@ public:
         float aspect_ratio = viewport_width / viewport_height;
         m_user_camera->SetFrustumAsPerspective(static_cast<float>(fov_degrees * XM_PI / 180.0), aspect_ratio,
                                                0.1f, 20000);
-        // Override for testing purposes
         const auto pos = FXMVECTOR{0, 2000, 1, 0};
         const auto target = FXMVECTOR{0, 0, 0, 0};
         const auto world_up = FXMVECTOR{0, 1, 0, 0};
         m_user_camera->LookAt(pos, target, world_up);
 
-        //m_user_camera->Initialize(XMFLOAT3(0.0f, 1000.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f),
-        //                          XMFLOAT3(0.0f, 1.0f, 0.0f), fov_degrees * (XM_PI / 180.0f),
-        //                          viewport_width / viewport_height, 0.1, 10000);
-
         m_input_manager->AddMouseMoveListener(m_user_camera.get());
 
         // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
-        m_mesh_manager->AddBox({200, 200, 200});
+        //m_mesh_manager->AddBox({200, 200, 200});
+        m_mesh_manager->AddSphere(300, 100, 100);
 
         // Create and initialize the VertexShader
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
@@ -58,6 +54,7 @@ public:
         buffer_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
         buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         m_device->CreateBuffer(&buffer_desc, nullptr, m_per_frame_cb.GetAddressOf());
+
         buffer_desc.ByteWidth = sizeof(PerCameraCB);
         m_device->CreateBuffer(&buffer_desc, nullptr, m_per_camera_cb.GetAddressOf());
 
@@ -65,12 +62,15 @@ public:
         m_deviceContext->VSSetConstantBuffers(PER_CAMERA_CB_SLOT, 1, m_per_camera_cb.GetAddressOf());
 
         m_deviceContext->VSSetShader(m_vertex_shader->GetShader(), nullptr, 0);
+        m_deviceContext->VSSetSamplers(0, 1, m_pixel_shader->GetSamplerState());
         m_deviceContext->IASetInputLayout(m_vertex_shader->GetInputLayout());
+
+        m_deviceContext->PSSetConstantBuffers(PER_FRAME_CB_SLOT, 1, m_per_frame_cb.GetAddressOf());
+        m_deviceContext->PSSetConstantBuffers(PER_CAMERA_CB_SLOT, 1, m_per_camera_cb.GetAddressOf());
 
         // Set the pixel shader and sampler state
         m_deviceContext->PSSetShader(m_pixel_shader->GetShader(), nullptr, 0);
-        const auto sampler_state = m_pixel_shader->GetSamplerState();
-        m_deviceContext->PSSetSamplers(0, 1, &sampler_state);
+        m_deviceContext->PSSetSamplers(0, 1, m_pixel_shader->GetSamplerState());
     }
 
     void SetTerrain(const Mesh& terrain_mesh)
@@ -152,7 +152,7 @@ public:
         m_directionalLight.ambient = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
         m_directionalLight.diffuse = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
         m_directionalLight.specular = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
-        m_directionalLight.direction = XMFLOAT3(0.577f, -0.577f, 0.577f);
+        m_directionalLight.direction = XMFLOAT3(0.0f, -1.0f, 0.0f);
         m_directionalLight.pad = 0.0f;
 
         // Update per frame CB

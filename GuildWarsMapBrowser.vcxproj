@@ -201,6 +201,7 @@
     <ClInclude Include="DeviceResources.h" />
     <ClInclude Include="DirectionalLight.h" />
     <ClInclude Include="draw_dat_browser.h" />
+    <ClInclude Include="DXMathHelpers.h" />
     <ClInclude Include="FFNAType.h" />
     <ClInclude Include="FFNA_MapFile.h" />
     <ClInclude Include="GuiGlobalConstants.h" />
@@ -287,6 +288,7 @@
     <ClCompile Include="DeviceResources.cpp" />
     <ClCompile Include="DirectionalLight.cpp" />
     <ClCompile Include="draw_dat_browser.cpp" />
+    <ClCompile Include="DXMathHelpers.cpp" />
     <ClCompile Include="FFNA_MapFile.cpp" />
     <ClCompile Include="GuiGlobalConstants.cpp" />
     <ClCompile Include="GWUnpacker.cpp" />

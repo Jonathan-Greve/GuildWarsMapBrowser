@@ -59,6 +59,9 @@
     <Filter Include="Render\Renderer\Map renderer">
       <UniqueIdentifier>{449a272d-07f5-43c1-a994-bb0e36e6fced}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Render\Math helpers">
+      <UniqueIdentifier>{b2f31f3a-3b65-4570-9606-5e263b7131ca}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -198,6 +201,7 @@
     <ClInclude Include="PixelShader.h">
       <Filter>Render\Shaders</Filter>
     </ClInclude>
+    <ClInclude Include="DXMathHelpers.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -323,6 +327,7 @@
     <ClCompile Include="PixelShader.cpp">
       <Filter>Render\Shaders</Filter>
     </ClCompile>
+    <ClCompile Include="DXMathHelpers.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />

@@ -12,69 +12,50 @@ public:
 private:
     Mesh GenerateBoxMesh(const DirectX::XMFLOAT3& size)
     {
-        float half_width = size.x / 2.0f;
-        float half_height = size.y / 2.0f;
-        float half_depth = size.z / 2.0f;
+        float half_width = size.x * 0.5f;
+        float half_height = size.y * 0.5f;
+        float half_depth = size.z * 0.5f;
 
         std::vector<Vertex> vertices = {
-          {{-half_width, -half_height, half_depth}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-          {{-half_width, half_height, half_depth}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-          {{half_width, half_height, half_depth}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-          {{half_width, -half_height, half_depth}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-          {{-half_width, -half_height, -half_depth}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}},
-          {{-half_width, half_height, -half_depth}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},
-          {{half_width, half_height, -half_depth}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},
-          {{half_width, -half_height, -half_depth}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}},
+          // Front face
+          {{-half_width, -half_height, -half_depth}, {0, 0, -1}, {0, 1}},
+          {{half_width, -half_height, -half_depth}, {0, 0, -1}, {1, 1}},
+          {{half_width, half_height, -half_depth}, {0, 0, -1}, {1, 0}},
+          {{-half_width, half_height, -half_depth}, {0, 0, -1}, {0, 0}},
+          // Back face
+          {{-half_width, -half_height, half_depth}, {0, 0, 1}, {1, 1}},
+          {{half_width, -half_height, half_depth}, {0, 0, 1}, {0, 1}},
+          {{half_width, half_height, half_depth}, {0, 0, 1}, {0, 0}},
+          {{-half_width, half_height, half_depth}, {0, 0, 1}, {1, 0}},
+          // Top face
+          {{-half_width, half_height, -half_depth}, {0, 1, 0}, {0, 1}},
+          {{half_width, half_height, -half_depth}, {0, 1, 0}, {1, 1}},
+          {{half_width, half_height, half_depth}, {0, 1, 0}, {1, 0}},
+          {{-half_width, half_height, half_depth}, {0, 1, 0}, {0, 0}},
+          // Bottom face
+          {{-half_width, -half_height, -half_depth}, {0, -1, 0}, {1, 1}},
+          {{half_width, -half_height, -half_depth}, {0, -1, 0}, {0, 1}},
+          {{half_width, -half_height, half_depth}, {0, -1, 0}, {0, 0}},
+          {{-half_width, -half_height, half_depth}, {0, -1, 0}, {1, 0}},
+          // Left face
+          {{-half_width, -half_height, -half_depth}, {-1, 0, 0}, {1, 1}},
+          {{-half_width, half_height, -half_depth}, {-1, 0, 0}, {1, 0}},
+          {{-half_width, half_height, half_depth}, {-1, 0, 0}, {0, 0}},
+          {{-half_width, -half_height, half_depth}, {-1, 0, 0}, {0, 1}},
+          // Right face
+          {{half_width, -half_height, -half_depth}, {1, 0, 0}, {0, 1}},
+          {{half_width, half_height, -half_depth}, {1, 0, 0}, {0, 0}},
+          {{half_width, half_height, half_depth}, {1, 0, 0}, {1, 0}},
+          {{half_width, -half_height, half_depth}, {1, 0, 0}, {1, 1}},
         };
 
         std::vector<uint32_t> indices = {
-          // Front face
-          0,
-          1,
-          2,
-          0,
-          2,
-          3,
-
-          // Back face
-          4,
-          6,
-          5,
-          4,
-          7,
-          6,
-
-          // Left face
-          4,
-          5,
-          1,
-          4,
-          1,
-          0,
-
-          // Right face
-          3,
-          2,
-          6,
-          3,
-          6,
-          7,
-
-          // Top face
-          1,
-          5,
-          6,
-          1,
-          6,
-          2,
-
-          // Bottom face
-          4,
-          0,
-          3,
-          4,
-          3,
-          7,
+          0,  2,  1,  0,  3,  2, // Front face
+          4,  6,  5,  4,  7,  6, // Back face
+          8,  10, 9,  8,  11, 10, // Top face
+          12, 14, 13, 12, 15, 14, // Bottom face
+          16, 18, 17, 16, 19, 18, // Left face
+          20, 22, 21, 20, 23, 22, // Right face
         };
 
         return Mesh(vertices, indices);

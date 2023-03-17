@@ -29,6 +29,7 @@ public:
         // Set the constant buffer for the vertex shader
         ID3D11Buffer* constantBuffers[] = {m_perObjectCB.Get()};
         m_deviceContext->VSSetConstantBuffers(PER_OBJECT_CB_SLOT, 1, constantBuffers);
+        m_deviceContext->PSSetConstantBuffers(PER_OBJECT_CB_SLOT, 1, constantBuffers);
     }
 
     int AddBox(const DirectX::XMFLOAT3& size)

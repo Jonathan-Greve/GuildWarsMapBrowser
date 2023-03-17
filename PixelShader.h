@@ -69,7 +69,7 @@ public:
 
     ID3D11PixelShader* GetShader() const { return m_pixelShader.Get(); }
 
-    ID3D11SamplerState* GetSamplerState() const { return m_samplerState.Get(); }
+    ID3D11SamplerState* const* GetSamplerState() const { return m_samplerState.GetAddressOf(); }
 
     ID3D11ShaderResourceView* GetShaderResourceView() const { return m_shaderResourceView.Get(); }
 

@@ -25,7 +25,7 @@ struct PixelInputType
 
 float4 main(PixelInputType input) : SV_TARGET
 {
-    float4 textureColor = shaderTexture.Sample(SampleType, input.texCoords);
+    float4 textureColor = float4(0.2, 0.8, 0.2, 1.0); // shaderTexture.Sample(SampleType, input.texCoords);
     float3 lightDirection = normalize(-directionalLight.direction);
     float3 normal = normalize(input.normal);
 
@@ -42,10 +42,10 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 ambient = directionalLight.ambient * textureColor;
     float4 specular = specularIntensity * directionalLight.specular;
 
-    /*return ambient + diffuse + specular;*/
+    return ambient + diffuse + specular;
 
-    // Set the constant color (for example, red)
-    float4 debugColor = float4(1.0, 0.0, 0.0, 1.0);
+    //// Set the constant color (for example, red)
+    //float4 debugColor = float4(1.0, 0.0, 0.0, 1.0);
 
-    return debugColor;
+    //return debugColor;
 }
