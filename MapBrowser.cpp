@@ -112,9 +112,6 @@ void draw_dat_load_progress_bar(int num_files_read, int total_num_files)
     ImGui::Begin("Progress Bar", NULL,
                  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 
-    const int curr_index = 40;
-    const int max_index = 100;
-
     float progress = static_cast<float>(num_files_read) / static_cast<float>(total_num_files);
     ImVec2 size = ImVec2(ImGui::GetContentRegionAvail().x * progress, ImGui::GetContentRegionAvail().y);
     ImVec2 pos = ImVec2(ImGui::GetCursorScreenPos().x, ImGui::GetCursorScreenPos().y);
@@ -237,7 +234,6 @@ void MapBrowser::Render()
     Clear();
 
     m_deviceResources->PIXBeginEvent(L"Render");
-    auto context = m_deviceResources->GetD3DDeviceContext();
 
     m_map_renderer->Render();
 

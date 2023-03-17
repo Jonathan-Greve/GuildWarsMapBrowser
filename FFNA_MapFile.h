@@ -176,7 +176,7 @@ struct SomeVertexData
 
         vertices.resize(num_elements);
         int vertex_offset = offset + 9;
-        for (int i = 0; i < num_elements; i++)
+        for (uint32_t i = 0; i < num_elements; i++)
         {
             vertices[i] = SomeVertex(vertex_offset, data);
             vertex_offset += sizeof(SomeVertex);
