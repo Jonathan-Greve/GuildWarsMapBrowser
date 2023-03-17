@@ -517,6 +517,7 @@ struct Chunk5
 
     Chunk5(int offset, const unsigned char* data)
     {
+        int initial_offset = offset;
         std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
         offset += sizeof(chunk_id);
 
@@ -548,64 +549,186 @@ struct Chunk5
                 offset += sizeof(float);
             }
 
-            some_array.reserve(element_2.num_zones * sizeof(Chunk5Element));
+            some_array.reserve(element_2.num_zones);
             for (uint32_t i = 0; i < element_2.num_zones; ++i)
             {
                 some_array.emplace_back(offset, data);
             }
         }
 
-        int chunk_data_size = chunk_size - 8 - sizeof(element_0) - sizeof(element_1) - sizeof(element_2) -
-          sizeof(element_3) -
-          (element_2.num_zones > 0 ? (8 + sizeof(unknown2) + sizeof(Chunk5Element2) * element_2.num_zones)
-                                   : 0);
+        int remaining_bytes = chunk_size + 8 - (offset - initial_offset);
+        if (remaining_bytes > 0)
+        {
+            chunk_data.resize(remaining_bytes);
+            std::memcpy(chunk_data.data(), &data[offset], chunk_data.size());
+        }
+    }
+};
+
+struct Chunk8
+{
+    uint32_t chunk_id;
+    uint32_t chunk_size;
+    uint32_t magic_num;
+    uint32_t magic_num1;
+    uint8_t tag;
+    uint32_t some_size;
+    uint32_t terrain_x_dims;
+    uint32_t terrain_y_dims;
+    float some_float;
+    float some_small_float;
+    uint16_t some_size1;
+    float some_float1;
+    float some_float2;
+    uint8_t tag1;
+    uint32_t terrain_height_size_bytes;
+    std::vector<float> terrain_height_vertices;
+    uint8_t tag2;
+    uint32_t num_terrain_tiles;
+    std::vector<uint8_t> something_for_each_tile;
+    uint8_t tag3;
+    uint32_t some_size2;
+    uint8_t some_size3;
+    std::vector<uint8_t> some_data3;
+    uint8_t tag4;
+    uint32_t some_size4;
+    std::vector<uint8_t> some_data4;
+    uint8_t tag5;
+    uint32_t some_size5;
+    std::vector<uint8_t> some_data5;
+    uint8_t tag6;
+    uint32_t num_terrain_tiles1;
+    std::vector<uint8_t> something_for_each_tile1;
+    uint8_t tag7;
+    uint32_t some_size7;
+    std::vector<uint8_t> some_data7;
+    std::vector<uint8_t> chunk_data;
+
+    Chunk8() = default;
+
+    Chunk8(int offset, const unsigned char* data)
+    {
+        std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
+        offset += sizeof(chunk_id);
+
+        std::memcpy(&chunk_size, &data[offset], sizeof(chunk_size));
+        offset += sizeof(chunk_size);
+
+        std::memcpy(&magic_num, &data[offset], sizeof(magic_num));
+        offset += sizeof(magic_num);
+
+        std::memcpy(&magic_num1, &data[offset], sizeof(magic_num1));
+        offset += sizeof(magic_num1);
+
+        std::memcpy(&tag, &data[offset], sizeof(tag));
+        offset += sizeof(tag);
+
+        std::memcpy(&some_size, &data[offset], sizeof(some_size));
+        offset += sizeof(some_size);
+
+        std::memcpy(&terrain_x_dims, &data[offset], sizeof(terrain_x_dims));
+        offset += sizeof(terrain_x_dims);
+
+        std::memcpy(&terrain_y_dims, &data[offset], sizeof(terrain_y_dims));
+        offset += sizeof(terrain_y_dims);
+
+        std::memcpy(&some_float, &data[offset], sizeof(some_float));
+        offset += sizeof(some_float);
+
+        std::memcpy(&some_small_float, &data[offset], sizeof(some_small_float));
+        offset += sizeof(some_small_float);
+
+        std::memcpy(&some_size1, &data[offset], sizeof(some_size1));
+        offset += sizeof(some_size1);
+
+        std::memcpy(&some_float1, &data[offset], sizeof(some_float1));
+        offset += sizeof(some_float1);
+
+        std::memcpy(&some_float2, &data[offset], sizeof(some_float2));
+        offset += sizeof(some_float2);
+
+        std::memcpy(&tag1, &data[offset], sizeof(tag1));
+        offset += sizeof(tag1);
+
+        std::memcpy(&terrain_height_size_bytes, &data[offset], sizeof(terrain_height_size_bytes));
+        offset += sizeof(terrain_height_size_bytes);
+
+        terrain_height_vertices.resize(terrain_x_dims * terrain_y_dims);
+        std::memcpy(terrain_height_vertices.data(), &data[offset],
+                    terrain_height_vertices.size() * sizeof(float));
+        offset += terrain_height_vertices.size() * sizeof(float);
+
+        std::memcpy(&tag2, &data[offset], sizeof(tag2));
+        offset += sizeof(tag2);
+
+        std::memcpy(&num_terrain_tiles, &data[offset], sizeof(num_terrain_tiles));
+        offset += sizeof(num_terrain_tiles);
+
+        something_for_each_tile.resize(num_terrain_tiles);
+        std::memcpy(something_for_each_tile.data(), &data[offset], something_for_each_tile.size());
+        offset += something_for_each_tile.size();
+
+        std::memcpy(&tag3, &data[offset], sizeof(tag3));
+        offset += sizeof(tag3);
+
+        std::memcpy(&some_size2, &data[offset], sizeof(some_size2));
+        offset += sizeof(some_size2);
+
+        std::memcpy(&some_size3, &data[offset], sizeof(some_size3));
+        offset += sizeof(some_size3);
+
+        some_data3.resize(some_size3);
+        std::memcpy(some_data3.data(), &data[offset], some_data3.size());
+        offset += some_data3.size();
+
+        std::memcpy(&tag4, &data[offset], sizeof(tag4));
+        offset += sizeof(tag4);
+
+        std::memcpy(&some_size4, &data[offset], sizeof(some_size4));
+        offset += sizeof(some_size4);
+
+        some_data4.resize(some_size4);
+        std::memcpy(some_data4.data(), &data[offset], some_data4.size());
+        offset += some_data4.size();
+
+        std::memcpy(&tag5, &data[offset], sizeof(tag5));
+        offset += sizeof(tag5);
+
+        std::memcpy(&some_size5, &data[offset], sizeof(some_size5));
+        offset += sizeof(some_size5);
+
+        some_data5.resize(some_size5);
+        std::memcpy(some_data5.data(), &data[offset], some_data5.size());
+        offset += some_data5.size();
+
+        std::memcpy(&tag6, &data[offset], sizeof(tag6));
+        offset += sizeof(tag6);
+
+        std::memcpy(&num_terrain_tiles1, &data[offset], sizeof(num_terrain_tiles1));
+        offset += sizeof(num_terrain_tiles1);
+
+        something_for_each_tile1.resize(num_terrain_tiles1);
+        std::memcpy(something_for_each_tile1.data(), &data[offset], something_for_each_tile1.size());
+        offset += something_for_each_tile1.size();
+
+        std::memcpy(&tag7, &data[offset], sizeof(tag7));
+        offset += sizeof(tag7);
+
+        std::memcpy(&some_size7, &data[offset], sizeof(some_size7));
+        offset += sizeof(some_size7);
+
+        some_data7.resize(some_size7);
+        std::memcpy(some_data7.data(), &data[offset], some_data7.size());
+        offset += some_data7.size();
+
+        int chunk_data_size = chunk_size - 75 - terrain_height_vertices.size() * sizeof(float) -
+          something_for_each_tile.size() - some_data3.size() - some_data4.size() - some_data5.size() -
+          something_for_each_tile1.size() - some_data7.size();
         chunk_data.resize(chunk_data_size);
         std::memcpy(chunk_data.data(), &data[offset], chunk_data.size());
     }
 };
 
-//
-//struct Chunk8
-//{
-//    uint32_t chunk_id;
-//    uint32_t chunk_size;
-//    uint32_t magic_num;
-//    uint32_t magic_num1;
-//    uint8_t tag;
-//    uint32_t some_size;
-//    uint32_t terrain_x_dims; // Not sure what dims refer to. Maybe the terrain is divided into grid tiles?
-//    uint32_t terrain_y_dims;
-//    float some_float;
-//    float some_small_float; // checked that it is less than 1.570796 and >=0
-//    uint16_t some_size1;
-//    float some_float1;
-//    float some_float2;
-//    uint8_t tag1;
-//    uint32_t terrain_height_size_bytes;
-//    float terrain_height_vertices[terrain_x_dims * terrain_y_dims]; // same as [terrain_height_size_bytes/4]
-//    uint8_t tag2;
-//    uint32_t num_terrain_tiles; // num terrain height vertices
-//    uint8_t something_for_each_tile[num_terrain_tiles];
-//    uint8_t tag3;
-//    uint32_t some_size2;
-//    uint8_t some_size3;
-//    uint8_t some_data3[some_size3];
-//    uint8_t tag4;
-//    uint32_t some_size4;
-//    uint8_t some_data4[some_size4];
-//    uint8_t tag5;
-//    uint32_t some_size5;
-//    uint8_t some_data5[some_size5];
-//    uint8_t tag6;
-//    uint32_t num_terrain_tiles1;
-//    uint8_t something_for_each_tile1[num_terrain_tiles1];
-//    uint8_t tag7;
-//    uint32_t some_size7;
-//    uint8_t some_data7[some_size7];
-//    uint8_t chunk_data[chunk_size - 75 - sizeof(terrain_height_vertices) - sizeof(something_for_each_tile) -
-//                       sizeof(some_data3) - sizeof(some_data4) - sizeof(some_data5) -
-//                       sizeof(something_for_each_tile1) - sizeof(some_data7)];
-//};
 //
 //struct Chunk7
 //{
@@ -621,8 +744,9 @@ struct FFNA_MapFile
     Chunk1 chunk1;
     Chunk2 chunk2;
     Chunk3 chunk3;
-    Chunk4 chunk4;
+    Chunk4 prop_filenames_chunk;
     Chunk5 chunk5;
+    Chunk4 more_filnames_chunk; // same structure as chunk 4
 
     FFNA_MapFile() = default;
     FFNA_MapFile(int offset, std::span<unsigned char>& data)
@@ -640,9 +764,13 @@ struct FFNA_MapFile
         chunk3 = Chunk3(offset, data.data());
         offset +=
           8 + chunk3.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
-        chunk4 = Chunk4(offset, data.data());
-        offset +=
-          8 + chunk4.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+        prop_filenames_chunk = Chunk4(offset, data.data());
+        offset += 8 +
+          prop_filenames_chunk
+            .chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
         chunk5 = Chunk5(offset, data.data());
+        offset +=
+          8 + chunk5.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+        more_filnames_chunk = Chunk4(offset, data.data());
     }
 };
