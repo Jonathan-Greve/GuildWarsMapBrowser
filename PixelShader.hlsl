@@ -15,6 +15,17 @@ cbuffer PerFrameCB: register(b0)
     DirectionalLight directionalLight;
 };
 
+cbuffer PerObjectCB : register(b1)
+{
+    matrix World;
+};
+
+cbuffer PerCameraCB : register(b2)
+{
+    matrix View;
+    matrix Projection;
+};
+
 
 struct PixelInputType
 {
@@ -25,27 +36,30 @@ struct PixelInputType
 
 float4 main(PixelInputType input) : SV_TARGET
 {
-    float4 textureColor = float4(0.2, 0.8, 0.2, 1.0); // shaderTexture.Sample(SampleType, input.texCoords);
-    float3 lightDirection = normalize(-directionalLight.direction);
+    // Normalize the input normal
     float3 normal = normalize(input.normal);
 
-    // Compute the diffuse term
-    float diffuseIntensity = max(dot(lightDirection, normal), 0.0);
+    // Calculate the dot product of the normal and light direction
+    float NdotL = max(dot(normal, -directionalLight.direction), 0.0);
 
-    // Compute the specular term
-    float3 viewDirection = normalize(-input.position.xyz);
-    float3 reflectDirection = reflect(-lightDirection, normal);
-    float specularIntensity = pow(max(dot(viewDirection, reflectDirection), 0.0), 32);
+    // Calculate the ambient and diffuse components
+    float4 ambientComponent = directionalLight.ambient;
+    float4 diffuseComponent = directionalLight.diffuse * NdotL;
 
-    // Compute the final color
-    float4 diffuse = diffuseIntensity * directionalLight.diffuse * textureColor;
-    float4 ambient = directionalLight.ambient * textureColor;
-    float4 specular = specularIntensity * directionalLight.specular;
+    // Extract the camera position from the view matrix
+    float3 cameraPosition = float3(View._41, View._42, View._43);
 
-    return ambient + diffuse + specular;
+    // Calculate the specular component using the Blinn-Phong model
+    float3 viewDirection = normalize(cameraPosition - input.position.xyz);
+    float3 halfVector = normalize(-directionalLight.direction + viewDirection);
+    float NdotH = max(dot(normal, halfVector), 0.0);
+    float shininess = 80.0; // You can adjust this value for shininess
+    float specularIntensity = pow(NdotH, shininess);
+    float4 specularComponent = directionalLight.specular * specularIntensity;
 
-    //// Set the constant color (for example, red)
-    //float4 debugColor = float4(1.0, 0.0, 0.0, 1.0);
+    // Combine the ambient, diffuse, and specular components to get the final color
+    float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
-    //return debugColor;
+    // Return the result
+    return finalColor;
 }

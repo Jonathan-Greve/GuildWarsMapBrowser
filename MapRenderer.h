@@ -36,8 +36,9 @@ public:
         m_input_manager->AddMouseMoveListener(m_user_camera.get());
 
         // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
-        //m_mesh_manager->AddBox({200, 200, 200});
-        m_mesh_manager->AddSphere(300, 100, 100);
+        auto box_id = m_mesh_manager->AddBox({200, 200, 200});
+        auto sphere_id = m_mesh_manager->AddSphere(300, 100, 100);
+        auto line_id = m_mesh_manager->AddLine({-400, 500, 0}, {400, 500, 0});
 
         // Create and initialize the VertexShader
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
@@ -142,17 +143,11 @@ public:
 
         m_user_camera->Update(dt);
 
-        //// Override for testing purposes
-        //const auto pos = FXMVECTOR{0, 2000, 1, 0};
-        //const auto target = FXMVECTOR{0, 0, 0, 0};
-        //const auto world_up = FXMVECTOR{0, 1, 0, 0};
-        //m_user_camera->LookAt(pos, target, world_up);
-
-        DirectionalLight m_directionalLight;
+        static DirectionalLight m_directionalLight;
         m_directionalLight.ambient = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
-        m_directionalLight.diffuse = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+        m_directionalLight.diffuse = XMFLOAT4(0.6f, 0.5f, 0.5f, 1.0f);
         m_directionalLight.specular = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
-        m_directionalLight.direction = XMFLOAT3(0.0f, -1.0f, 0.0f);
+        m_directionalLight.direction = XMFLOAT3(0.0f, 0.0f, -1.0f);
         m_directionalLight.pad = 0.0f;
 
         // Update per frame CB
@@ -181,7 +176,7 @@ public:
 
     void Render()
     {
-        m_deviceContext->RSSetState(m_solid_no_cull_rs.Get());
+        m_deviceContext->RSSetState(m_solid_rs.Get());
         m_mesh_manager->Render();
     }
 
