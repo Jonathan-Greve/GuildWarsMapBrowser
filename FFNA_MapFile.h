@@ -1,5 +1,6 @@
 #pragma once
 #include "FFNAType.h"
+#include <array>
 #include <stdint.h>
 
 struct MapBounds
@@ -64,6 +65,7 @@ struct Chunk2
     }
 };
 
+#pragma pack(push, 1)
 struct PropInfo
 {
     uint16_t f1;
@@ -104,6 +106,7 @@ struct PropInfo
         std::memcpy(some_structs.data(), &data[offset + 48], some_structs.size());
     }
 };
+#pragma pack(pop)
 
 struct PropArray
 {
@@ -120,8 +123,8 @@ struct PropArray
         {
             auto new_prop_info = PropInfo(offset, data);
             props_info.push_back(new_prop_info);
-            offset += sizeof(new_prop_info) - sizeof(new_prop_info.some_structs) +
-              new_prop_info.some_structs.size() - 4;
+            offset +=
+              sizeof(new_prop_info) - sizeof(new_prop_info.some_structs) + new_prop_info.some_structs.size();
         }
     }
 };
@@ -310,96 +313,257 @@ struct Chunk3
         std::memcpy(chunk_data.data(), &data[offset], chunk_data.size());
     }
 };
-//
-//struct Chunk4DataHeader
-//{
-//    uint32_t signature;
-//    uint8_t version;
-//};
-//
-//// To get file hash from name do:
-//// (id0 - 0xff00ff) + (id2 * 0xff00);
-//struct FileName
-//{
-//    uint16_t id0;
-//    uint16_t id1;
-//};
-//
-//struct Chunk4DataElement
-//{
-//    uint16_t f1;
-//    FileName filename;
-//};
-//
-//struct Chunk4
-//{
-//    uint32_t chunk_id;
-//    uint32_t chunk_size;
-//    Chunk4DataHeader data_header;
-//    FileName file_name;
-//    //Chunk4DataElement array[228];
-//    Chunk4DataElement array[(chunk_size - sizeof(data_header) - sizeof(file_name)) / 6];
-//    uint8_t chunk_data[chunk_size - sizeof(data_header) - sizeof(file_name) - sizeof(array)];
-//};
-//
-//struct Chunk5Element
-//{
-//    uint8_t tag;
-//    uint32_t size;
-//    uint8_t data[size];
-//};
-//
-//struct Chunk5Element1
-//{
-//    uint8_t tag;
-//    uint32_t size;
-//    uint32_t num_zones;
-//};
-//
-//struct Chunk5Element2
-//{
-//    uint8_t unknown[20];
-//    uint8_t unknown1;
-//    uint16_t some_size;
-//    uint16_t unknown2;
-//    if (some_size <= 0)
-//    {
-//        uint32_t unknown3;
-//        uint32_t count2;
-//        Vertex2 vertices[count2];
-//    }
-//    else
-//    {
-//        uint8_t some_data[some_size];
-//    }
-//};
-//
-//struct Chunk5
-//{
-//    uint32_t chunk_id;
-//    uint32_t chunk_size;
-//    // Data start
-//    uint32_t magic_num; // 0x59220329
-//    uint32_t magic_num1; // 0xA0
-//    Chunk5Element element_0;
-//    Chunk5Element element_1;
-//    Chunk5Element1 element_2;
-//    Chunk5Element element_3;
-//    if (element_2.num_zones > 0)
-//    {
-//        uint32_t unknown0;
-//        uint32_t unknown1;
-//        float unknown2[8];
-//        Chunk5Element2 some_array[element_2.num_zones];
-//        uint8_t chunk_data[chunk_size - 8 - sizeof(element_0) - sizeof(element_1) - sizeof(element_2) -
-//                           sizeof(element_3) - 8 - sizeof(unknown2) - sizeof(some_array)];
-//    }
-//    else
-//    {
-//        uint8_t chunk_data[chunk_size - 8 - sizeof(element_0) - sizeof(element_1) - sizeof(element_2) -
-//                           sizeof(element_3)];
-//    }
-//};
+
+#pragma pack(push, 1) // So that sizeof(Chunk4DataHeader) returns 5 instead of being aligned to 8.
+struct Chunk4DataHeader
+{
+    uint32_t signature;
+    uint8_t version;
+
+    Chunk4DataHeader() = default;
+
+    Chunk4DataHeader(int& offset, const unsigned char* data)
+    {
+        std::memcpy(&signature, &data[offset], sizeof(signature));
+        offset += sizeof(signature);
+
+        std::memcpy(&version, &data[offset], sizeof(version));
+        offset += sizeof(version);
+    }
+};
+#pragma pack(pop) // Restore the original alignment
+
+struct FileName
+{
+    uint16_t id0;
+    uint16_t id1;
+
+    FileName() = default;
+
+    FileName(int& offset, const unsigned char* data)
+    {
+        std::memcpy(&id0, &data[offset], sizeof(id0));
+        offset += sizeof(id0);
+
+        std::memcpy(&id1, &data[offset], sizeof(id1));
+        offset += sizeof(id1);
+    }
+};
+
+struct Chunk4DataElement
+{
+    uint16_t f1;
+    FileName filename;
+
+    Chunk4DataElement() = default;
+
+    Chunk4DataElement(int& offset, const unsigned char* data)
+    {
+        std::memcpy(&f1, &data[offset], sizeof(f1));
+        offset += sizeof(f1);
+
+        filename = FileName(offset, data);
+    }
+};
+
+struct Chunk4
+{
+    uint32_t chunk_id;
+    uint32_t chunk_size;
+    Chunk4DataHeader data_header;
+    FileName file_name;
+    std::vector<Chunk4DataElement> array;
+    std::vector<uint8_t> chunk_data;
+
+    Chunk4() = default;
+
+    Chunk4(int offset, const unsigned char* data)
+    {
+        std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
+        offset += sizeof(chunk_id);
+
+        std::memcpy(&chunk_size, &data[offset], sizeof(chunk_size));
+        offset += sizeof(chunk_size);
+
+        data_header = Chunk4DataHeader(offset, data);
+
+        file_name = FileName(offset, data);
+
+        int array_size = (chunk_size - sizeof(data_header) - sizeof(file_name)) / 6;
+        array.reserve(array_size);
+        for (int i = 0; i < array_size; ++i)
+        {
+            array.emplace_back(offset, data);
+        }
+
+        int chunk_data_size =
+          chunk_size - sizeof(data_header) - sizeof(file_name) - sizeof(Chunk4DataElement) * array_size;
+        chunk_data.resize(chunk_data_size);
+        std::memcpy(chunk_data.data(), &data[offset], chunk_data.size());
+    }
+};
+
+struct Chunk5Element
+{
+    uint8_t tag;
+    uint32_t size;
+    std::vector<uint8_t> data;
+
+    Chunk5Element() = default;
+
+    Chunk5Element(int& offset, const unsigned char* data)
+    {
+        std::memcpy(&tag, &data[offset], sizeof(tag));
+        offset += sizeof(tag);
+
+        std::memcpy(&size, &data[offset], sizeof(size));
+        offset += sizeof(size);
+
+        this->data.resize(size);
+        std::memcpy(this->data.data(), &data[offset], size);
+        offset += size;
+    }
+};
+
+struct Chunk5Element1
+{
+    uint8_t tag;
+    uint32_t size;
+    uint32_t num_zones;
+
+    Chunk5Element1() = default;
+
+    Chunk5Element1(int& offset, const unsigned char* data)
+    {
+        std::memcpy(&tag, &data[offset], sizeof(tag));
+        offset += sizeof(tag);
+
+        std::memcpy(&size, &data[offset], sizeof(size));
+        offset += sizeof(size);
+
+        std::memcpy(&num_zones, &data[offset], sizeof(num_zones));
+        offset += sizeof(num_zones);
+    }
+};
+
+struct Chunk5Element2
+{
+    uint8_t unknown[20];
+    uint8_t unknown1;
+    uint16_t some_size;
+    uint16_t unknown2;
+    std::vector<uint8_t> some_data;
+    uint32_t unknown3;
+    uint32_t count2;
+    std::vector<Vertex2> vertices;
+
+    Chunk5Element2() = default;
+
+    Chunk5Element2(int& offset, const unsigned char* data)
+    {
+        std::memcpy(unknown, &data[offset], sizeof(unknown));
+        offset += sizeof(unknown);
+
+        std::memcpy(&unknown1, &data[offset], sizeof(unknown1));
+        offset += sizeof(unknown1);
+
+        std::memcpy(&some_size, &data[offset], sizeof(some_size));
+        offset += sizeof(some_size);
+
+        std::memcpy(&unknown2, &data[offset], sizeof(unknown2));
+        offset += sizeof(unknown2);
+
+        if (some_size <= 0)
+        {
+            std::memcpy(&unknown3, &data[offset], sizeof(unknown3));
+            offset += sizeof(unknown3);
+
+            std::memcpy(&count2, &data[offset], sizeof(count2));
+            offset += sizeof(count2);
+
+            vertices.reserve(count2);
+            for (uint32_t i = 0; i < count2; ++i)
+            {
+                vertices.emplace_back(offset, data);
+                offset += sizeof(Vertex2);
+            }
+        }
+        else
+        {
+            some_data.resize(some_size);
+            std::memcpy(some_data.data(), &data[offset], some_size);
+            offset += some_size;
+        }
+    }
+};
+
+struct Chunk5
+{
+    uint32_t chunk_id;
+    uint32_t chunk_size;
+    uint32_t magic_num;
+    uint32_t magic_num1;
+    Chunk5Element element_0;
+    Chunk5Element element_1;
+    Chunk5Element1 element_2;
+    Chunk5Element element_3;
+    uint32_t unknown0;
+    uint32_t unknown1;
+    std::array<float, 8> unknown2;
+    std::vector<Chunk5Element2> some_array;
+    std::vector<uint8_t> chunk_data;
+
+    Chunk5() = default;
+
+    Chunk5(int offset, const unsigned char* data)
+    {
+        std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
+        offset += sizeof(chunk_id);
+
+        std::memcpy(&chunk_size, &data[offset], sizeof(chunk_size));
+        offset += sizeof(chunk_size);
+
+        std::memcpy(&magic_num, &data[offset], sizeof(magic_num));
+        offset += sizeof(magic_num);
+
+        std::memcpy(&magic_num1, &data[offset], sizeof(magic_num1));
+        offset += sizeof(magic_num1);
+
+        element_0 = Chunk5Element(offset, data);
+        element_1 = Chunk5Element(offset, data);
+        element_2 = Chunk5Element1(offset, data);
+        element_3 = Chunk5Element(offset, data);
+
+        if (element_2.num_zones > 0)
+        {
+            std::memcpy(&unknown0, &data[offset], sizeof(unknown0));
+            offset += sizeof(unknown0);
+
+            std::memcpy(&unknown1, &data[offset], sizeof(unknown1));
+            offset += sizeof(unknown1);
+
+            for (size_t i = 0; i < unknown2.size(); ++i)
+            {
+                std::memcpy(&unknown2[i], &data[offset], sizeof(float));
+                offset += sizeof(float);
+            }
+
+            some_array.reserve(element_2.num_zones * sizeof(Chunk5Element));
+            for (uint32_t i = 0; i < element_2.num_zones; ++i)
+            {
+                some_array.emplace_back(offset, data);
+            }
+        }
+
+        int chunk_data_size = chunk_size - 8 - sizeof(element_0) - sizeof(element_1) - sizeof(element_2) -
+          sizeof(element_3) -
+          (element_2.num_zones > 0 ? (8 + sizeof(unknown2) + sizeof(Chunk5Element2) * element_2.num_zones)
+                                   : 0);
+        chunk_data.resize(chunk_data_size);
+        std::memcpy(chunk_data.data(), &data[offset], chunk_data.size());
+    }
+};
+
 //
 //struct Chunk8
 //{
@@ -457,6 +621,8 @@ struct FFNA_MapFile
     Chunk1 chunk1;
     Chunk2 chunk2;
     Chunk3 chunk3;
+    Chunk4 chunk4;
+    Chunk5 chunk5;
 
     FFNA_MapFile() = default;
     FFNA_MapFile(int offset, std::span<unsigned char>& data)
@@ -472,5 +638,11 @@ struct FFNA_MapFile
         offset +=
           8 + chunk2.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
         chunk3 = Chunk3(offset, data.data());
+        offset +=
+          8 + chunk3.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+        chunk4 = Chunk4(offset, data.data());
+        offset +=
+          8 + chunk4.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+        chunk5 = Chunk5(offset, data.data());
     }
 };
