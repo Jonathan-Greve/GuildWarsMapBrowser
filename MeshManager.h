@@ -85,13 +85,21 @@ public:
         return false;
     }
 
+    void AddTextureToMesh(int meshID, ID3D11ShaderResourceView* texture)
+    {
+        auto it = m_triangleMeshes.find(meshID);
+        if (it != m_triangleMeshes.end())
+        {
+            it->second->SetTexture(texture);
+        }
+    }
+
     void UpdateMeshPerObjectData(int meshID, const PerObjectCB& data)
     {
         auto it = m_triangleMeshes.find(meshID);
         if (it != m_triangleMeshes.end())
         {
             it->second->SetPerObjectData(data);
-            m_needsUpdate = true;
             return;
         }
 
@@ -99,7 +107,6 @@ public:
         if (it != m_lineMeshes.end())
         {
             it->second->SetPerObjectData(data);
-            m_needsUpdate = true;
             return;
         }
     }

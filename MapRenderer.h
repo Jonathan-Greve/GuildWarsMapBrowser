@@ -2,10 +2,12 @@
 #include "InputManager.h"
 #include "Camera.h"
 #include "MeshManager.h"
+#include "TextureManager.h"
 #include "VertexShader.h"
 #include "PixelShader.h"
 #include "PerFrameCB.h"
 #include "PerCameraCB.h"
+#include "CheckerboardTexture.h"
 
 using namespace DirectX;
 
@@ -18,6 +20,7 @@ public:
         , m_input_manager(input_manager)
     {
         m_mesh_manager = std::make_unique<MeshManager>(m_device, m_deviceContext);
+        m_texture_manager = std::make_unique<TextureManager>(m_device);
         m_user_camera = std::make_unique<Camera>();
     }
 
@@ -55,6 +58,14 @@ public:
         spherePerObjectData.world = sphereWorldMatrix;
         m_mesh_manager->UpdateMeshPerObjectData(sphere_id, spherePerObjectData);
 
+        int texture_width = 2;
+        int texture_height = 2;
+        CheckerboardTexture checkerboard_texture(texture_width, texture_height);
+        auto texture_id =
+          m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
+                                        texture_height, DXGI_FORMAT_R8G8B8A8_UNORM);
+        m_mesh_manager->AddTextureToMesh(box_id, m_texture_manager->GetTexture(texture_id));
+
         // Create and initialize the VertexShader
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
         m_vertex_shader->Initialize(L"VertexShader.hlsl");
@@ -78,7 +89,6 @@ public:
         m_deviceContext->VSSetConstantBuffers(PER_CAMERA_CB_SLOT, 1, m_per_camera_cb.GetAddressOf());
 
         m_deviceContext->VSSetShader(m_vertex_shader->GetShader(), nullptr, 0);
-        m_deviceContext->VSSetSamplers(0, 1, m_pixel_shader->GetSamplerState());
         m_deviceContext->IASetInputLayout(m_vertex_shader->GetInputLayout());
 
         m_deviceContext->PSSetConstantBuffers(PER_FRAME_CB_SLOT, 1, m_per_frame_cb.GetAddressOf());
@@ -200,6 +210,7 @@ private:
     ID3D11DeviceContext* m_deviceContext;
     InputManager* m_input_manager;
     std::unique_ptr<MeshManager> m_mesh_manager;
+    std::unique_ptr<TextureManager> m_texture_manager;
     std::unique_ptr<Camera> m_user_camera;
     std::unique_ptr<VertexShader> m_vertex_shader;
     std::unique_ptr<PixelShader> m_pixel_shader;

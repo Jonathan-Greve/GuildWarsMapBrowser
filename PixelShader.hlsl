@@ -1,5 +1,5 @@
+sampler ss: register(s0);
 Texture2D shaderTexture : register(t0);
-SamplerState SampleType : register(s0);
 
 struct DirectionalLight
 {
@@ -60,6 +60,14 @@ float4 main(PixelInputType input) : SV_TARGET
     // Combine the ambient, diffuse, and specular components to get the final color
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
+    // Sample the texture using the provided texture coordinates and sampler state
+    //float4 sampledTextureColor = shaderTexture.Sample(ss, input.texCoords);
+
+    //// Multiply the sampled color with the finalColor
+    //float4 outputColor = finalColor * sampledTextureColor;
+
     // Return the result
+    //return outputColor;
+
     return finalColor;
 }

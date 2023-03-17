@@ -10,24 +10,18 @@ public:
     {
     }
 
-    ~PixelShader()
-    {
-        // Release resources
-        if (m_pixelShader)
-            m_pixelShader.Reset();
-        if (m_samplerState)
-            m_samplerState.Reset();
-        if (m_shaderResourceView)
-            m_shaderResourceView.Reset();
-    }
+    ~PixelShader() { }
 
     bool Initialize(const std::wstring& shader_path)
     {
+        UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
+#if defined(DEBUG) || defined(_DEBUG)
+        flags |= D3DCOMPILE_DEBUG;
+#endif
         Microsoft::WRL::ComPtr<ID3DBlob> pixel_shader_blob;
         Microsoft::WRL::ComPtr<ID3DBlob> error_blob;
 
-        HRESULT hr = D3DCompileFromFile(shader_path.c_str(), nullptr, nullptr, "main", "ps_5_0",
-                                        D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG, 0,
+        HRESULT hr = D3DCompileFromFile(shader_path.c_str(), nullptr, nullptr, "main", "ps_5_0", flags, 0,
                                         pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
 
         if (FAILED(hr))
@@ -71,12 +65,9 @@ public:
 
     ID3D11SamplerState* const* GetSamplerState() const { return m_samplerState.GetAddressOf(); }
 
-    ID3D11ShaderResourceView* GetShaderResourceView() const { return m_shaderResourceView.Get(); }
-
 private:
     Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pixelShader;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> m_samplerState;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_shaderResourceView;
 
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_deviceContext;

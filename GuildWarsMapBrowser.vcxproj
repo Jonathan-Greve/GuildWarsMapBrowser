@@ -187,6 +187,7 @@
     <ClInclude Include="AtexReader.h" />
     <ClInclude Include="Box.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="CheckerboardTexture.h" />
     <ClInclude Include="ConstantBufferManager.h" />
     <ClInclude Include="DATManager.h" />
     <ClInclude Include="DearImGui\imconfig.h" />
@@ -228,6 +229,7 @@
     <ClInclude Include="Sphere.h" />
     <ClInclude Include="StepTimer.h" />
     <ClInclude Include="TerrainRenderer.h" />
+    <ClInclude Include="TextureManager.h" />
     <ClInclude Include="Vertex.h" />
     <ClInclude Include="VertexShader.h" />
     <ClInclude Include="xentax.h" />
@@ -237,6 +239,7 @@
     <ClCompile Include="AtexReader.cpp" />
     <ClCompile Include="Box.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="CheckerboardTexture.cpp" />
     <ClCompile Include="ConstantBufferManager.cpp" />
     <ClCompile Include="DATManager.cpp" />
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -322,6 +325,7 @@
     <ClCompile Include="RenderConstants.cpp" />
     <ClCompile Include="Sphere.cpp" />
     <ClCompile Include="TerrainRenderer.cpp" />
+    <ClCompile Include="TextureManager.cpp" />
     <ClCompile Include="Vertex.cpp" />
     <ClCompile Include="VertexShader.cpp" />
     <ClCompile Include="xentax.cpp" />

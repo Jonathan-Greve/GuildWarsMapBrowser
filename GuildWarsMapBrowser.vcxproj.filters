@@ -62,6 +62,9 @@
     <Filter Include="Render\Math helpers">
       <UniqueIdentifier>{b2f31f3a-3b65-4570-9606-5e263b7131ca}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Render\Textures">
+      <UniqueIdentifier>{0404d6fd-01a9-4053-8cbd-fac666d86b7a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -202,6 +205,10 @@
       <Filter>Render\Shaders</Filter>
     </ClInclude>
     <ClInclude Include="DXMathHelpers.h" />
+    <ClInclude Include="CheckerboardTexture.h">
+      <Filter>Render\Textures</Filter>
+    </ClInclude>
+    <ClInclude Include="TextureManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -328,6 +335,10 @@
       <Filter>Render\Shaders</Filter>
     </ClCompile>
     <ClCompile Include="DXMathHelpers.cpp" />
+    <ClCompile Include="CheckerboardTexture.cpp">
+      <Filter>Render\Textures</Filter>
+    </ClCompile>
+    <ClCompile Include="TextureManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />
