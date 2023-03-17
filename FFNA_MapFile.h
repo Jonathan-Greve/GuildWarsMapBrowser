@@ -729,13 +729,21 @@ struct Chunk8
     }
 };
 
-//
-//struct Chunk7
-//{
-//    uint32_t chunk_id;
-//    uint32_t chunk_size;
-//    uint8_t chunk_data[chunk_size];
-//};
+struct Chunk7
+{
+    uint32_t chunk_id;
+    uint32_t chunk_size;
+    std::vector<uint8_t> chunk_data;
+
+    Chunk7() = default;
+    Chunk7(int offset, const unsigned char* data)
+    {
+        std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
+        std::memcpy(&chunk_size, &data[offset + 4], sizeof(chunk_size));
+        chunk_data.resize(chunk_size);
+        std::memcpy(chunk_data.data(), &data[offset + 8], chunk_size);
+    }
+};
 
 struct FFNA_MapFile
 {
@@ -747,6 +755,8 @@ struct FFNA_MapFile
     Chunk4 prop_filenames_chunk;
     Chunk5 chunk5;
     Chunk4 more_filnames_chunk; // same structure as chunk 4
+    Chunk7 chunk7;
+    Chunk8 map_zones_and_terrain_chunk;
 
     FFNA_MapFile() = default;
     FFNA_MapFile(int offset, std::span<unsigned char>& data)
@@ -772,5 +782,12 @@ struct FFNA_MapFile
         offset +=
           8 + chunk5.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
         more_filnames_chunk = Chunk4(offset, data.data());
+        offset += 8 +
+          more_filnames_chunk
+            .chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+        chunk7 = Chunk7(offset, data.data());
+        offset +=
+          8 + chunk7.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+        map_zones_and_terrain_chunk = Chunk8(offset, data.data());
     }
 };
