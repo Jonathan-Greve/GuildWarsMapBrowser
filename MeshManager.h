@@ -85,6 +85,25 @@ public:
         return false;
     }
 
+    void UpdateMeshPerObjectData(int meshID, const PerObjectCB& data)
+    {
+        auto it = m_triangleMeshes.find(meshID);
+        if (it != m_triangleMeshes.end())
+        {
+            it->second->SetPerObjectData(data);
+            m_needsUpdate = true;
+            return;
+        }
+
+        it = m_lineMeshes.find(meshID);
+        if (it != m_lineMeshes.end())
+        {
+            it->second->SetPerObjectData(data);
+            m_needsUpdate = true;
+            return;
+        }
+    }
+
     void Update(float dt)
     {
         if (m_needsUpdate)
@@ -116,13 +135,17 @@ public:
                 currentTopology = command.primitiveTopology;
             }
 
-            PerObjectCB perObjectData;
-            // Set perObjectData.world and any other per-object data here
+            PerObjectCB transposedData = command.meshInstance->GetPerObjectData();
+
+            // Load World matrix into an XMMATRIX, transpose it, and store it back into an XMFLOAT4X4
+            DirectX::XMMATRIX worldMatrix = DirectX::XMLoadFloat4x4(&transposedData.world);
+            worldMatrix = DirectX::XMMatrixTranspose(worldMatrix);
+            DirectX::XMStoreFloat4x4(&transposedData.world, worldMatrix);
 
             // Update the shared constant buffer
             D3D11_MAPPED_SUBRESOURCE mappedResource;
             m_deviceContext->Map(m_perObjectCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-            memcpy(mappedResource.pData, &perObjectData, sizeof(PerObjectCB));
+            memcpy(mappedResource.pData, &transposedData, sizeof(PerObjectCB));
             m_deviceContext->Unmap(m_perObjectCB.Get(), 0);
 
             command.meshInstance->Draw(m_deviceContext);

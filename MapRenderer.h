@@ -37,8 +37,23 @@ public:
 
         // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
         auto box_id = m_mesh_manager->AddBox({200, 200, 200});
-        //auto sphere_id = m_mesh_manager->AddSphere(300, 100, 100);
+        auto sphere_id = m_mesh_manager->AddSphere(300, 100, 100);
         auto line_id = m_mesh_manager->AddLine({-400, 500, 0}, {400, 500, 0});
+
+        // Move the sphere and box next to eachother
+        // Move the box to the left of the sphere (e.g., -250 units on the X-axis)
+        DirectX::XMFLOAT4X4 boxWorldMatrix;
+        DirectX::XMStoreFloat4x4(&boxWorldMatrix, DirectX::XMMatrixTranslation(-250, 0, 0));
+        PerObjectCB boxPerObjectData;
+        boxPerObjectData.world = boxWorldMatrix;
+        m_mesh_manager->UpdateMeshPerObjectData(box_id, boxPerObjectData);
+
+        // Move the sphere to the right of the box (e.g., 250 units on the X-axis)
+        DirectX::XMFLOAT4X4 sphereWorldMatrix;
+        DirectX::XMStoreFloat4x4(&sphereWorldMatrix, DirectX::XMMatrixTranslation(250, 0, 0));
+        PerObjectCB spherePerObjectData;
+        spherePerObjectData.world = sphereWorldMatrix;
+        m_mesh_manager->UpdateMeshPerObjectData(sphere_id, spherePerObjectData);
 
         // Create and initialize the VertexShader
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
