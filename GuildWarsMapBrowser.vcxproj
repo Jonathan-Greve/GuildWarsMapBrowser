@@ -228,7 +228,7 @@
     <ClInclude Include="RenderConstants.h" />
     <ClInclude Include="Sphere.h" />
     <ClInclude Include="StepTimer.h" />
-    <ClInclude Include="TerrainRenderer.h" />
+    <ClInclude Include="Terrain.h" />
     <ClInclude Include="TextureManager.h" />
     <ClInclude Include="Vertex.h" />
     <ClInclude Include="VertexShader.h" />
@@ -324,7 +324,7 @@
     <ClCompile Include="RenderCommand.cpp" />
     <ClCompile Include="RenderConstants.cpp" />
     <ClCompile Include="Sphere.cpp" />
-    <ClCompile Include="TerrainRenderer.cpp" />
+    <ClCompile Include="Terrain.cpp" />
     <ClCompile Include="TextureManager.cpp" />
     <ClCompile Include="Vertex.cpp" />
     <ClCompile Include="VertexShader.cpp" />

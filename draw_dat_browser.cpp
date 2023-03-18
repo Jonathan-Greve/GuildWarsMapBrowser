@@ -10,7 +10,7 @@ const char* type_strings[26] = {
 
 const ImGuiTableSortSpecs* DatBrowserItem::s_current_sort_specs = NULL;
 
-void parse_file(DATManager& dat_manager, int index)
+void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
 {
     const auto MFT = dat_manager.get_MFT();
     if (index >= MFT.size())
@@ -21,6 +21,7 @@ void parse_file(DATManager& dat_manager, int index)
         return;
 
     FFNA_MapFile ffna_map_file;
+    std::unique_ptr<Terrain> terrain;
 
     switch (entry->type)
     {
@@ -28,6 +29,11 @@ void parse_file(DATManager& dat_manager, int index)
         break;
     case FFNA_Type3:
         ffna_map_file = dat_manager.parse_ffna_map_file(index);
+        terrain = std::make_unique<Terrain>(ffna_map_file.map_zones_and_terrain_chunk.terrain_x_dims,
+                                            ffna_map_file.map_zones_and_terrain_chunk.terrain_y_dims,
+                                            ffna_map_file.map_zones_and_terrain_chunk.terrain_height_vertices,
+                                            ffna_map_file.chunk2.map_bounds);
+        map_renderer->SetTerrain(std::move(terrain));
         break;
     default:
         break;
@@ -36,7 +42,7 @@ void parse_file(DATManager& dat_manager, int index)
 
 int custom_stoi(const std::string& input);
 
-void draw_data_browser(DATManager& dat_manager)
+void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 {
     static std::unordered_map<int, std::vector<int>> id_index;
     static std::unordered_map<int, std::vector<int>> hash_index;
@@ -287,7 +293,7 @@ void draw_data_browser(DATManager& dat_manager)
                     else
                     {
                         selected_item_id = item.id;
-                        parse_file(dat_manager, item.id);
+                        parse_file(dat_manager, item.id, map_renderer);
                     }
                 }
 

@@ -64,6 +64,14 @@ public:
         return meshID;
     }
 
+    int AddCustomMesh(const Mesh* mesh)
+    {
+        int meshID = m_nextMeshID++;
+        m_triangleMeshes[meshID] = std::make_shared<MeshInstance>(m_device, *mesh, meshID);
+        m_needsUpdate = true;
+        return meshID;
+    }
+
     bool RemoveMesh(int meshID)
     {
         auto it = m_triangleMeshes.find(meshID);

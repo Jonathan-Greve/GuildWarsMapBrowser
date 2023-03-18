@@ -8,6 +8,7 @@
 #include "PerFrameCB.h"
 #include "PerCameraCB.h"
 #include "CheckerboardTexture.h"
+#include "Terrain.h"
 
 using namespace DirectX;
 
@@ -27,10 +28,10 @@ public:
     void Initialize(const float viewport_width, const float viewport_height)
     {
         // Initialize cameras
-        float fov_degrees = 80.0f;
+        float fov_degrees = 70.0f;
         float aspect_ratio = viewport_width / viewport_height;
         m_user_camera->SetFrustumAsPerspective(static_cast<float>(fov_degrees * XM_PI / 180.0), aspect_ratio,
-                                               0.1f, 20000);
+                                               0.1f, 50000);
         const auto pos = FXMVECTOR{0, 0, -1000, 0};
         const auto target = FXMVECTOR{0, 0, 0, 0};
         const auto world_up = FXMVECTOR{0, 1, 0, 0};
@@ -99,7 +100,7 @@ public:
         m_deviceContext->PSSetSamplers(0, 1, m_pixel_shader->GetSamplerState());
     }
 
-    void SetTerrain(const Mesh& terrain_mesh)
+    void SetTerrain(std::unique_ptr<Terrain> terrain)
     {
         if (m_is_terrain_mesh_set)
         {
@@ -107,7 +108,8 @@ public:
             m_is_terrain_mesh_set = false;
         }
 
-        m_terrain_mesh_id = m_mesh_manager->AddCustomMesh(terrain_mesh);
+        m_terrain_mesh_id = m_mesh_manager->AddCustomMesh(terrain->get_mesh());
+        m_terrain = std::move(terrain);
         m_is_terrain_mesh_set = true;
     }
 
@@ -222,6 +224,8 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_wireframe_no_cull_rs;
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_solid_rs;
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_solid_no_cull_rs;
+
+    std::unique_ptr<Terrain> m_terrain;
 
     bool m_is_terrain_mesh_set = false;
     int m_terrain_mesh_id = -1;
