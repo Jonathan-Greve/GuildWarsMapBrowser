@@ -23,68 +23,89 @@ public:
 
 private:
     // Generates a terrain mesh based on the height map data
+#include <DirectXMath.h>
+
     Mesh GenerateTerrainMesh()
     {
-        Mesh terrainMesh;
-        float deltaX = (m_bounds.map_max_x - m_bounds.map_min_x) / (m_gridDimX - 1);
-        float deltaY = (m_bounds.map_max_y - m_bounds.map_min_y) / (m_gridDimY - 1);
+        float deltaX = (m_bounds.map_max_x - m_bounds.map_min_x) / (m_gridDimX);
+        float deltaY = (m_bounds.map_max_y - m_bounds.map_min_y) / (m_gridDimY);
 
-        // Generate vertices, indices, and normals per tile
-        for (uint32_t y = 0; y < m_gridDimY - 1; ++y)
+        uint32_t grid_dims = 32;
+        uint32_t sub_grid_rows = m_gridDimY / grid_dims;
+        uint32_t sub_grid_cols = m_gridDimX / grid_dims;
+
+        std::vector<Vertex> vertices;
+        std::vector<uint32_t> indices;
+
+        for (int j = 0; j < sub_grid_rows - 1; j++)
         {
-            for (uint32_t x = 0; x < m_gridDimX - 1; ++x)
+            float terrain_sub_grid_y_start = m_bounds.map_max_y - j * grid_dims * deltaY;
+            //float terrain_sub_grid_y_start = m_bounds.map_min_y + j * grid_dims * deltaY;
+
+            for (int i = 0; i < sub_grid_cols; i++)
             {
-                // Get height data for tile corners
-                float heights[4] = {m_heightMap[y * m_gridDimX + x], m_heightMap[y * m_gridDimX + x + 1],
-                                    m_heightMap[(y + 1) * m_gridDimX + x],
-                                    m_heightMap[(y + 1) * m_gridDimX + x + 1]};
+                int curr_sub_grid = j * sub_grid_cols + i;
 
-                // Calculate positions for tile corners
-                XMFLOAT3 positions[4] = {
-                  XMFLOAT3(m_bounds.map_min_x + x * deltaX, -heights[0], m_bounds.map_min_y + y * deltaY),
-                  XMFLOAT3(m_bounds.map_min_x + (x + 1) * deltaX, -heights[1],
-                           m_bounds.map_min_y + y * deltaY),
-                  XMFLOAT3(m_bounds.map_min_x + x * deltaX, -heights[2],
-                           m_bounds.map_min_y + (y + 1) * deltaY),
-                  XMFLOAT3(m_bounds.map_min_x + (x + 1) * deltaX, -heights[3],
-                           m_bounds.map_min_y + (y + 1) * deltaY)};
+                int tile_start_idx = curr_sub_grid * (grid_dims + 1) * (grid_dims + 1);
 
-                // Calculate texture coordinates for tile corners
-                XMFLOAT2 tex_coords[4] = {XMFLOAT2(static_cast<float>(x) / (m_gridDimX - 1),
-                                                   static_cast<float>(y) / (m_gridDimY - 1)),
-                                          XMFLOAT2(static_cast<float>(x + 1) / (m_gridDimX - 1),
-                                                   static_cast<float>(y) / (m_gridDimY - 1)),
-                                          XMFLOAT2(static_cast<float>(x) / (m_gridDimX - 1),
-                                                   static_cast<float>(y + 1) / (m_gridDimY - 1)),
-                                          XMFLOAT2(static_cast<float>(x + 1) / (m_gridDimX - 1),
-                                                   static_cast<float>(y + 1) / (m_gridDimY - 1))};
+                float terrain_sub_grid_x_start = m_bounds.map_min_x + i * grid_dims * deltaX;
 
-                // Calculate normals for the two triangles
-                XMFLOAT3 normal1 = ComputeTriangleNormal(positions[0], positions[2], positions[3]);
-                XMFLOAT3 normal2 = ComputeTriangleNormal(positions[0], positions[3], positions[1]);
+                for (int sub_grid_row = 0; sub_grid_row < grid_dims - 1; sub_grid_row++)
+                {
+                    for (int sub_grid_col = 0; sub_grid_col < grid_dims - 1; sub_grid_col++)
+                    {
+                        float height_tl =
+                          -m_heightMap[tile_start_idx + sub_grid_row * grid_dims + sub_grid_col];
+                        float height_tr =
+                          -m_heightMap[tile_start_idx + sub_grid_row * grid_dims + sub_grid_col + 1];
+                        float height_bl =
+                          -m_heightMap[tile_start_idx + (sub_grid_row + 1) * grid_dims + sub_grid_col];
+                        float height_br =
+                          -m_heightMap[tile_start_idx + (sub_grid_row + 1) * grid_dims + sub_grid_col + 1];
 
-                // Triangle 1
-                terrainMesh.vertices.push_back({positions[0], normal1, tex_coords[0]});
-                terrainMesh.vertices.push_back({positions[2], normal1, tex_coords[2]});
-                terrainMesh.vertices.push_back({positions[3], normal1, tex_coords[3]});
-                terrainMesh.indices.push_back(terrainMesh.vertices.size() - 3);
-                terrainMesh.indices.push_back(terrainMesh.vertices.size() - 2);
-                terrainMesh.indices.push_back(terrainMesh.vertices.size() - 1);
+                        DirectX::XMFLOAT3 pos_tl(terrain_sub_grid_x_start + sub_grid_col * deltaX, height_tl,
+                                                 terrain_sub_grid_y_start - sub_grid_row * deltaY);
+                        DirectX::XMFLOAT3 pos_tr(terrain_sub_grid_x_start + (sub_grid_col + 1) * deltaX,
+                                                 height_tr, terrain_sub_grid_y_start - sub_grid_row * deltaY);
+                        DirectX::XMFLOAT3 pos_bl(terrain_sub_grid_x_start + sub_grid_col * deltaX, height_bl,
+                                                 terrain_sub_grid_y_start - (sub_grid_row + 1) * deltaY);
+                        DirectX::XMFLOAT3 pos_br(terrain_sub_grid_x_start + (sub_grid_col + 1) * deltaX,
+                                                 height_br,
+                                                 terrain_sub_grid_y_start - (sub_grid_row + 1) * deltaY);
 
-                // Triangle 2
-                terrainMesh.vertices.push_back({positions[0], normal2, tex_coords[0]});
-                terrainMesh.vertices.push_back({positions[3], normal2, tex_coords[3]});
-                terrainMesh.vertices.push_back({positions[1], normal2, tex_coords[1]});
-                terrainMesh.indices.push_back(terrainMesh.vertices.size() - 3);
-                terrainMesh.indices.push_back(terrainMesh.vertices.size() - 2);
-                terrainMesh.indices.push_back(terrainMesh.vertices.size() - 1);
+                        auto normal_tl = ComputeTriangleNormal(pos_tl, pos_tr, pos_bl);
+                        auto normal_tr = ComputeTriangleNormal(pos_tr, pos_br, pos_bl);
+
+                        auto vertex_tl = Vertex(pos_tl, normal_tl, {0, 0});
+                        auto vertex_tr = Vertex(pos_tr, normal_tl, {0, 0});
+                        auto vertex_bl = Vertex(pos_bl, normal_tl, {0, 0});
+                        auto vertex_br = Vertex(pos_br, normal_tr, {0, 0});
+
+                        uint32_t vertex_index = static_cast<uint32_t>(vertices.size());
+
+                        vertices.push_back(vertex_tl);
+                        vertices.push_back(vertex_tr);
+                        vertices.push_back(vertex_bl);
+                        vertices.push_back(vertex_br);
+
+                        // Add indices of two clockwise triangles.
+                        indices.push_back(vertex_index); // top-left
+                        indices.push_back(vertex_index + 1); // top-right
+                        indices.push_back(vertex_index + 2); // bottom-left
+
+                        indices.push_back(vertex_index + 1); // top-right
+                        indices.push_back(vertex_index + 3); // bottom-right
+                        indices.push_back(vertex_index + 2); // bottom-left
+                    }
+                }
             }
         }
 
-        return terrainMesh;
+        return {vertices, indices};
     }
 
-    XMFLOAT3 ComputeTriangleNormal(const XMFLOAT3& v0, const XMFLOAT3& v1, const XMFLOAT3& v2)
+    XMFLOAT3
+    ComputeTriangleNormal(const XMFLOAT3& v0, const XMFLOAT3& v1, const XMFLOAT3& v2)
     {
         XMVECTOR vEdge1 = XMVectorSubtract(XMLoadFloat3(&v1), XMLoadFloat3(&v0));
         XMVECTOR vEdge2 = XMVectorSubtract(XMLoadFloat3(&v2), XMLoadFloat3(&v0));

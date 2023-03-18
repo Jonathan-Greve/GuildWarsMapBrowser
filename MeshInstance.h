@@ -31,13 +31,7 @@ public:
         device->CreateBuffer(&ibDesc, &ibData, &m_indexBuffer);
     }
 
-    ~MeshInstance()
-    {
-        if (m_vertexBuffer)
-            m_vertexBuffer->Release();
-        if (m_indexBuffer)
-            m_indexBuffer->Release();
-    }
+    ~MeshInstance() { }
 
     int GetMeshID() const { return m_mesh_id; }
 
