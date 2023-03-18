@@ -337,6 +337,7 @@ void MapBrowser::OnWindowSizeChanged(int width, int height)
     CreateWindowSizeDependentResources();
 
     // TODO: MapBrowser window is being resized.
+    m_map_renderer->OnViewPortChanged(width, height);
 }
 
 // Properties
