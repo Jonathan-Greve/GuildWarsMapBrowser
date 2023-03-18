@@ -41,12 +41,12 @@ private:
 
                 // Calculate positions for tile corners
                 XMFLOAT3 positions[4] = {
-                  XMFLOAT3(m_bounds.map_min_x + x * deltaX, heights[0], m_bounds.map_min_y + y * deltaY),
-                  XMFLOAT3(m_bounds.map_min_x + (x + 1) * deltaX, heights[1],
+                  XMFLOAT3(m_bounds.map_min_x + x * deltaX, -heights[0], m_bounds.map_min_y + y * deltaY),
+                  XMFLOAT3(m_bounds.map_min_x + (x + 1) * deltaX, -heights[1],
                            m_bounds.map_min_y + y * deltaY),
-                  XMFLOAT3(m_bounds.map_min_x + x * deltaX, heights[2],
+                  XMFLOAT3(m_bounds.map_min_x + x * deltaX, -heights[2],
                            m_bounds.map_min_y + (y + 1) * deltaY),
-                  XMFLOAT3(m_bounds.map_min_x + (x + 1) * deltaX, heights[3],
+                  XMFLOAT3(m_bounds.map_min_x + (x + 1) * deltaX, -heights[3],
                            m_bounds.map_min_y + (y + 1) * deltaY)};
 
                 // Calculate texture coordinates for tile corners
