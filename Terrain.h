@@ -49,7 +49,7 @@ private:
                 {
                     for (int l = col_start; l < col_end; l++)
                     {
-                        grid[k][l] = m_heightMap[count];
+                        grid[k][l] = -m_heightMap[count];
                         count++;
                     }
                 }
