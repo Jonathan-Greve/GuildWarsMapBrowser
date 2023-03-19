@@ -67,29 +67,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="pch.h" />
-    <ClInclude Include="MapBrowser.h" />
-    <ClInclude Include="StepTimer.h">
-      <Filter>Common</Filter>
-    </ClInclude>
-    <ClInclude Include="DeviceResources.h">
-      <Filter>Common</Filter>
-    </ClInclude>
-    <ClInclude Include="AtexAsm.h">
-      <Filter>Dat reader</Filter>
-    </ClInclude>
-    <ClInclude Include="AtexReader.h">
-      <Filter>Dat reader</Filter>
-    </ClInclude>
-    <ClInclude Include="GWUnpacker.h">
-      <Filter>Dat reader</Filter>
-    </ClInclude>
-    <ClInclude Include="xentax.h">
-      <Filter>Dat reader</Filter>
-    </ClInclude>
-    <ClInclude Include="DATManager.h">
-      <Filter>Dat reader</Filter>
-    </ClInclude>
     <ClInclude Include="DearImGui\imconfig.h">
       <Filter>Dear ImGui</Filter>
     </ClInclude>
@@ -123,115 +100,124 @@
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h">
       <Filter>Dear ImGui\ImGuiFileDialog\dirent</Filter>
     </ClInclude>
-    <ClInclude Include="draw_dat_browser.h">
-      <Filter>GUI</Filter>
-    </ClInclude>
-    <ClInclude Include="GuiGlobalConstants.h">
-      <Filter>GUI</Filter>
-    </ClInclude>
     <ClInclude Include="DearImGui\misc\cpp\imgui_stdlib.h">
       <Filter>Dear ImGui</Filter>
-    </ClInclude>
-    <ClInclude Include="FFNA_MapFile.h">
-      <Filter>Dat reader\Dat file parsers</Filter>
-    </ClInclude>
-    <ClInclude Include="FFNAType.h">
-      <Filter>Dat reader\Dat file parsers</Filter>
-    </ClInclude>
-    <ClInclude Include="ConstantBufferManager.h">
-      <Filter>Render\Constant buffers</Filter>
-    </ClInclude>
-    <ClInclude Include="PerFrameCB.h">
-      <Filter>Render\Constant buffers</Filter>
-    </ClInclude>
-    <ClInclude Include="PerCameraCB.h">
-      <Filter>Render\Constant buffers</Filter>
-    </ClInclude>
-    <ClInclude Include="PerObjectCB.h">
-      <Filter>Render\Constant buffers</Filter>
-    </ClInclude>
-    <ClInclude Include="RenderConstants.h">
-      <Filter>Render\Render constants</Filter>
-    </ClInclude>
-    <ClInclude Include="InputManager.h">
-      <Filter>Input</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera.h">
-      <Filter>Render\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="MouseMoveListener.h">
-      <Filter>Input</Filter>
-    </ClInclude>
-    <ClInclude Include="Terrain.h">
-      <Filter>Render\Terrain</Filter>
-    </ClInclude>
-    <ClInclude Include="MeshManager.h">
-      <Filter>Render\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="MeshInstance.h">
-      <Filter>Render\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="Vertex.h">
-      <Filter>Render\Structs</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectionalLight.h">
-      <Filter>Render\Structs</Filter>
-    </ClInclude>
-    <ClInclude Include="Mesh.h">
-      <Filter>Render\Structs</Filter>
-    </ClInclude>
-    <ClInclude Include="RenderCommand.h">
-      <Filter>Render\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="RenderBatch.h">
-      <Filter>Render\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="Box.h">
-      <Filter>Render\Basic shapes</Filter>
-    </ClInclude>
-    <ClInclude Include="Sphere.h">
-      <Filter>Render\Basic shapes</Filter>
-    </ClInclude>
-    <ClInclude Include="Line.h">
-      <Filter>Render\Basic shapes</Filter>
     </ClInclude>
     <ClInclude Include="MapRenderer.h">
       <Filter>Render\Renderer\Map renderer</Filter>
     </ClInclude>
-    <ClInclude Include="VertexShader.h">
+    <ClInclude Include="SourceFiles\MapBrowser.h" />
+    <ClInclude Include="SourceFiles\pch.h" />
+    <ClInclude Include="SourceFiles\InputManager.h">
+      <Filter>Input</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\MouseMoveListener.h">
+      <Filter>Input</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\Box.h">
+      <Filter>Render\Basic shapes</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\Line.h">
+      <Filter>Render\Basic shapes</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\Sphere.h">
+      <Filter>Render\Basic shapes</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\Camera.h">
+      <Filter>Render\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ConstantBufferManager.h">
+      <Filter>Render\Constant buffers</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\PerCameraCB.h">
+      <Filter>Render\Constant buffers</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\PerFrameCB.h">
+      <Filter>Render\Constant buffers</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\PerObjectCB.h">
+      <Filter>Render\Constant buffers</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\RenderConstants.h">
+      <Filter>Render\Render constants</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\MeshInstance.h">
+      <Filter>Render\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\MeshManager.h">
+      <Filter>Render\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\RenderCommand.h">
+      <Filter>Render\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\RenderBatch.h">
+      <Filter>Render\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\VertexShader.h">
       <Filter>Render\Shaders</Filter>
     </ClInclude>
-    <ClInclude Include="PixelShader.h">
+    <ClInclude Include="SourceFiles\PixelShader.h">
       <Filter>Render\Shaders</Filter>
     </ClInclude>
-    <ClInclude Include="DXMathHelpers.h" />
-    <ClInclude Include="CheckerboardTexture.h">
+    <ClInclude Include="SourceFiles\DirectionalLight.h">
+      <Filter>Render\Structs</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\Mesh.h">
+      <Filter>Render\Structs</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\Vertex.h">
+      <Filter>Render\Structs</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\Terrain.h">
+      <Filter>Render\Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\CheckerboardTexture.h">
       <Filter>Render\Textures</Filter>
     </ClInclude>
-    <ClInclude Include="TextureManager.h" />
+    <ClInclude Include="SourceFiles\draw_dat_browser.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\GuiGlobalConstants.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\AtexAsm.h">
+      <Filter>Dat reader</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\AtexReader.h">
+      <Filter>Dat reader</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\xentax.h">
+      <Filter>Dat reader</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\GWUnpacker.h">
+      <Filter>Dat reader</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\DATManager.h">
+      <Filter>Dat reader</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\FFNAType.h">
+      <Filter>Dat reader\Dat file parsers</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\FFNA_MapFile.h">
+      <Filter>Dat reader\Dat file parsers</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\StepTimer.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\DXMathHelpers.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\TextureManager.h">
+      <Filter>Render\Textures</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\DeviceResources.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\MapRenderer.h">
+      <Filter>Render</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="pch.cpp" />
-    <ClCompile Include="MapBrowser.cpp" />
-    <ClCompile Include="Main.cpp" />
-    <ClCompile Include="DeviceResources.cpp">
-      <Filter>Common</Filter>
-    </ClCompile>
-    <ClCompile Include="AtexAsm.cpp">
-      <Filter>Dat reader</Filter>
-    </ClCompile>
-    <ClCompile Include="AtexReader.cpp">
-      <Filter>Dat reader</Filter>
-    </ClCompile>
-    <ClCompile Include="GWUnpacker.cpp">
-      <Filter>Dat reader</Filter>
-    </ClCompile>
-    <ClCompile Include="xentax.cpp">
-      <Filter>Dat reader</Filter>
-    </ClCompile>
-    <ClCompile Include="DATManager.cpp">
-      <Filter>Dat reader</Filter>
-    </ClCompile>
     <ClCompile Include="DearImGui\imgui.cpp">
       <Filter>Dear ImGui</Filter>
     </ClCompile>
@@ -256,102 +242,128 @@
     <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">
       <Filter>Dear ImGui\ImGuiFileDialog</Filter>
     </ClCompile>
-    <ClCompile Include="draw_dat_browser.cpp">
-      <Filter>GUI</Filter>
-    </ClCompile>
-    <ClCompile Include="GuiGlobalConstants.cpp">
-      <Filter>GUI</Filter>
-    </ClCompile>
     <ClCompile Include="DearImGui\misc\cpp\imgui_stdlib.cpp">
       <Filter>Dear ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="FFNA_MapFile.cpp">
-      <Filter>Dat reader\Dat file parsers</Filter>
-    </ClCompile>
-    <ClCompile Include="ConstantBufferManager.cpp">
-      <Filter>Render\Constant buffers</Filter>
-    </ClCompile>
-    <ClCompile Include="PerFrameCB.cpp">
-      <Filter>Render\Constant buffers</Filter>
-    </ClCompile>
-    <ClCompile Include="PerCameraCB.cpp">
-      <Filter>Render\Constant buffers</Filter>
-    </ClCompile>
-    <ClCompile Include="PerObjectCB.cpp">
-      <Filter>Render\Constant buffers</Filter>
-    </ClCompile>
-    <ClCompile Include="RenderConstants.cpp">
-      <Filter>Render\Render constants</Filter>
-    </ClCompile>
-    <ClCompile Include="InputManager.cpp">
-      <Filter>Input</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera.cpp">
-      <Filter>Render\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="MouseMoveListener.cpp">
-      <Filter>Input</Filter>
-    </ClCompile>
-    <ClCompile Include="Terrain.cpp">
-      <Filter>Render\Terrain</Filter>
-    </ClCompile>
-    <ClCompile Include="MeshManager.cpp">
-      <Filter>Render\Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="MeshInstance.cpp">
-      <Filter>Render\Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectionalLight.cpp">
-      <Filter>Render\Structs</Filter>
-    </ClCompile>
-    <ClCompile Include="Mesh.cpp">
-      <Filter>Render\Structs</Filter>
-    </ClCompile>
-    <ClCompile Include="Vertex.cpp">
-      <Filter>Render\Structs</Filter>
-    </ClCompile>
-    <ClCompile Include="RenderCommand.cpp">
-      <Filter>Render\Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="RenderBatch.cpp">
-      <Filter>Render\Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="Box.cpp">
-      <Filter>Render\Basic shapes</Filter>
-    </ClCompile>
-    <ClCompile Include="Sphere.cpp">
-      <Filter>Render\Basic shapes</Filter>
-    </ClCompile>
-    <ClCompile Include="Line.cpp">
-      <Filter>Render\Basic shapes</Filter>
     </ClCompile>
     <ClCompile Include="MapRenderer.cpp">
       <Filter>Render\Renderer\Map renderer</Filter>
     </ClCompile>
-    <ClCompile Include="VertexShader.cpp">
+    <ClCompile Include="SourceFiles\Main.cpp" />
+    <ClCompile Include="SourceFiles\MapBrowser.cpp" />
+    <ClCompile Include="SourceFiles\pch.cpp" />
+    <ClCompile Include="SourceFiles\InputManager.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\MouseMoveListener.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\Box.cpp">
+      <Filter>Render\Basic shapes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\Line.cpp">
+      <Filter>Render\Basic shapes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\Sphere.cpp">
+      <Filter>Render\Basic shapes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\Camera.cpp">
+      <Filter>Render\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ConstantBufferManager.cpp">
+      <Filter>Render\Constant buffers</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\PerCameraCB.cpp">
+      <Filter>Render\Constant buffers</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\PerFrameCB.cpp">
+      <Filter>Render\Constant buffers</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\PerObjectCB.cpp">
+      <Filter>Render\Constant buffers</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\RenderConstants.cpp">
+      <Filter>Render\Render constants</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\MeshInstance.cpp">
+      <Filter>Render\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\MeshManager.cpp">
+      <Filter>Render\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\RenderBatch.cpp">
+      <Filter>Render\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\RenderCommand.cpp">
+      <Filter>Render\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\VertexShader.cpp">
       <Filter>Render\Shaders</Filter>
     </ClCompile>
-    <ClCompile Include="PixelShader.cpp">
+    <ClCompile Include="SourceFiles\PixelShader.cpp">
       <Filter>Render\Shaders</Filter>
     </ClCompile>
-    <ClCompile Include="DXMathHelpers.cpp" />
-    <ClCompile Include="CheckerboardTexture.cpp">
+    <ClCompile Include="SourceFiles\DirectionalLight.cpp">
+      <Filter>Render\Structs</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\Mesh.cpp">
+      <Filter>Render\Structs</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\Vertex.cpp">
+      <Filter>Render\Structs</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\Terrain.cpp">
+      <Filter>Render\Terrain</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\CheckerboardTexture.cpp">
       <Filter>Render\Textures</Filter>
     </ClCompile>
-    <ClCompile Include="TextureManager.cpp" />
+    <ClCompile Include="SourceFiles\draw_dat_browser.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\GuiGlobalConstants.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\AtexAsm.cpp">
+      <Filter>Dat reader</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\AtexReader.cpp">
+      <Filter>Dat reader</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\xentax.cpp">
+      <Filter>Dat reader</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\GWUnpacker.cpp">
+      <Filter>Dat reader</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\DATManager.cpp">
+      <Filter>Dat reader</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\FFNA_MapFile.cpp">
+      <Filter>Dat reader\Dat file parsers</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\DeviceResources.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\DXMathHelpers.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\TextureManager.cpp">
+      <Filter>Render\Textures</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\MapRenderer.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="resource.rc" />
+    <ResourceCompile Include="SourceFiles\resource.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="directx.ico">
+    <Image Include="SourceFiles\directx.ico">
       <Filter>Assets</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <Manifest Include="settings.manifest">
-      <Filter>Assets</Filter>
-    </Manifest>
+    <Manifest Include="SourceFiles\settings.manifest" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="DearImGui\LICENSE.txt">
@@ -374,12 +386,13 @@
     <None Include="ImGuiFileDialog-Lib_Only\dirent\README.md">
       <Filter>Dear ImGui\ImGuiFileDialog\dirent</Filter>
     </None>
+    <None Include="SourceFiles\imgui.ini" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="VertexShader.hlsl">
+    <FxCompile Include="SourceFiles\VertexShader.hlsl">
       <Filter>Render\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="PixelShader.hlsl">
+    <FxCompile Include="SourceFiles\PixelShader.hlsl">
       <Filter>Render\Shaders</Filter>
     </FxCompile>
   </ItemGroup>
