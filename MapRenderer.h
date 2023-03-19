@@ -32,8 +32,8 @@ public:
         float aspect_ratio = viewport_width / viewport_height;
         m_user_camera->SetFrustumAsPerspective(static_cast<float>(fov_degrees * XM_PI / 180.0), aspect_ratio,
                                                0.1f, 50000);
-        const auto pos = FXMVECTOR{0, 0, -1000, 0};
-        const auto target = FXMVECTOR{0, 0, 0, 0};
+        const auto pos = FXMVECTOR{0, 2500, -1000, 0};
+        const auto target = FXMVECTOR{0, 0, 500, 0};
         const auto world_up = FXMVECTOR{0, 1, 0, 0};
         m_user_camera->LookAt(pos, target, world_up);
 

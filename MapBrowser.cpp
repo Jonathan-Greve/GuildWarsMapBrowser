@@ -7,8 +7,8 @@
 #include "draw_dat_browser.h"
 #include "GuiGlobalConstants.h"
 
-std::wstring gw_dat_path = L"C:\\Users\\jonag\\source\\repos\\GWDatBrowser\\GWDatBrowser\\Gw.dat";
-bool gw_dat_path_set = true;
+std::wstring gw_dat_path = L"";
+bool gw_dat_path_set = false;
 
 void DrawGuiForOpenDatFile()
 {
