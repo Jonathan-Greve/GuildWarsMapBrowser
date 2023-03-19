@@ -29,11 +29,15 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
         break;
     case FFNA_Type3:
         ffna_map_file = dat_manager.parse_ffna_map_file(index);
-        terrain = std::make_unique<Terrain>(ffna_map_file.map_zones_and_terrain_chunk.terrain_x_dims,
-                                            ffna_map_file.map_zones_and_terrain_chunk.terrain_y_dims,
-                                            ffna_map_file.map_zones_and_terrain_chunk.terrain_height_vertices,
-                                            ffna_map_file.chunk2.map_bounds);
-        map_renderer->SetTerrain(std::move(terrain));
+        if (ffna_map_file.terrain_chunk.terrain_heightmap.size() > 0 &&
+            ffna_map_file.terrain_chunk.terrain_heightmap.size() ==
+              ffna_map_file.terrain_chunk.terrain_x_dims * ffna_map_file.terrain_chunk.terrain_y_dims)
+        {
+            terrain = std::make_unique<Terrain>(
+              ffna_map_file.terrain_chunk.terrain_x_dims, ffna_map_file.terrain_chunk.terrain_y_dims,
+              ffna_map_file.terrain_chunk.terrain_heightmap, ffna_map_file.map_info_chunk.map_bounds);
+            map_renderer->SetTerrain(std::move(terrain));
+        }
         break;
     default:
         break;

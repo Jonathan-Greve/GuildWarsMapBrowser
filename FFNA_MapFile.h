@@ -20,6 +20,22 @@ struct MapBounds
     }
 };
 
+struct GeneralChunk
+{
+    uint32_t chunk_id;
+    uint32_t chunk_size;
+    std::vector<uint8_t> chunk_data;
+
+    GeneralChunk() = default;
+    GeneralChunk(int offset, const unsigned char* data)
+    {
+        std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
+        std::memcpy(&chunk_size, &data[offset + 4], sizeof(chunk_size));
+        chunk_data.resize(chunk_size);
+        std::memcpy(chunk_data.data(), &data[offset + 8], chunk_size);
+    }
+};
+
 struct Chunk1
 {
     uint32_t chunk_id;
@@ -582,7 +598,7 @@ struct Chunk8
     float some_float2;
     uint8_t tag1;
     uint32_t terrain_height_size_bytes;
-    std::vector<float> terrain_height_vertices;
+    std::vector<float> terrain_heightmap;
     uint8_t tag2;
     uint32_t num_terrain_tiles;
     std::vector<uint8_t> something_for_each_tile;
@@ -605,7 +621,6 @@ struct Chunk8
     std::vector<uint8_t> chunk_data;
 
     Chunk8() = default;
-
     Chunk8(int offset, const unsigned char* data)
     {
         std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
@@ -653,10 +668,9 @@ struct Chunk8
         std::memcpy(&terrain_height_size_bytes, &data[offset], sizeof(terrain_height_size_bytes));
         offset += sizeof(terrain_height_size_bytes);
 
-        terrain_height_vertices.resize(terrain_x_dims * terrain_y_dims);
-        std::memcpy(terrain_height_vertices.data(), &data[offset],
-                    terrain_height_vertices.size() * sizeof(float));
-        offset += terrain_height_vertices.size() * sizeof(float);
+        terrain_heightmap.resize(terrain_x_dims * terrain_y_dims);
+        std::memcpy(terrain_heightmap.data(), &data[offset], terrain_heightmap.size() * sizeof(float));
+        offset += terrain_heightmap.size() * sizeof(float);
 
         std::memcpy(&tag2, &data[offset], sizeof(tag2));
         offset += sizeof(tag2);
@@ -721,7 +735,7 @@ struct Chunk8
         std::memcpy(some_data7.data(), &data[offset], some_data7.size());
         offset += some_data7.size();
 
-        int chunk_data_size = chunk_size - 75 - terrain_height_vertices.size() * sizeof(float) -
+        int chunk_data_size = chunk_size - 75 - terrain_heightmap.size() * sizeof(float) -
           something_for_each_tile.size() - some_data3.size() - some_data4.size() - some_data5.size() -
           something_for_each_tile1.size() - some_data7.size();
         chunk_data.resize(chunk_data_size);
@@ -745,49 +759,90 @@ struct Chunk7
     }
 };
 
+constexpr uint32_t CHUNK_ID_TERRAIN = 0x20000002;
+constexpr uint32_t CHUNK_ID_MAP_INFO = 0x2000000C;
+
 struct FFNA_MapFile
 {
     char ffna_signature[4];
     FFNAType ffna_type;
     Chunk1 chunk1;
-    Chunk2 chunk2;
+    Chunk2 map_info_chunk;
     Chunk3 chunk3;
     Chunk4 prop_filenames_chunk;
     Chunk1 chunk5; // The actual chunk 5 doesn't work for all files. Haven't figured out the format yet.
     Chunk4 more_filnames_chunk; // same structure as chunk 4
     Chunk7 chunk7;
-    Chunk8 map_zones_and_terrain_chunk;
+    Chunk8 terrain_chunk;
+
+    std::unordered_map<uint32_t, int> riff_chunks;
 
     FFNA_MapFile() = default;
     FFNA_MapFile(int offset, std::span<unsigned char>& data)
     {
+        int current_offset = offset;
+
         std::memcpy(ffna_signature, &data[offset], sizeof(ffna_signature));
-        offset += sizeof(ffna_signature);
         std::memcpy(&ffna_type, &data[offset], sizeof(ffna_type));
-        offset += sizeof(ffna_type);
-        chunk1 = Chunk1(offset, data.data());
-        offset +=
-          8 + chunk1.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
-        chunk2 = Chunk2(offset, data.data());
-        offset +=
-          8 + chunk2.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
-        chunk3 = Chunk3(offset, data.data());
-        offset +=
-          8 + chunk3.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
-        prop_filenames_chunk = Chunk4(offset, data.data());
-        offset += 8 +
-          prop_filenames_chunk
-            .chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
-        chunk5 = Chunk1(offset, data.data());
-        offset +=
-          8 + chunk5.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
-        more_filnames_chunk = Chunk4(offset, data.data());
-        offset += 8 +
-          more_filnames_chunk
-            .chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
-        chunk7 = Chunk7(offset, data.data());
-        offset +=
-          8 + chunk7.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
-        map_zones_and_terrain_chunk = Chunk8(offset, data.data());
+        current_offset += 5;
+
+        // Read all chunks
+        while (current_offset < data.size())
+        {
+            // Create a GeneralChunk instance using the current offset and data pointer
+            GeneralChunk chunk(current_offset, data.data());
+
+            // Add the GeneralChunk instance to the riff_chunks map using its chunk_id as the key
+            riff_chunks.emplace(chunk.chunk_id, current_offset);
+
+            // Move to the next chunk by updating the current_offset
+            current_offset += 8 + chunk.chunk_size;
+        }
+
+        // Check if the CHUNK_ID_TERRAIN is in the riff_chunks map
+        auto it = riff_chunks.find(CHUNK_ID_TERRAIN);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            terrain_chunk = Chunk8(offset, data.data());
+        }
+
+        // Check if the CHUNK_ID_MAP_INFO is in the riff_chunks map
+        it = riff_chunks.find(CHUNK_ID_MAP_INFO);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            map_info_chunk = Chunk2(offset, data.data());
+        }
     }
+    //{
+    //    std::memcpy(ffna_signature, &data[offset], sizeof(ffna_signature));
+    //    offset += sizeof(ffna_signature);
+    //    std::memcpy(&ffna_type, &data[offset], sizeof(ffna_type));
+    //    offset += sizeof(ffna_type);
+    //    chunk1 = Chunk1(offset, data.data());
+    //    offset +=
+    //      8 + chunk1.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+    //    chunk2 = Chunk2(offset, data.data());
+    //    offset +=
+    //      8 + chunk2.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+    //    chunk3 = Chunk3(offset, data.data());
+    //    offset +=
+    //      8 + chunk3.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+    //    prop_filenames_chunk = Chunk4(offset, data.data());
+    //    offset += 8 +
+    //      prop_filenames_chunk
+    //        .chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+    //    chunk5 = Chunk1(offset, data.data());
+    //    offset +=
+    //      8 + chunk5.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+    //    more_filnames_chunk = Chunk4(offset, data.data());
+    //    offset += 8 +
+    //      more_filnames_chunk
+    //        .chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+    //    chunk7 = Chunk7(offset, data.data());
+    //    offset +=
+    //      8 + chunk7.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
+    //    map_zones_and_terrain_chunk = Chunk8(offset, data.data());
+    //}
 };
