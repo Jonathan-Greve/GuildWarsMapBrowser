@@ -27,78 +27,77 @@ private:
 
     Mesh GenerateTerrainMesh()
     {
-        float deltaX = (m_bounds.map_max_x - m_bounds.map_min_x) / (m_gridDimX);
-        float deltaY = (m_bounds.map_max_y - m_bounds.map_min_y) / (m_gridDimY);
 
         uint32_t grid_dims = 32;
         uint32_t sub_grid_rows = m_gridDimY / grid_dims;
         uint32_t sub_grid_cols = m_gridDimX / grid_dims;
 
-        std::vector<Vertex> vertices;
-        std::vector<uint32_t> indices;
+        std::vector<std::vector<float>> grid(m_gridDimY + 1, std::vector<float>(m_gridDimX + 1, 0.0f));
 
-        for (int j = 0; j < sub_grid_rows - 1; j++)
+        int count = 0;
+        for (int j = 0; j < sub_grid_rows; j++) // rows
         {
-            float terrain_sub_grid_y_start = m_bounds.map_max_y - j * grid_dims * deltaY;
-            //float terrain_sub_grid_y_start = m_bounds.map_min_y + j * grid_dims * deltaY;
-
-            for (int i = 0; i < sub_grid_cols; i++)
+            for (int i = 0; i < sub_grid_cols; i++) // cols
             {
-                int curr_sub_grid = j * sub_grid_cols + i;
+                // The positions in the grid we are inserting into
+                int col_start = i * grid_dims;
+                int col_end = col_start + grid_dims;
+                int row_start = j * grid_dims;
+                int row_end = row_start + grid_dims;
 
-                int tile_start_idx = curr_sub_grid * (grid_dims + 1) * (grid_dims + 1);
-
-                float terrain_sub_grid_x_start = m_bounds.map_min_x + i * grid_dims * deltaX;
-
-                for (int sub_grid_row = 0; sub_grid_row < grid_dims - 1; sub_grid_row++)
+                for (int k = row_start; k < row_end; k++)
                 {
-                    for (int sub_grid_col = 0; sub_grid_col < grid_dims - 1; sub_grid_col++)
+                    for (int l = col_start; l < col_end; l++)
                     {
-                        float height_tl =
-                          -m_heightMap[tile_start_idx + sub_grid_row * grid_dims + sub_grid_col];
-                        float height_tr =
-                          -m_heightMap[tile_start_idx + sub_grid_row * grid_dims + sub_grid_col + 1];
-                        float height_bl =
-                          -m_heightMap[tile_start_idx + (sub_grid_row + 1) * grid_dims + sub_grid_col];
-                        float height_br =
-                          -m_heightMap[tile_start_idx + (sub_grid_row + 1) * grid_dims + sub_grid_col + 1];
-
-                        DirectX::XMFLOAT3 pos_tl(terrain_sub_grid_x_start + sub_grid_col * deltaX, height_tl,
-                                                 terrain_sub_grid_y_start - sub_grid_row * deltaY);
-                        DirectX::XMFLOAT3 pos_tr(terrain_sub_grid_x_start + (sub_grid_col + 1) * deltaX,
-                                                 height_tr, terrain_sub_grid_y_start - sub_grid_row * deltaY);
-                        DirectX::XMFLOAT3 pos_bl(terrain_sub_grid_x_start + sub_grid_col * deltaX, height_bl,
-                                                 terrain_sub_grid_y_start - (sub_grid_row + 1) * deltaY);
-                        DirectX::XMFLOAT3 pos_br(terrain_sub_grid_x_start + (sub_grid_col + 1) * deltaX,
-                                                 height_br,
-                                                 terrain_sub_grid_y_start - (sub_grid_row + 1) * deltaY);
-
-                        auto normal_tl = ComputeTriangleNormal(pos_tl, pos_tr, pos_bl);
-                        auto normal_tr = ComputeTriangleNormal(pos_tr, pos_br, pos_bl);
-
-                        auto vertex_tl = Vertex(pos_tl, normal_tl, {0, 0});
-                        auto vertex_tr = Vertex(pos_tr, normal_tl, {0, 0});
-                        auto vertex_bl = Vertex(pos_bl, normal_tl, {0, 0});
-                        auto vertex_br = Vertex(pos_br, normal_tr, {0, 0});
-
-                        uint32_t vertex_index = static_cast<uint32_t>(vertices.size());
-
-                        vertices.push_back(vertex_tl);
-                        vertices.push_back(vertex_tr);
-                        vertices.push_back(vertex_bl);
-                        vertices.push_back(vertex_br);
-
-                        // Add indices of two clockwise triangles.
-                        indices.push_back(vertex_index); // top-left
-                        indices.push_back(vertex_index + 1); // top-right
-                        indices.push_back(vertex_index + 2); // bottom-left
-
-                        indices.push_back(vertex_index + 1); // top-right
-                        indices.push_back(vertex_index + 3); // bottom-right
-                        indices.push_back(vertex_index + 2); // bottom-left
+                        grid[k][l] = m_heightMap[count];
+                        count++;
                     }
                 }
             }
+        }
+
+        float deltaX = (m_bounds.map_max_x - m_bounds.map_min_x) / (m_gridDimX);
+        float deltaY = (m_bounds.map_max_y - m_bounds.map_min_y) / (m_gridDimY);
+
+        std::vector<Vertex> vertices;
+        std::vector<uint32_t> indices;
+
+        // Loop over the grid and generate the vertices and normals using ComputeTriangleNormal
+        for (uint32_t y = 0; y < m_gridDimY; y++)
+        {
+            for (uint32_t x = 0; x < m_gridDimX; x++)
+            {
+                float xPos = m_bounds.map_min_x + x * deltaX;
+                float yPos = grid[y][x];
+                float zPos = m_bounds.map_min_y + y * deltaY;
+
+                vertices.push_back(
+                  {{xPos, yPos, zPos}, {0.0f, 0.0f, 0.0f}, {(float)x / m_gridDimX, (float)y / m_gridDimY}});
+
+                if (x < m_gridDimX - 1 && y < m_gridDimY - 1)
+                {
+                    uint32_t currentIndex = y * m_gridDimX + x;
+                    indices.push_back(currentIndex);
+                    indices.push_back(currentIndex + m_gridDimX + 1);
+                    indices.push_back(currentIndex + 1);
+
+                    indices.push_back(currentIndex);
+                    indices.push_back(currentIndex + m_gridDimX);
+                    indices.push_back(currentIndex + m_gridDimX + 1);
+                }
+            }
+        }
+
+        for (size_t i = 0; i < indices.size(); i += 3)
+        {
+            Vertex& v0 = vertices[indices[i]];
+            Vertex& v1 = vertices[indices[i + 1]];
+            Vertex& v2 = vertices[indices[i + 2]];
+
+            XMFLOAT3 normal = ComputeTriangleNormal(v0.position, v1.position, v2.position);
+            v0.normal = normal;
+            v1.normal = normal;
+            v2.normal = normal;
         }
 
         return {vertices, indices};
