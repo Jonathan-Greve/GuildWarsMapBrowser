@@ -753,7 +753,7 @@ struct FFNA_MapFile
     Chunk2 chunk2;
     Chunk3 chunk3;
     Chunk4 prop_filenames_chunk;
-    Chunk5 chunk5;
+    Chunk1 chunk5; // The actual chunk 5 doesn't work for all files. Haven't figured out the format yet.
     Chunk4 more_filnames_chunk; // same structure as chunk 4
     Chunk7 chunk7;
     Chunk8 map_zones_and_terrain_chunk;
@@ -778,7 +778,7 @@ struct FFNA_MapFile
         offset += 8 +
           prop_filenames_chunk
             .chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
-        chunk5 = Chunk5(offset, data.data());
+        chunk5 = Chunk1(offset, data.data());
         offset +=
           8 + chunk5.chunk_size; // + 8 because the chunk size doesn't count the id and chunksize fields.
         more_filnames_chunk = Chunk4(offset, data.data());
