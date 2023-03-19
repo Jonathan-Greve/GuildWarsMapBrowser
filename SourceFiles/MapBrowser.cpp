@@ -46,7 +46,7 @@ void DrawGuiForOpenDatFile()
     ImGui::PopStyleColor(3);
 
     // Display File Dialog
-    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
+    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey", 0, ImVec2(500, 400)))
     {
         if (ImGuiFileDialog::Instance()->IsOk())
         {
