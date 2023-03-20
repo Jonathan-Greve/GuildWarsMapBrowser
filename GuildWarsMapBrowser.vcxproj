@@ -192,9 +192,6 @@
     <ClInclude Include="DearImGui\imstb_textedit.h" />
     <ClInclude Include="DearImGui\imstb_truetype.h" />
     <ClInclude Include="DearImGui\misc\cpp\imgui_stdlib.h" />
-    <ClInclude Include="draw_dat_load_progress_bar.h" />
-    <ClInclude Include="draw_gui_for_open_dat_file.h" />
-    <ClInclude Include="draw_ui.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
@@ -208,6 +205,9 @@
     <ClInclude Include="SourceFiles\DeviceResources.h" />
     <ClInclude Include="SourceFiles\DirectionalLight.h" />
     <ClInclude Include="SourceFiles\draw_dat_browser.h" />
+    <ClInclude Include="SourceFiles\draw_dat_load_progress_bar.h" />
+    <ClInclude Include="SourceFiles\draw_gui_for_open_dat_file.h" />
+    <ClInclude Include="SourceFiles\draw_ui.h" />
     <ClInclude Include="SourceFiles\DXMathHelpers.h" />
     <ClInclude Include="SourceFiles\FFNAType.h" />
     <ClInclude Include="SourceFiles\FFNA_MapFile.h" />
@@ -284,9 +284,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="draw_dat_load_progress_bar.cpp" />
-    <ClCompile Include="draw_gui_for_open_dat_file.cpp" />
-    <ClCompile Include="draw_ui.cpp" />
     <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
@@ -303,6 +300,9 @@
     <ClCompile Include="SourceFiles\DeviceResources.cpp" />
     <ClCompile Include="SourceFiles\DirectionalLight.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_browser.cpp" />
+    <ClCompile Include="SourceFiles\draw_dat_load_progress_bar.cpp" />
+    <ClCompile Include="SourceFiles\draw_gui_for_open_dat_file.cpp" />
+    <ClCompile Include="SourceFiles\draw_ui.cpp" />
     <ClCompile Include="SourceFiles\DXMathHelpers.cpp" />
     <ClCompile Include="SourceFiles\FFNA_MapFile.cpp" />
     <ClCompile Include="SourceFiles\GuiGlobalConstants.cpp" />
@@ -318,6 +318,7 @@
     <ClCompile Include="SourceFiles\MouseMoveListener.cpp" />
     <ClCompile Include="SourceFiles\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="SourceFiles\PerCameraCB.cpp" />
     <ClCompile Include="SourceFiles\PerFrameCB.cpp" />

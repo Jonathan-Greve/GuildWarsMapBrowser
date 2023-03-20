@@ -103,9 +103,6 @@
     <ClInclude Include="DearImGui\misc\cpp\imgui_stdlib.h">
       <Filter>Dear ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="MapRenderer.h">
-      <Filter>Render\Renderer\Map renderer</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\MapBrowser.h" />
     <ClInclude Include="SourceFiles\pch.h" />
     <ClInclude Include="SourceFiles\InputManager.h">
@@ -216,6 +213,15 @@
     <ClInclude Include="SourceFiles\MapRenderer.h">
       <Filter>Render</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\draw_dat_load_progress_bar.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_gui_for_open_dat_file.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_ui.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -244,9 +250,6 @@
     </ClCompile>
     <ClCompile Include="DearImGui\misc\cpp\imgui_stdlib.cpp">
       <Filter>Dear ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="MapRenderer.cpp">
-      <Filter>Render\Renderer\Map renderer</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\Main.cpp" />
     <ClCompile Include="SourceFiles\MapBrowser.cpp" />
@@ -352,6 +355,15 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\MapRenderer.cpp">
       <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_dat_load_progress_bar.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_gui_for_open_dat_file.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_ui.cpp">
+      <Filter>GUI</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
