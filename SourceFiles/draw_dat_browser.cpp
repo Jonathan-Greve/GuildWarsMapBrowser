@@ -225,6 +225,10 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 
     ImGui::Separator();
 
+    ImGui::Text("Filtered items: %d", filtered_items.Size);
+    ImGui::SameLine();
+    ImGui::Text("Total items: %d", items.Size);
+
     // Options
     static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
       ImGuiTableFlags_Hideable | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti |
