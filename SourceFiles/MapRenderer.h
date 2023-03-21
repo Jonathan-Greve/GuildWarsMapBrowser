@@ -11,6 +11,14 @@
 #include "CheckerboardTexture.h"
 #include "Terrain.h"
 
+enum class RasterizerStateType
+{
+    Solid,
+    Solid_NoCull,
+    Wireframe,
+    Wireframe_NoCull
+};
+
 using namespace DirectX;
 
 class MapRenderer
@@ -91,6 +99,8 @@ public:
         buffer_desc.ByteWidth = sizeof(PerTerrainCB);
         m_device->CreateBuffer(&buffer_desc, nullptr, m_per_terrain_cb.GetAddressOf());
 
+        CreateRasterizerStates();
+
         //
         m_deviceContext->VSSetConstantBuffers(PER_FRAME_CB_SLOT, 1, m_per_frame_cb.GetAddressOf());
         m_deviceContext->VSSetConstantBuffers(PER_CAMERA_CB_SLOT, 1, m_per_camera_cb.GetAddressOf());
@@ -108,18 +118,31 @@ public:
         m_deviceContext->PSSetShader(m_pixel_shaders[PixelShaderType::Default]->GetShader(), nullptr, 0);
     }
 
+    Camera* GetCamera() { return m_user_camera.get(); }
+
+    void SetFrustumAsPerspective(float fovY, float aspectRatio, float zNear, float zFar)
+    {
+        m_user_camera->SetFrustumAsPerspective(fovY, aspectRatio, zNear, zFar);
+    }
+    void SetFrustumAsOrthographic(float view_width, float view_height, float near_z, float far_z)
+    {
+        m_user_camera->SetFrustumAsOrthographic(view_width, view_height, near_z, far_z);
+    }
+
     void UpdateTerrainWaterLevel(float new_water_level)
     {
         auto cb = m_terrain->m_per_terrain_cb;
         cb.water_level = new_water_level;
         m_terrain->m_per_terrain_cb = cb;
 
-        //D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
-        //ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
-        //m_deviceContext->Map(m_per_terrain_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
-        //memcpy(mappedResourceFrame.pData, &m_per_terrain_cb, sizeof(PerTerrainCB));
-        //m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
+        D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
+        ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
+        m_deviceContext->Map(m_per_terrain_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
+        memcpy(mappedResourceFrame.pData, &m_terrain->m_per_terrain_cb, sizeof(PerTerrainCB));
+        m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
     }
+
+    Terrain* GetTerrain() { return m_terrain.get(); }
 
     void SetTerrain(std::unique_ptr<Terrain> terrain)
     {
@@ -201,6 +224,9 @@ public:
             throw "Failed creating solid frame rasterizer state.";
     }
 
+    RasterizerStateType GetCurrentRasterizerState() { return m_currentRasterizerState; }
+    void SwitchRasterizerState(RasterizerStateType state) { m_currentRasterizerState = state; }
+
     void Update(const float dt)
     {
         // Walk
@@ -250,7 +276,21 @@ public:
 
     void Render()
     {
-        m_deviceContext->RSSetState(m_solid_rs.Get());
+        switch (m_currentRasterizerState)
+        {
+        case RasterizerStateType::Solid:
+            m_deviceContext->RSSetState(m_solid_rs.Get());
+            break;
+        case RasterizerStateType::Solid_NoCull:
+            m_deviceContext->RSSetState(m_solid_no_cull_rs.Get());
+            break;
+        case RasterizerStateType::Wireframe:
+            m_deviceContext->RSSetState(m_wireframe_rs.Get());
+            break;
+        case RasterizerStateType::Wireframe_NoCull:
+            m_deviceContext->RSSetState(m_wireframe_no_cull_rs.Get());
+            break;
+        }
         m_mesh_manager->Render(m_pixel_shaders);
     }
 
@@ -272,6 +312,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_wireframe_no_cull_rs;
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_solid_rs;
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_solid_no_cull_rs;
+    RasterizerStateType m_currentRasterizerState = RasterizerStateType::Solid;
 
     std::unique_ptr<Terrain> m_terrain;
 
