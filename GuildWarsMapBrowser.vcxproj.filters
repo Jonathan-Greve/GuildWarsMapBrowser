@@ -428,7 +428,7 @@
     <FxCompile Include="TerrainPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
-    <FxCompile Include="SourceFiles\DefaultPixelTexture.hlsl">
+    <FxCompile Include="SourceFiles\DefaultPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Default</Filter>
     </FxCompile>
   </ItemGroup>

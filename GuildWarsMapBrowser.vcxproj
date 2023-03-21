@@ -359,7 +359,7 @@
     <None Include="SourceFiles\imgui.ini" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="SourceFiles\DefaultPixelTexture.hlsl">
+    <FxCompile Include="SourceFiles\DefaultPixelShader.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>

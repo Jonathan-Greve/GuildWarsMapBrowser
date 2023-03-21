@@ -5,6 +5,7 @@
 #include "MeshInstance.h"
 #include "FFNA_MapFile.h"
 #include "DXMathHelpers.h"
+#include "PerTerrainCB.h"
 
 class Terrain
 {
@@ -25,6 +26,9 @@ public:
     uint32_t m_grid_dim_x;
     uint32_t m_grid_dim_z;
     MapBounds m_bounds;
+    PerTerrainCB m_per_terrain_cb;
+
+    void update_per_terrain_CddB(PerTerrainCB& new_cb) { m_per_terrain_cb = new_cb; }
 
 private:
     // Generates a terrain mesh based on the height map data
@@ -120,6 +124,10 @@ private:
             v1.normal = normal;
             v2.normal = normal;
         }
+
+        m_per_terrain_cb =
+          PerTerrainCB(m_grid_dim_x, m_grid_dim_z, m_bounds.map_min_x, m_bounds.map_max_x, m_bounds.map_min_y,
+                       m_bounds.map_max_y, m_bounds.map_min_z, m_bounds.map_max_z, 0, {0, 0, 0});
 
         return {vertices, indices};
     }

@@ -108,6 +108,19 @@ public:
         m_deviceContext->PSSetShader(m_pixel_shaders[PixelShaderType::Default]->GetShader(), nullptr, 0);
     }
 
+    void UpdateTerrainWaterLevel(float new_water_level)
+    {
+        auto cb = m_terrain->m_per_terrain_cb;
+        cb.water_level = new_water_level;
+        m_terrain->m_per_terrain_cb = cb;
+
+        //D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
+        //ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
+        //m_deviceContext->Map(m_per_terrain_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
+        //memcpy(mappedResourceFrame.pData, &m_per_terrain_cb, sizeof(PerTerrainCB));
+        //m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
+    }
+
     void SetTerrain(std::unique_ptr<Terrain> terrain)
     {
         if (m_is_terrain_mesh_set)
@@ -121,15 +134,15 @@ public:
 
         m_terrain_mesh_id = m_mesh_manager->AddCustomMesh(terrain->get_mesh(), PixelShaderType::Terrain);
 
-        // Update CB
-        auto terrainCB =
+        terrain->m_per_terrain_cb =
           PerTerrainCB(terrain->m_grid_dim_x, terrain->m_grid_dim_z, terrain->m_bounds.map_min_x,
-                       terrain->m_bounds.map_max_x, terrain->m_bounds.map_min_z, terrain->m_bounds.map_max_z);
+                       terrain->m_bounds.map_max_x, terrain->m_bounds.map_min_y, terrain->m_bounds.map_max_y,
+                       terrain->m_bounds.map_min_z, terrain->m_bounds.map_max_z, 0, {0, 0, 0});
 
         D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
         ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
         m_deviceContext->Map(m_per_terrain_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
-        memcpy(mappedResourceFrame.pData, &terrainCB, sizeof(PerTerrainCB));
+        memcpy(mappedResourceFrame.pData, &terrain->m_per_terrain_cb, sizeof(PerTerrainCB));
         m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
 
         // Create and set texture. Just make it 2x2 checkered tiles. It will be repeated in the pixel shader.

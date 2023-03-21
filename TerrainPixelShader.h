@@ -38,7 +38,10 @@ cbuffer PerTerrainCB : register(b3)
     float max_x;
     float min_y;
     float max_y;
-
+    float min_z;
+    float max_z;
+    float water_level;
+    float pad[3];
 };
 
 struct PixelInputType
@@ -46,6 +49,7 @@ struct PixelInputType
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
     float2 texCoords : TEXCOORD0;
+    float terrain_height : TEXCOORD1;
 };
 
 float4 main(PixelInputType input) : SV_TARGET
@@ -80,10 +84,18 @@ float4 main(PixelInputType input) : SV_TARGET
     // Sample the texture using the repeated texture coordinates and sampler state
     float4 sampledTextureColor = shaderTexture.Sample(ss, repeatedTexCoords);
 
+    float4 outputColor;
     // Multiply the sampled color with the finalColor
-    float4 outputColor = finalColor * sampledTextureColor;
+    if (input.terrain_height <= water_level) {
+        float4 blue_color = float4(0.11, 0.65, 0.81, 1.0); // Water color
+        outputColor = finalColor * sampledTextureColor * blue_color;
+    }
+    else {
+        outputColor = finalColor * sampledTextureColor;
+    }
 
     // Return the result
     return outputColor;
-})";
+}
+)";
 };

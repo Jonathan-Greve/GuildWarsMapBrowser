@@ -34,7 +34,8 @@ cbuffer PerTerrainCB : register(b3)
     float max_x;
     float min_y;
     float max_y;
-
+    float water_level;
+    float pad[3];
 };
 
 struct PixelInputType
