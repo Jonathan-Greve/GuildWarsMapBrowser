@@ -1,22 +1,12 @@
 #pragma once
 using namespace DirectX;
 
-static inline XMFLOAT3 compute_normal(const XMFLOAT3& a, const XMFLOAT3& b, const XMFLOAT3& c)
+static inline XMFLOAT3 compute_normal(const XMFLOAT3& v0, const XMFLOAT3& v1, const XMFLOAT3& v2)
 {
-    XMFLOAT3 ab, ac, normal;
-    XMVECTOR vec_a, vec_b, vec_c;
-
-    vec_a = XMLoadFloat3(&a);
-    vec_b = XMLoadFloat3(&b);
-    vec_c = XMLoadFloat3(&c);
-
-    ab = XMFLOAT3(b.x - a.x, b.y - a.y, b.z - a.z);
-    ac = XMFLOAT3(c.x - a.x, c.y - a.y, c.z - a.z);
-
-    XMVECTOR vec_ab = XMLoadFloat3(&ab);
-    XMVECTOR vec_ac = XMLoadFloat3(&ac);
-    XMVECTOR vec_normal = XMVector3Cross(vec_ab, vec_ac);
-
-    XMStoreFloat3(&normal, vec_normal);
+    XMVECTOR vEdge1 = XMVectorSubtract(XMLoadFloat3(&v1), XMLoadFloat3(&v0));
+    XMVECTOR vEdge2 = XMVectorSubtract(XMLoadFloat3(&v2), XMLoadFloat3(&v0));
+    XMVECTOR vNormal = XMVector3Cross(vEdge1, vEdge2);
+    XMFLOAT3 normal;
+    XMStoreFloat3(&normal, XMVector3Normalize(vNormal));
     return normal;
 }

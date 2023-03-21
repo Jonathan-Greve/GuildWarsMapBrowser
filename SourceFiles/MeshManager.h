@@ -8,6 +8,7 @@
 #include "Sphere.h"
 #include "Line.h"
 #include "RenderConstants.h"
+#include "PixelShader.h"
 
 class MeshManager
 {
@@ -32,42 +33,52 @@ public:
         m_deviceContext->PSSetConstantBuffers(PER_OBJECT_CB_SLOT, 1, constantBuffers);
     }
 
-    int AddBox(const DirectX::XMFLOAT3& size)
+    int AddBox(const DirectX::XMFLOAT3& size, PixelShaderType pixel_shader_type = PixelShaderType::Default)
     {
         int meshID = m_nextMeshID++;
-        m_triangleMeshes[meshID] = std::make_shared<Box>(m_device, size, meshID);
+        auto mesh_instance = std::make_shared<Box>(m_device, size, meshID);
+        add_to_triangle_meshes(mesh_instance, pixel_shader_type);
         m_needsUpdate = true;
         return meshID;
     }
 
-    int AddSphere(float radius, uint32_t numSlices, uint32_t numStacks)
+    int AddSphere(float radius, uint32_t numSlices, uint32_t numStacks,
+                  PixelShaderType pixel_shader_type = PixelShaderType::Default)
     {
         int meshID = m_nextMeshID++;
-        m_triangleMeshes[meshID] = std::make_shared<Sphere>(m_device, radius, numSlices, numStacks, meshID);
+        auto mesh_instance = std::make_shared<Sphere>(m_device, radius, numSlices, numStacks, meshID);
+        add_to_triangle_meshes(mesh_instance, pixel_shader_type);
         m_needsUpdate = true;
         return meshID;
     }
 
-    int AddLine(const DirectX::XMFLOAT3& start, const DirectX::XMFLOAT3& end)
+    int AddLine(const DirectX::XMFLOAT3& start, const DirectX::XMFLOAT3& end,
+                PixelShaderType pixel_shader_type = PixelShaderType::Default)
     {
         int meshID = m_nextMeshID++;
         m_lineMeshes[meshID] = std::make_shared<Line>(m_device, start, end, meshID);
+
+        RenderCommand command = {m_lineMeshes[meshID], D3D11_PRIMITIVE_TOPOLOGY_LINELIST, pixel_shader_type};
+        m_renderBatch.AddCommand(command);
+
         m_needsUpdate = true;
         return meshID;
     }
 
-    int AddCustomMesh(const Mesh& mesh)
+    int AddCustomMesh(const Mesh& mesh, PixelShaderType pixel_shader_type = PixelShaderType::Default)
     {
         int meshID = m_nextMeshID++;
-        m_triangleMeshes[meshID] = std::make_shared<MeshInstance>(m_device, mesh, meshID);
+        auto mesh_instance = std::make_shared<MeshInstance>(m_device, mesh, meshID);
+        add_to_triangle_meshes(mesh_instance, pixel_shader_type);
         m_needsUpdate = true;
         return meshID;
     }
 
-    int AddCustomMesh(const Mesh* mesh)
+    int AddCustomMesh(const Mesh* mesh, PixelShaderType pixel_shader_type = PixelShaderType::Default)
     {
         int meshID = m_nextMeshID++;
-        m_triangleMeshes[meshID] = std::make_shared<MeshInstance>(m_device, *mesh, meshID);
+        auto mesh_instance = std::make_shared<MeshInstance>(m_device, *mesh, meshID);
+        add_to_triangle_meshes(mesh_instance, pixel_shader_type);
         m_needsUpdate = true;
         return meshID;
     }
@@ -78,6 +89,7 @@ public:
         if (it != m_triangleMeshes.end())
         {
             m_triangleMeshes.erase(it);
+            m_renderBatch.RemoveCommand(meshID);
             m_needsUpdate = true;
             return true;
         }
@@ -86,6 +98,7 @@ public:
         if (it != m_lineMeshes.end())
         {
             m_lineMeshes.erase(it);
+            m_renderBatch.RemoveCommand(meshID);
             m_needsUpdate = true;
             return true;
         }
@@ -123,31 +136,29 @@ public:
     {
         if (m_needsUpdate)
         {
-            m_renderBatch.Clear();
-            for (auto& [id, mesh] : m_triangleMeshes)
-            {
-                RenderCommand command = {mesh, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST};
-                m_renderBatch.AddCommand(command);
-            }
-            for (auto& [id, mesh] : m_lineMeshes)
-            {
-                RenderCommand command = {mesh, D3D11_PRIMITIVE_TOPOLOGY_LINELIST};
-                m_renderBatch.AddCommand(command);
-            }
             m_renderBatch.SortCommands();
             m_needsUpdate = false;
         }
     }
 
-    void Render()
+    void Render(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders)
     {
-        D3D11_PRIMITIVE_TOPOLOGY currentTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
+        static D3D11_PRIMITIVE_TOPOLOGY currentTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
+        static PixelShaderType current_ps_shader_type = PixelShaderType::Default;
         for (const RenderCommand& command : m_renderBatch.GetCommands())
         {
             if (command.primitiveTopology != currentTopology)
             {
                 m_deviceContext->IASetPrimitiveTopology(command.primitiveTopology);
                 currentTopology = command.primitiveTopology;
+            }
+
+            if (command.pixelShaderType != current_ps_shader_type)
+            {
+                m_deviceContext->PSSetShader(pixel_shaders[command.pixelShaderType]->GetShader(), nullptr, 0);
+                m_deviceContext->PSSetSamplers(0, 1,
+                                               pixel_shaders[command.pixelShaderType]->GetSamplerState());
+                current_ps_shader_type = command.pixelShaderType;
             }
 
             PerObjectCB transposedData = command.meshInstance->GetPerObjectData();
@@ -157,7 +168,7 @@ public:
             worldMatrix = DirectX::XMMatrixTranspose(worldMatrix);
             DirectX::XMStoreFloat4x4(&transposedData.world, worldMatrix);
 
-            // Update the shared constant buffer
+            // Update the per object constant buffer
             D3D11_MAPPED_SUBRESOURCE mappedResource;
             m_deviceContext->Map(m_perObjectCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
             memcpy(mappedResource.pData, &transposedData, sizeof(PerObjectCB));
@@ -177,4 +188,13 @@ private:
     RenderBatch m_renderBatch;
 
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_perObjectCB;
+
+    void add_to_triangle_meshes(std::shared_ptr<MeshInstance> mesh_instance,
+                                PixelShaderType pixel_shader_type)
+    {
+        m_triangleMeshes[mesh_instance->GetMeshID()] = mesh_instance;
+
+        RenderCommand command = {mesh_instance, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, pixel_shader_type};
+        m_renderBatch.AddCommand(command);
+    }
 };
