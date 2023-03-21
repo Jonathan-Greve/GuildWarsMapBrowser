@@ -42,6 +42,9 @@ void Camera::SetFrustumAsPerspective(float fovY, float aspectRatio, float zNear,
 
 void Camera::SetFrustumAsOrthographic(float view_width, float view_height, float zn, float zf)
 {
+    view_width = std::max(1.0f, view_width);
+    view_height = std::max(1.0f, view_height);
+
     XMStoreFloat4x4(&m_proj, XMMatrixOrthographicLH(view_width, view_height, zn, zf));
     m_viewWidth = view_width;
     m_viewHeight = view_height;
@@ -81,7 +84,7 @@ void Camera::SetOrientation(float pitch, float yaw)
     m_yaw = yaw;
 
     // Clamp the pitch to avoid gimbal lock
-    const float maxPitch = XM_PI / 2.0f;
+    const float maxPitch = XM_PI / 2.0f - 0.001;
     m_pitch = std::max(-maxPitch, std::min(maxPitch, m_pitch));
 
     // Compute the look vector from pitch and yaw
