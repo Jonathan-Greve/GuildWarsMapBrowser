@@ -83,8 +83,8 @@ private:
     float m_aspectRatio = 1;
 
     // Set for orthographic projection
-    float m_viewWidth = 100000;
-    float m_viewHeight = 100000;
+    float m_viewWidth = 65000;
+    float m_viewHeight = 65000;
 
     // Set for both projection types
     float m_nearZ = 0.1;
