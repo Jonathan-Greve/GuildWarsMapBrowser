@@ -64,18 +64,59 @@ void Camera::LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp)
     XMStoreFloat3(&m_up, up);
     XMStoreFloat3(&m_position, pos);
     m_view_should_update = true;
+
+    // Calculate yaw and pitch based on the look vector
+    float lookX = XMVectorGetX(look);
+    float lookY = XMVectorGetY(look);
+    float lookZ = XMVectorGetZ(look);
+
+    m_yaw = atan2f(lookX, lookZ);
+    m_pitch = atan2f(lookY, sqrtf(lookX * lookX + lookZ * lookZ));
 }
 
-void Camera::Strafe(float velocity, double dt)
+void Camera::SetOrientation(float pitch, float yaw)
 {
+    // Update pitch and yaw
+    m_pitch = pitch;
+    m_yaw = yaw;
+
+    // Clamp the pitch to avoid gimbal lock
+    const float maxPitch = XM_PI / 2.0f;
+    m_pitch = std::max(-maxPitch, std::min(maxPitch, m_pitch));
+
+    // Compute the look vector from pitch and yaw
+    XMVECTOR look =
+      XMVectorSet(cosf(m_pitch) * sinf(m_yaw), sinf(m_pitch), cosf(m_pitch) * cosf(m_yaw), 0.0f);
+
+    // Compute the right and up vectors
+    XMVECTOR worldUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    XMVECTOR right = XMVector3Normalize(XMVector3Cross(worldUp, look));
+    XMVECTOR up = XMVector3Cross(look, right);
+
+    // Call LookAt with the computed vectors
+    LookAt(XMLoadFloat3(&m_position), XMVectorAdd(XMLoadFloat3(&m_position), look), up);
+}
+
+void Camera::Strafe(StrafeDirection strafe_direction, double dt)
+{
+    float velocity = m_strafe_speed;
+    if (strafe_direction == StrafeDirection::Left)
+    {
+        velocity = -m_strafe_speed;
+    }
     XMVECTOR dVec = XMVectorReplicate(velocity);
     XMVECTOR newPos = XMVectorMultiplyAdd(XMLoadFloat3(&m_right), dVec, XMLoadFloat3(&m_position));
     XMStoreFloat3(&m_position, newPos);
     m_view_should_update = true;
 }
 
-void Camera::Walk(float velocity, double dt)
+void Camera::Walk(WalkDirection walk_direction, double dt)
 {
+    float velocity = m_walk_speed;
+    if (walk_direction == WalkDirection::Backward)
+    {
+        velocity = -m_walk_speed;
+    }
     XMVECTOR dVec = XMVectorReplicate(velocity);
     XMVECTOR newPos = XMVectorMultiplyAdd(XMLoadFloat3(&m_look), dVec, XMLoadFloat3(&m_position));
 
@@ -93,7 +134,7 @@ void Camera::Pitch(float angle)
     m_view_should_update = true;
 }
 
-void Camera::RotateWorldY(float angle)
+void Camera::Yaw(float angle)
 {
     auto rotationMatrix = XMMatrixRotationY(angle);
     XMStoreFloat3(&m_up, XMVector3TransformNormal(XMLoadFloat3(&m_up), rotationMatrix));
@@ -113,9 +154,14 @@ XMFLOAT4X4 Camera::GetProj4x4() const { return m_proj; }
 void Camera::OnViewPortChanged(const float viewport_width, const float viewport_height)
 {
     m_aspectRatio = viewport_width / viewport_height;
-    XMStoreFloat4x4(&m_proj, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
+    if (m_camera_type == CameraType::Perspective)
+        XMStoreFloat4x4(&m_proj, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
+    else
+        XMStoreFloat4x4(&m_proj, XMMatrixOrthographicLH(m_viewWidth, m_viewHeight, m_nearZ, m_farZ));
     m_view_should_update = true;
 }
+
+float Camera::GetAspectRatio() const { return m_aspectRatio; }
 
 float Camera::GetFovY() const { return m_fov; }
 
@@ -128,6 +174,10 @@ float Camera::GetNearZ() const { return m_nearZ; }
 float Camera::GetFarZ() const { return m_farZ; }
 
 CameraType Camera::GetCameraType() const { return m_camera_type; }
+
+float Camera::GetYaw() const { return m_yaw; }
+
+float Camera::GetPitch() const { return m_pitch; }
 
 void Camera::UpdateViewMatrix()
 {
@@ -157,5 +207,5 @@ void Camera::UpdateViewMatrix()
 void Camera::OnMouseMove(float yaw_angle_radians, float pitch_angle_radians)
 {
     Pitch(pitch_angle_radians);
-    RotateWorldY(yaw_angle_radians);
+    Yaw(yaw_angle_radians);
 }
