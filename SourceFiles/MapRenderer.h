@@ -7,6 +7,7 @@
 #include "PixelShader.h"
 #include "PerFrameCB.h"
 #include "PerCameraCB.h"
+#include "PerTerrainCB.h"
 #include "CheckerboardTexture.h"
 #include "Terrain.h"
 
@@ -32,36 +33,37 @@ public:
         float aspect_ratio = viewport_width / viewport_height;
         m_user_camera->SetFrustumAsPerspective(static_cast<float>(fov_degrees * XM_PI / 180.0), aspect_ratio,
                                                0.1f, 50000);
-        const auto pos = FXMVECTOR{0, 2500, -1000, 0};
-        const auto target = FXMVECTOR{0, 0, 500, 0};
+        const auto pos = FXMVECTOR{0, 20500, 0, 0};
+        const auto target = FXMVECTOR{0, 0, 100, 0};
         const auto world_up = FXMVECTOR{0, 1, 0, 0};
         m_user_camera->LookAt(pos, target, world_up);
 
         m_input_manager->AddMouseMoveListener(m_user_camera.get());
 
         // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
-        auto box_id = m_mesh_manager->AddBox({200, 200, 200});
+        auto box_id = m_mesh_manager->AddBox({300, 300, 300});
         auto sphere_id = m_mesh_manager->AddSphere(300, 100, 100);
         auto line_id = m_mesh_manager->AddLine({-400, 500, 0}, {400, 500, 0});
 
         // Move the sphere and box next to eachother
         // Move the box to the left of the sphere (e.g., -250 units on the X-axis)
         DirectX::XMFLOAT4X4 boxWorldMatrix;
-        DirectX::XMStoreFloat4x4(&boxWorldMatrix, DirectX::XMMatrixTranslation(-250, 0, 0));
+        DirectX::XMStoreFloat4x4(&boxWorldMatrix, DirectX::XMMatrixTranslation(30000, 0, 0));
         PerObjectCB boxPerObjectData;
         boxPerObjectData.world = boxWorldMatrix;
         m_mesh_manager->UpdateMeshPerObjectData(box_id, boxPerObjectData);
 
         // Move the sphere to the right of the box (e.g., 250 units on the X-axis)
         DirectX::XMFLOAT4X4 sphereWorldMatrix;
-        DirectX::XMStoreFloat4x4(&sphereWorldMatrix, DirectX::XMMatrixTranslation(250, 0, 0));
+        DirectX::XMStoreFloat4x4(&sphereWorldMatrix, DirectX::XMMatrixTranslation(0, 0, 30000));
         PerObjectCB spherePerObjectData;
         spherePerObjectData.world = sphereWorldMatrix;
         m_mesh_manager->UpdateMeshPerObjectData(sphere_id, spherePerObjectData);
 
-        int texture_width = 2;
-        int texture_height = 2;
-        CheckerboardTexture checkerboard_texture(texture_width, texture_height);
+        int texture_width = 192;
+        int texture_height = 192;
+        int tile_size = 96;
+        CheckerboardTexture checkerboard_texture(texture_width, texture_height, tile_size);
         auto texture_id =
           m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
                                         texture_height, DXGI_FORMAT_R8G8B8A8_UNORM);
@@ -71,9 +73,9 @@ public:
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
         m_vertex_shader->Initialize(L"VertexShader.hlsl");
 
-        // Create and initialize the PixelShader
-        m_pixel_shader = std::make_unique<PixelShader>(m_device, m_deviceContext);
-        m_pixel_shader->Initialize(L"PixelShader.hlsl");
+        // Create and initialize the Default PixelShader
+        m_pixel_shaders[PixelShaderType::Default] = std::make_unique<PixelShader>(m_device, m_deviceContext);
+        m_pixel_shaders[PixelShaderType::Default]->Initialize(PixelShaderType::Default);
 
         // Set up the constant buffer for the camera
         D3D11_BUFFER_DESC buffer_desc = {};
@@ -86,18 +88,24 @@ public:
         buffer_desc.ByteWidth = sizeof(PerCameraCB);
         m_device->CreateBuffer(&buffer_desc, nullptr, m_per_camera_cb.GetAddressOf());
 
+        buffer_desc.ByteWidth = sizeof(PerTerrainCB);
+        m_device->CreateBuffer(&buffer_desc, nullptr, m_per_terrain_cb.GetAddressOf());
+
+        //
         m_deviceContext->VSSetConstantBuffers(PER_FRAME_CB_SLOT, 1, m_per_frame_cb.GetAddressOf());
         m_deviceContext->VSSetConstantBuffers(PER_CAMERA_CB_SLOT, 1, m_per_camera_cb.GetAddressOf());
+        m_deviceContext->VSSetConstantBuffers(PER_TERRAIN_CB_SLOT, 1, m_per_terrain_cb.GetAddressOf());
 
         m_deviceContext->VSSetShader(m_vertex_shader->GetShader(), nullptr, 0);
         m_deviceContext->IASetInputLayout(m_vertex_shader->GetInputLayout());
 
         m_deviceContext->PSSetConstantBuffers(PER_FRAME_CB_SLOT, 1, m_per_frame_cb.GetAddressOf());
         m_deviceContext->PSSetConstantBuffers(PER_CAMERA_CB_SLOT, 1, m_per_camera_cb.GetAddressOf());
+        m_deviceContext->PSSetConstantBuffers(PER_TERRAIN_CB_SLOT, 1, m_per_terrain_cb.GetAddressOf());
 
         // Set the pixel shader and sampler state
-        m_deviceContext->PSSetShader(m_pixel_shader->GetShader(), nullptr, 0);
-        m_deviceContext->PSSetSamplers(0, 1, m_pixel_shader->GetSamplerState());
+        m_deviceContext->PSSetSamplers(0, 1, m_pixel_shaders[PixelShaderType::Default]->GetSamplerState());
+        m_deviceContext->PSSetShader(m_pixel_shaders[PixelShaderType::Default]->GetShader(), nullptr, 0);
     }
 
     void SetTerrain(std::unique_ptr<Terrain> terrain)
@@ -108,7 +116,33 @@ public:
             m_is_terrain_mesh_set = false;
         }
 
-        m_terrain_mesh_id = m_mesh_manager->AddCustomMesh(terrain->get_mesh());
+        m_pixel_shaders[PixelShaderType::Terrain] = std::make_unique<PixelShader>(m_device, m_deviceContext);
+        m_pixel_shaders[PixelShaderType::Terrain]->Initialize(PixelShaderType::Terrain);
+
+        m_terrain_mesh_id = m_mesh_manager->AddCustomMesh(terrain->get_mesh(), PixelShaderType::Terrain);
+
+        // Update CB
+        auto terrainCB =
+          PerTerrainCB(terrain->m_gridDimX, terrain->m_gridDimY, terrain->m_bounds.map_min_x,
+                       terrain->m_bounds.map_max_x, terrain->m_bounds.map_min_y, terrain->m_bounds.map_max_y);
+
+        D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
+        ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
+        m_deviceContext->Map(m_per_terrain_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
+        memcpy(mappedResourceFrame.pData, &terrainCB, sizeof(PerTerrainCB));
+        m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
+
+        // Create and set texture. Just make it 2x2 checkered tiles. It will be repeated in the pixel shader.
+        int texture_tile_size = 96;
+        int texture_width = texture_tile_size * 2;
+        int texture_height = texture_tile_size * 2;
+
+        CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size);
+        auto texture_id =
+          m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
+                                        texture_height, DXGI_FORMAT_R8G8B8A8_UNORM);
+        m_mesh_manager->AddTextureToMesh(m_terrain_mesh_id, m_texture_manager->GetTexture(texture_id));
+
         m_terrain = std::move(terrain);
         m_is_terrain_mesh_set = true;
     }
@@ -204,7 +238,7 @@ public:
     void Render()
     {
         m_deviceContext->RSSetState(m_solid_rs.Get());
-        m_mesh_manager->Render();
+        m_mesh_manager->Render(m_pixel_shaders);
     }
 
 private:
@@ -215,10 +249,11 @@ private:
     std::unique_ptr<TextureManager> m_texture_manager;
     std::unique_ptr<Camera> m_user_camera;
     std::unique_ptr<VertexShader> m_vertex_shader;
-    std::unique_ptr<PixelShader> m_pixel_shader;
+    std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>> m_pixel_shaders;
 
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_frame_cb;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_camera_cb;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_terrain_cb;
 
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_wireframe_rs;
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_wireframe_no_cull_rs;

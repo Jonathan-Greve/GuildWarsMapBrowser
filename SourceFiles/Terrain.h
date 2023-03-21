@@ -4,6 +4,7 @@
 #include <DirectXMath.h>
 #include "MeshInstance.h"
 #include "FFNA_MapFile.h"
+#include "DXMathHelpers.h"
 
 class Terrain
 {
@@ -20,6 +21,10 @@ public:
     }
 
     Mesh* get_mesh() { return mesh.get(); }
+
+    uint32_t m_gridDimX;
+    uint32_t m_gridDimY;
+    MapBounds m_bounds;
 
 private:
     // Generates a terrain mesh based on the height map data
@@ -94,7 +99,7 @@ private:
             Vertex& v1 = vertices[indices[i + 1]];
             Vertex& v2 = vertices[indices[i + 2]];
 
-            XMFLOAT3 normal = ComputeTriangleNormal(v0.position, v1.position, v2.position);
+            XMFLOAT3 normal = compute_normal(v0.position, v1.position, v2.position);
             v0.normal = normal;
             v1.normal = normal;
             v2.normal = normal;
@@ -103,20 +108,6 @@ private:
         return {vertices, indices};
     }
 
-    XMFLOAT3
-    ComputeTriangleNormal(const XMFLOAT3& v0, const XMFLOAT3& v1, const XMFLOAT3& v2)
-    {
-        XMVECTOR vEdge1 = XMVectorSubtract(XMLoadFloat3(&v1), XMLoadFloat3(&v0));
-        XMVECTOR vEdge2 = XMVectorSubtract(XMLoadFloat3(&v2), XMLoadFloat3(&v0));
-        XMVECTOR vNormal = XMVector3Cross(vEdge1, vEdge2);
-        XMFLOAT3 normal;
-        XMStoreFloat3(&normal, XMVector3Normalize(vNormal));
-        return normal;
-    }
-
-    uint32_t m_gridDimX;
-    uint32_t m_gridDimY;
     std::vector<float> m_heightMap;
-    MapBounds m_bounds;
     std::unique_ptr<Mesh> mesh;
 };
