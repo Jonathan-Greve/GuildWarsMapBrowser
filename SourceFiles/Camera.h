@@ -3,6 +3,12 @@
 
 using namespace DirectX;
 
+enum class CameraType
+{
+    Perspective,
+    Orthographic
+};
+
 class Camera : public MouseMoveListener
 {
 public:
@@ -41,11 +47,26 @@ public:
 
     virtual void OnMouseMove(float yaw_angle_radians, float pitch_angle_radians) override;
 
+    float GetAspectRatio() const;
+    float GetFovY() const;
+    float GetViewWidth() const;
+    float GetViewHeight() const;
+    float GetNearZ() const;
+    float GetFarZ() const;
+    CameraType GetCameraType() const;
+
 private:
     void UpdateViewMatrix();
 
+    // Set for perspective projection
     float m_fov;
     float m_aspectRatio;
+
+    // Set for orthographic projection
+    float m_viewWidth;
+    float m_viewHeight;
+
+    // Set for both projection types
     float m_nearZ;
     float m_farZ;
 
@@ -56,6 +77,8 @@ private:
 
     XMFLOAT4X4 m_view;
     XMFLOAT4X4 m_proj;
+
+    CameraType m_camera_type = CameraType::Perspective;
 
     bool m_view_should_update = false;
 };

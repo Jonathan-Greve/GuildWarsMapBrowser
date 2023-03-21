@@ -36,11 +36,17 @@ void Camera::SetFrustumAsPerspective(float fovY, float aspectRatio, float zNear,
     m_aspectRatio = aspectRatio;
     m_nearZ = zNear;
     m_farZ = zFar;
+
+    m_camera_type = CameraType::Perspective;
 }
 
 void Camera::SetFrustumAsOrthographic(float view_width, float view_height, float zn, float zf)
 {
     XMStoreFloat4x4(&m_proj, XMMatrixOrthographicLH(view_width, view_height, zn, zf));
+    m_viewWidth = view_width;
+    m_viewHeight = view_height;
+
+    m_camera_type = CameraType::Orthographic;
 }
 
 void Camera::LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp)
@@ -110,6 +116,18 @@ void Camera::OnViewPortChanged(const float viewport_width, const float viewport_
     XMStoreFloat4x4(&m_proj, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
     m_view_should_update = true;
 }
+
+float Camera::GetFovY() const { return m_fov; }
+
+float Camera::GetViewWidth() const { return m_viewWidth; }
+
+float Camera::GetViewHeight() const { return m_viewHeight; }
+
+float Camera::GetNearZ() const { return m_nearZ; }
+
+float Camera::GetFarZ() const { return m_farZ; }
+
+CameraType Camera::GetCameraType() const { return m_camera_type; }
 
 void Camera::UpdateViewMatrix()
 {
