@@ -192,9 +192,11 @@
     <ClInclude Include="DearImGui\imstb_textedit.h" />
     <ClInclude Include="DearImGui\imstb_truetype.h" />
     <ClInclude Include="DearImGui\misc\cpp\imgui_stdlib.h" />
+    <ClInclude Include="DefaultPixelShader.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
+    <ClInclude Include="PerTerrainCB.h" />
     <ClInclude Include="SourceFiles\AtexAsm.h" />
     <ClInclude Include="SourceFiles\AtexReader.h" />
     <ClInclude Include="SourceFiles\Box.h" />
@@ -236,6 +238,7 @@
     <ClInclude Include="SourceFiles\Vertex.h" />
     <ClInclude Include="SourceFiles\VertexShader.h" />
     <ClInclude Include="SourceFiles\xentax.h" />
+    <ClInclude Include="TerrainPixelShader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -290,6 +293,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="PerTerrainCB.cpp" />
     <ClCompile Include="SourceFiles\AtexAsm.cpp" />
     <ClCompile Include="SourceFiles\AtexReader.cpp" />
     <ClCompile Include="SourceFiles\Box.cpp" />
@@ -355,7 +359,7 @@
     <None Include="SourceFiles\imgui.ini" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="SourceFiles\PixelShader.hlsl">
+    <FxCompile Include="SourceFiles\DefaultPixelTexture.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -366,6 +370,12 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="TerrainPixelShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

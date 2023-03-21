@@ -2,9 +2,10 @@
 class CheckerboardTexture
 {
 public:
-    CheckerboardTexture(int width, int height)
+    CheckerboardTexture(int width, int height, int tile_size)
         : m_width(width)
         , m_height(height)
+        , m_tile_size(tile_size)
         , m_data(width * height * 4)
     {
         generateTexture();
@@ -19,21 +20,20 @@ private:
         {
             for (int x = 0; x < m_width; ++x)
             {
+                bool is_black_tile = ((x / m_tile_size) % 2) ^ ((y / m_tile_size) % 2);
+                uint8_t color = is_black_tile ? 40 : 180;
+
                 int index = (y * m_width + x) * 4;
-                if ((x % 2 == 0) == (y % 2 == 0))
-                {
-                    m_data[index] = m_data[index + 1] = m_data[index + 2] = 255; // White
-                }
-                else
-                {
-                    m_data[index] = m_data[index + 1] = m_data[index + 2] = 100; // Black
-                }
-                m_data[index + 3] = 255; // Alpha
+                m_data[index] = color; // R
+                m_data[index + 1] = color; // G
+                m_data[index + 2] = color; // B
+                m_data[index + 3] = 255; // A
             }
         }
     }
 
     int m_width;
     int m_height;
+    int m_tile_size;
     std::vector<uint8_t> m_data;
 };

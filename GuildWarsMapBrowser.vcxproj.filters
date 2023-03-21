@@ -65,6 +65,15 @@
     <Filter Include="Render\Terrain">
       <UniqueIdentifier>{f9aafacb-1ef7-42b2-af72-0f5f02ae2798}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Render\Shaders\Pixel shaders">
+      <UniqueIdentifier>{6508be56-aa10-4fb3-bddd-2f5e78dbb4c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\Pixel shaders\Terrain">
+      <UniqueIdentifier>{708c2a12-6b7a-4aae-aa68-13473e0f6724}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\Pixel shaders\Default">
+      <UniqueIdentifier>{324dac91-05ad-494d-b16b-dd777c02705a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -201,9 +210,6 @@
     <ClInclude Include="SourceFiles\StepTimer.h">
       <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\DXMathHelpers.h">
-      <Filter>Common</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\TextureManager.h">
       <Filter>Render\Textures</Filter>
     </ClInclude>
@@ -221,6 +227,18 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\draw_ui.h">
       <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\DXMathHelpers.h">
+      <Filter>Render\Math helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="PerTerrainCB.h">
+      <Filter>Render\Constant buffers</Filter>
+    </ClInclude>
+    <ClInclude Include="TerrainPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="DefaultPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Default</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -347,9 +365,6 @@
     <ClCompile Include="SourceFiles\DeviceResources.cpp">
       <Filter>Common</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\DXMathHelpers.cpp">
-      <Filter>Common</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\TextureManager.cpp">
       <Filter>Render\Textures</Filter>
     </ClCompile>
@@ -364,6 +379,12 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\draw_ui.cpp">
       <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\DXMathHelpers.cpp">
+      <Filter>Render\Math helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="PerTerrainCB.cpp">
+      <Filter>Render\Constant buffers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -404,8 +425,11 @@
     <FxCompile Include="SourceFiles\VertexShader.hlsl">
       <Filter>Render\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="SourceFiles\PixelShader.hlsl">
-      <Filter>Render\Shaders</Filter>
+    <FxCompile Include="TerrainPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\DefaultPixelTexture.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Default</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
