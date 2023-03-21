@@ -21,7 +21,7 @@ private:
             for (int x = 0; x < m_width; ++x)
             {
                 bool is_black_tile = ((x / m_tile_size) % 2) ^ ((y / m_tile_size) % 2);
-                uint8_t color = is_black_tile ? 40 : 180;
+                uint8_t color = is_black_tile ? 40 : 255;
 
                 int index = (y * m_width + x) * 4;
                 m_data[index] = color; // R

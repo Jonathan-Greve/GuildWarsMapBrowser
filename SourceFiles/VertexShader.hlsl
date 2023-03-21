@@ -1,4 +1,3 @@
-
 struct DirectionalLight
 {
     float4 ambient;
@@ -36,6 +35,7 @@ struct PixelInputType
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
     float2 texCoords : TEXCOORD0;
+    float terrain_height : TEXCOORD1;
 };
 
 PixelInputType main(VertexInputType input)
@@ -50,6 +50,7 @@ PixelInputType main(VertexInputType input)
     // Pass the normal and texture coordinates to the pixel shader
     output.normal = mul(input.normal, (float3x3)World);
     output.texCoords = input.texCoords;
+    output.terrain_height = worldPosition.y;
 
     return output;
 }

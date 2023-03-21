@@ -7,5 +7,6 @@ struct PerTerrainCB
     float max_x;
     float min_y;
     float max_y;
-    float pad[2];
+    float min_z;
+    float max_z;
 };

@@ -7,16 +7,18 @@ struct MapBounds
 {
     float map_min_x;
     float map_min_y;
+    float map_min_z;
     float map_max_x;
     float map_max_y;
+    float map_max_z;
 
     MapBounds() = default;
     MapBounds(int offset, const unsigned char* data)
     {
         std::memcpy(&map_min_x, &data[offset], sizeof(map_min_x));
-        std::memcpy(&map_min_y, &data[offset + 4], sizeof(map_min_y));
+        std::memcpy(&map_min_z, &data[offset + 4], sizeof(map_min_z));
         std::memcpy(&map_max_x, &data[offset + 8], sizeof(map_max_x));
-        std::memcpy(&map_max_y, &data[offset + 12], sizeof(map_max_y));
+        std::memcpy(&map_max_z, &data[offset + 12], sizeof(map_max_z));
     }
 };
 
