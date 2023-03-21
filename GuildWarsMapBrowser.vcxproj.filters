@@ -240,6 +240,12 @@
     <ClInclude Include="DefaultPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Default</Filter>
     </ClInclude>
+    <ClInclude Include="draw_left_panel.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="draw_right_panel.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -385,6 +391,12 @@
     </ClCompile>
     <ClCompile Include="PerTerrainCB.cpp">
       <Filter>Render\Constant buffers</Filter>
+    </ClCompile>
+    <ClCompile Include="draw_left_panel.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="draw_right_panel.cpp">
+      <Filter>GUI</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
