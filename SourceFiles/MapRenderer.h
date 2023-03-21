@@ -231,15 +231,15 @@ public:
     {
         // Walk
         if (m_input_manager->IsKeyDown('W'))
-            m_user_camera->Walk(20, dt);
+            m_user_camera->Walk(WalkDirection::Forward, dt);
         if (m_input_manager->IsKeyDown('S'))
-            m_user_camera->Walk(-20, dt);
+            m_user_camera->Walk(WalkDirection::Backward, dt);
 
         // Strafe
         if (m_input_manager->IsKeyDown('Q') || (m_input_manager->IsKeyDown('A')))
-            m_user_camera->Strafe(-20, dt);
+            m_user_camera->Strafe(StrafeDirection::Left, dt);
         if (m_input_manager->IsKeyDown('E') || (m_input_manager->IsKeyDown('D')))
-            m_user_camera->Strafe(20, dt);
+            m_user_camera->Strafe(StrafeDirection::Right, dt);
 
         m_user_camera->Update(dt);
 

@@ -9,6 +9,18 @@ enum class CameraType
     Orthographic
 };
 
+enum class WalkDirection
+{
+    Forward,
+    Backward
+};
+
+enum class StrafeDirection
+{
+    Left,
+    Right
+};
+
 class Camera : public MouseMoveListener
 {
 public:
@@ -33,10 +45,11 @@ public:
     void SetFrustumAsPerspective(float fovY, float aspect, float zn, float zf);
     void SetFrustumAsOrthographic(float view_width, float view_height, float zn, float zf);
     void LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp);
-    void Strafe(float velocity, double dt);
-    void Walk(float velocity, double dt);
+    void SetOrientation(float pitch, float yaw);
+    void Strafe(StrafeDirection strafe_direction, double dt);
+    void Walk(WalkDirection walk_direction, double dt);
     void Pitch(float angle);
-    void RotateWorldY(float angle);
+    void Yaw(float angle);
 
     XMMATRIX GetView() const;
     XMFLOAT4X4 GetView4x4() const;
@@ -55,25 +68,35 @@ public:
     float GetFarZ() const;
     CameraType GetCameraType() const;
 
+    float GetYaw() const;
+
+    float GetPitch() const;
+
+    float m_walk_speed = 20.0f;
+    float m_strafe_speed = 20.0f;
+
 private:
     void UpdateViewMatrix();
 
     // Set for perspective projection
-    float m_fov;
-    float m_aspectRatio;
+    float m_fov = 70 * XM_PI / 180;
+    float m_aspectRatio = 1;
 
     // Set for orthographic projection
-    float m_viewWidth;
-    float m_viewHeight;
+    float m_viewWidth = 100000;
+    float m_viewHeight = 100000;
 
     // Set for both projection types
-    float m_nearZ;
-    float m_farZ;
+    float m_nearZ = 0.1;
+    float m_farZ = 50000;
 
     XMFLOAT3 m_position;
     XMFLOAT3 m_right;
     XMFLOAT3 m_up;
     XMFLOAT3 m_look;
+
+    float m_yaw;
+    float m_pitch;
 
     XMFLOAT4X4 m_view;
     XMFLOAT4X4 m_proj;
