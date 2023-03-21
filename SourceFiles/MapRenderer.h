@@ -123,8 +123,8 @@ public:
 
         // Update CB
         auto terrainCB =
-          PerTerrainCB(terrain->m_gridDimX, terrain->m_gridDimY, terrain->m_bounds.map_min_x,
-                       terrain->m_bounds.map_max_x, terrain->m_bounds.map_min_y, terrain->m_bounds.map_max_y);
+          PerTerrainCB(terrain->m_grid_dim_x, terrain->m_grid_dim_z, terrain->m_bounds.map_min_x,
+                       terrain->m_bounds.map_max_x, terrain->m_bounds.map_min_z, terrain->m_bounds.map_max_z);
 
         D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
         ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));

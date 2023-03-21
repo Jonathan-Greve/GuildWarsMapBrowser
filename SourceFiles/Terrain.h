@@ -11,9 +11,9 @@ class Terrain
 public:
     Terrain(int32_t grid_dim_x, uint32_t grid_dim_y, const std::vector<float>& height_map,
             const MapBounds& bounds)
-        : m_gridDimX(grid_dim_x)
-        , m_gridDimY(grid_dim_y)
-        , m_heightMap(height_map)
+        : m_grid_dim_x(grid_dim_x)
+        , m_grid_dim_z(grid_dim_y)
+        , m_height_map(height_map)
         , m_bounds(bounds)
     {
         // Generate terrain mesh
@@ -22,8 +22,8 @@ public:
 
     Mesh* get_mesh() { return mesh.get(); }
 
-    uint32_t m_gridDimX;
-    uint32_t m_gridDimY;
+    uint32_t m_grid_dim_x;
+    uint32_t m_grid_dim_z;
     MapBounds m_bounds;
 
 private:
@@ -34,10 +34,13 @@ private:
     {
 
         uint32_t grid_dims = 32;
-        uint32_t sub_grid_rows = m_gridDimY / grid_dims;
-        uint32_t sub_grid_cols = m_gridDimX / grid_dims;
+        uint32_t sub_grid_rows = m_grid_dim_z / grid_dims;
+        uint32_t sub_grid_cols = m_grid_dim_x / grid_dims;
 
-        std::vector<std::vector<float>> grid(m_gridDimY + 1, std::vector<float>(m_gridDimX + 1, 0.0f));
+        std::vector<std::vector<float>> grid(m_grid_dim_z + 1, std::vector<float>(m_grid_dim_x + 1, 0.0f));
+
+        float min = FLT_MAX;
+        float max = FLT_MIN;
 
         int count = 0;
         for (int j = 0; j < sub_grid_rows; j++) // rows
@@ -54,41 +57,54 @@ private:
                 {
                     for (int l = col_start; l < col_end; l++)
                     {
-                        grid[m_gridDimY - k][l] = -m_heightMap[count];
+                        grid[m_grid_dim_z - k][l] = -m_height_map[count];
                         count++;
+
+                        if (grid[m_grid_dim_z - k][l] < min)
+                        {
+                            min = grid[m_grid_dim_z - k][l];
+                        }
+                        if (grid[m_grid_dim_z - k][l] > max)
+                        {
+                            max = grid[m_grid_dim_z - k][l];
+                        }
                     }
                 }
             }
         }
 
-        float deltaX = (m_bounds.map_max_x - m_bounds.map_min_x) / (m_gridDimX);
-        float deltaY = (m_bounds.map_max_y - m_bounds.map_min_y) / (m_gridDimY);
+        m_bounds.map_max_y = max;
+        m_bounds.map_min_y = min;
+
+        float delta_x = (m_bounds.map_max_x - m_bounds.map_min_x) / (m_grid_dim_x);
+        float delta_z = (m_bounds.map_max_z - m_bounds.map_min_z) / (m_grid_dim_z);
 
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
 
         // Loop over the grid and generate the vertices and normals using ComputeTriangleNormal
-        for (uint32_t y = 0; y < m_gridDimY; y++)
+        for (uint32_t z = 0; z < m_grid_dim_z; z++)
         {
-            for (uint32_t x = 0; x < m_gridDimX; x++)
+            for (uint32_t x = 0; x < m_grid_dim_x; x++)
             {
-                float xPos = m_bounds.map_min_x + x * deltaX;
-                float yPos = grid[y][x];
-                float zPos = m_bounds.map_min_y + y * deltaY;
+                float xPos = m_bounds.map_min_x + x * delta_x;
+                float yPos = grid[z][x];
+                float zPos = m_bounds.map_min_z + z * delta_z;
 
-                vertices.push_back(
-                  {{xPos, yPos, zPos}, {0.0f, 0.0f, 0.0f}, {(float)x / m_gridDimX, (float)y / m_gridDimY}});
+                vertices.push_back({{xPos, yPos, zPos},
+                                    {0.0f, 0.0f, 0.0f},
+                                    {(float)x / m_grid_dim_x, (float)z / m_grid_dim_z}});
 
-                if (x < m_gridDimX - 1 && y < m_gridDimY - 1)
+                if (x < m_grid_dim_x - 1 && z < m_grid_dim_z - 1)
                 {
-                    uint32_t currentIndex = y * m_gridDimX + x;
+                    uint32_t currentIndex = z * m_grid_dim_x + x;
                     indices.push_back(currentIndex);
-                    indices.push_back(currentIndex + m_gridDimX + 1);
+                    indices.push_back(currentIndex + m_grid_dim_x + 1);
                     indices.push_back(currentIndex + 1);
 
                     indices.push_back(currentIndex);
-                    indices.push_back(currentIndex + m_gridDimX);
-                    indices.push_back(currentIndex + m_gridDimX + 1);
+                    indices.push_back(currentIndex + m_grid_dim_x);
+                    indices.push_back(currentIndex + m_grid_dim_x + 1);
                 }
             }
         }
@@ -108,6 +124,6 @@ private:
         return {vertices, indices};
     }
 
-    std::vector<float> m_heightMap;
+    std::vector<float> m_height_map;
     std::unique_ptr<Mesh> mesh;
 };
