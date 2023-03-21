@@ -9,4 +9,6 @@ struct PerTerrainCB
     float max_y;
     float min_z;
     float max_z;
+    float water_level;
+    float pad[3];
 };
