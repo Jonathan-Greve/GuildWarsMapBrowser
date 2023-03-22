@@ -20,12 +20,14 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
     if (! entry)
         return;
 
+    FFNA_ModelFile ffna_model_file;
     FFNA_MapFile ffna_map_file;
     std::unique_ptr<Terrain> terrain;
 
     switch (entry->type)
     {
     case FFNA_Type2:
+        ffna_model_file = dat_manager.parse_ffna_model_file(index);
         break;
     case FFNA_Type3:
         ffna_map_file = dat_manager.parse_ffna_map_file(index);

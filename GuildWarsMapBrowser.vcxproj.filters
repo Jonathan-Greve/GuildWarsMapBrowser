@@ -74,6 +74,12 @@
     <Filter Include="Render\Shaders\Pixel shaders\Default">
       <UniqueIdentifier>{324dac91-05ad-494d-b16b-dd777c02705a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dat reader\Dat file parsers\Map">
+      <UniqueIdentifier>{c2ee8a4e-07a0-4371-8ce8-4407ae267a2e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Dat reader\Dat file parsers\Model">
+      <UniqueIdentifier>{ada7744b-4c9f-48ad-b4e4-1961b6ed6a23}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -204,9 +210,6 @@
     <ClInclude Include="SourceFiles\FFNAType.h">
       <Filter>Dat reader\Dat file parsers</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\FFNA_MapFile.h">
-      <Filter>Dat reader\Dat file parsers</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\StepTimer.h">
       <Filter>Common</Filter>
     </ClInclude>
@@ -248,6 +251,12 @@
     </ClInclude>
     <ClInclude Include="TerrainDefaultPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\FFNA_MapFile.h">
+      <Filter>Dat reader\Dat file parsers\Map</Filter>
+    </ClInclude>
+    <ClInclude Include="FFNA_ModelFile.h">
+      <Filter>Dat reader\Dat file parsers\Model</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -368,9 +377,6 @@
     <ClCompile Include="SourceFiles\DATManager.cpp">
       <Filter>Dat reader</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\FFNA_MapFile.cpp">
-      <Filter>Dat reader\Dat file parsers</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\DeviceResources.cpp">
       <Filter>Common</Filter>
     </ClCompile>
@@ -400,6 +406,12 @@
     </ClCompile>
     <ClCompile Include="draw_right_panel.cpp">
       <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\FFNA_MapFile.cpp">
+      <Filter>Dat reader\Dat file parsers\Map</Filter>
+    </ClCompile>
+    <ClCompile Include="FFNA_ModelFile.cpp">
+      <Filter>Dat reader\Dat file parsers\Model</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

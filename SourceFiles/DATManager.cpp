@@ -19,6 +19,24 @@ FFNA_MapFile DATManager::parse_ffna_map_file(int index)
     return ffna_map_file;
 }
 
+FFNA_ModelFile DATManager::parse_ffna_model_file(int index)
+{
+    MFTEntry* mft_entry = m_dat.get_MFT_entry_ptr(index);
+    if (! mft_entry)
+        throw "mft_entry not found.";
+
+    // Get decompressed file data
+    HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
+    auto data = m_dat.readFile(file_handle, index, true);
+    std::span<unsigned char> file_data(data, mft_entry->uncompressedSize);
+    CloseHandle(file_handle);
+
+    FFNA_ModelFile ffna_model_file(0, file_data);
+    delete[] data;
+
+    return ffna_model_file;
+}
+
 void DATManager::read_all_files()
 {
     const auto num_files = m_dat.getNumFiles();
