@@ -14,6 +14,7 @@ FFNA_MapFile DATManager::parse_ffna_map_file(int index)
     CloseHandle(file_handle);
 
     FFNA_MapFile ffna_map_file(0, file_data);
+    delete[] data;
 
     return ffna_map_file;
 }
