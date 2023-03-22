@@ -134,6 +134,10 @@ void Camera::Pitch(float angle)
     XMVECTOR look = XMVector3TransformNormal(XMLoadFloat3(&m_look), rotationMatrix);
     XMStoreFloat3(&m_up, up);
     XMStoreFloat3(&m_look, look);
+
+    m_yaw = atan2f(m_look.x, m_look.z);
+    m_pitch = atan2f(m_look.y, sqrtf(m_look.x * m_look.x + m_look.z * m_look.z));
+
     m_view_should_update = true;
 }
 
@@ -143,6 +147,10 @@ void Camera::Yaw(float angle)
     XMStoreFloat3(&m_up, XMVector3TransformNormal(XMLoadFloat3(&m_up), rotationMatrix));
     XMStoreFloat3(&m_right, XMVector3TransformNormal(XMLoadFloat3(&m_right), rotationMatrix));
     XMStoreFloat3(&m_look, XMVector3TransformNormal(XMLoadFloat3(&m_look), rotationMatrix));
+
+    m_yaw = atan2f(m_look.x, m_look.z);
+    m_pitch = atan2f(m_look.y, sqrtf(m_look.x * m_look.x + m_look.z * m_look.z));
+
     m_view_should_update = true;
 }
 
