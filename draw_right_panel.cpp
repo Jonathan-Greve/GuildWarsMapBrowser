@@ -148,7 +148,7 @@ void draw_right_panel(MapRenderer* map_renderer)
             if (ImGui::Button("Change to orthographic", ImVec2(-FLT_MIN, 0.0f)))
             {
                 auto pos = camera->GetPosition();
-                camera->SetFrustumAsOrthographic(frustum_width, frustum_height, near_z, far_z);
+                camera->SetFrustumAsOrthographic(frustum_width, frustum_width / aspect_ratio, near_z, far_z);
                 camera->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
             }
         }
