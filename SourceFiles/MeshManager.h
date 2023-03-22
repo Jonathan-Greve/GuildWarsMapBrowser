@@ -83,6 +83,43 @@ public:
         return meshID;
     }
 
+    bool ChangeMeshPixelShaderType(int mesh_id, PixelShaderType pixel_shader_type)
+    {
+        bool found = false;
+
+        // Iterate over the triangle meshes
+        auto it = m_triangleMeshes.find(mesh_id);
+        if (it != m_triangleMeshes.end())
+        {
+            found = true;
+        }
+        else
+        {
+            // If not found in triangle meshes, search in line meshes
+            it = m_lineMeshes.find(mesh_id);
+            if (it != m_lineMeshes.end())
+            {
+                found = true;
+            }
+        }
+
+        if (found)
+        {
+            // Update the RenderCommand in the RenderBatch
+            for (RenderCommand& command : m_renderBatch.GetCommands())
+            {
+                if (command.meshInstance->GetMeshID() == mesh_id)
+                {
+                    command.pixelShaderType = pixel_shader_type;
+                    m_needsUpdate = true;
+                    break;
+                }
+            }
+        }
+
+        return found;
+    }
+
     bool RemoveMesh(int meshID)
     {
         auto it = m_triangleMeshes.find(meshID);

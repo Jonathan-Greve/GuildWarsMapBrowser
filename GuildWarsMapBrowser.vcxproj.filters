@@ -234,7 +234,7 @@
     <ClInclude Include="PerTerrainCB.h">
       <Filter>Render\Constant buffers</Filter>
     </ClInclude>
-    <ClInclude Include="TerrainPixelShader.h">
+    <ClInclude Include="TerrainCheckeredPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </ClInclude>
     <ClInclude Include="DefaultPixelShader.h">
@@ -245,6 +245,9 @@
     </ClInclude>
     <ClInclude Include="draw_right_panel.h">
       <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="TerrainDefaultPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -437,11 +440,14 @@
     <FxCompile Include="SourceFiles\VertexShader.hlsl">
       <Filter>Render\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="TerrainPixelShader.hlsl">
+    <FxCompile Include="TerrainCheckeredPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
     <FxCompile Include="SourceFiles\DefaultPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Default</Filter>
+    </FxCompile>
+    <FxCompile Include="TerrainDefaultPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

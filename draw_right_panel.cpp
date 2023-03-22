@@ -40,6 +40,14 @@ void draw_right_panel(MapRenderer* map_renderer)
             {
                 map_renderer->SwitchRasterizerState(static_cast<RasterizerStateType>(rasterizerState));
             }
+
+            int terrain_pixel_shader_type = static_cast<int>(map_renderer->GetTerrainPixelShaderType());
+            if (ImGui::Combo("Terrain pixel shader", &terrain_pixel_shader_type,
+                             "Default\0Terrain Default\0Terrain Checkered\0"))
+            {
+                map_renderer->SetTerrainPixelShaderType(
+                  static_cast<PixelShaderType>(terrain_pixel_shader_type));
+            }
         }
 
         window_height = ImGui::GetWindowSize().y;

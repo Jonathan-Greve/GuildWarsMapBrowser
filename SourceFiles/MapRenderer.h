@@ -41,8 +41,8 @@ public:
         float aspect_ratio = viewport_width / viewport_height;
         m_user_camera->SetFrustumAsPerspective(static_cast<float>(fov_degrees * XM_PI / 180.0), aspect_ratio,
                                                0.1f, 50000);
-        const auto pos = FXMVECTOR{0, 20500, 0, 0};
-        const auto target = FXMVECTOR{0, 0, 100, 0};
+        const auto pos = FXMVECTOR{0, 8500, 0, 0};
+        const auto target = FXMVECTOR{1000, 6000, 1000, 0};
         const auto world_up = FXMVECTOR{0, 1, 0, 0};
         m_user_camera->LookAt(pos, target, world_up);
 
@@ -51,7 +51,6 @@ public:
         // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
         auto box_id = m_mesh_manager->AddBox({300, 300, 300});
         auto sphere_id = m_mesh_manager->AddSphere(300, 100, 100);
-        auto line_id = m_mesh_manager->AddLine({-400, 500, 0}, {400, 500, 0});
 
         // Move the sphere and box next to eachother
         // Move the box to the left of the sphere (e.g., -250 units on the X-axis)
@@ -152,10 +151,23 @@ public:
             m_is_terrain_mesh_set = false;
         }
 
-        m_pixel_shaders[PixelShaderType::Terrain] = std::make_unique<PixelShader>(m_device, m_deviceContext);
-        m_pixel_shaders[PixelShaderType::Terrain]->Initialize(PixelShaderType::Terrain);
+        if (! m_pixel_shaders.contains(PixelShaderType::TerrainCheckered))
+        {
+            m_pixel_shaders[PixelShaderType::TerrainCheckered] =
+              std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::TerrainCheckered]->Initialize(PixelShaderType::TerrainCheckered);
+        }
 
-        m_terrain_mesh_id = m_mesh_manager->AddCustomMesh(terrain->get_mesh(), PixelShaderType::Terrain);
+        if (! m_pixel_shaders.contains(PixelShaderType::TerrainDefault))
+        {
+            m_pixel_shaders[PixelShaderType::TerrainDefault] =
+              std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::TerrainDefault]->Initialize(PixelShaderType::TerrainDefault);
+        }
+
+        m_terrain_mesh_id =
+          m_mesh_manager->AddCustomMesh(terrain->get_mesh(), PixelShaderType::TerrainCheckered);
+        m_terrain_current_pixel_shader_type = PixelShaderType::TerrainCheckered;
 
         terrain->m_per_terrain_cb =
           PerTerrainCB(terrain->m_grid_dim_x, terrain->m_grid_dim_z, terrain->m_bounds.map_min_x,
@@ -189,6 +201,16 @@ public:
         {
             m_mesh_manager->RemoveMesh(m_terrain_mesh_id);
             m_is_terrain_mesh_set = false;
+        }
+    }
+
+    PixelShaderType GetTerrainPixelShaderType() { return m_terrain_current_pixel_shader_type; }
+    void SetTerrainPixelShaderType(PixelShaderType pixel_shader_type)
+    {
+        if (m_is_terrain_mesh_set)
+        {
+            m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
+            m_terrain_current_pixel_shader_type = pixel_shader_type;
         }
     }
 
@@ -315,6 +337,7 @@ private:
     RasterizerStateType m_currentRasterizerState = RasterizerStateType::Solid;
 
     std::unique_ptr<Terrain> m_terrain;
+    PixelShaderType m_terrain_current_pixel_shader_type;
 
     bool m_is_terrain_mesh_set = false;
     int m_terrain_mesh_id = -1;

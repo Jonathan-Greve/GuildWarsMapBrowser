@@ -1,12 +1,14 @@
 #pragma once
 #include <d3dcompiler.h>
 #include "DefaultPixelShader.h"
-#include "TerrainPixelShader.h"
+#include "TerrainCheckeredPixelShader.h"
+#include "TerrainDefaultPixelShader.h"
 
 enum class PixelShaderType
 {
     Default,
-    Terrain
+    TerrainDefault,
+    TerrainCheckered
 };
 
 class PixelShader
@@ -37,10 +39,15 @@ public:
                             nullptr, nullptr, "main", "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(),
                             error_blob.GetAddressOf());
             break;
-        case PixelShaderType::Terrain:
-            hr = D3DCompile(TerrainPixelShader::shader_ps, strlen(TerrainPixelShader::shader_ps), nullptr,
-                            nullptr, nullptr, "main", "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(),
-                            error_blob.GetAddressOf());
+        case PixelShaderType::TerrainDefault:
+            hr = D3DCompile(TerrainDefaultPixelShader::shader_ps,
+                            strlen(TerrainDefaultPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                            "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
+            break;
+        case PixelShaderType::TerrainCheckered:
+            hr = D3DCompile(TerrainCheckeredPixelShader::shader_ps,
+                            strlen(TerrainCheckeredPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                            "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         default:
             hr = D3DCompile(DefaultPixelShader::shader_ps, strlen(DefaultPixelShader::shader_ps), nullptr,
