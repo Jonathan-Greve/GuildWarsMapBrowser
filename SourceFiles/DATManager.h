@@ -1,5 +1,6 @@
 #pragma once
 #include "FFNA_MapFile.h"
+#include "FFNA_ModelFile.h"
 
 enum InitializationState
 {
@@ -30,6 +31,7 @@ public:
     std::vector<MFTEntry>& get_MFT() { return m_dat.get_MFT(); }
 
     FFNA_MapFile parse_ffna_map_file(int index);
+    FFNA_ModelFile parse_ffna_model_file(int index);
 
 private:
     std::wstring m_dat_filepath;
