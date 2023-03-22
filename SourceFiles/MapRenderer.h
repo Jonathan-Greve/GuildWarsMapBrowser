@@ -166,13 +166,13 @@ public:
         }
 
         m_terrain_mesh_id =
-          m_mesh_manager->AddCustomMesh(terrain->get_mesh(), PixelShaderType::TerrainCheckered);
-        m_terrain_current_pixel_shader_type = PixelShaderType::TerrainCheckered;
+          m_mesh_manager->AddCustomMesh(terrain->get_mesh(), m_terrain_current_pixel_shader_type);
 
+        auto water_level = m_terrain ? m_terrain->m_per_terrain_cb.water_level : 0.0f;
         terrain->m_per_terrain_cb =
           PerTerrainCB(terrain->m_grid_dim_x, terrain->m_grid_dim_z, terrain->m_bounds.map_min_x,
                        terrain->m_bounds.map_max_x, terrain->m_bounds.map_min_y, terrain->m_bounds.map_max_y,
-                       terrain->m_bounds.map_min_z, terrain->m_bounds.map_max_z, 0, {0, 0, 0});
+                       terrain->m_bounds.map_min_z, terrain->m_bounds.map_max_z, water_level, {0, 0, 0});
 
         D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
         ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
@@ -180,15 +180,22 @@ public:
         memcpy(mappedResourceFrame.pData, &terrain->m_per_terrain_cb, sizeof(PerTerrainCB));
         m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
 
-        // Create and set texture. Just make it 2x2 checkered tiles. It will be repeated in the pixel shader.
-        int texture_tile_size = 96;
-        int texture_width = texture_tile_size * 2;
-        int texture_height = texture_tile_size * 2;
-
-        CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size);
-        auto texture_id =
-          m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
-                                        texture_height, DXGI_FORMAT_R8G8B8A8_UNORM);
+        int texture_id = 0;
+        if (m_terrain)
+        {
+            texture_id = m_terrain_texture_id;
+        }
+        else
+        {
+            // Create and set texture. Just make it 2x2 checkered tiles. It will be repeated in the pixel shader.
+            int texture_tile_size = 96;
+            int texture_width = texture_tile_size * 2;
+            int texture_height = texture_tile_size * 2;
+            CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size);
+            texture_id =
+              m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
+                                            texture_height, DXGI_FORMAT_R8G8B8A8_UNORM);
+        }
         m_mesh_manager->AddTextureToMesh(m_terrain_mesh_id, m_texture_manager->GetTexture(texture_id));
 
         m_terrain = std::move(terrain);
@@ -337,8 +344,9 @@ private:
     RasterizerStateType m_currentRasterizerState = RasterizerStateType::Solid;
 
     std::unique_ptr<Terrain> m_terrain;
-    PixelShaderType m_terrain_current_pixel_shader_type;
+    PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainCheckered;
 
     bool m_is_terrain_mesh_set = false;
     int m_terrain_mesh_id = -1;
+    int m_terrain_texture_id = -1;
 };
