@@ -1,5 +1,5 @@
 #pragma once
-struct TerrainPixelShader
+struct TerrainDefaultPixelShader
 {
     static constexpr char shader_ps[] = R"(
 sampler ss: register(s0);
@@ -78,20 +78,14 @@ float4 main(PixelInputType input) : SV_TARGET
     // Combine the ambient, diffuse, and specular components to get the final color
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
-    // Calculate new texture coordinates by repeating the texture over the terrain
-    float2 repeatedTexCoords = input.texCoords * float2(grid_dim_x, grid_dim_y);
-
-    // Sample the texture using the repeated texture coordinates and sampler state
-    float4 sampledTextureColor = shaderTexture.Sample(ss, repeatedTexCoords);
-
     float4 outputColor;
     // Multiply the sampled color with the finalColor
     if (input.terrain_height <= water_level) {
         float4 blue_color = float4(0.11, 0.65, 0.81, 1.0); // Water color
-        outputColor = finalColor * sampledTextureColor * blue_color;
+        outputColor = finalColor * blue_color;
     }
     else {
-        outputColor = finalColor * sampledTextureColor;
+        outputColor = finalColor;
     }
 
     // Return the result

@@ -28,7 +28,7 @@ public:
 
     void Clear() { m_commands.clear(); }
 
-    const std::vector<RenderCommand>& GetCommands() const { return m_commands; }
+    std::vector<RenderCommand>& GetCommands() { return m_commands; }
 
 private:
     std::vector<RenderCommand> m_commands;
