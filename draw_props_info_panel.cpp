@@ -3,7 +3,7 @@
 
 void draw_props_info_panel(const Chunk3& chunk)
 {
-    if (ImGui::TreeNode("Chunk3"))
+    if (ImGui::TreeNode("Props info"))
     {
         ImGui::Text("Chunk ID: %u", chunk.chunk_id);
         ImGui::Text("Chunk Size: %u", chunk.chunk_size);
