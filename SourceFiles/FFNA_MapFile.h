@@ -795,7 +795,7 @@ struct FFNA_MapFile
             current_offset += 8 + chunk.chunk_size;
         }
 
-        // Check if the CHUNK_ID_20000000 is in the riff_chunks map
+        //Check if the CHUNK_ID_20000000 is in the riff_chunks map
         auto it = riff_chunks.find(CHUNK_ID_20000000);
         if (it != riff_chunks.end())
         {
@@ -812,14 +812,14 @@ struct FFNA_MapFile
         }
 
         // Check if the CHUNK_ID_PROPS_INFO is in the riff_chunks map
-        it = riff_chunks.find(CHUNK_ID_PROPS_INFO);
-        if (it != riff_chunks.end())
-        {
-            int offset = it->second;
-            props_info_chunk = Chunk3(offset, data.data());
-        }
+        //it = riff_chunks.find(CHUNK_ID_PROPS_INFO);
+        //if (it != riff_chunks.end())
+        //{
+        //    int offset = it->second;
+        //    props_info_chunk = Chunk3(offset, data.data());
+        //}
 
-        // Check if the CHUNK_ID_MAP_INFO is in the riff_chunks map
+        //Check if the CHUNK_ID_MAP_INFO is in the riff_chunks map
         it = riff_chunks.find(CHUNK_ID_MAP_INFO);
         if (it != riff_chunks.end())
         {
