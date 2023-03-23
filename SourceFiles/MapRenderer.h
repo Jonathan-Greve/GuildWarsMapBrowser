@@ -181,22 +181,19 @@ public:
         m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
 
         int texture_id = 0;
-        if (m_terrain)
-        {
-            texture_id = m_terrain_texture_id;
-        }
-        else
+        if (! m_terrain)
         {
             // Create and set texture. Just make it 2x2 checkered tiles. It will be repeated in the pixel shader.
             int texture_tile_size = 96;
             int texture_width = texture_tile_size * 2;
             int texture_height = texture_tile_size * 2;
             CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size);
-            texture_id =
+            m_terrain_texture_id =
               m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
                                             texture_height, DXGI_FORMAT_R8G8B8A8_UNORM);
         }
-        m_mesh_manager->AddTextureToMesh(m_terrain_mesh_id, m_texture_manager->GetTexture(texture_id));
+        m_mesh_manager->AddTextureToMesh(m_terrain_mesh_id,
+                                         m_texture_manager->GetTexture(m_terrain_texture_id));
 
         m_terrain = std::move(terrain);
         m_is_terrain_mesh_set = true;
