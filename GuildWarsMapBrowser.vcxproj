@@ -195,6 +195,7 @@
     <ClInclude Include="DefaultPixelShader.h" />
     <ClInclude Include="draw_chunk_20000003.h" />
     <ClInclude Include="draw_left_panel.h" />
+    <ClInclude Include="draw_map_info_chunk.h" />
     <ClInclude Include="draw_props_filenames_panel.h" />
     <ClInclude Include="draw_props_info_panel.h" />
     <ClInclude Include="draw_right_panel.h" />
@@ -297,6 +298,7 @@
     </ClCompile>
     <ClCompile Include="draw_chunk_20000003.cpp" />
     <ClCompile Include="draw_left_panel.cpp" />
+    <ClCompile Include="draw_map_info_chunk.cpp" />
     <ClCompile Include="draw_props_filenames_panel.cpp" />
     <ClCompile Include="draw_props_info_panel.cpp" />
     <ClCompile Include="draw_right_panel.cpp" />
