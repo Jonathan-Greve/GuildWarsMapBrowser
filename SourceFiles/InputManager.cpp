@@ -43,15 +43,39 @@ void InputManager::OnMouseMove(int x, int y, WPARAM wParam, HWND hWnd)
     m_mouse_pos.y = y;
 }
 
-void InputManager::OnMouseDown(int x, int y, WPARAM wParam, HWND hWnd)
+void InputManager::OnMouseDown(int x, int y, WPARAM wParam, HWND hWnd, UINT message)
 {
     m_mouse_pos.x = x;
     m_mouse_pos.y = y;
 
+    if (message & WM_RBUTTONDOWN)
+    {
+        // Hide the cursor
+        ShowCursor(FALSE);
+
+        // Get the current cursor position
+        GetCursorPos(&right_mouse_button_down_pos);
+    }
+
     SetCapture(hWnd);
 }
 
-void InputManager::OnMouseUp(int x, int y, WPARAM wParam, HWND hWnd) { ReleaseCapture(); }
+void InputManager::OnMouseUp(int x, int y, WPARAM wParam, HWND hWnd, UINT message)
+{
+
+    if (message & WM_RBUTTONUP)
+    {
+        // Show the cursor
+        ShowCursor(TRUE);
+
+        // Set the cursor position to the stored position
+        SetCursorPos(right_mouse_button_down_pos.x, right_mouse_button_down_pos.y);
+    }
+
+    // Release the mouse input
+    ReleaseCapture();
+}
+
 void InputManager::OnMouseWheel(short wheel_delta, HWND hWnd)
 {
     // Determine the direction of the mouse wheel rotation
