@@ -3,6 +3,7 @@
 #include "FFNA_ModelFile.h"
 #include "draw_props_info_panel.h"
 #include "draw_props_filenames_panel.h"
+#include "draw_chunk_20000003.h"
 
 extern FileType selected_file_type;
 extern FFNA_ModelFile selected_ffna_model_file;
@@ -63,6 +64,7 @@ void draw_left_panel(MapRenderer* map_renderer)
     case FFNA_Type3:
         draw_props_info_panel(selected_ffna_map_file.props_info_chunk);
         draw_props_filenames_panel(selected_ffna_map_file.prop_filenames_chunk);
+        //draw_chunk_20000003(selected_ffna_map_file.chunk5);
         break;
     case FFNA_Unknown:
         break;

@@ -80,6 +80,9 @@
     <Filter Include="Dat reader\Dat file parsers\Model">
       <UniqueIdentifier>{ada7744b-4c9f-48ad-b4e4-1961b6ed6a23}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GUI\Draw map chunks info">
+      <UniqueIdentifier>{fc8d1ea5-3477-4952-a789-684068f4ff52}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -259,10 +262,13 @@
       <Filter>Dat reader\Dat file parsers\Model</Filter>
     </ClInclude>
     <ClInclude Include="draw_props_info_panel.h">
-      <Filter>GUI</Filter>
+      <Filter>GUI\Draw map chunks info</Filter>
     </ClInclude>
     <ClInclude Include="draw_props_filenames_panel.h">
-      <Filter>GUI</Filter>
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClInclude>
+    <ClInclude Include="draw_chunk_20000003.h">
+      <Filter>GUI\Draw map chunks info</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -419,11 +425,14 @@
     <ClCompile Include="FFNA_ModelFile.cpp">
       <Filter>Dat reader\Dat file parsers\Model</Filter>
     </ClCompile>
-    <ClCompile Include="draw_props_info_panel.cpp">
-      <Filter>GUI</Filter>
-    </ClCompile>
     <ClCompile Include="draw_props_filenames_panel.cpp">
-      <Filter>GUI</Filter>
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClCompile>
+    <ClCompile Include="draw_props_info_panel.cpp">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClCompile>
+    <ClCompile Include="draw_chunk_20000003.cpp">
+      <Filter>GUI\Draw map chunks info</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

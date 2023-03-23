@@ -193,6 +193,7 @@
     <ClInclude Include="DearImGui\imstb_truetype.h" />
     <ClInclude Include="DearImGui\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="DefaultPixelShader.h" />
+    <ClInclude Include="draw_chunk_20000003.h" />
     <ClInclude Include="draw_left_panel.h" />
     <ClInclude Include="draw_props_filenames_panel.h" />
     <ClInclude Include="draw_props_info_panel.h" />
@@ -293,6 +294,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="draw_chunk_20000003.cpp" />
     <ClCompile Include="draw_left_panel.cpp" />
     <ClCompile Include="draw_props_filenames_panel.cpp" />
     <ClCompile Include="draw_props_info_panel.cpp" />
