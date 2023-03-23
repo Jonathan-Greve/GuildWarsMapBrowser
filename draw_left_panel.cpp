@@ -4,6 +4,7 @@
 #include "draw_props_info_panel.h"
 #include "draw_props_filenames_panel.h"
 #include "draw_chunk_20000003.h"
+#include "draw_terrain_chunk.h"
 
 extern FileType selected_file_type;
 extern FFNA_ModelFile selected_ffna_model_file;
@@ -65,6 +66,7 @@ void draw_left_panel(MapRenderer* map_renderer)
         draw_props_info_panel(selected_ffna_map_file.props_info_chunk);
         draw_props_filenames_panel(selected_ffna_map_file.prop_filenames_chunk);
         //draw_chunk_20000003(selected_ffna_map_file.chunk5);
+        draw_terrain_chunk(selected_ffna_map_file.terrain_chunk);
         break;
     case FFNA_Unknown:
         break;
