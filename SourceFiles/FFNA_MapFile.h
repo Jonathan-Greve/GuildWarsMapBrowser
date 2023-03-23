@@ -752,6 +752,7 @@ struct Chunk7
     }
 };
 
+constexpr uint32_t CHUNK_ID_20000000 = 0x20000000;
 constexpr uint32_t CHUNK_ID_TERRAIN = 0x20000002;
 constexpr uint32_t CHUNK_ID_PROPS_INFO = 0x20000004;
 constexpr uint32_t CHUNK_ID_MAP_INFO = 0x2000000C;
@@ -794,8 +795,16 @@ struct FFNA_MapFile
             current_offset += 8 + chunk.chunk_size;
         }
 
+        // Check if the CHUNK_ID_20000000 is in the riff_chunks map
+        auto it = riff_chunks.find(CHUNK_ID_20000000);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            chunk1 = Chunk1(offset, data.data());
+        }
+
         // Check if the CHUNK_ID_TERRAIN is in the riff_chunks map
-        auto it = riff_chunks.find(CHUNK_ID_TERRAIN);
+        it = riff_chunks.find(CHUNK_ID_TERRAIN);
         if (it != riff_chunks.end())
         {
             int offset = it->second;
