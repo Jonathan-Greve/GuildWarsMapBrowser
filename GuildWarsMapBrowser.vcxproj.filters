@@ -258,6 +258,9 @@
     <ClInclude Include="FFNA_ModelFile.h">
       <Filter>Dat reader\Dat file parsers\Model</Filter>
     </ClInclude>
+    <ClInclude Include="draw_props_info_panel.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -412,6 +415,9 @@
     </ClCompile>
     <ClCompile Include="FFNA_ModelFile.cpp">
       <Filter>Dat reader\Dat file parsers\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="draw_props_info_panel.cpp">
+      <Filter>GUI</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
