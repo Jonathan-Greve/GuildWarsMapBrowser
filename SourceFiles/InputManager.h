@@ -14,9 +14,9 @@ public:
     void OnKeyUp(WPARAM wParam, HWND hWnd);
     void OnMouseMove(int x, int y, WPARAM wParam, HWND hWnd);
 
-    void OnMouseDown(int x, int y, WPARAM wParam, HWND hWnd);
+    void OnMouseDown(int x, int y, WPARAM wParam, HWND hWnd, UINT message);
 
-    void OnMouseUp(int x, int y, WPARAM wParam, HWND hWnd);
+    void OnMouseUp(int x, int y, WPARAM wParam, HWND hWnd, UINT message);
 
     void OnMouseWheel(short wheel_delta, HWND hWnd);
 
@@ -24,5 +24,6 @@ public:
 
 private:
     POINT m_mouse_pos;
+    POINT right_mouse_button_down_pos;
     std::vector<MouseMoveListener*> m_mouseMoveListeners;
 };
