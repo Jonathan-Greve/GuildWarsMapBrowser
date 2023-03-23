@@ -276,6 +276,9 @@
     <ClInclude Include="draw_map_info_chunk.h">
       <Filter>GUI\Draw map chunks info</Filter>
     </ClInclude>
+    <ClInclude Include="draw_chunk_20000000.h">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -444,6 +447,9 @@
       <Filter>GUI\Draw map chunks info</Filter>
     </ClCompile>
     <ClCompile Include="draw_map_info_chunk.cpp">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClCompile>
+    <ClCompile Include="draw_chunk_20000000.cpp">
       <Filter>GUI\Draw map chunks info</Filter>
     </ClCompile>
   </ItemGroup>

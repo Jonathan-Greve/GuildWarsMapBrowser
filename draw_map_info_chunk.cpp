@@ -3,7 +3,7 @@
 
 void draw_map_info_chunk(const Chunk2& chunk)
 {
-    if (ImGui::TreeNode("Chunk2"))
+    if (ImGui::TreeNode("Chunk 2"))
     {
         ImGui::Text("Chunk ID: %u", chunk.chunk_id);
         ImGui::Text("Chunk Size: %u", chunk.chunk_size);
@@ -13,10 +13,8 @@ void draw_map_info_chunk(const Chunk2& chunk)
         if (ImGui::TreeNode("Map Bounds"))
         {
             ImGui::Text("Map Min X: %.2f", chunk.map_bounds.map_min_x);
-            ImGui::Text("Map Min Y: %.2f", chunk.map_bounds.map_min_y);
-            ImGui::Text("Map Min Z: %.2f", chunk.map_bounds.map_min_z);
             ImGui::Text("Map Max X: %.2f", chunk.map_bounds.map_max_x);
-            ImGui::Text("Map Max Y: %.2f", chunk.map_bounds.map_max_y);
+            ImGui::Text("Map Min Z: %.2f", chunk.map_bounds.map_min_z);
             ImGui::Text("Map Max Z: %.2f", chunk.map_bounds.map_max_z);
             ImGui::TreePop();
         }
