@@ -259,7 +259,7 @@ struct SomeData2
         std::memcpy(&num_elements, &data[offset + 5], sizeof(num_elements));
 
         array.resize(num_elements);
-        std::memcpy(array.data(), &data[offset + 7], array_size_in_bytes);
+        std::memcpy(array.data(), &data[offset + 7], array_size_in_bytes - sizeof(num_elements));
     }
 };
 
@@ -319,7 +319,7 @@ struct Chunk3
 
         int remaining_bytes = chunk_size + 8 - (offset - initial_offset);
         chunk_data.resize(remaining_bytes);
-        std::memcpy(chunk_data.data(), &data[offset], remaining_bytes);
+        std::memcpy(chunk_data.data(), &data[offset], chunk_data.size());
     }
 };
 
@@ -812,12 +812,12 @@ struct FFNA_MapFile
         }
 
         // Check if the CHUNK_ID_PROPS_INFO is in the riff_chunks map
-        //it = riff_chunks.find(CHUNK_ID_PROPS_INFO);
-        //if (it != riff_chunks.end())
-        //{
-        //    int offset = it->second;
-        //    props_info_chunk = Chunk3(offset, data.data());
-        //}
+        it = riff_chunks.find(CHUNK_ID_PROPS_INFO);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            props_info_chunk = Chunk3(offset, data.data());
+        }
 
         //Check if the CHUNK_ID_MAP_INFO is in the riff_chunks map
         it = riff_chunks.find(CHUNK_ID_MAP_INFO);
