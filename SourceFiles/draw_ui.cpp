@@ -23,7 +23,7 @@ void draw_ui(InitializationState initialization_state, int dat_files_to_read, in
         if (initialization_state == InitializationState::Completed)
         {
             draw_data_browser(dat_manager, map_renderer);
-            draw_left_panel();
+            draw_left_panel(map_renderer);
             draw_right_panel(map_renderer);
         }
     }
