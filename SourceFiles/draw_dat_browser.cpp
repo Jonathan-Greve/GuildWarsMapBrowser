@@ -2,6 +2,10 @@
 #include "draw_dat_browser.h"
 #include "GuiGlobalConstants.h"
 
+inline extern FileType selected_file_type = FileType::NONE;
+inline extern FFNA_ModelFile selected_ffna_model_file{};
+inline extern FFNA_MapFile selected_ffna_map_file{};
+
 const char* type_strings[26] = {
   " ",        "AMAT",     "Amp",      "ATEXDXT1", "ATEXDXT2",     "ATEXDXT3",   "ATEXDXT4",
   "ATEXDXT5", "ATEXDXTN", "ATEXDXTA", "ATEXDXTL", "ATTXDXT1",     "ATTXDXT3",   "ATTXDXT5",
@@ -20,24 +24,25 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
     if (! entry)
         return;
 
-    FFNA_ModelFile ffna_model_file;
-    FFNA_MapFile ffna_map_file;
+    selected_file_type = static_cast<FileType>(entry->type);
     std::unique_ptr<Terrain> terrain;
 
     switch (entry->type)
     {
     case FFNA_Type2:
-        ffna_model_file = dat_manager.parse_ffna_model_file(index);
+        selected_ffna_model_file = dat_manager.parse_ffna_model_file(index);
         break;
     case FFNA_Type3:
-        ffna_map_file = dat_manager.parse_ffna_map_file(index);
-        if (ffna_map_file.terrain_chunk.terrain_heightmap.size() > 0 &&
-            ffna_map_file.terrain_chunk.terrain_heightmap.size() ==
-              ffna_map_file.terrain_chunk.terrain_x_dims * ffna_map_file.terrain_chunk.terrain_y_dims)
+        selected_ffna_map_file = dat_manager.parse_ffna_map_file(index);
+        if (selected_ffna_map_file.terrain_chunk.terrain_heightmap.size() > 0 &&
+            selected_ffna_map_file.terrain_chunk.terrain_heightmap.size() ==
+              selected_ffna_map_file.terrain_chunk.terrain_x_dims *
+                selected_ffna_map_file.terrain_chunk.terrain_y_dims)
         {
-            terrain = std::make_unique<Terrain>(
-              ffna_map_file.terrain_chunk.terrain_x_dims, ffna_map_file.terrain_chunk.terrain_y_dims,
-              ffna_map_file.terrain_chunk.terrain_heightmap, ffna_map_file.map_info_chunk.map_bounds);
+            terrain = std::make_unique<Terrain>(selected_ffna_map_file.terrain_chunk.terrain_x_dims,
+                                                selected_ffna_map_file.terrain_chunk.terrain_y_dims,
+                                                selected_ffna_map_file.terrain_chunk.terrain_heightmap,
+                                                selected_ffna_map_file.map_info_chunk.map_bounds);
             map_renderer->SetTerrain(std::move(terrain));
         }
         break;
