@@ -198,6 +198,7 @@
     <ClInclude Include="draw_props_filenames_panel.h" />
     <ClInclude Include="draw_props_info_panel.h" />
     <ClInclude Include="draw_right_panel.h" />
+    <ClInclude Include="draw_terrain_chunk.h" />
     <ClInclude Include="FFNA_ModelFile.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
@@ -299,6 +300,7 @@
     <ClCompile Include="draw_props_filenames_panel.cpp" />
     <ClCompile Include="draw_props_info_panel.cpp" />
     <ClCompile Include="draw_right_panel.cpp" />
+    <ClCompile Include="draw_terrain_chunk.cpp" />
     <ClCompile Include="FFNA_ModelFile.cpp" />
     <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
