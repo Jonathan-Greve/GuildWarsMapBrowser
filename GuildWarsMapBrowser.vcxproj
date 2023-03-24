@@ -199,6 +199,7 @@
     <ClInclude Include="draw_map_info_chunk.h" />
     <ClInclude Include="draw_props_filenames_panel.h" />
     <ClInclude Include="draw_props_info_panel.h" />
+    <ClInclude Include="draw_prop_model_info.h" />
     <ClInclude Include="draw_right_panel.h" />
     <ClInclude Include="draw_terrain_chunk.h" />
     <ClInclude Include="FFNA_ModelFile.h" />
@@ -303,6 +304,7 @@
     <ClCompile Include="draw_map_info_chunk.cpp" />
     <ClCompile Include="draw_props_filenames_panel.cpp" />
     <ClCompile Include="draw_props_info_panel.cpp" />
+    <ClCompile Include="draw_prop_model_info.cpp" />
     <ClCompile Include="draw_right_panel.cpp" />
     <ClCompile Include="draw_terrain_chunk.cpp" />
     <ClCompile Include="FFNA_ModelFile.cpp" />

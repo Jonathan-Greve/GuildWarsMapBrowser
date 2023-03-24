@@ -2,6 +2,8 @@
 #include "DATManager.h"
 #include "MapRenderer.h"
 
+using FileData = std::variant<FFNA_ModelFile /*, other types */>;
+
 enum DatBrowserItemColumnID
 {
     DatBrowserItemColumnID_id,

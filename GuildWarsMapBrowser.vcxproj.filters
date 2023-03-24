@@ -83,6 +83,9 @@
     <Filter Include="GUI\Draw map chunks info">
       <UniqueIdentifier>{fc8d1ea5-3477-4952-a789-684068f4ff52}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GUI\Draw model info">
+      <UniqueIdentifier>{0e70a3a4-b3b5-40ac-af1f-a6b3fd7237e8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -279,6 +282,9 @@
     <ClInclude Include="draw_chunk_20000000.h">
       <Filter>GUI\Draw map chunks info</Filter>
     </ClInclude>
+    <ClInclude Include="draw_prop_model_info.h">
+      <Filter>GUI\Draw model info</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -451,6 +457,9 @@
     </ClCompile>
     <ClCompile Include="draw_chunk_20000000.cpp">
       <Filter>GUI\Draw map chunks info</Filter>
+    </ClCompile>
+    <ClCompile Include="draw_prop_model_info.cpp">
+      <Filter>GUI\Draw model info</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

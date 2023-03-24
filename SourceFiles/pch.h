@@ -55,6 +55,7 @@
 #include <format>
 #include <span>
 #include <unordered_set>
+#include <variant>
 
 // Dear ImGui
 #define IMGUI_DEFINE_MATH_OPERATORS
