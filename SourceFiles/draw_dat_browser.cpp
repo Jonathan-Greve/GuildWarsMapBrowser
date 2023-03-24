@@ -6,6 +6,13 @@ inline extern FileType selected_file_type = FileType::NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
 inline extern FFNA_MapFile selected_ffna_map_file{};
 
+inline extern std::vector<std::pair<FileType, FileData>> selected_map_files{};
+
+static ImVector<DatBrowserItem> items;
+static std::unordered_map<int, std::vector<int>> id_index;
+static std::unordered_map<int, std::vector<int>> hash_index;
+static std::unordered_map<FileType, std::vector<int>> type_index;
+
 const char* type_strings[26] = {
   " ",        "AMAT",     "Amp",      "ATEXDXT1", "ATEXDXT2",     "ATEXDXT3",   "ATEXDXT4",
   "ATEXDXT5", "ATEXDXTN", "ATEXDXTA", "ATEXDXTL", "ATTXDXT1",     "ATTXDXT3",   "ATTXDXT5",
@@ -33,6 +40,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
         selected_ffna_model_file = dat_manager.parse_ffna_model_file(index);
         break;
     case FFNA_Type3:
+        selected_map_files.clear();
         selected_ffna_map_file = dat_manager.parse_ffna_map_file(index);
         if (selected_ffna_map_file.terrain_chunk.terrain_heightmap.size() > 0 &&
             selected_ffna_map_file.terrain_chunk.terrain_heightmap.size() ==
@@ -45,6 +53,23 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
                                                 selected_ffna_map_file.map_info_chunk.map_bounds);
             map_renderer->SetTerrain(std::move(terrain));
         }
+
+        // Load prop models
+        for (int i = 0; i < selected_ffna_map_file.prop_filenames_chunk.array.size(); i++)
+        {
+            auto decoded_filename =
+              decode_filename(selected_ffna_map_file.prop_filenames_chunk.array[i].filename.id0,
+                              selected_ffna_map_file.prop_filenames_chunk.array[i].filename.id1);
+            auto mft_entry_it = hash_index.find(decoded_filename);
+            if (mft_entry_it != hash_index.end())
+            {
+                auto type = items[mft_entry_it->second.at(0)].type;
+                if (type == FFNA_Type2)
+                    selected_map_files.emplace_back(
+                      FFNA_Type2, dat_manager.parse_ffna_model_file(mft_entry_it->second.at(0)));
+            }
+        }
+
         break;
     default:
         break;
@@ -55,9 +80,6 @@ int custom_stoi(const std::string& input);
 
 void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 {
-    static std::unordered_map<int, std::vector<int>> id_index;
-    static std::unordered_map<int, std::vector<int>> hash_index;
-    static std::unordered_map<FileType, std::vector<int>> type_index;
 
     ImVec2 dat_browser_window_size =
       ImVec2(ImGui::GetIO().DisplaySize.x -
@@ -72,7 +94,6 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 
     ImGui::Begin("Browse .dat file contents");
     // Create item list
-    static ImVector<DatBrowserItem> items;
     static ImVector<DatBrowserItem> filtered_items;
     if (items.Size == 0)
     {
