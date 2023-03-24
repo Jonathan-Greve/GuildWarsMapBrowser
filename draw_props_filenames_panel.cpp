@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "draw_props_filenames_panel.h"
-
-int decode_filename(int id0, int id1) { return (id0 - 0xff00ff) + (id1 * 0xff00); }
+#include "FFNA_ModelFile.h"
 
 void draw_props_filenames_panel(const Chunk4& chunk)
 {
