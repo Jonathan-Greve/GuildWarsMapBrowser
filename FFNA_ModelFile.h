@@ -95,7 +95,7 @@ struct GeometryChunk
 
     GeometryChunk() = default;
 
-    GeometryChunk(int offset, const unsigned char* data)
+    GeometryChunk(int offset, const unsigned char* data, int data_size_bytes)
     {
         std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
         std::memcpy(&chunk_size, &data[offset + 4], sizeof(chunk_size));
@@ -133,7 +133,8 @@ struct GeometryChunk
             std::memcpy(&some_array_size, &data[curr_offset], sizeof(some_array_size));
             curr_offset += sizeof(some_array_size);
 
-            if (some_array_size > 18 && some_array_size < chunk_size)
+            if (some_array_size > 18 && some_array_size + 8 < chunk_size &&
+                curr_offset + some_array_size + 8 < data_size_bytes)
             {
                 some_array.resize(some_array_size + 8);
                 std::memcpy(some_array.data(), &data[curr_offset], some_array_size + 8);
@@ -242,7 +243,7 @@ struct FFNA_ModelFile
         if (it != riff_chunks.end())
         {
             int offset = it->second;
-            geometry_chunk = GeometryChunk(offset, data.data());
+            geometry_chunk = GeometryChunk(offset, data.data(), data.size_bytes());
         }
     }
 };
