@@ -91,8 +91,9 @@ struct PropInfo
     {
         std::memcpy(&filename_index, &data[offset], sizeof(filename_index));
         std::memcpy(&x, &data[offset + 2], sizeof(x));
-        std::memcpy(&y, &data[offset + 6], sizeof(y));
-        std::memcpy(&z, &data[offset + 10], sizeof(z));
+        std::memcpy(&z, &data[offset + 6], sizeof(y));
+        std::memcpy(&y, &data[offset + 10], sizeof(z));
+        y = -y;
         std::memcpy(&f4, &data[offset + 14], sizeof(f4));
         std::memcpy(&f5, &data[offset + 18], sizeof(f5));
         std::memcpy(&f6, &data[offset + 22], sizeof(f6));

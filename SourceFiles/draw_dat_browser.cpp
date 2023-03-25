@@ -6,7 +6,7 @@ inline extern FileType selected_file_type = FileType::NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
 inline extern FFNA_MapFile selected_ffna_map_file{};
 
-inline extern std::vector<std::pair<FileType, FileData>> selected_map_files{};
+inline extern std::vector<FileData> selected_map_files{};
 
 static ImVector<DatBrowserItem> items;
 static std::unordered_map<int, std::vector<int>> id_index;
@@ -65,8 +65,41 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
             {
                 auto type = items[mft_entry_it->second.at(0)].type;
                 if (type == FFNA_Type2)
-                    selected_map_files.emplace_back(
-                      FFNA_Type2, dat_manager.parse_ffna_model_file(mft_entry_it->second.at(0)));
+                {
+                    auto map_model = dat_manager.parse_ffna_model_file(mft_entry_it->second.at(0));
+                    selected_map_files.emplace_back(map_model);
+                }
+            }
+        }
+        for (int i = 0; i < selected_ffna_map_file.props_info_chunk.prop_array.props_info.size(); i++)
+        {
+            PropInfo prop_info = selected_ffna_map_file.props_info_chunk.prop_array.props_info[i];
+
+            if (prop_info.filename_index - 1 < selected_map_files.size())
+            {
+                if (auto ffna_model_file_ptr =
+                      std::get_if<FFNA_ModelFile>(&selected_map_files[prop_info.filename_index - 1]))
+                {
+                    if (ffna_model_file_ptr->parsed_correctly)
+                    {
+                        Mesh prop_mesh = ffna_model_file_ptr->GetMesh();
+
+                        PerObjectCB per_object_cb;
+                        DirectX::XMFLOAT3 translation(prop_info.x, prop_info.y, prop_info.z);
+                        float cos_angle = prop_info.cos_angle;
+                        float sin_angle = prop_info.sin_angle;
+                        float rotation_angle = std::atan2(
+                          sin_angle,
+                          cos_angle); // Calculate the rotation angle from the sine and cosine values
+
+                        DirectX::XMMATRIX transform_matrix = DirectX::XMMatrixMultiply(
+                          DirectX::XMMatrixRotationY(std::acos(cos_angle) + XM_PI / 2.0f),
+                          DirectX::XMMatrixTranslationFromVector(XMLoadFloat3(&translation)));
+
+                        DirectX::XMStoreFloat4x4(&per_object_cb.world, transform_matrix);
+                        map_renderer->AddProp(prop_mesh, per_object_cb);
+                    }
+                }
             }
         }
 
@@ -81,8 +114,14 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
             {
                 auto type = items[mft_entry_it->second.at(0)].type;
                 if (type == FFNA_Type2)
-                    selected_map_files.emplace_back(
-                      FFNA_Type2, dat_manager.parse_ffna_model_file(mft_entry_it->second.at(0)));
+                {
+                    auto map_model = dat_manager.parse_ffna_model_file(mft_entry_it->second.at(0));
+                    selected_map_files.emplace_back(map_model);
+                }
+                else
+                {
+                    selected_map_files.emplace_back(FFNA_ModelFile());
+                }
             }
         }
 
