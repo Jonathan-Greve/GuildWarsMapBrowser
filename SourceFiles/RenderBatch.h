@@ -4,18 +4,36 @@
 class RenderBatch
 {
 public:
-    void AddCommand(const RenderCommand& command) { m_commands.push_back(command); }
+    void AddCommand(const RenderCommand& command)
+    {
+        int mesh_id = command.meshInstance->GetMeshID();
+        m_commands[mesh_id] = command;
+        m_sortedCommands[mesh_id] = command;
+        m_needsSorting = true;
+    }
+
     void RemoveCommand(const int mesh_id)
     {
-        m_commands.erase(std::remove_if(m_commands.begin(), m_commands.end(),
-                                        [mesh_id](const RenderCommand& cmd)
-                                        { return cmd.meshInstance->GetMeshID() == mesh_id; }),
-                         m_commands.end());
+        m_commands.erase(mesh_id);
+        m_sortedCommands.erase(mesh_id);
     }
 
     void SortCommands()
     {
-        std::sort(m_commands.begin(), m_commands.end(),
+        if (! m_needsSorting)
+        {
+            return;
+        }
+
+        std::vector<RenderCommand> sortedCommandsVector;
+        sortedCommandsVector.reserve(m_commands.size());
+
+        for (auto& cmd : m_commands)
+        {
+            sortedCommandsVector.push_back(cmd.second);
+        }
+
+        std::sort(sortedCommandsVector.begin(), sortedCommandsVector.end(),
                   [](const RenderCommand& a, const RenderCommand& b)
                   {
                       if (a.primitiveTopology == b.primitiveTopology)
@@ -24,12 +42,63 @@ public:
                       }
                       return a.primitiveTopology < b.primitiveTopology;
                   });
+
+        m_sortedCommands.clear();
+        for (auto& cmd : sortedCommandsVector)
+        {
+            int mesh_id = cmd.meshInstance->GetMeshID();
+            m_sortedCommands[mesh_id] = cmd;
+        }
+
+        m_needsSorting = false;
     }
 
-    void Clear() { m_commands.clear(); }
+    void SetShouldRender(int mesh_id, bool should_render)
+    {
+        auto it = m_commands.find(mesh_id);
+        if (it != m_commands.end())
+        {
+            it->second.should_render = should_render;
+            m_sortedCommands[mesh_id].should_render = should_render;
+        }
+    }
 
-    std::vector<RenderCommand>& GetCommands() { return m_commands; }
+    void Clear()
+    {
+        m_commands.clear();
+        m_sortedCommands.clear();
+    }
+
+    std::vector<RenderCommand> GetCommands()
+    {
+        if (m_needsSorting)
+        {
+            SortCommands();
+        }
+
+        std::vector<RenderCommand> result;
+        result.reserve(m_sortedCommands.size());
+
+        for (const auto& cmd : m_sortedCommands)
+        {
+            result.push_back(cmd.second);
+        }
+
+        return result;
+    }
+
+    RenderCommand* GetCommand(int mesh_id)
+    {
+        auto it = m_commands.find(mesh_id);
+        if (it != m_commands.end())
+        {
+            return &it->second;
+        }
+        return nullptr;
+    }
 
 private:
-    std::vector<RenderCommand> m_commands;
+    std::unordered_map<int, RenderCommand> m_commands;
+    std::unordered_map<int, RenderCommand> m_sortedCommands;
+    bool m_needsSorting = false;
 };

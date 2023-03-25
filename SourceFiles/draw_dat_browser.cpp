@@ -97,7 +97,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
                           DirectX::XMMatrixTranslationFromVector(XMLoadFloat3(&translation)));
 
                         DirectX::XMStoreFloat4x4(&per_object_cb.world, transform_matrix);
-                        map_renderer->AddProp(prop_mesh, per_object_cb);
+                        int mesh_id = map_renderer->AddProp(prop_mesh, per_object_cb);
                     }
                 }
             }

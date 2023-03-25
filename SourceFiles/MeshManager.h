@@ -169,6 +169,46 @@ public:
         }
     }
 
+    bool SetMeshShouldRender(int mesh_id, bool should_render)
+    {
+        bool found = false;
+
+        // Iterate over the triangle meshes
+        auto it = m_triangleMeshes.find(mesh_id);
+        if (it != m_triangleMeshes.end())
+        {
+            found = true;
+        }
+        else
+        {
+            // If not found in triangle meshes, search in line meshes
+            it = m_lineMeshes.find(mesh_id);
+            if (it != m_lineMeshes.end())
+            {
+                found = true;
+            }
+        }
+
+        if (found)
+        {
+            // Call SetShouldRender function in the RenderBatch
+            m_renderBatch.SetShouldRender(mesh_id, should_render);
+        }
+
+        return found;
+    }
+
+    bool GetMeshShouldRender(int mesh_id)
+    {
+        RenderCommand* command = m_renderBatch.GetCommand(mesh_id);
+        if (command)
+        {
+            return command->should_render;
+        }
+
+        return false;
+    }
+
     void Update(float dt)
     {
         if (m_needsUpdate)
@@ -184,6 +224,8 @@ public:
         static PixelShaderType current_ps_shader_type = PixelShaderType::Default;
         for (const RenderCommand& command : m_renderBatch.GetCommands())
         {
+            if (! command.should_render)
+                continue;
             if (command.primitiveTopology != currentTopology)
             {
                 m_deviceContext->IASetPrimitiveTopology(command.primitiveTopology);

@@ -54,12 +54,17 @@ void draw_right_panel(MapRenderer* map_renderer)
     }
     ImGui::End();
 
+    float max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
+      (3 * GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
+
     // Set up the second right panel
     ImGui::SetNextWindowPos(
       ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
                GuiGlobalConstants::panel_padding,
              GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
     ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
+    ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
+                                        ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
     if (ImGui::Begin("Camera and movement", NULL, window_flags))
     {
         bool camera_projection_settings_changed = false;
@@ -160,7 +165,56 @@ void draw_right_panel(MapRenderer* map_renderer)
                 camera->SetOrientation(pitch * XM_PI / 180, yaw * XM_PI / 180);
             }
         }
+
+        window_height += ImGui::GetWindowSize().y;
     }
     ImGui::End();
+
+    max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
+      (3 * GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
+
+    // Set up the props visibility settings window
+    ImGui::SetNextWindowPos(
+      ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
+               GuiGlobalConstants::panel_padding,
+             GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+    ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
+    ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
+                                        ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
+    if (ImGui::Begin("Props Visibility", NULL, window_flags))
+    {
+        std::vector<int>& propsMeshIds = map_renderer->GetPropsMeshIds();
+
+        // Set all and Clear all buttons
+        if (ImGui::Button("Set all"))
+        {
+            for (int mesh_id : propsMeshIds)
+            {
+                map_renderer->SetMeshShouldRender(mesh_id, true);
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Clear all"))
+        {
+            for (int mesh_id : propsMeshIds)
+            {
+                map_renderer->SetMeshShouldRender(mesh_id, false);
+            }
+        }
+
+        // Props visibility checkboxes
+        for (int mesh_id : propsMeshIds)
+        {
+            std::string label = "Prop " + std::to_string(mesh_id);
+            bool should_render = map_renderer->GetMeshShouldRender(mesh_id);
+
+            if (ImGui::Checkbox(label.c_str(), &should_render))
+            {
+                map_renderer->SetMeshShouldRender(mesh_id, should_render);
+            }
+        }
+    }
+    ImGui::End();
+
     ImGui::PopStyleVar();
 }

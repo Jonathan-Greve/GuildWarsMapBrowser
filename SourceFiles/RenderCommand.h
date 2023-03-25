@@ -7,4 +7,5 @@ struct RenderCommand
     std::shared_ptr<MeshInstance> meshInstance;
     D3D11_PRIMITIVE_TOPOLOGY primitiveTopology;
     PixelShaderType pixelShaderType;
+    bool should_render = true;
 };
