@@ -206,6 +206,15 @@ public:
             m_mesh_manager->RemoveMesh(m_terrain_mesh_id);
             m_is_terrain_mesh_set = false;
         }
+
+        m_prop_mesh_ids.clear();
+    }
+
+    void AddProp(Mesh mesh, PerObjectCB per_object_cb)
+    {
+        int mesh_id = m_mesh_manager->AddCustomMesh(mesh);
+        m_mesh_manager->UpdateMeshPerObjectData(mesh_id, per_object_cb);
+        m_prop_mesh_ids.insert(mesh_id);
     }
 
     PixelShaderType GetTerrainPixelShaderType() { return m_terrain_current_pixel_shader_type; }
@@ -342,6 +351,8 @@ private:
 
     std::unique_ptr<Terrain> m_terrain;
     PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainCheckered;
+
+    std::unordered_set<int> m_prop_mesh_ids;
 
     bool m_is_terrain_mesh_set = false;
     int m_terrain_mesh_id = -1;
