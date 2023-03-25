@@ -70,7 +70,7 @@ struct Chunk2
 #pragma pack(push, 1)
 struct PropInfo
 {
-    uint16_t f1;
+    uint16_t filename_index;
     float x;
     float y;
     float z;
@@ -89,7 +89,7 @@ struct PropInfo
     PropInfo() = default;
     PropInfo(int offset, const unsigned char* data)
     {
-        std::memcpy(&f1, &data[offset], sizeof(f1));
+        std::memcpy(&filename_index, &data[offset], sizeof(filename_index));
         std::memcpy(&x, &data[offset + 2], sizeof(x));
         std::memcpy(&y, &data[offset + 6], sizeof(y));
         std::memcpy(&z, &data[offset + 10], sizeof(z));
@@ -756,6 +756,7 @@ constexpr uint32_t CHUNK_ID_20000000 = 0x20000000;
 constexpr uint32_t CHUNK_ID_TERRAIN = 0x20000002;
 constexpr uint32_t CHUNK_ID_PROPS_INFO = 0x20000004;
 constexpr uint32_t CHUNK_ID_MAP_INFO = 0x2000000C;
+constexpr uint32_t CHUNK_ID_PROPS_FILENAMES0 = 0x21000004;
 constexpr uint32_t CHUNK_ID_PROPS_FILENAMES = 0x21000004;
 
 struct FFNA_MapFile
@@ -825,6 +826,14 @@ struct FFNA_MapFile
         {
             int offset = it->second;
             map_info_chunk = Chunk2(offset, data.data());
+        }
+
+        // Check if the CHUNK_ID_PROPS_FILENAMES is in the riff_chunks map
+        it = riff_chunks.find(CHUNK_ID_PROPS_FILENAMES0);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            more_filnames_chunk = Chunk4(offset, data.data());
         }
 
         // Check if the CHUNK_ID_PROPS_FILENAMES is in the riff_chunks map
