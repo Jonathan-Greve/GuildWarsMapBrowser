@@ -13,7 +13,7 @@
 extern FileType selected_file_type;
 extern FFNA_ModelFile selected_ffna_model_file;
 extern FFNA_MapFile selected_ffna_map_file;
-extern std::vector<std::pair<FileType, FileData>> selected_map_files;
+extern std::vector<FileData> selected_map_files;
 
 void draw_left_panel(MapRenderer* map_renderer)
 {
@@ -153,21 +153,18 @@ void draw_left_panel(MapRenderer* map_renderer)
 
                 int i = 0;
                 int k = 0;
-                for (const auto& [file_type, file_data] : selected_map_files)
+                for (const auto& file_data : selected_map_files)
                 {
                     i++;
-                    if (file_type == FFNA_Type2)
+                    if (auto ffna_model_file_ptr = std::get_if<FFNA_ModelFile>(&file_data))
                     {
                         k++;
-                        if (auto ffna_model_file_ptr = std::get_if<FFNA_ModelFile>(&file_data))
+                        // Use *ffna_model_file_ptr to access the FFNA_ModelFile data
+                        auto id = std::format("({}) {}", i, k);
+                        if (ImGui::TreeNode(id.c_str()))
                         {
-                            // Use *ffna_model_file_ptr to access the FFNA_ModelFile data
-                            auto id = std::format("({}) {}", i, k);
-                            if (ImGui::TreeNode(id.c_str()))
-                            {
-                                draw_prop_model_info(*ffna_model_file_ptr);
-                                ImGui::TreePop();
-                            }
+                            draw_prop_model_info(*ffna_model_file_ptr);
+                            ImGui::TreePop();
                         }
                     }
                 }

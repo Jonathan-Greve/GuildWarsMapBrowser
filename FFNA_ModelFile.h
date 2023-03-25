@@ -2,6 +2,9 @@
 #include "FFNAType.h"
 #include <array>
 #include <stdint.h>
+#include "DXMathHelpers.h"
+#include "Mesh.h"
+#include "Vertex.h"
 
 inline int decode_filename(int id0, int id1) { return (id0 - 0xff00ff) + (id1 * 0xff00); }
 
@@ -93,9 +96,14 @@ struct GeometryChunk
     std::vector<ModelVertex> vertices;
     std::vector<uint8_t> chunk_data;
 
+    float minX = std::numeric_limits<float>::max(), maxX = std::numeric_limits<float>::min();
+    float minY = std::numeric_limits<float>::max(), maxY = std::numeric_limits<float>::min();
+    float minZ = std::numeric_limits<float>::max(), maxZ = std::numeric_limits<float>::min();
+    float sumX = 0, sumY = 0, sumZ = 0;
+
     GeometryChunk() = default;
 
-    GeometryChunk(int offset, const unsigned char* data, int data_size_bytes)
+    GeometryChunk(int offset, const unsigned char* data, int data_size_bytes, bool& parsed_correctly)
     {
         std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
         std::memcpy(&chunk_size, &data[offset + 4], sizeof(chunk_size));
@@ -152,7 +160,7 @@ struct GeometryChunk
             if (num_indices != num_indices_cpy || num_indices_cpy != num_indices_cpy2 ||
                 num_indices * 2 > chunk_size)
             {
-                return;
+                parsed_correctly = false;
             }
 
             std::memcpy(&num_vertices, &data[curr_offset], sizeof(num_vertices));
@@ -175,6 +183,7 @@ struct GeometryChunk
 
             if (vertex_size > 0 && num_vertices * vertex_size < chunk_size)
             {
+
                 vertices.resize(num_vertices);
                 for (uint32_t i = 0; i < num_vertices; ++i)
                 {
@@ -182,18 +191,53 @@ struct GeometryChunk
                     std::memcpy(&vertex.x, &data[curr_offset], sizeof(vertex.x));
                     curr_offset += sizeof(vertex.x);
 
-                    std::memcpy(&vertex.y, &data[curr_offset], sizeof(vertex.y));
-                    curr_offset += sizeof(vertex.y);
-
                     std::memcpy(&vertex.z, &data[curr_offset], sizeof(vertex.z));
                     curr_offset += sizeof(vertex.z);
+
+                    std::memcpy(&vertex.y, &data[curr_offset], sizeof(vertex.y));
+                    vertex.y = -vertex.y;
+                    curr_offset += sizeof(vertex.y);
 
                     std::memcpy(vertex.dunno.data(), &data[curr_offset], dunno_size * sizeof(float));
                     curr_offset += dunno_size * sizeof(float);
 
                     vertices[i] = vertex;
+
+                    // Update min, max, and sum for each coordinate
+                    minX = std::min(minX, vertex.x);
+                    maxX = std::max(maxX, vertex.x);
+                    minY = std::min(minY, vertex.y);
+                    maxY = std::max(maxY, vertex.y);
+                    minZ = std::min(minZ, vertex.z);
+                    maxZ = std::max(maxZ, vertex.z);
+                    sumX += vertex.x;
+                    sumY += vertex.y;
+                    sumZ += vertex.z;
                 }
+
+                // Calculate the averages
+                float avgX = sumX / num_vertices;
+                float avgY = sumY / num_vertices;
+                float avgZ = sumZ / num_vertices;
+
+                // Check if the distance between min and max exceeds 5000 for any coordinate
+                // This is because I havent reversed engineered the model file fully.
+                // so sometimes the model is parsed incorrectly.
+                //if (maxX - minX > 1000 || maxY - minY > 1000 || maxZ - minZ > 1000 || maxX > 30000 ||
+                //    maxY > 30000 || maxZ > 30000 || minX < -30000 || minY < -30000 || minZ < -30000 ||
+                //    std::fabs(avgX) > 30000 || std::fabs(avgY) > 30000 || std::fabs(minZ) > 30000)
+                //{
+                //    parsed_correctly = false;
+                //}
             }
+            else
+            {
+                parsed_correctly = false;
+            }
+        }
+        else
+        {
+            parsed_correctly = false;
         }
 
         // Copy remaining chunk_data after reading all other fields
@@ -202,6 +246,10 @@ struct GeometryChunk
             size_t remaining_bytes = chunk_size + 5 + 8 - curr_offset;
             chunk_data.resize(remaining_bytes);
             std::memcpy(chunk_data.data(), &data[curr_offset], remaining_bytes);
+        }
+        else
+        {
+            parsed_correctly = false;
         }
     }
 };
@@ -213,6 +261,8 @@ struct FFNA_ModelFile
     char ffna_signature[4];
     FFNAType ffna_type;
     GeometryChunk geometry_chunk;
+
+    bool parsed_correctly = true;
 
     std::unordered_map<uint32_t, int> riff_chunks;
 
@@ -243,7 +293,43 @@ struct FFNA_ModelFile
         if (it != riff_chunks.end())
         {
             int offset = it->second;
-            geometry_chunk = GeometryChunk(offset, data.data(), data.size_bytes());
+            geometry_chunk = GeometryChunk(offset, data.data(), data.size_bytes(), parsed_correctly);
         }
+    }
+
+    Mesh GetMesh()
+    {
+        std::vector<Vertex> vertices;
+        std::vector<uint32_t> indices;
+
+        for (int i = 0; i < geometry_chunk.vertices.size(); i++)
+        {
+            ModelVertex model_vertex = geometry_chunk.vertices[i];
+            Vertex vertex;
+
+            vertex.position = XMFLOAT3(model_vertex.x, model_vertex.y, model_vertex.z);
+            vertex.tex_coord = XMFLOAT2(model_vertex.dunno[0], model_vertex.dunno[1]);
+            vertices.push_back(vertex);
+        }
+
+        for (int i = 0; i < geometry_chunk.indices.size(); i += 3)
+        {
+            int index0 = geometry_chunk.indices[i];
+            int index1 = geometry_chunk.indices[i + 1];
+            int index2 = geometry_chunk.indices[i + 2];
+
+            XMFLOAT3 normal =
+              compute_normal(vertices[index0].position, vertices[index1].position, vertices[index2].position);
+
+            vertices[index0].normal = normal;
+            vertices[index1].normal = normal;
+            vertices[index2].normal = normal;
+
+            indices.push_back(index0);
+            indices.push_back(index1);
+            indices.push_back(index2);
+        }
+
+        return Mesh(vertices, indices);
     }
 };
