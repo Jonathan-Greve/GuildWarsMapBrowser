@@ -108,9 +108,12 @@ struct GeometryChunk
 
             uint32_t unknown_size =
               sub_1.some_num0 * 8 + sub_1.some_num1 * 9 + (-(sub_1.f0x20 != 0) & sub_1.some_num1);
-            unknown.resize(unknown_size);
-            std::memcpy(unknown.data(), &data[curr_offset], unknown_size);
-            curr_offset += unknown_size;
+            if (unknown_size < chunk_size)
+            {
+                unknown.resize(unknown_size);
+                std::memcpy(unknown.data(), &data[curr_offset], unknown_size);
+                curr_offset += unknown_size;
+            }
 
             if (sub_1.num_some_struct2 > 0)
             {
@@ -130,7 +133,7 @@ struct GeometryChunk
             std::memcpy(&some_array_size, &data[curr_offset], sizeof(some_array_size));
             curr_offset += sizeof(some_array_size);
 
-            if (some_array_size > 18)
+            if (some_array_size > 18 && some_array_size < chunk_size)
             {
                 some_array.resize(some_array_size + 8);
                 std::memcpy(some_array.data(), &data[curr_offset], some_array_size + 8);
@@ -145,6 +148,11 @@ struct GeometryChunk
 
             std::memcpy(&num_indices_cpy2, &data[curr_offset], sizeof(num_indices_cpy2));
             curr_offset += sizeof(num_indices_cpy2);
+            if (num_indices != num_indices_cpy || num_indices_cpy != num_indices_cpy2 ||
+                num_indices * 2 > chunk_size)
+            {
+                return;
+            }
 
             std::memcpy(&num_vertices, &data[curr_offset], sizeof(num_vertices));
             curr_offset += sizeof(num_vertices);
@@ -164,25 +172,29 @@ struct GeometryChunk
             std::memcpy(indices.data(), &data[curr_offset], num_indices * sizeof(uint16_t));
             curr_offset += num_indices * sizeof(uint16_t);
 
-            vertices.resize(num_vertices);
-            for (uint32_t i = 0; i < num_vertices; ++i)
+            if (vertex_size > 0 && num_vertices * vertex_size < chunk_size)
             {
-                ModelVertex vertex(dunno_size);
-                std::memcpy(&vertex.x, &data[curr_offset], sizeof(vertex.x));
-                curr_offset += sizeof(vertex.x);
+                vertices.resize(num_vertices);
+                for (uint32_t i = 0; i < num_vertices; ++i)
+                {
+                    ModelVertex vertex(dunno_size);
+                    std::memcpy(&vertex.x, &data[curr_offset], sizeof(vertex.x));
+                    curr_offset += sizeof(vertex.x);
 
-                std::memcpy(&vertex.y, &data[curr_offset], sizeof(vertex.y));
-                curr_offset += sizeof(vertex.y);
+                    std::memcpy(&vertex.y, &data[curr_offset], sizeof(vertex.y));
+                    curr_offset += sizeof(vertex.y);
 
-                std::memcpy(&vertex.z, &data[curr_offset], sizeof(vertex.z));
-                curr_offset += sizeof(vertex.z);
+                    std::memcpy(&vertex.z, &data[curr_offset], sizeof(vertex.z));
+                    curr_offset += sizeof(vertex.z);
 
-                std::memcpy(vertex.dunno.data(), &data[curr_offset], dunno_size * sizeof(float));
-                curr_offset += dunno_size * sizeof(float);
+                    std::memcpy(vertex.dunno.data(), &data[curr_offset], dunno_size * sizeof(float));
+                    curr_offset += dunno_size * sizeof(float);
 
-                vertices[i] = vertex;
+                    vertices[i] = vertex;
+                }
             }
         }
+
         // Copy remaining chunk_data after reading all other fields
         if (curr_offset < chunk_size + 8)
         {
