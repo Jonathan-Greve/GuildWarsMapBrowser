@@ -54,12 +54,28 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
             map_renderer->SetTerrain(std::move(terrain));
         }
 
-        // Load prop models
+        // Load models
         for (int i = 0; i < selected_ffna_map_file.prop_filenames_chunk.array.size(); i++)
         {
             auto decoded_filename =
               decode_filename(selected_ffna_map_file.prop_filenames_chunk.array[i].filename.id0,
                               selected_ffna_map_file.prop_filenames_chunk.array[i].filename.id1);
+            auto mft_entry_it = hash_index.find(decoded_filename);
+            if (mft_entry_it != hash_index.end())
+            {
+                auto type = items[mft_entry_it->second.at(0)].type;
+                if (type == FFNA_Type2)
+                    selected_map_files.emplace_back(
+                      FFNA_Type2, dat_manager.parse_ffna_model_file(mft_entry_it->second.at(0)));
+            }
+        }
+
+        // Load models
+        for (int i = 0; i < selected_ffna_map_file.more_filnames_chunk.array.size(); i++)
+        {
+            auto decoded_filename =
+              decode_filename(selected_ffna_map_file.more_filnames_chunk.array[i].filename.id0,
+                              selected_ffna_map_file.more_filnames_chunk.array[i].filename.id1);
             auto mft_entry_it = hash_index.find(decoded_filename);
             if (mft_entry_it != hash_index.end())
             {

@@ -21,7 +21,7 @@ void draw_props_info_panel(const Chunk3& chunk)
 
                 if (ImGui::TreeNode((std::string("PropInfo #") + std::to_string(i)).c_str()))
                 {
-                    ImGui::Text("f1: %hu", prop.f1);
+                    ImGui::Text("model filename index: %hu", prop.filename_index);
                     ImGui::Text("Position: (%f, %f, %f)", prop.x, prop.y, prop.z);
                     // Add other properties of PropInfo here...
 
