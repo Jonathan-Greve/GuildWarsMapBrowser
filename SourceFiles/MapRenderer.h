@@ -210,12 +210,16 @@ public:
         m_prop_mesh_ids.clear();
     }
 
-    void AddProp(Mesh mesh, PerObjectCB per_object_cb)
+    bool AddProp(Mesh mesh, PerObjectCB per_object_cb)
     {
         int mesh_id = m_mesh_manager->AddCustomMesh(mesh);
         m_mesh_manager->UpdateMeshPerObjectData(mesh_id, per_object_cb);
-        m_prop_mesh_ids.insert(mesh_id);
+        m_prop_mesh_ids.push_back(mesh_id);
+
+        return mesh_id;
     }
+
+    std::vector<int>& GetPropsMeshIds() { return m_prop_mesh_ids; }
 
     PixelShaderType GetTerrainPixelShaderType() { return m_terrain_current_pixel_shader_type; }
     void SetTerrainPixelShaderType(PixelShaderType pixel_shader_type)
@@ -261,6 +265,13 @@ public:
 
     RasterizerStateType GetCurrentRasterizerState() { return m_currentRasterizerState; }
     void SwitchRasterizerState(RasterizerStateType state) { m_currentRasterizerState = state; }
+
+    void SetMeshShouldRender(int mesh_id, bool should_render)
+    {
+        m_mesh_manager->SetMeshShouldRender(mesh_id, should_render);
+    }
+
+    bool GetMeshShouldRender(int mesh_id) const { return m_mesh_manager->GetMeshShouldRender(mesh_id); }
 
     void Update(const float dt)
     {
@@ -352,7 +363,7 @@ private:
     std::unique_ptr<Terrain> m_terrain;
     PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainCheckered;
 
-    std::unordered_set<int> m_prop_mesh_ids;
+    std::vector<int> m_prop_mesh_ids;
 
     bool m_is_terrain_mesh_set = false;
     int m_terrain_mesh_id = -1;
