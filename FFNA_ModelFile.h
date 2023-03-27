@@ -54,17 +54,23 @@ struct Chunk1_sub1
     uint8_t f0x15;
     uint8_t f0x16;
     uint8_t f0x17;
-    uint32_t some_num0;
-    uint32_t some_num1;
+    uint8_t some_num0; // Num pixel shaders?
+    uint8_t f0x19;
+    uint8_t f0x1a;
+    uint8_t f0x1b;
+    uint8_t some_num1;
+    uint8_t f0x1d;
+    uint8_t f0x1e;
+    uint8_t f0x1f;
     uint32_t f0x20;
     uint8_t f0x24[8];
     uint32_t f0x2C;
-    uint8_t num_some_struct;
+    uint8_t num_some_struct0;
     uint8_t f0x31[7];
     uint32_t f0x38;
     uint32_t f0x3C;
     uint32_t f0x40;
-    uint32_t num_models_maybe;
+    uint32_t num_models;
     uint32_t f0x48;
     uint16_t f0x4C;
     uint8_t f0x4E[2];
@@ -76,6 +82,134 @@ struct Chunk1_sub1
     Chunk1_sub1(const unsigned char* data) { std::memcpy(this, data, sizeof(*this)); }
 };
 
+struct GeometryModel
+{
+    uint32_t unknown;
+    uint32_t num_indices0;
+    uint32_t num_indices1;
+    uint32_t num_indices2;
+    uint32_t num_vertices;
+    uint32_t dat_fvf;
+    uint32_t u0;
+    uint32_t u1;
+    uint32_t u2;
+    std::vector<uint16_t>
+      indices; // Has size: num_indices0 + (num_indices0 != num_indices1) * num_indices1 + (num_indices1 != num_indices2) * num_indices2
+    std::vector<ModelVertex> vertices;
+    std::vector<uint8_t> extra_data; // Has size: (u0 + u1 + u2 * 3) * 4
+
+    // Extra properties that I've added. Not from model file
+    uint32_t total_num_indices;
+    float minX = std::numeric_limits<float>::max(), maxX = std::numeric_limits<float>::min();
+    float minY = std::numeric_limits<float>::max(), maxY = std::numeric_limits<float>::min();
+    float minZ = std::numeric_limits<float>::max(), maxZ = std::numeric_limits<float>::min();
+    float sumX = 0, sumY = 0, sumZ = 0, avgX = 0, avgY = 0, avgZ = 0;
+
+    GeometryModel() = default;
+    GeometryModel(int& curr_offset, const unsigned char* data, int data_size_bytes, bool& parsed_correctly,
+                  int chunk_size)
+    {
+        std::memcpy(&unknown, &data[curr_offset], sizeof(unknown));
+        curr_offset += sizeof(unknown);
+
+        std::memcpy(&num_indices0, &data[curr_offset], sizeof(num_indices0));
+        curr_offset += sizeof(num_indices0);
+
+        std::memcpy(&num_indices1, &data[curr_offset], sizeof(num_indices1));
+        curr_offset += sizeof(num_indices1);
+
+        std::memcpy(&num_indices2, &data[curr_offset], sizeof(num_indices2));
+        curr_offset += sizeof(num_indices2);
+
+        std::memcpy(&num_vertices, &data[curr_offset], sizeof(num_vertices));
+        curr_offset += sizeof(num_vertices);
+
+        std::memcpy(&dat_fvf, &data[curr_offset], sizeof(dat_fvf));
+        curr_offset += sizeof(dat_fvf);
+
+        std::memcpy(&u0, &data[curr_offset], sizeof(u0));
+        curr_offset += sizeof(u0);
+
+        std::memcpy(&u1, &data[curr_offset], sizeof(u1));
+        curr_offset += sizeof(u1);
+
+        std::memcpy(&u2, &data[curr_offset], sizeof(u2));
+        curr_offset += sizeof(u2);
+
+        uint32_t vertex_size = get_vertex_size_from_fvf(get_fvf(dat_fvf));
+        size_t dunno_size = vertex_size > 12 ? (vertex_size - 3 * sizeof(float)) / sizeof(float) : 0;
+
+        total_num_indices = num_indices0 + (num_indices0 != num_indices1) * num_indices1 +
+          (num_indices1 != num_indices2) * num_indices2;
+
+        if (curr_offset + total_num_indices * 2 < data_size_bytes)
+        {
+            indices.resize(total_num_indices);
+            std::memcpy(indices.data(), &data[curr_offset], total_num_indices * 2);
+            curr_offset += total_num_indices * 2;
+        }
+        else
+        {
+            parsed_correctly = false;
+        }
+
+        if (vertex_size > 0 && num_vertices * vertex_size < chunk_size)
+        {
+
+            vertices.resize(num_vertices);
+            for (uint32_t i = 0; i < num_vertices; ++i)
+            {
+                ModelVertex vertex(dunno_size);
+                std::memcpy(&vertex.x, &data[curr_offset], sizeof(vertex.x));
+                curr_offset += sizeof(vertex.x);
+
+                std::memcpy(&vertex.z, &data[curr_offset], sizeof(vertex.z));
+                curr_offset += sizeof(vertex.z);
+
+                std::memcpy(&vertex.y, &data[curr_offset], sizeof(vertex.y));
+                vertex.y = -vertex.y;
+                curr_offset += sizeof(vertex.y);
+
+                std::memcpy(vertex.dunno.data(), &data[curr_offset], dunno_size * sizeof(float));
+                curr_offset += dunno_size * sizeof(float);
+
+                vertices[i] = vertex;
+
+                // Update min, max, and sum for each coordinate
+                minX = std::min(minX, vertex.x);
+                maxX = std::max(maxX, vertex.x);
+                minY = std::min(minY, vertex.y);
+                maxY = std::max(maxY, vertex.y);
+                minZ = std::min(minZ, vertex.z);
+                maxZ = std::max(maxZ, vertex.z);
+                sumX += vertex.x;
+                sumY += vertex.y;
+                sumZ += vertex.z;
+            }
+
+            // Calculate the averages
+            avgX = sumX / num_vertices;
+            avgY = sumY / num_vertices;
+            avgZ = sumZ / num_vertices;
+        }
+        else
+        {
+            parsed_correctly = false;
+        }
+        uint32_t extra_data_size = (u0 + u1 + u2 * 3) * 4;
+        if (curr_offset + extra_data_size < data_size_bytes)
+        {
+            extra_data.resize(extra_data_size);
+            std::memcpy(indices.data(), &data[curr_offset], extra_data.size());
+            curr_offset += extra_data.size();
+        }
+        else
+        {
+            parsed_correctly = false;
+        }
+    }
+};
+
 struct GeometryChunk
 {
     uint32_t chunk_id;
@@ -84,22 +218,8 @@ struct GeometryChunk
     std::vector<uint8_t> unknown;
     std::vector<uint8_t> unknown2;
     std::vector<uint8_t> unknown3;
-    uint32_t some_array_size;
-    std::vector<uint8_t> some_array;
-    uint32_t num_indices;
-    uint32_t num_indices_cpy;
-    uint32_t num_indices_cpy2;
-    uint32_t num_vertices;
-    uint32_t dat_fvf;
-    std::vector<uint8_t> unknown1;
-    std::vector<uint16_t> indices;
-    std::vector<ModelVertex> vertices;
+    std::vector<GeometryModel> models;
     std::vector<uint8_t> chunk_data;
-
-    float minX = std::numeric_limits<float>::max(), maxX = std::numeric_limits<float>::min();
-    float minY = std::numeric_limits<float>::max(), maxY = std::numeric_limits<float>::min();
-    float minZ = std::numeric_limits<float>::max(), maxZ = std::numeric_limits<float>::min();
-    float sumX = 0, sumY = 0, sumZ = 0;
 
     GeometryChunk() = default;
 
@@ -111,7 +231,7 @@ struct GeometryChunk
         int curr_offset = offset + 8;
         sub_1 = Chunk1_sub1(&data[curr_offset]);
         curr_offset += sizeof(sub_1);
-        if (sub_1.num_models_maybe > 0)
+        if (sub_1.num_models > 0)
         {
 
             uint32_t unknown_size =
@@ -138,101 +258,11 @@ struct GeometryChunk
                 curr_offset += unknown3_size;
             }
 
-            std::memcpy(&some_array_size, &data[curr_offset], sizeof(some_array_size));
-            curr_offset += sizeof(some_array_size);
-
-            if (some_array_size > 18 && some_array_size + 8 < chunk_size &&
-                curr_offset + some_array_size + 8 < data_size_bytes)
+            for (int i = 0; i < sub_1.num_models; i++)
             {
-                some_array.resize(some_array_size + 8);
-                std::memcpy(some_array.data(), &data[curr_offset], some_array_size + 8);
-                curr_offset += some_array.size();
-            }
-
-            std::memcpy(&num_indices, &data[curr_offset], sizeof(num_indices));
-            curr_offset += sizeof(num_indices);
-
-            std::memcpy(&num_indices_cpy, &data[curr_offset], sizeof(num_indices_cpy));
-            curr_offset += sizeof(num_indices_cpy);
-
-            std::memcpy(&num_indices_cpy2, &data[curr_offset], sizeof(num_indices_cpy2));
-            curr_offset += sizeof(num_indices_cpy2);
-            if (num_indices != num_indices_cpy || num_indices_cpy != num_indices_cpy2 ||
-                num_indices * 2 > chunk_size)
-            {
-                parsed_correctly = false;
-            }
-
-            std::memcpy(&num_vertices, &data[curr_offset], sizeof(num_vertices));
-            curr_offset += sizeof(num_vertices);
-
-            std::memcpy(&dat_fvf, &data[curr_offset], sizeof(dat_fvf));
-            curr_offset += sizeof(dat_fvf);
-
-            uint32_t unknown1_size = 12;
-            unknown1.resize(unknown1_size);
-            std::memcpy(unknown1.data(), &data[curr_offset], unknown1_size);
-            curr_offset += unknown1_size;
-
-            uint32_t vertex_size = get_vertex_size_from_fvf(get_fvf(dat_fvf));
-            size_t dunno_size = (vertex_size - 3 * sizeof(float)) / sizeof(float);
-
-            indices.resize(num_indices);
-            std::memcpy(indices.data(), &data[curr_offset], num_indices * sizeof(uint16_t));
-            curr_offset += num_indices * sizeof(uint16_t);
-
-            if (vertex_size > 0 && num_vertices * vertex_size < chunk_size)
-            {
-
-                vertices.resize(num_vertices);
-                for (uint32_t i = 0; i < num_vertices; ++i)
-                {
-                    ModelVertex vertex(dunno_size);
-                    std::memcpy(&vertex.x, &data[curr_offset], sizeof(vertex.x));
-                    curr_offset += sizeof(vertex.x);
-
-                    std::memcpy(&vertex.z, &data[curr_offset], sizeof(vertex.z));
-                    curr_offset += sizeof(vertex.z);
-
-                    std::memcpy(&vertex.y, &data[curr_offset], sizeof(vertex.y));
-                    vertex.y = -vertex.y;
-                    curr_offset += sizeof(vertex.y);
-
-                    std::memcpy(vertex.dunno.data(), &data[curr_offset], dunno_size * sizeof(float));
-                    curr_offset += dunno_size * sizeof(float);
-
-                    vertices[i] = vertex;
-
-                    // Update min, max, and sum for each coordinate
-                    minX = std::min(minX, vertex.x);
-                    maxX = std::max(maxX, vertex.x);
-                    minY = std::min(minY, vertex.y);
-                    maxY = std::max(maxY, vertex.y);
-                    minZ = std::min(minZ, vertex.z);
-                    maxZ = std::max(maxZ, vertex.z);
-                    sumX += vertex.x;
-                    sumY += vertex.y;
-                    sumZ += vertex.z;
-                }
-
-                // Calculate the averages
-                float avgX = sumX / num_vertices;
-                float avgY = sumY / num_vertices;
-                float avgZ = sumZ / num_vertices;
-
-                // Check if the distance between min and max exceeds 5000 for any coordinate
-                // This is because I havent reversed engineered the model file fully.
-                // so sometimes the model is parsed incorrectly.
-                //if (maxX - minX > 1000 || maxY - minY > 1000 || maxZ - minZ > 1000 || maxX > 30000 ||
-                //    maxY > 30000 || maxZ > 30000 || minX < -30000 || minY < -30000 || minZ < -30000 ||
-                //    std::fabs(avgX) > 30000 || std::fabs(avgY) > 30000 || std::fabs(minZ) > 30000)
-                //{
-                //    parsed_correctly = false;
-                //}
-            }
-            else
-            {
-                parsed_correctly = false;
+                auto new_model =
+                  GeometryModel(curr_offset, data, data_size_bytes, parsed_correctly, chunk_size);
+                models.push_back(new_model);
             }
         }
         else
@@ -297,14 +327,18 @@ struct FFNA_ModelFile
         }
     }
 
-    Mesh GetMesh()
+    Mesh GetMesh(int model_index)
     {
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
 
-        for (int i = 0; i < geometry_chunk.vertices.size(); i++)
+        //auto sub_model = geometry_chunk.models[model_index];
+        //if (sub_model.unknown != model_index)
+        //    return Mesh({}, {});
+
+        for (int i = 0; i < sub_model.vertices.size(); i++)
         {
-            ModelVertex model_vertex = geometry_chunk.vertices[i];
+            ModelVertex model_vertex = sub_model.vertices[i];
             Vertex vertex;
 
             vertex.position = XMFLOAT3(model_vertex.x, model_vertex.y, model_vertex.z);
@@ -312,11 +346,19 @@ struct FFNA_ModelFile
             vertices.push_back(vertex);
         }
 
-        for (int i = 0; i < geometry_chunk.indices.size(); i += 3)
+        for (int i = 0; i < sub_model.total_num_indices; i += 3)
         {
-            int index0 = geometry_chunk.indices[i];
-            int index1 = geometry_chunk.indices[i + 1];
-            int index2 = geometry_chunk.indices[i + 2];
+            int index0 = sub_model.indices[i];
+            int index1 = sub_model.indices[i + 1];
+            int index2 = sub_model.indices[i + 2];
+
+            if (index0 >= vertices.size() || index1 >= vertices.size() || index2 >= vertices.size())
+            {
+                return Mesh({}, {});
+            }
+
+            //if (index0 == index1 || index0 == index2 || index1 == index2)
+            //    continue;
 
             XMFLOAT3 normal =
               compute_normal(vertices[index0].position, vertices[index1].position, vertices[index2].position);

@@ -38,7 +38,7 @@ void draw_prop_model_info(const FFNA_ModelFile& model)
             ImGui::Unindent();
 
             ImGui::Text("f0x2C: %u", sub_1.f0x2C);
-            ImGui::Text("num_some_struct: %u", sub_1.num_some_struct);
+            ImGui::Text("num_some_struct0: %u", sub_1.num_some_struct0);
 
             ImGui::Text("f0x31:");
             ImGui::Indent();
@@ -51,7 +51,7 @@ void draw_prop_model_info(const FFNA_ModelFile& model)
             ImGui::Text("f0x38: %u", sub_1.f0x38);
             ImGui::Text("f0x3C: %u", sub_1.f0x3C);
             ImGui::Text("f0x40: %u", sub_1.f0x40);
-            ImGui::Text("num_models_maybe: %u", sub_1.num_models_maybe);
+            ImGui::Text("num_models: %u", sub_1.num_models);
             ImGui::Text("f0x48: %u", sub_1.f0x48);
             ImGui::Text("f0x4C: %hu", sub_1.f0x4C);
 
@@ -77,55 +77,71 @@ void draw_prop_model_info(const FFNA_ModelFile& model)
             }
             ImGui::TreePop();
         }
-
-        ImGui::Text("Zero Maybe: %u", geometry_chunk.some_array_size);
-        ImGui::Text("Num Indices: %u", geometry_chunk.num_indices);
-        ImGui::Text("Num Indices copy: %u", geometry_chunk.num_indices_cpy);
-        ImGui::Text("Num Indices copy 2: %u", geometry_chunk.num_indices_cpy2);
-        ImGui::Text("Num vertices: %u", geometry_chunk.num_vertices);
-
-        const auto dat_fvf_hash_text =
-          std::format("0x{:X} ({})", geometry_chunk.dat_fvf, geometry_chunk.dat_fvf);
-        ImGui::Text("DAT FVF: %s", dat_fvf_hash_text.c_str());
-
-        if (ImGui::TreeNode("Unknown1"))
+        for (int j = 0; j < geometry_chunk.models.size(); j++)
         {
-            for (size_t i = 0; i < geometry_chunk.unknown1.size(); ++i)
+            auto sub_model = geometry_chunk.models[j];
+            auto tree_name = std::format("Sub model - {}", j);
+            if (ImGui::TreeNode(tree_name.c_str()))
             {
-                ImGui::Text("unknown1[%zu]: %u", i, geometry_chunk.unknown1[i]);
-            }
-            ImGui::TreePop();
-        }
 
-        if (ImGui::TreeNode("Indices"))
-        {
-            for (size_t i = 0; i < geometry_chunk.indices.size(); ++i)
-            {
-                ImGui::Text("indices[%zu]: %hu", i, geometry_chunk.indices[i]);
-            }
-            ImGui::TreePop();
-        }
+                ImGui::Text("Unknown: %u", sub_model.unknown);
+                ImGui::Text("Num Indices 0 : %u", sub_model.num_indices0);
+                ImGui::Text("Num Indices 1: %u", sub_model.num_indices1);
+                ImGui::Text("Num Indices 2: %u", sub_model.num_indices2);
+                ImGui::Text("Total num indices: %u", sub_model.total_num_indices);
+                ImGui::Text("Num vertices: %u", sub_model.num_vertices);
 
-        if (ImGui::TreeNode("Vertices"))
-        {
-            for (size_t i = 0; i < geometry_chunk.vertices.size(); ++i)
-            {
-                const ModelVertex& vertex = geometry_chunk.vertices[i];
-                if (ImGui::TreeNodeEx((void*)(intptr_t)i, ImGuiTreeNodeFlags_DefaultOpen, "vertices[%zu]", i))
+                const auto dat_fvf_hash_text =
+                  std::format("0x{:X} ({})", sub_model.dat_fvf, sub_model.dat_fvf);
+                ImGui::Text("DAT FVF: %s", dat_fvf_hash_text.c_str());
+
+                ImGui::Text("u0: %u", sub_model.num_indices0);
+                ImGui::Text("u1: %u", sub_model.num_indices1);
+                ImGui::Text("u2: copy 2: %u", sub_model.num_indices2);
+
+                if (ImGui::TreeNode("Indices"))
                 {
-                    ImGui::Text("x: %.3f, y: %.3f, z: %.3f", vertex.x, vertex.y, vertex.z);
-                    if (ImGui::TreeNode("Dunno Data"))
+                    for (size_t i = 0; i < sub_model.indices.size(); ++i)
                     {
-                        for (size_t j = 0; j < vertex.dunno.size(); ++j)
-                        {
-                            ImGui::Text("dunno[%zu]: %.3f", j, vertex.dunno[j]);
-                        }
-                        ImGui::TreePop();
+                        ImGui::Text("indices[%zu]: %hu", i, sub_model.indices[i]);
                     }
                     ImGui::TreePop();
                 }
+
+                if (ImGui::TreeNode("Vertices"))
+                {
+                    for (size_t i = 0; i < sub_model.vertices.size(); ++i)
+                    {
+                        const ModelVertex& vertex = sub_model.vertices[i];
+                        if (ImGui::TreeNodeEx((void*)(intptr_t)i, ImGuiTreeNodeFlags_DefaultOpen,
+                                              "vertices[%zu]", i))
+                        {
+                            ImGui::Text("x: %.3f, y: %.3f, z: %.3f", vertex.x, vertex.y, vertex.z);
+                            if (ImGui::TreeNode("Dunno Data"))
+                            {
+                                for (size_t j = 0; j < vertex.dunno.size(); ++j)
+                                {
+                                    ImGui::Text("dunno[%zu]: %.3f", j, vertex.dunno[j]);
+                                }
+                                ImGui::TreePop();
+                            }
+                            ImGui::TreePop();
+                        }
+                    }
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Extra data"))
+                {
+                    for (size_t i = 0; i < sub_model.extra_data.size(); ++i)
+                    {
+                        ImGui::Text("extra_data[%zu]: %u", i, sub_model.extra_data[i]);
+                    }
+                    ImGui::TreePop();
+                }
+
+                ImGui::TreePop();
             }
-            ImGui::TreePop();
         }
 
         if (ImGui::TreeNode("Chunk Data"))
