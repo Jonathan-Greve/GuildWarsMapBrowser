@@ -332,7 +332,7 @@ struct FFNA_ModelFile
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
 
-        //auto sub_model = geometry_chunk.models[model_index];
+        auto sub_model = geometry_chunk.models[model_index];
         //if (sub_model.unknown != model_index)
         //    return Mesh({}, {});
 
