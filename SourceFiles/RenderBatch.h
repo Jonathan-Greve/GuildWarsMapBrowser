@@ -16,6 +16,7 @@ public:
     {
         m_commands.erase(mesh_id);
         m_sortedCommands.erase(mesh_id);
+        m_needsSorting = true;
     }
 
     void SortCommands()
