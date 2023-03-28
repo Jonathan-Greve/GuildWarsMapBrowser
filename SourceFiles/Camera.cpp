@@ -49,6 +49,9 @@ void Camera::SetFrustumAsOrthographic(float view_width, float view_height, float
     m_viewWidth = view_width;
     m_viewHeight = view_height;
 
+    m_nearZ = zn;
+    m_farZ = zf;
+
     m_camera_type = CameraType::Orthographic;
 }
 
