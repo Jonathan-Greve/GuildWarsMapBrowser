@@ -82,28 +82,31 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
                 {
                     if (ffna_model_file_ptr->parsed_correctly)
                     {
+                        std::vector<Mesh> prop_meshes;
                         for (int j = 0; j < ffna_model_file_ptr->geometry_chunk.models.size(); j++)
                         {
                             Mesh prop_mesh = ffna_model_file_ptr->GetMesh(j);
-                            if (prop_mesh.indices.size() > 10)
+                            if ((prop_mesh.indices.size() % 3) == 0)
                             {
-
-                                PerObjectCB per_object_cb;
-                                DirectX::XMFLOAT3 translation(prop_info.x, prop_info.y, prop_info.z);
-                                float cos_angle = prop_info.cos_angle;
-                                float sin_angle = prop_info.sin_angle;
-                                float rotation_angle = std::atan2(
-                                  sin_angle,
-                                  cos_angle); // Calculate the rotation angle from the sine and cosine values
-
-                                DirectX::XMMATRIX transform_matrix = DirectX::XMMatrixMultiply(
-                                  DirectX::XMMatrixRotationY(std::acos(cos_angle) + XM_PI / 2.0f),
-                                  DirectX::XMMatrixTranslationFromVector(XMLoadFloat3(&translation)));
-
-                                DirectX::XMStoreFloat4x4(&per_object_cb.world, transform_matrix);
-                                int mesh_id = map_renderer->AddProp(prop_mesh, per_object_cb);
+                                prop_meshes.push_back(prop_mesh);
                             }
                         }
+
+                        PerObjectCB per_object_cb;
+                        DirectX::XMFLOAT3 translation(prop_info.x, prop_info.y, prop_info.z);
+                        float cos_angle = prop_info.cos_angle;
+                        float sin_angle = prop_info.sin_angle;
+                        float rotation_angle = std::atan2(
+                          sin_angle,
+                          cos_angle); // Calculate the rotation angle from the sine and cosine values
+
+                        DirectX::XMMATRIX transform_matrix = DirectX::XMMatrixMultiply(
+                          DirectX::XMMatrixRotationY(std::acos(cos_angle) + XM_PI / 2.0f),
+                          DirectX::XMMatrixTranslationFromVector(XMLoadFloat3(&translation)));
+
+                        DirectX::XMStoreFloat4x4(&per_object_cb.world, transform_matrix);
+
+                        auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cb, i);
                     }
                 }
             }
