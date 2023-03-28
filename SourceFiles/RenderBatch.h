@@ -87,7 +87,7 @@ public:
         return result;
     }
 
-    RenderCommand* GetCommand(int mesh_id)
+    const RenderCommand* const GetCommand(int mesh_id)
     {
         auto it = m_commands.find(mesh_id);
         if (it != m_commands.end())
@@ -95,6 +95,20 @@ public:
             return &it->second;
         }
         return nullptr;
+    }
+
+    bool SetPixelShader(int mesh_id, PixelShaderType pixel_shader_type)
+    {
+        auto it = m_commands.find(mesh_id);
+        if (it != m_commands.end())
+        {
+            it->second.pixelShaderType = pixel_shader_type;
+            m_needsSorting = true;
+
+            return true;
+        }
+
+        return false;
     }
 
 private:

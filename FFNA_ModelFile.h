@@ -82,6 +82,144 @@ struct Chunk1_sub1
     Chunk1_sub1(const unsigned char* data) { std::memcpy(this, data, sizeof(*this)); }
 };
 
+struct ComplexStruct
+{
+    uint32_t unknown0;
+    uint32_t unknown1;
+    uint32_t u0x0;
+    uint32_t u0x4;
+    uint32_t u0x8;
+    uint32_t u0xC;
+    uint16_t u0x10;
+    uint8_t u0x12;
+    uint8_t u0x13;
+    uint16_t u0x14;
+    uint32_t u0x16;
+    uint32_t u0x1A;
+    uint32_t u0x1E;
+    uint16_t u0x22;
+    uint16_t u0x24;
+    uint16_t u0x26;
+    uint16_t u0x28;
+    uint32_t u0x2A;
+
+    std::vector<uint8_t> struct_data;
+
+    ComplexStruct() = default;
+    ComplexStruct(uint32_t& curr_offset, const unsigned char* data, uint32_t data_size_bytes,
+                  bool& parsed_correctly, Chunk1_sub1& sub_1)
+    {
+        if ((sub_1.f0x8 & 0x20) == 0)
+            return;
+
+        if (curr_offset + 8 > data_size_bytes)
+        {
+            parsed_correctly = false;
+            return;
+        }
+        else
+        {
+            uint32_t unknown0;
+            uint32_t unknown1;
+        }
+
+        if (curr_offset + 8 + 0x2E > data_size_bytes)
+        {
+            parsed_correctly = false;
+            return;
+        }
+
+        unknown0 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
+        curr_offset += sizeof(uint32_t);
+
+        unknown1 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
+        curr_offset += sizeof(uint32_t);
+
+        u0x0 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
+        curr_offset += sizeof(uint32_t);
+
+        u0x4 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
+        curr_offset += sizeof(uint32_t);
+
+        u0x8 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
+        curr_offset += sizeof(uint32_t);
+
+        u0xC = *reinterpret_cast<const uint32_t*>(data + curr_offset);
+        curr_offset += sizeof(uint32_t);
+
+        u0x10 = *reinterpret_cast<const uint16_t*>(data + curr_offset);
+        curr_offset += sizeof(uint16_t);
+
+        u0x12 = *reinterpret_cast<const uint8_t*>(data + curr_offset);
+        curr_offset += sizeof(uint8_t);
+
+        u0x13 = *reinterpret_cast<const uint8_t*>(data + curr_offset);
+        curr_offset += sizeof(uint8_t);
+
+        u0x14 = *reinterpret_cast<const uint16_t*>(data + curr_offset);
+        curr_offset += sizeof(uint16_t);
+
+        u0x16 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
+        curr_offset += sizeof(uint32_t);
+
+        u0x1A = *reinterpret_cast<const uint32_t*>(data + curr_offset);
+        curr_offset += sizeof(uint32_t);
+
+        u0x1E = *reinterpret_cast<const uint32_t*>(data + curr_offset);
+        curr_offset += sizeof(uint32_t);
+
+        u0x22 = *reinterpret_cast<const uint16_t*>(data + curr_offset);
+        curr_offset += sizeof(uint16_t);
+
+        u0x24 = *reinterpret_cast<const uint16_t*>(data + curr_offset);
+        curr_offset += sizeof(uint16_t);
+
+        u0x26 = *reinterpret_cast<const uint16_t*>(data + curr_offset);
+        curr_offset += sizeof(uint16_t);
+
+        u0x28 = *reinterpret_cast<const uint16_t*>(data + curr_offset);
+        curr_offset += sizeof(uint16_t);
+
+        u0x2A = *reinterpret_cast<const uint32_t*>(data + curr_offset);
+        curr_offset += sizeof(uint32_t);
+
+        uint32_t uVar2 = u0x14;
+        uint32_t iVar3 = 0;
+        if ((u0xC & 2) == 0)
+        {
+            iVar3 = uVar2 - u0x28;
+        }
+        uint32_t uVar4 = uVar2;
+        if ((u0xC & 0x40) == 0)
+        {
+            uVar4 = u0x1A;
+        }
+
+        uint32_t res0 = (u0x26 + u0x24) * 2;
+        res0 += u0x22;
+        res0 += u0x4;
+        res0 += uVar4;
+        res0 += u0x0;
+
+        uint32_t res1 = (iVar3 + u0x1E * 2) * 9;
+        uint32_t res2 = res1 + res0 * 2 + u0x2A + u0x16;
+        uint32_t res3 = (u0x13 * 8 + 0xC) * uVar2;
+
+        uint32_t size = res3 + res2 * 2;
+
+        if (curr_offset + size < data_size_bytes)
+        {
+            struct_data.resize(size);
+            std::memcpy(struct_data.data(), &data[curr_offset], struct_data.size());
+            curr_offset += size;
+        }
+        else
+        {
+            parsed_correctly = false;
+        }
+    }
+};
+
 struct GeometryModel
 {
     uint32_t unknown;
@@ -106,8 +244,8 @@ struct GeometryModel
     float sumX = 0, sumY = 0, sumZ = 0, avgX = 0, avgY = 0, avgZ = 0;
 
     GeometryModel() = default;
-    GeometryModel(int& curr_offset, const unsigned char* data, int data_size_bytes, bool& parsed_correctly,
-                  int chunk_size)
+    GeometryModel(uint32_t& curr_offset, const unsigned char* data, uint32_t data_size_bytes,
+                  bool& parsed_correctly, int chunk_size)
     {
         std::memcpy(&unknown, &data[curr_offset], sizeof(unknown));
         curr_offset += sizeof(unknown);
@@ -142,10 +280,10 @@ struct GeometryModel
         total_num_indices = num_indices0 + (num_indices0 != num_indices1) * num_indices1 +
           (num_indices1 != num_indices2) * num_indices2;
 
-        if (curr_offset + total_num_indices * 2 < data_size_bytes)
+        if (curr_offset + total_num_indices * 2 < data_size_bytes && total_num_indices < 1000000)
         {
             indices.resize(total_num_indices);
-            std::memcpy(indices.data(), &data[curr_offset], total_num_indices * 2);
+            std::memcpy(indices.data(), &data[curr_offset], indices.size() * 2);
             curr_offset += total_num_indices * 2;
         }
         else
@@ -200,7 +338,7 @@ struct GeometryModel
         if (curr_offset + extra_data_size < data_size_bytes)
         {
             extra_data.resize(extra_data_size);
-            std::memcpy(indices.data(), &data[curr_offset], extra_data.size());
+            std::memcpy(indices.data(), &data[curr_offset], extra_data_size);
             curr_offset += extra_data.size();
         }
         else
@@ -218,17 +356,19 @@ struct GeometryChunk
     std::vector<uint8_t> unknown;
     std::vector<uint8_t> unknown2;
     std::vector<uint8_t> unknown3;
+    ComplexStruct complex_struct;
     std::vector<GeometryModel> models;
     std::vector<uint8_t> chunk_data;
 
     GeometryChunk() = default;
 
-    GeometryChunk(int offset, const unsigned char* data, int data_size_bytes, bool& parsed_correctly)
+    GeometryChunk(uint32_t offset, const unsigned char* data, uint32_t data_size_bytes,
+                  bool& parsed_correctly)
     {
         std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
         std::memcpy(&chunk_size, &data[offset + 4], sizeof(chunk_size));
 
-        int curr_offset = offset + 8;
+        uint32_t curr_offset = offset + 8;
         sub_1 = Chunk1_sub1(&data[curr_offset]);
         curr_offset += sizeof(sub_1);
         if (sub_1.num_models > 0)
@@ -242,6 +382,8 @@ struct GeometryChunk
                 std::memcpy(unknown.data(), &data[curr_offset], unknown_size);
                 curr_offset += unknown_size;
             }
+
+            complex_struct = ComplexStruct(curr_offset, data, data_size_bytes, parsed_correctly, sub_1);
 
             if (sub_1.num_some_struct2 > 0)
             {
@@ -271,9 +413,9 @@ struct GeometryChunk
         }
 
         // Copy remaining chunk_data after reading all other fields
-        if (curr_offset < chunk_size + 8)
+        size_t remaining_bytes = chunk_size + 5 + 8 - curr_offset;
+        if (curr_offset + remaining_bytes <= offset + chunk_size + 8)
         {
-            size_t remaining_bytes = chunk_size + 5 + 8 - curr_offset;
             chunk_data.resize(remaining_bytes);
             std::memcpy(chunk_data.data(), &data[curr_offset], remaining_bytes);
         }
@@ -299,7 +441,7 @@ struct FFNA_ModelFile
     FFNA_ModelFile() = default;
     FFNA_ModelFile(int offset, std::span<unsigned char>& data)
     {
-        int current_offset = offset;
+        uint32_t current_offset = offset;
 
         std::memcpy(ffna_signature, &data[offset], sizeof(ffna_signature));
         std::memcpy(&ffna_type, &data[offset], sizeof(ffna_type));

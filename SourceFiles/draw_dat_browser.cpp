@@ -66,8 +66,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
                 auto type = items[mft_entry_it->second.at(0)].type;
                 if (type == FFNA_Type2)
                 {
-                    auto map_model = dat_manager.parse_ffna_model_file(mft_entry_it->second.at(0));
-                    selected_map_files.emplace_back(map_model);
+                    selected_map_files.emplace_back(
+                      dat_manager.parse_ffna_model_file(mft_entry_it->second.at(0)));
                 }
             }
         }
