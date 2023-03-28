@@ -106,18 +106,10 @@ public:
         if (found)
         {
             // Update the RenderCommand in the RenderBatch
-            for (RenderCommand& command : m_renderBatch.GetCommands())
-            {
-                if (command.meshInstance->GetMeshID() == mesh_id)
-                {
-                    command.pixelShaderType = pixel_shader_type;
-                    m_needsUpdate = true;
-                    break;
-                }
-            }
+            return m_renderBatch.SetPixelShader(mesh_id, pixel_shader_type);
         }
 
-        return found;
+        return false;
     }
 
     bool RemoveMesh(int meshID)
@@ -200,7 +192,7 @@ public:
 
     bool GetMeshShouldRender(int mesh_id)
     {
-        RenderCommand* command = m_renderBatch.GetCommand(mesh_id);
+        auto* command = m_renderBatch.GetCommand(mesh_id);
         if (command)
         {
             return command->should_render;
@@ -213,9 +205,10 @@ public:
     {
         if (m_needsUpdate)
         {
-            m_renderBatch.SortCommands();
             m_needsUpdate = false;
         }
+
+        m_renderBatch.SortCommands();
     }
 
     void Render(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders)
