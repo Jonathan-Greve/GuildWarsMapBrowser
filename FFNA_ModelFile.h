@@ -282,8 +282,8 @@ struct GeometryModel
 
         if (curr_offset + total_num_indices * 2 < data_size_bytes && total_num_indices < 1000000)
         {
-            indices.resize(total_num_indices);
-            std::memcpy(indices.data(), &data[curr_offset], indices.size() * 2);
+            indices.resize(total_num_indices * 2);
+            std::memcpy(indices.data(), &data[curr_offset], total_num_indices * 2);
             curr_offset += total_num_indices * 2;
         }
         else
@@ -335,10 +335,10 @@ struct GeometryModel
             parsed_correctly = false;
         }
         uint32_t extra_data_size = (u0 + u1 + u2 * 3) * 4;
-        if (curr_offset + extra_data_size < data_size_bytes)
+        if (curr_offset + extra_data_size < data_size_bytes && u0 < 10000 && u1 < 10000 && u2 < 10000)
         {
             extra_data.resize(extra_data_size);
-            std::memcpy(indices.data(), &data[curr_offset], extra_data_size);
+            std::memcpy(extra_data.data(), &data[curr_offset], extra_data_size);
             curr_offset += extra_data.size();
         }
         else
@@ -414,7 +414,7 @@ struct GeometryChunk
 
         // Copy remaining chunk_data after reading all other fields
         size_t remaining_bytes = chunk_size + 5 + 8 - curr_offset;
-        if (curr_offset + remaining_bytes <= offset + chunk_size + 8)
+        if (curr_offset + remaining_bytes <= offset + chunk_size + 8 && remaining_bytes < chunk_size)
         {
             chunk_data.resize(remaining_bytes);
             std::memcpy(chunk_data.data(), &data[curr_offset], remaining_bytes);
@@ -488,7 +488,7 @@ struct FFNA_ModelFile
             vertices.push_back(vertex);
         }
 
-        for (int i = 0; i < sub_model.total_num_indices; i += 3)
+        for (int i = 0; i < sub_model.indices.size(); i += 3)
         {
             int index0 = sub_model.indices[i];
             int index1 = sub_model.indices[i + 1];
