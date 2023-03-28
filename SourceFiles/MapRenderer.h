@@ -147,8 +147,7 @@ public:
     {
         if (m_is_terrain_mesh_set)
         {
-            m_mesh_manager->RemoveMesh(m_terrain_mesh_id);
-            m_is_terrain_mesh_set = false;
+            UnsetTerrain();
         }
 
         if (! m_pixel_shaders.contains(PixelShaderType::TerrainCheckered))
@@ -205,6 +204,11 @@ public:
         {
             m_mesh_manager->RemoveMesh(m_terrain_mesh_id);
             m_is_terrain_mesh_set = false;
+        }
+
+        for (const auto mesh_id : m_prop_mesh_ids)
+        {
+            m_mesh_manager->RemoveMesh(mesh_id);
         }
 
         m_prop_mesh_ids.clear();
