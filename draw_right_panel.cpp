@@ -125,12 +125,12 @@ void draw_right_panel(MapRenderer* map_renderer)
             }
         }
 
-        if (ImGui::SliderFloat("Near frustum z-plane", &near_z, 100, 100000))
+        if (ImGui::SliderFloat("Near frustum z-plane", &near_z, 1, 200000))
         {
             camera_projection_settings_changed = true;
         }
 
-        if (ImGui::SliderFloat("Far frustum z-plane", &far_z, near_z, near_z + 100000))
+        if (ImGui::SliderFloat("Far frustum z-plane", &far_z, near_z + 1, near_z + 200000))
         {
             camera_projection_settings_changed = true;
         }
