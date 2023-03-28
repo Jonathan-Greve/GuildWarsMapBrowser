@@ -206,24 +206,34 @@ public:
             m_is_terrain_mesh_set = false;
         }
 
-        for (const auto mesh_id : m_prop_mesh_ids)
+        for (const auto& [model_id, model_prop_ids] : m_prop_mesh_ids)
         {
-            m_mesh_manager->RemoveMesh(mesh_id);
+            for (const auto mesh_id : model_prop_ids)
+            {
+                m_mesh_manager->RemoveMesh(mesh_id);
+            }
         }
 
         m_prop_mesh_ids.clear();
     }
 
-    bool AddProp(Mesh mesh, PerObjectCB per_object_cb)
+    // A prop consists of 1+ sub models/meshes.
+    std::vector<int> AddProp(std::vector<Mesh> meshes, PerObjectCB per_object_cb, uint32_t model_id)
     {
-        int mesh_id = m_mesh_manager->AddCustomMesh(mesh);
-        m_mesh_manager->UpdateMeshPerObjectData(mesh_id, per_object_cb);
-        m_prop_mesh_ids.push_back(mesh_id);
+        std::vector<int> mesh_ids;
+        for (const auto& mesh : meshes)
+        {
+            int mesh_id = m_mesh_manager->AddCustomMesh(mesh);
+            m_mesh_manager->UpdateMeshPerObjectData(mesh_id, per_object_cb);
+            mesh_ids.push_back(mesh_id);
+        }
 
-        return mesh_id;
+        m_prop_mesh_ids.push_back({model_id, mesh_ids});
+
+        return mesh_ids;
     }
 
-    std::vector<int>& GetPropsMeshIds() { return m_prop_mesh_ids; }
+    std::vector<std::pair<uint32_t, std::vector<int>>>& GetPropsMeshIds() { return m_prop_mesh_ids; }
 
     PixelShaderType GetTerrainPixelShaderType() { return m_terrain_current_pixel_shader_type; }
     void SetTerrainPixelShaderType(PixelShaderType pixel_shader_type)
@@ -367,7 +377,7 @@ private:
     std::unique_ptr<Terrain> m_terrain;
     PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainCheckered;
 
-    std::vector<int> m_prop_mesh_ids;
+    std::vector<std::pair<uint32_t, std::vector<int>>> m_prop_mesh_ids;
 
     bool m_is_terrain_mesh_set = false;
     int m_terrain_mesh_id = -1;
