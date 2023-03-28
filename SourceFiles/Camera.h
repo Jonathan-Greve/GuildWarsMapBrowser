@@ -72,8 +72,8 @@ public:
 
     float GetPitch() const;
 
-    float m_walk_speed = 20.0f;
-    float m_strafe_speed = 20.0f;
+    float m_walk_speed = 80.0f;
+    float m_strafe_speed = 80.0f;
 
 private:
     void UpdateViewMatrix();
