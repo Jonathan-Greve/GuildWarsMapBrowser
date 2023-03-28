@@ -183,34 +183,71 @@ void draw_right_panel(MapRenderer* map_renderer)
                                         ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
     if (ImGui::Begin("Props Visibility", NULL, window_flags))
     {
-        std::vector<int>& propsMeshIds = map_renderer->GetPropsMeshIds();
+        auto& propsMeshIds = map_renderer->GetPropsMeshIds();
 
         // Set all and Clear all buttons
         if (ImGui::Button("Set all"))
         {
-            for (int mesh_id : propsMeshIds)
+            for (const auto& [prop_id, mesh_ids] : propsMeshIds)
             {
-                map_renderer->SetMeshShouldRender(mesh_id, true);
+                for (int mesh_id : mesh_ids)
+                {
+                    map_renderer->SetMeshShouldRender(mesh_id, true);
+                }
             }
         }
         ImGui::SameLine();
         if (ImGui::Button("Clear all"))
         {
-            for (int mesh_id : propsMeshIds)
+            for (const auto& [prop_id, mesh_ids] : propsMeshIds)
             {
-                map_renderer->SetMeshShouldRender(mesh_id, false);
+                for (int mesh_id : mesh_ids)
+                {
+                    map_renderer->SetMeshShouldRender(mesh_id, false);
+                }
             }
         }
 
         // Props visibility checkboxes
-        for (int mesh_id : propsMeshIds)
+        for (const auto& [prop_id, mesh_ids] : propsMeshIds)
         {
-            std::string label = "Prop " + std::to_string(mesh_id);
-            bool should_render = map_renderer->GetMeshShouldRender(mesh_id);
-
-            if (ImGui::Checkbox(label.c_str(), &should_render))
+            std::string label = std::format("Prop - {}", prop_id);
+            if (ImGui::TreeNode(label.c_str()))
             {
-                map_renderer->SetMeshShouldRender(mesh_id, should_render);
+                // Individual Set and Clear buttons for each prop
+                std::string set_label = std::format("Set##{}", prop_id);
+                std::string clear_label = std::format("Clear##{}", prop_id);
+
+                if (ImGui::Button(set_label.c_str()))
+                {
+                    for (int mesh_id : mesh_ids)
+                    {
+                        map_renderer->SetMeshShouldRender(mesh_id, true);
+                    }
+                }
+                ImGui::SameLine();
+                if (ImGui::Button(clear_label.c_str()))
+                {
+                    for (int mesh_id : mesh_ids)
+                    {
+                        map_renderer->SetMeshShouldRender(mesh_id, false);
+                    }
+                }
+
+                for (uint32_t i = 0; i < mesh_ids.size(); i++)
+                {
+                    auto mesh_id = mesh_ids[i];
+
+                    bool should_render = map_renderer->GetMeshShouldRender(mesh_id);
+
+                    auto sub_label = std::format("Mesh id: {}", mesh_id);
+                    if (ImGui::Checkbox(sub_label.c_str(), &should_render))
+                    {
+                        map_renderer->SetMeshShouldRender(mesh_id, should_render);
+                    }
+                }
+
+                ImGui::TreePop();
             }
         }
     }
