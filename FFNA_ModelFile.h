@@ -291,7 +291,7 @@ struct GeometryModel
             parsed_correctly = false;
         }
 
-        if (vertex_size > 0 && num_vertices * vertex_size < chunk_size)
+        if (vertex_size > 0 && num_vertices * vertex_size < chunk_size && num_vertices < 2000000)
         {
 
             vertices.resize(num_vertices);

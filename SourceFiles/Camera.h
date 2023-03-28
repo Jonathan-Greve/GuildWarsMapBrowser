@@ -83,12 +83,12 @@ private:
     float m_aspectRatio = 1;
 
     // Set for orthographic projection
-    float m_viewWidth = 65000;
-    float m_viewHeight = 65000;
+    float m_viewWidth = 100000;
+    float m_viewHeight = 100000;
 
     // Set for both projection types
     float m_nearZ = 0.1;
-    float m_farZ = 50000;
+    float m_farZ = 200000;
 
     XMFLOAT3 m_position;
     XMFLOAT3 m_right;
