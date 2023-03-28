@@ -160,7 +160,7 @@ void draw_left_panel(MapRenderer* map_renderer)
                     {
                         k++;
                         // Use *ffna_model_file_ptr to access the FFNA_ModelFile data
-                        auto id = std::format("({}) {}", i, k);
+                        auto id = std::format("Filename index:{}", i);
                         if (ImGui::TreeNode(id.c_str()))
                         {
                             draw_prop_model_info(*ffna_model_file_ptr);

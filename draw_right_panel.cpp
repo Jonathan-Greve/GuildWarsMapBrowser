@@ -211,7 +211,7 @@ void draw_right_panel(MapRenderer* map_renderer)
         // Props visibility checkboxes
         for (const auto& [prop_id, mesh_ids] : propsMeshIds)
         {
-            std::string label = std::format("Prop - {}", prop_id);
+            std::string label = std::format("Prop index: {}", prop_id);
             if (ImGui::TreeNode(label.c_str()))
             {
                 // Individual Set and Clear buttons for each prop
