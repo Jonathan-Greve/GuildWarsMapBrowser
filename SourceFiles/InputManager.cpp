@@ -65,12 +65,13 @@ void InputManager::OnMouseUp(int x, int y, WPARAM wParam, HWND hWnd, UINT messag
 
     if (message & WM_RBUTTONUP)
     {
-        // Show the cursor
-        ShowCursor(TRUE);
 
         // Set the cursor position to the stored position
         SetCursorPos(right_mouse_button_down_pos.x, right_mouse_button_down_pos.y);
     }
+
+    // Show the cursor
+    ShowCursor(TRUE);
 
     // Release the mouse input
     ReleaseCapture();
