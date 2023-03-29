@@ -94,11 +94,11 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
 
                         PerObjectCB per_object_cb;
                         DirectX::XMFLOAT3 translation(prop_info.x, prop_info.y, prop_info.z);
-                        float cos_angle = prop_info.cos_angle;
                         float sin_angle = prop_info.sin_angle;
+                        float cos_angle = prop_info.cos_angle;
                         float rotation_angle = std::atan2(
-                          cos_angle,
-                          sin_angle); // Calculate the rotation angle from the sine and cosine values
+                          sin_angle,
+                          cos_angle); // Calculate the rotation angle from the sine and cosine values
 
                         float scale = prop_info.scaling_factor;
 
