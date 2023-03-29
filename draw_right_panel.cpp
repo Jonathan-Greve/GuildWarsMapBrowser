@@ -65,6 +65,47 @@ void draw_right_panel(MapRenderer* map_renderer)
     ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
     ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
                                         ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
+
+    if (ImGui::Begin("Lighting", NULL, window_flags))
+    {
+        DirectionalLight directional_light = map_renderer->GetDirectionalLight();
+
+        if (ImGui::SliderFloat3("Light Direction", &directional_light.direction.x, -1.0f, 1.0f, "%.2f", 0))
+        {
+            map_renderer->SetDirectionalLight(directional_light);
+        }
+
+        if (ImGui::ColorEdit4("Ambient Color", &directional_light.ambient.x))
+        {
+            map_renderer->SetDirectionalLight(directional_light);
+        }
+
+        if (ImGui::ColorEdit4("Diffuse Color", &directional_light.diffuse.x))
+        {
+            map_renderer->SetDirectionalLight(directional_light);
+        }
+
+        if (ImGui::ColorEdit4("Specular Color", &directional_light.specular.x))
+        {
+            map_renderer->SetDirectionalLight(directional_light);
+        }
+
+        window_height += ImGui::GetWindowSize().y;
+    }
+    ImGui::End();
+
+    max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
+      (3 * GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
+
+    // Set up the props visibility settings window
+    ImGui::SetNextWindowPos(
+      ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
+               GuiGlobalConstants::panel_padding,
+             GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+    ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
+    ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
+                                        ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
+
     if (ImGui::Begin("Camera and movement", NULL, window_flags))
     {
         bool camera_projection_settings_changed = false;

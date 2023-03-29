@@ -48,6 +48,13 @@ public:
 
         m_input_manager->AddMouseMoveListener(m_user_camera.get());
 
+        // Setup lighting
+        m_directionalLight.ambient = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
+        m_directionalLight.diffuse = XMFLOAT4(0.6f, 0.5f, 0.5f, 1.0f);
+        m_directionalLight.specular = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+        m_directionalLight.direction = XMFLOAT3(0.0f, -1.0f, 0.0f);
+        m_directionalLight.pad = 0.0f;
+
         // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
         auto box_id = m_mesh_manager->AddBox({300, 300, 300});
         auto sphere_id = m_mesh_manager->AddSphere(300, 100, 100);
@@ -127,6 +134,13 @@ public:
     {
         m_user_camera->SetFrustumAsOrthographic(view_width, view_height, near_z, far_z);
     }
+
+    void SetDirectionalLight(DirectionalLight new_directional_light)
+    {
+        m_directionalLight = new_directional_light;
+        m_per_frame_cb_changed = true;
+    }
+    const DirectionalLight GetDirectionalLight() { return m_directionalLight; }
 
     void UpdateTerrainWaterLevel(float new_water_level)
     {
@@ -303,23 +317,19 @@ public:
 
         m_user_camera->Update(dt);
 
-        static DirectionalLight m_directionalLight;
-        m_directionalLight.ambient = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
-        m_directionalLight.diffuse = XMFLOAT4(0.6f, 0.5f, 0.5f, 1.0f);
-        m_directionalLight.specular = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
-        m_directionalLight.direction = XMFLOAT3(0.0f, -1.0f, 0.0f);
-        m_directionalLight.pad = 0.0f;
-
         // Update per frame CB
-        static auto frameCB = PerFrameCB();
-        frameCB.directionalLight = m_directionalLight;
+        if (m_per_frame_cb_changed)
+        {
+            PerFrameCB frameCB;
+            frameCB.directionalLight = m_directionalLight;
 
-        // Update the per frame constant buffer
-        D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
-        ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
-        m_deviceContext->Map(m_per_frame_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
-        memcpy(mappedResourceFrame.pData, &frameCB, sizeof(PerFrameCB));
-        m_deviceContext->Unmap(m_per_frame_cb.Get(), 0);
+            // Update the per frame constant buffer
+            D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
+            ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
+            m_deviceContext->Map(m_per_frame_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
+            memcpy(mappedResourceFrame.pData, &frameCB, sizeof(PerFrameCB));
+            m_deviceContext->Unmap(m_per_frame_cb.Get(), 0);
+        }
 
         // Update camera CB
         static auto cameraCB = PerCameraCB();
@@ -382,4 +392,7 @@ private:
     bool m_is_terrain_mesh_set = false;
     int m_terrain_mesh_id = -1;
     int m_terrain_texture_id = -1;
+
+    DirectionalLight m_directionalLight;
+    bool m_per_frame_cb_changed = true;
 };
