@@ -26,8 +26,8 @@ void draw_props_info_panel(const Chunk3& chunk)
                     ImGui::Text("f4: %f", prop.f4);
                     ImGui::Text("f5: %f", prop.f5);
                     ImGui::Text("f6: %f", prop.f6);
-                    ImGui::Text("cos_angle: %f", prop.cos_angle);
                     ImGui::Text("sin_angle: %f", prop.sin_angle);
+                    ImGui::Text("cos_angle: %f", prop.cos_angle);
                     ImGui::Text("f9: %f", prop.f9);
                     ImGui::Text("scaling_factor: %f", prop.scaling_factor);
                     ImGui::Text("f11: %f", prop.f11);

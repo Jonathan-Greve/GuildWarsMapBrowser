@@ -77,8 +77,8 @@ struct PropInfo
     float f4;
     float f5;
     float f6;
-    float cos_angle; // cos of angle in radians
-    float sin_angle; // sin of angle in radians
+    float sin_angle; // cos of angle in radians
+    float cos_angle; // sin of angle in radians
     float f9;
     float scaling_factor;
     float f11;
@@ -97,8 +97,8 @@ struct PropInfo
         std::memcpy(&f4, &data[offset + 14], sizeof(f4));
         std::memcpy(&f5, &data[offset + 18], sizeof(f5));
         std::memcpy(&f6, &data[offset + 22], sizeof(f6));
-        std::memcpy(&cos_angle, &data[offset + 26], sizeof(cos_angle));
-        std::memcpy(&sin_angle, &data[offset + 30], sizeof(sin_angle));
+        std::memcpy(&sin_angle, &data[offset + 26], sizeof(sin_angle));
+        std::memcpy(&cos_angle, &data[offset + 30], sizeof(cos_angle));
         std::memcpy(&f9, &data[offset + 34], sizeof(f9));
         std::memcpy(&scaling_factor, &data[offset + 38], sizeof(scaling_factor));
         std::memcpy(&f11, &data[offset + 42], sizeof(f11));
