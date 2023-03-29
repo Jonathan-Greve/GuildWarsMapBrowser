@@ -231,8 +231,7 @@ struct GeometryModel
     uint32_t u0;
     uint32_t u1;
     uint32_t u2;
-    std::vector<uint16_t>
-      indices; // Has size: num_indices0 + (num_indices0 != num_indices1) * num_indices1 + (num_indices1 != num_indices2) * num_indices2
+    std::vector<uint16_t> indices;
     std::vector<ModelVertex> vertices;
     std::vector<uint8_t> extra_data; // Has size: (u0 + u1 + u2 * 3) * 4
 
