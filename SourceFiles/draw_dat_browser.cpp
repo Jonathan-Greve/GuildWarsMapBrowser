@@ -38,6 +38,58 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
     {
     case FFNA_Type2:
         selected_ffna_model_file = dat_manager.parse_ffna_model_file(index);
+        if (selected_ffna_model_file.parsed_correctly)
+        {
+            map_renderer->UnsetTerrain();
+
+            std::vector<Mesh> prop_meshes;
+            float overallMinX = FLT_MAX, overallMinY = FLT_MAX, overallMinZ = FLT_MAX;
+            float overallMaxX = FLT_MIN, overallMaxY = FLT_MIN, overallMaxZ = FLT_MIN;
+
+            auto& models = selected_ffna_model_file.geometry_chunk.models;
+            for (int i = 0; i < models.size(); i++)
+            {
+                Mesh prop_mesh = selected_ffna_model_file.GetMesh(i);
+
+                overallMinX = std::min(overallMinX, models[i].minX);
+                overallMinY = std::min(overallMinY, models[i].minY);
+                overallMinZ = std::min(overallMinZ, models[i].minZ);
+
+                overallMaxX = std::max(overallMaxX, models[i].maxX);
+                overallMaxY = std::max(overallMaxY, models[i].maxY);
+                overallMaxZ = std::max(overallMaxZ, models[i].maxZ);
+
+                if ((prop_mesh.indices.size() % 3) == 0)
+                {
+                    prop_meshes.push_back(prop_mesh);
+                }
+            }
+
+            PerObjectCB per_object_cb;
+
+            float modelWidth = overallMaxX - overallMinX;
+            float modelHeight = overallMaxY - overallMinY;
+            float modelDepth = overallMaxZ - overallMinZ;
+
+            float maxDimension = std::max({modelWidth, modelHeight, modelDepth});
+
+            float boundingBoxSize = 500.0f;
+            float scale = boundingBoxSize / maxDimension;
+
+            float centerX = overallMinX + modelWidth * 0.5f;
+            float centerY = overallMinY + modelHeight * 0.5f;
+            float centerZ = overallMinZ + modelDepth * 0.5f;
+
+            DirectX::XMMATRIX scaling_matrix = DirectX::XMMatrixScaling(scale, scale, scale);
+            DirectX::XMMATRIX translation_matrix =
+              DirectX::XMMatrixTranslation(-centerX * scale, -centerY * scale, -centerZ * scale);
+            DirectX::XMMATRIX world_matrix = scaling_matrix * translation_matrix;
+
+            DirectX::XMStoreFloat4x4(&per_object_cb.world, world_matrix);
+
+            auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cb, index);
+        }
+
         break;
     case FFNA_Type3:
         selected_map_files.clear();
