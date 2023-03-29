@@ -2,6 +2,8 @@
 #include "draw_right_panel.h"
 #include "MapRenderer.h"
 
+extern FileType selected_file_type;
+
 void draw_right_panel(MapRenderer* map_renderer)
 {
     constexpr auto window_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
@@ -211,88 +213,93 @@ void draw_right_panel(MapRenderer* map_renderer)
     }
     ImGui::End();
 
-    max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
-      (3 * GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
-
-    // Set up the props visibility settings window
-    ImGui::SetNextWindowPos(
-      ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
-               GuiGlobalConstants::panel_padding,
-             GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
-    ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
-    ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
-                                        ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
-    if (ImGui::Begin("Props Visibility", NULL, window_flags))
+    if (selected_file_type == FFNA_Type3)
     {
-        auto& propsMeshIds = map_renderer->GetPropsMeshIds();
 
-        // Set all and Clear all buttons
-        if (ImGui::Button("Set all"))
-        {
-            for (const auto& [prop_id, mesh_ids] : propsMeshIds)
-            {
-                for (int mesh_id : mesh_ids)
-                {
-                    map_renderer->SetMeshShouldRender(mesh_id, true);
-                }
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Clear all"))
-        {
-            for (const auto& [prop_id, mesh_ids] : propsMeshIds)
-            {
-                for (int mesh_id : mesh_ids)
-                {
-                    map_renderer->SetMeshShouldRender(mesh_id, false);
-                }
-            }
-        }
+        max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
+          (3 *
+           GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
 
-        // Props visibility checkboxes
-        for (const auto& [prop_id, mesh_ids] : propsMeshIds)
+        // Set up the props visibility settings window
+        ImGui::SetNextWindowPos(
+          ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
+                   GuiGlobalConstants::panel_padding,
+                 GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+        ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
+        ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
+                                            ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
+        if (ImGui::Begin("Props Visibility", NULL, window_flags))
         {
-            std::string label = std::format("Prop index: {}", prop_id);
-            if (ImGui::TreeNode(label.c_str()))
-            {
-                // Individual Set and Clear buttons for each prop
-                std::string set_label = std::format("Set##{}", prop_id);
-                std::string clear_label = std::format("Clear##{}", prop_id);
+            auto& propsMeshIds = map_renderer->GetPropsMeshIds();
 
-                if (ImGui::Button(set_label.c_str()))
+            // Set all and Clear all buttons
+            if (ImGui::Button("Set all"))
+            {
+                for (const auto& [prop_id, mesh_ids] : propsMeshIds)
                 {
                     for (int mesh_id : mesh_ids)
                     {
                         map_renderer->SetMeshShouldRender(mesh_id, true);
                     }
                 }
-                ImGui::SameLine();
-                if (ImGui::Button(clear_label.c_str()))
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Clear all"))
+            {
+                for (const auto& [prop_id, mesh_ids] : propsMeshIds)
                 {
                     for (int mesh_id : mesh_ids)
                     {
                         map_renderer->SetMeshShouldRender(mesh_id, false);
                     }
                 }
+            }
 
-                for (uint32_t i = 0; i < mesh_ids.size(); i++)
+            // Props visibility checkboxes
+            for (const auto& [prop_id, mesh_ids] : propsMeshIds)
+            {
+                std::string label = std::format("Prop index: {}", prop_id);
+                if (ImGui::TreeNode(label.c_str()))
                 {
-                    auto mesh_id = mesh_ids[i];
+                    // Individual Set and Clear buttons for each prop
+                    std::string set_label = std::format("Set##{}", prop_id);
+                    std::string clear_label = std::format("Clear##{}", prop_id);
 
-                    bool should_render = map_renderer->GetMeshShouldRender(mesh_id);
-
-                    auto sub_label = std::format("Mesh id: {}", mesh_id);
-                    if (ImGui::Checkbox(sub_label.c_str(), &should_render))
+                    if (ImGui::Button(set_label.c_str()))
                     {
-                        map_renderer->SetMeshShouldRender(mesh_id, should_render);
+                        for (int mesh_id : mesh_ids)
+                        {
+                            map_renderer->SetMeshShouldRender(mesh_id, true);
+                        }
                     }
-                }
+                    ImGui::SameLine();
+                    if (ImGui::Button(clear_label.c_str()))
+                    {
+                        for (int mesh_id : mesh_ids)
+                        {
+                            map_renderer->SetMeshShouldRender(mesh_id, false);
+                        }
+                    }
 
-                ImGui::TreePop();
+                    for (uint32_t i = 0; i < mesh_ids.size(); i++)
+                    {
+                        auto mesh_id = mesh_ids[i];
+
+                        bool should_render = map_renderer->GetMeshShouldRender(mesh_id);
+
+                        auto sub_label = std::format("Mesh id: {}", mesh_id);
+                        if (ImGui::Checkbox(sub_label.c_str(), &should_render))
+                        {
+                            map_renderer->SetMeshShouldRender(mesh_id, should_render);
+                        }
+                    }
+
+                    ImGui::TreePop();
+                }
             }
         }
+        ImGui::End();
     }
-    ImGui::End();
 
     ImGui::PopStyleVar();
 }

@@ -91,6 +91,20 @@ public:
         m_pixel_shaders[PixelShaderType::Default] = std::make_unique<PixelShader>(m_device, m_deviceContext);
         m_pixel_shaders[PixelShaderType::Default]->Initialize(PixelShaderType::Default);
 
+        if (! m_pixel_shaders.contains(PixelShaderType::TerrainCheckered))
+        {
+            m_pixel_shaders[PixelShaderType::TerrainCheckered] =
+              std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::TerrainCheckered]->Initialize(PixelShaderType::TerrainCheckered);
+        }
+
+        if (! m_pixel_shaders.contains(PixelShaderType::TerrainDefault))
+        {
+            m_pixel_shaders[PixelShaderType::TerrainDefault] =
+              std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::TerrainDefault]->Initialize(PixelShaderType::TerrainDefault);
+        }
+
         // Set up the constant buffer for the camera
         D3D11_BUFFER_DESC buffer_desc = {};
         buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -162,20 +176,6 @@ public:
         if (m_is_terrain_mesh_set)
         {
             UnsetTerrain();
-        }
-
-        if (! m_pixel_shaders.contains(PixelShaderType::TerrainCheckered))
-        {
-            m_pixel_shaders[PixelShaderType::TerrainCheckered] =
-              std::make_unique<PixelShader>(m_device, m_deviceContext);
-            m_pixel_shaders[PixelShaderType::TerrainCheckered]->Initialize(PixelShaderType::TerrainCheckered);
-        }
-
-        if (! m_pixel_shaders.contains(PixelShaderType::TerrainDefault))
-        {
-            m_pixel_shaders[PixelShaderType::TerrainDefault] =
-              std::make_unique<PixelShader>(m_device, m_deviceContext);
-            m_pixel_shaders[PixelShaderType::TerrainDefault]->Initialize(PixelShaderType::TerrainDefault);
         }
 
         m_terrain_mesh_id =
