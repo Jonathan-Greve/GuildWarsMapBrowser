@@ -100,9 +100,16 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
                           sin_angle,
                           cos_angle); // Calculate the rotation angle from the sine and cosine values
 
+                        float scale = prop_info.scaling_factor;
+
+                        DirectX::XMMATRIX scaling_matrix = DirectX::XMMatrixScaling(scale, scale, scale);
+                        DirectX::XMMATRIX rotation_matrix =
+                          DirectX::XMMatrixRotationY(std::acos(cos_angle) + XM_PI / 2.0f);
+                        DirectX::XMMATRIX translation_matrix =
+                          DirectX::XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
+
                         DirectX::XMMATRIX transform_matrix = DirectX::XMMatrixMultiply(
-                          DirectX::XMMatrixRotationY(std::acos(cos_angle) + XM_PI / 2.0f),
-                          DirectX::XMMatrixTranslationFromVector(XMLoadFloat3(&translation)));
+                          scaling_matrix, DirectX::XMMatrixMultiply(rotation_matrix, translation_matrix));
 
                         DirectX::XMStoreFloat4x4(&per_object_cb.world, transform_matrix);
 
