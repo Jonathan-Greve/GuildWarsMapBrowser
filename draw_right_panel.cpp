@@ -75,17 +75,17 @@ void draw_right_panel(MapRenderer* map_renderer)
             map_renderer->SetDirectionalLight(directional_light);
         }
 
-        if (ImGui::ColorEdit4("Ambient Color", &directional_light.ambient.x))
+        if (ImGui::ColorEdit3("Ambient Color", &directional_light.ambient.x))
         {
             map_renderer->SetDirectionalLight(directional_light);
         }
 
-        if (ImGui::ColorEdit4("Diffuse Color", &directional_light.diffuse.x))
+        if (ImGui::ColorEdit3("Diffuse Color", &directional_light.diffuse.x))
         {
             map_renderer->SetDirectionalLight(directional_light);
         }
 
-        if (ImGui::ColorEdit4("Specular Color", &directional_light.specular.x))
+        if (ImGui::ColorEdit3("Specular Color", &directional_light.specular.x))
         {
             map_renderer->SetDirectionalLight(directional_light);
         }
