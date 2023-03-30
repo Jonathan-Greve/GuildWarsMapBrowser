@@ -1,6 +1,8 @@
 #pragma once
 #include "FFNA_MapFile.h"
 #include "FFNA_ModelFile.h"
+#include <ppl.h>
+#include <concurrent_queue.h>
 
 enum InitializationState
 {
@@ -42,5 +44,5 @@ private:
 
     void read_all_files();
 
-    void read_files_thread(std::vector<int> file_indices);
+    void read_files_thread(Concurrency::concurrent_queue<int>& file_indices_queue);
 };
