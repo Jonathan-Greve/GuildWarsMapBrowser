@@ -285,6 +285,9 @@
     <ClInclude Include="draw_prop_model_info.h">
       <Filter>GUI\Draw model info</Filter>
     </ClInclude>
+    <ClInclude Include="maps_constant_data.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
