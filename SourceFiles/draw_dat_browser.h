@@ -11,6 +11,9 @@ enum DatBrowserItemColumnID
     DatBrowserItemColumnID_type,
     DatBrowserItemColumnID_size,
     DatBrowserItemColumnID_decompressed_size,
+    DatBrowserItemColumnID_map_id,
+    DatBrowserItemColumnID_name,
+    DatBrowserItemColumnID_is_pvp
 };
 
 struct DatBrowserItem
@@ -20,6 +23,10 @@ struct DatBrowserItem
     FileType type;
     uint32_t size;
     uint32_t decompressed_size;
+
+    std::vector<uint32_t> map_ids;
+    std::vector<std::string> names;
+    std::vector<int> is_pvp;
 
     static const ImGuiTableSortSpecs* s_current_sort_specs;
 

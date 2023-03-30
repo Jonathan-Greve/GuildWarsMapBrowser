@@ -1,17 +1,13 @@
 #include "pch.h"
 #include "draw_dat_browser.h"
 #include "GuiGlobalConstants.h"
+#include "maps_constant_data.h"
 
 inline extern FileType selected_file_type = FileType::NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
 inline extern FFNA_MapFile selected_ffna_map_file{};
 
 inline extern std::vector<FileData> selected_map_files{};
-
-static ImVector<DatBrowserItem> items;
-static std::unordered_map<int, std::vector<int>> id_index;
-static std::unordered_map<int, std::vector<int>> hash_index;
-static std::unordered_map<FileType, std::vector<int>> type_index;
 
 const char* type_strings[26] = {
   " ",        "AMAT",     "Amp",      "ATEXDXT1", "ATEXDXT2",     "ATEXDXT3",   "ATEXDXT4",
@@ -21,7 +17,28 @@ const char* type_strings[26] = {
 
 const ImGuiTableSortSpecs* DatBrowserItem::s_current_sort_specs = NULL;
 
-void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
+void apply_filter(const std::vector<int>& new_filter, std::unordered_set<int>& intersection)
+{
+    if (intersection.empty())
+    {
+        intersection.insert(new_filter.begin(), new_filter.end());
+    }
+    else
+    {
+        std::unordered_set<int> new_intersection;
+        for (int id : new_filter)
+        {
+            if (intersection.count(id))
+            {
+                new_intersection.insert(id);
+            }
+        }
+        intersection = std::move(new_intersection);
+    }
+}
+
+void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
+                std::unordered_map<int, std::vector<int>>& hash_index, std::vector<DatBrowserItem>& items)
 {
     const auto MFT = dat_manager.get_MFT();
     if (index >= MFT.size())
@@ -198,10 +215,22 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer)
     }
 }
 
+std::string truncate_text_with_ellipsis(const std::string& text, float maxWidth);
 int custom_stoi(const std::string& input);
+std::string to_lower(const std::string& input);
 
 void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 {
+    static std::vector<DatBrowserItem> items;
+    static std::vector<DatBrowserItem> filtered_items;
+
+    static std::unordered_map<int, std::vector<int>> id_index;
+    static std::unordered_map<int, std::vector<int>> hash_index;
+    static std::unordered_map<FileType, std::vector<int>> type_index;
+
+    static std::unordered_map<int, std::vector<int>> map_id_index;
+    static std::unordered_map<std::string, std::vector<int>> name_index;
+    static std::unordered_map<bool, std::vector<int>> pvp_index;
 
     ImVec2 dat_browser_window_size =
       ImVec2(ImGui::GetIO().DisplaySize.x -
@@ -216,29 +245,54 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 
     ImGui::Begin("Browse .dat file contents");
     // Create item list
-    static ImVector<DatBrowserItem> filtered_items;
-    if (items.Size == 0)
+    if (items.size() == 0)
     {
         const auto& entries = dat_manager.get_MFT();
-        items.resize(entries.size(), DatBrowserItem());
-        filtered_items.resize(entries.size(), DatBrowserItem());
         for (int i = 0; i < entries.size(); i++)
         {
             const auto& entry = entries[i];
-            DatBrowserItem new_item{i, entry.Hash, (FileType)entry.type, entry.Size, entry.uncompressedSize};
-            items[i] = new_item;
-            filtered_items[i] = new_item;
+            DatBrowserItem new_item{
+              i, entry.Hash, (FileType)entry.type, entry.Size, entry.uncompressedSize, {}, {}, {}};
+            if (entry.Hash != 0)
+            {
+                auto it = constant_maps_info.find(entry.Hash);
+                if (it != constant_maps_info.end())
+                {
+                    for (const auto& map : it->second)
+                    {
+                        new_item.map_ids.push_back(map.ID);
+                        new_item.names.push_back(map.Name);
+                        new_item.is_pvp.push_back(map.PvP);
+                    }
+                }
+            }
+
+            items.push_back(new_item);
         }
+        filtered_items = items;
     }
 
-    if (items.Size != 0 && id_index.empty())
+    if (items.size() != 0 && id_index.empty())
     {
-        for (int i = 0; i < items.Size; i++)
+        for (int i = 0; i < items.size(); i++)
         {
             const auto& item = items[i];
             id_index[item.id].push_back(i);
             hash_index[item.hash].push_back(i);
             type_index[item.type].push_back(i);
+            for (const auto map_id : item.map_ids)
+            {
+                map_id_index[map_id].push_back(i);
+            }
+            for (const auto& name : item.names)
+            {
+                if (name != "" && name != "-")
+                    name_index[name].push_back(i);
+            }
+            for (const auto is_pvp : item.is_pvp)
+            {
+                pvp_index[is_pvp].push_back(i);
+            }
         }
     }
 
@@ -246,11 +300,17 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
     static std::string curr_id_filter = "";
     static std::string curr_hash_filter = "";
     static FileType curr_type_filter = NONE;
+    static std::string curr_map_id_filter = "";
+    static std::string curr_name_filter = "";
+    static int curr_pvp_filter = -1;
 
     // The values set by the user in the GUI
     static std::string id_filter_text;
     static std::string hash_filter_text;
     static FileType type_filter_value = NONE;
+    static std::string map_id_filter_text;
+    static std::string name_filter_text;
+    static int pvp_filter_value = -1; // -1 means no filter, 0 means false, 1 means true
 
     static bool filter_update_required = true;
 
@@ -269,6 +329,24 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
     if (curr_type_filter != type_filter_value)
     {
         curr_type_filter = type_filter_value;
+        filter_update_required = true;
+    }
+
+    if (curr_map_id_filter != map_id_filter_text)
+    {
+        curr_map_id_filter = map_id_filter_text;
+        filter_update_required = true;
+    }
+
+    if (curr_name_filter != name_filter_text)
+    {
+        curr_name_filter = name_filter_text;
+        filter_update_required = true;
+    }
+
+    if (curr_pvp_filter != pvp_filter_value)
+    {
+        curr_pvp_filter = pvp_filter_value;
         filter_update_required = true;
     }
 
@@ -336,7 +414,43 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
             }
         }
 
-        if (id_filter_text.empty() && hash_filter_text.empty() && type_filter_value == NONE)
+        if (! map_id_filter_text.empty())
+        {
+            int map_id_filter_value = custom_stoi(map_id_filter_text);
+            if (map_id_filter_value >= 0 && map_id_index.count(map_id_filter_value))
+            {
+                apply_filter(map_id_index[map_id_filter_value], intersection);
+            }
+        }
+
+        if (! name_filter_text.empty())
+        {
+            std::vector<int> matching_indices;
+            std::string name_filter_text_lower = to_lower(name_filter_text);
+
+            for (const auto& name_entry : name_index)
+            {
+                std::string name_entry_lower = to_lower(name_entry.first);
+                if (name_entry_lower.find(name_filter_text_lower) != std::string::npos)
+                {
+                    matching_indices.insert(matching_indices.end(), name_entry.second.begin(),
+                                            name_entry.second.end());
+                }
+            }
+            if (! matching_indices.empty())
+            {
+                apply_filter(matching_indices, intersection);
+            }
+        }
+
+        if (pvp_filter_value != -1)
+        {
+            bool pvp_filter_bool = pvp_filter_value == 1;
+            apply_filter(pvp_index[pvp_filter_bool], intersection);
+        }
+
+        if (id_filter_text.empty() && hash_filter_text.empty() && type_filter_value == NONE &&
+            map_id_filter_text.empty() && name_filter_text.empty() && pvp_filter_value == -1)
         {
             filtered_items = items;
         }
@@ -352,32 +466,44 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
         curr_id_filter = id_filter_text;
         curr_hash_filter = hash_filter_text;
         curr_type_filter = type_filter_value;
+        curr_map_id_filter = map_id_filter_text;
+        curr_name_filter = name_filter_text;
+        curr_pvp_filter = pvp_filter_value;
     }
 
     // Filter table
     // Render the filter inputs and the table
-    ImGui::Columns(3);
-    ImGui::Text("Id filter:");
+    ImGui::Columns(5);
+    ImGui::Text("Id:");
     ImGui::SameLine();
-    ImGui::InputText("##IdFilter", &id_filter_text, sizeof(id_filter_text));
+    ImGui::InputText("##IdFilter", &id_filter_text);
     ImGui::NextColumn();
 
-    ImGui::Text("Hash filter:");
+    ImGui::Text("Hash:");
     ImGui::SameLine();
-    ImGui::InputText("##HashFilter", &hash_filter_text, sizeof(hash_filter_text));
+    ImGui::InputText("##HashFilter", &hash_filter_text);
     ImGui::NextColumn();
 
-    ImGui::Text("Type filter:");
+    ImGui::Text("Name:");
     ImGui::SameLine();
-    ImGui::Combo("##EnumFilter", reinterpret_cast<int*>(&type_filter_value), type_strings,
-                 25); // add the combo box
+    ImGui::InputText("##NameFilter", &name_filter_text);
+    ImGui::NextColumn();
+
+    ImGui::Text("Map ID:");
+    ImGui::SameLine();
+    ImGui::InputText("##MapID", &map_id_filter_text);
+    ImGui::NextColumn();
+
+    ImGui::Text("Type:");
+    ImGui::SameLine();
+    ImGui::Combo("##EnumFilter", reinterpret_cast<int*>(&type_filter_value), type_strings, 25);
     ImGui::Columns(1);
 
     ImGui::Separator();
 
-    ImGui::Text("Filtered items: %d", filtered_items.Size);
+    ImGui::Text("Filtered items: %d", filtered_items.size());
     ImGui::SameLine();
-    ImGui::Text("Total items: %d", items.Size);
+    ImGui::Text("Total items: %d", items.size());
 
     // Options
     static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
@@ -385,7 +511,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
       ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
       ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY;
 
-    if (ImGui::BeginTable("data browser", 5, flags))
+    if (ImGui::BeginTable("data browser", 8, flags))
     {
         // Declare columns
         // We use the "user_id" parameter of TableSetupColumn() to specify a user id that will be stored in the sort specifications.
@@ -394,17 +520,14 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
         // - ImGuiTableColumnFlags_DefaultSort
         // - ImGuiTableColumnFlags_NoSort / ImGuiTableColumnFlags_NoSortAscending / ImGuiTableColumnFlags_NoSortDescending
         // - ImGuiTableColumnFlags_PreferSortAscending / ImGuiTableColumnFlags_PreferSortDescending
-        ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed,
-                                0.0f, DatBrowserItemColumnID_id);
-        ImGui::TableSetupColumn("Hash", ImGuiTableColumnFlags_WidthFixed, 0.0f, DatBrowserItemColumnID_hash);
-        ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 0.0f, DatBrowserItemColumnID_type);
-        ImGui::TableSetupColumn(
-          "Size", ImGuiTableColumnFlags_PreferSortDescending | ImGuiTableColumnFlags_WidthStretch, 0.0f,
-          DatBrowserItemColumnID_size);
-        ImGui::TableSetupColumn("Decompressed size",
-                                ImGuiTableColumnFlags_PreferSortDescending |
-                                  ImGuiTableColumnFlags_WidthStretch,
-                                0.0f, DatBrowserItemColumnID_decompressed_size);
+        ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_DefaultSort, 0.0f, DatBrowserItemColumnID_id);
+        ImGui::TableSetupColumn("Name", 0, 0.0f, DatBrowserItemColumnID_name);
+        ImGui::TableSetupColumn("Hash", 0, 0.0f, DatBrowserItemColumnID_hash);
+        ImGui::TableSetupColumn("Type", 0, 0.0f, DatBrowserItemColumnID_type);
+        ImGui::TableSetupColumn("Size", 0, 0.0f, DatBrowserItemColumnID_size);
+        ImGui::TableSetupColumn("Decompressed size", 0, 0.0f, DatBrowserItemColumnID_decompressed_size);
+        ImGui::TableSetupColumn("Map id", 0, 0.0f, DatBrowserItemColumnID_map_id);
+        ImGui::TableSetupColumn("PvP", 0, 0.0f, DatBrowserItemColumnID_is_pvp);
         ImGui::TableSetupScrollFreeze(0, 1); // Make row always visible
 
         ImGui::TableHeadersRow();
@@ -415,8 +538,8 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
             {
                 DatBrowserItem::s_current_sort_specs =
                   sorts_specs; // Store in variable accessible by the sort function.
-                if (filtered_items.Size > 1)
-                    qsort(&filtered_items[0], (size_t)filtered_items.Size, sizeof(filtered_items[0]),
+                if (filtered_items.size() > 1)
+                    qsort(&filtered_items[0], (size_t)filtered_items.size(), sizeof(filtered_items[0]),
                           DatBrowserItem::CompareWithSortSpecs);
                 DatBrowserItem::s_current_sort_specs = NULL;
                 sorts_specs->SpecsDirty = false;
@@ -424,7 +547,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 
         // Demonstrate using clipper for large vertical lists
         ImGuiListClipper clipper;
-        clipper.Begin(filtered_items.Size);
+        clipper.Begin(filtered_items.size());
 
         static int selected_item_id = -1;
         ImGuiSelectableFlags selectable_flags =
@@ -451,8 +574,53 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                     else
                     {
                         selected_item_id = item.id;
-                        parse_file(dat_manager, item.id, map_renderer);
+                        parse_file(dat_manager, item.id, map_renderer, hash_index, items);
                     }
+                }
+
+                ImGui::TableNextColumn();
+                if (item.type == FFNA_Type3)
+                {
+                    std::string name;
+                    for (int i = 0; i < item.names.size(); i++)
+                    {
+                        name += item.names[i];
+                        if (i < item.names.size() - 1)
+                        {
+                            name += " | ";
+                        }
+                    }
+
+                    // Check if the text would be clipped
+                    ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
+                    float availableWidth = ImGui::GetContentRegionAvail().x;
+
+                    if (textSize.x > availableWidth)
+                    {
+                        // Truncate the text to fit the available width
+                        std::string truncatedName = truncate_text_with_ellipsis(name, availableWidth);
+
+                        // Display the truncated text
+                        ImGui::TextUnformatted(truncatedName.c_str());
+
+                        // Check if the mouse is hovering over the text
+                        if (ImGui::IsItemHovered())
+                        {
+                            // Show a tooltip with the full list of names
+                            ImGui::BeginTooltip();
+                            ImGui::TextUnformatted(name.c_str());
+                            ImGui::EndTooltip();
+                        }
+                    }
+                    else
+                    {
+                        // Display the full text without truncation
+                        ImGui::TextUnformatted(name.c_str());
+                    }
+                }
+                else
+                {
+                    ImGui::Text("-");
                 }
 
                 ImGui::TableNextColumn();
@@ -464,6 +632,53 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                 ImGui::Text("%04d", item.size);
                 ImGui::TableNextColumn();
                 ImGui::Text("%04d", item.decompressed_size);
+                ImGui::TableNextColumn();
+                if (item.type == FFNA_Type3)
+                {
+                    std::string map_ids_text;
+                    for (int i = 0; i < item.map_ids.size(); i++)
+                    {
+                        map_ids_text += std::format("{}", item.map_ids[i]);
+                        if (i < item.map_ids.size() - 1)
+                        {
+                            map_ids_text += ",";
+                        }
+                    }
+                    ImGui::Text(map_ids_text.c_str());
+                }
+                else
+                {
+                    ImGui::Text("-");
+                }
+                ImGui::TableNextColumn();
+                if (item.type == FFNA_Type3)
+                {
+                    ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
+                                        ImGui::GetStyle().Alpha *
+                                          0.5f); // Make the checkboxes semi-transparent
+
+                    for (int i = 0; i < item.is_pvp.size(); i++)
+                    {
+                        ImGui::PushID(i); // Push unique ID for each checkbox
+
+                        ImGui::BeginDisabled(); // Disable the checkbox if not hovered
+                        ImGui::Checkbox("##IsPvp", (bool*)&item.is_pvp[i]); // Create the checkbox
+                        ImGui::EndDisabled(); // End the disabled state if not hovered
+
+                        ImGui::PopID(); // Pop the unique ID
+
+                        if (i < item.is_pvp.size() - 1)
+                        {
+                            ImGui::SameLine(); // Keep checkboxes on the same line, except for the last one
+                        }
+                    }
+
+                    ImGui::PopStyleVar(); // Pop the style variable
+                }
+                else
+                {
+                    ImGui::Text("-");
+                }
                 ImGui::PopID();
             }
         ImGui::EndTable();
@@ -478,8 +693,6 @@ inline int IMGUI_CDECL DatBrowserItem::CompareWithSortSpecs(const void* lhs, con
     const DatBrowserItem* b = (const DatBrowserItem*)rhs;
     for (int n = 0; n < s_current_sort_specs->SpecsCount; n++)
     {
-        // Here we identify columns using the ColumnUserID value that we ourselves passed to TableSetupColumn()
-        // We could also choose to identify columns based on their index (sort_spec->ColumnIndex), which is simpler!
         const ImGuiTableColumnSortSpecs* sort_spec = &s_current_sort_specs->Specs[n];
         int delta = 0;
         switch (sort_spec->ColumnUserID)
@@ -499,6 +712,38 @@ inline int IMGUI_CDECL DatBrowserItem::CompareWithSortSpecs(const void* lhs, con
         case DatBrowserItemColumnID_decompressed_size:
             delta = (a->decompressed_size - b->decompressed_size);
             break;
+        case DatBrowserItemColumnID_map_id: // Modified map_id case
+            for (size_t i = 0; i < std::min(a->map_ids.size(), b->map_ids.size()); ++i)
+            {
+                delta = (a->map_ids[i] - b->map_ids[i]);
+                if (delta != 0)
+                    break;
+            }
+            if (delta == 0)
+                delta = (a->map_ids.size() - b->map_ids.size());
+            break;
+
+        case DatBrowserItemColumnID_name: // Modified name case
+            for (size_t i = 0; i < std::min(a->names.size(), b->names.size()); ++i)
+            {
+                delta = a->names[i].compare(b->names[i]);
+                if (delta != 0)
+                    break;
+            }
+            if (delta == 0)
+                delta = (a->names.size() - b->names.size());
+            break;
+
+        case DatBrowserItemColumnID_is_pvp: // Modified is_pvp case
+            for (size_t i = 0; i < std::min(a->is_pvp.size(), b->is_pvp.size()); ++i)
+            {
+                delta = (a->is_pvp[i] - b->is_pvp[i]);
+                if (delta != 0)
+                    break;
+            }
+            if (delta == 0)
+                delta = (a->is_pvp.size() - b->is_pvp.size());
+            break;
         default:
             IM_ASSERT(0);
             break;
@@ -509,9 +754,35 @@ inline int IMGUI_CDECL DatBrowserItem::CompareWithSortSpecs(const void* lhs, con
             return (sort_spec->SortDirection == ImGuiSortDirection_Ascending) ? -1 : +1;
     }
 
-    // qsort() is instable so always return a way to differenciate items.
-    // Your own compare function may want to avoid fallback on implicit sort specs e.g. a Name compare if it wasn't already part of the sort specs.
     return (a->id - b->id);
+}
+
+std::string truncate_text_with_ellipsis(const std::string& text, float maxWidth)
+{
+    ImVec2 textSize = ImGui::CalcTextSize(text.c_str());
+    if (textSize.x <= maxWidth)
+    {
+        return text;
+    }
+
+    std::string truncatedText;
+    float ellipsisWidth = ImGui::CalcTextSize("...").x;
+
+    for (size_t i = 0; i < text.size(); ++i)
+    {
+        textSize = ImGui::CalcTextSize((truncatedText + text[i] + "...").c_str());
+        if (textSize.x <= maxWidth)
+        {
+            truncatedText += text[i];
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    truncatedText += "...";
+    return truncatedText;
 }
 
 int custom_stoi(const std::string& input)
@@ -584,4 +855,12 @@ int custom_stoi(const std::string& input)
     }
 
     return negative ? -value : value;
+}
+
+std::string to_lower(const std::string& input)
+{
+    std::string result = input;
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    return result;
 }

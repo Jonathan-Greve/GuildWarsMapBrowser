@@ -206,6 +206,7 @@
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
+    <ClInclude Include="maps_constant_data.h" />
     <ClInclude Include="PerTerrainCB.h" />
     <ClInclude Include="SourceFiles\AtexAsm.h" />
     <ClInclude Include="SourceFiles\AtexReader.h" />
