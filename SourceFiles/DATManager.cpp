@@ -43,36 +43,19 @@ void DATManager::read_all_files()
 
     // Get the number of available threads
     const auto num_threads = std::thread::hardware_concurrency();
-    m_num_running_dat_reader_threads = num_threads;
 
-    // Split the file indices into n chunks
-    int chunk_size = num_files / num_threads;
-    int remainder = num_files % num_threads;
-
-    std::vector<std::vector<int>> chunks(num_threads);
-
-    int current_index = 0;
-    for (int i = 0; i < num_threads; i++)
+    // Fill the concurrent queue with file indices
+    Concurrency::concurrent_queue<int> file_indices_queue;
+    for (int i = 0; i < num_files; ++i)
     {
-        int chunk_end = current_index + chunk_size;
-        if (i < remainder)
-        {
-            chunk_end++;
-        }
-
-        chunks[i].resize(chunk_end - current_index);
-        for (int j = current_index; j < chunk_end; j++)
-        {
-            chunks[i][j - current_index] = j;
-        }
-        current_index = chunk_end;
+        file_indices_queue.push(i);
     }
 
     // Start the file reading threads
     std::vector<std::thread> threads;
     for (int i = 0; i < num_threads; ++i)
     {
-        threads.emplace_back(&DATManager::read_files_thread, this, std::ref(chunks[i]));
+        threads.emplace_back(&DATManager::read_files_thread, this, std::ref(file_indices_queue));
     }
 
     // Wait for all threads to finish
@@ -82,23 +65,26 @@ void DATManager::read_all_files()
     }
 }
 
-void DATManager::read_files_thread(std::vector<int> file_indices)
+void DATManager::read_files_thread(Concurrency::concurrent_queue<int>& file_indices_queue)
 {
     HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
     unsigned char* data;
-    for (const auto index : file_indices)
+    int index;
+
+    while (file_indices_queue.try_pop(index))
     {
         data = m_dat.readFile(file_handle, index, false);
         delete[] data;
 
         auto _ = m_num_types_read.fetch_add(1, std::memory_order_relaxed);
     }
+
     CloseHandle(file_handle);
 
-    if (m_num_running_dat_reader_threads == 1)
+    auto remaining_threads = m_num_running_dat_reader_threads.fetch_sub(1, std::memory_order_relaxed);
+
+    if (file_indices_queue.empty())
     {
         m_initialization_state = InitializationState::Completed;
     }
-
-    auto _ = m_num_running_dat_reader_threads.fetch_sub(1, std::memory_order_relaxed);
 }
