@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "draw_dat_browser.h"
 #include "GuiGlobalConstants.h"
 #include "maps_constant_data.h"
@@ -651,30 +651,50 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                     ImGui::Text("-");
                 }
                 ImGui::TableNextColumn();
-                if (item.type == FFNA_Type3)
+
+                // Display the checkboxes only if there is enough room for all of them.
+                // If there is not enough room, display a single checkbox if all checkboxes share the same value (either all true or all false), or display '...' otherwise.
+                if (item.type == FFNA_Type3 && item.is_pvp.size() > 0)
                 {
-                    ImGui::PushStyleVar(ImGuiStyleVar_Alpha,
-                                        ImGui::GetStyle().Alpha *
-                                          0.5f); // Make the checkboxes semi-transparent
+                    ImVec2 checkboxSize = ImGui::CalcTextSize("[ ]");
+                    float availableWidth = ImGui::GetContentRegionAvail().x;
+                    float requiredWidth = checkboxSize.x * item.is_pvp.size() +
+                      (item.is_pvp.size() - 1) * ImGui::GetStyle().ItemSpacing.x;
 
-                    for (int i = 0; i < item.is_pvp.size(); i++)
+                    bool allTrue =
+                      std::all_of(item.is_pvp.begin(), item.is_pvp.end(), [](int v) { return v >= 1; });
+                    bool allFalse =
+                      std::all_of(item.is_pvp.begin(), item.is_pvp.end(), [](int v) { return v < 1; });
+
+                    if (allTrue || allFalse)
                     {
-                        ImGui::PushID(i); // Push unique ID for each checkbox
-
-                        ImGui::BeginDisabled(); // Disable the checkbox if not hovered
-                        ImGui::Checkbox("##IsPvp", (bool*)&item.is_pvp[i]); // Create the checkbox
-                        ImGui::EndDisabled(); // End the disabled state if not hovered
-
-                        ImGui::PopID(); // Pop the unique ID
-
-                        if (i < item.is_pvp.size() - 1)
+                        ImGui::BeginDisabled(); // Disable the checkbox to make it non-editable
+                        ImGui::Checkbox("##IsPvp",
+                                        (bool*)&allTrue); // Show a single checkbox with the respective value
+                        ImGui::EndDisabled();
+                    }
+                    else if (requiredWidth > availableWidth)
+                    {
+                        ImGui::TextUnformatted("..."); // Not enough space and mixed values, show '...'
+                    }
+                    else
+                    {
+                        for (int i = 0; i < item.is_pvp.size(); i++)
                         {
-                            ImGui::SameLine(); // Keep checkboxes on the same line, except for the last one
+                            ImGui::PushID(i);
+                            ImGui::BeginDisabled(); // Disable the checkbox to make it non-editable
+                            ImGui::Checkbox(("##IsPvp" + std::to_string(i)).c_str(), (bool*)&item.is_pvp[i]);
+                            ImGui::EndDisabled();
+                            ImGui::PopID();
+
+                            if (i < item.is_pvp.size() - 1)
+                            {
+                                ImGui::SameLine();
+                            }
                         }
                     }
-
-                    ImGui::PopStyleVar(); // Pop the style variable
                 }
+
                 else
                 {
                     ImGui::Text("-");
