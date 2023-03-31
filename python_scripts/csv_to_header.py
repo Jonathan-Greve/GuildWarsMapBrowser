@@ -1,32 +1,6 @@
 import re
 import csv
 
-def parse_file(file_path):
-    with open(file_path, "r") as f:
-        content = f.read()
-
-    pattern = re.compile(r'{(0x[\da-fA-F]+|\d+),\s*\{((?:\{[\s\S]*?\}(?:,\s*)?)+)\}}')
-    matches = pattern.findall(content)
-    data = {}
-
-    for match in matches:
-        key = int(match[0], 0)  # Automatically determine the base
-        value_str = match[1]
-
-        value_pattern = re.compile(r'\{(\d+),\s*(\d+),\s*(0x[\da-fA-F]+|\d+),\s*"([^"]+)",\s*(\w+)\}')
-        value_matches = value_pattern.findall(value_str)
-        data[key] = [
-            {
-                "map_id": int(m[0]),
-                "file_hash": int(m[2], 0),  # Automatically determine the base
-                "name": m[3],
-                "is_pvp": m[4].lower() == "true"
-            }
-            for m in value_matches
-        ]
-
-    return data
-
 def csv_to_header(csv_path, header_path):
     with open(csv_path, 'r', newline='') as f:
         reader = csv.reader(f)
@@ -66,9 +40,7 @@ def csv_to_header(csv_path, header_path):
         f.write('};\n')
 
 if __name__ == "__main__":
-    file_path = "unordered_map.txt"
-    csv_path = "output.csv"
+    csv_path = "data.csv"
     header_path = "header_file.h"
 
-    data = parse_file(file_path)
     csv_to_header(csv_path, header_path)
