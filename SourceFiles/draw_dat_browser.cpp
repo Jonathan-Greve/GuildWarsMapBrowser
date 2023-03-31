@@ -253,16 +253,16 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
             const auto& entry = entries[i];
             DatBrowserItem new_item{
               i, entry.Hash, (FileType)entry.type, entry.Size, entry.uncompressedSize, {}, {}, {}};
-            if (entry.Hash != 0)
+            if (entry.Hash != 0 && entry.type == FFNA_Type3)
             {
                 auto it = constant_maps_info.find(entry.Hash);
                 if (it != constant_maps_info.end())
                 {
                     for (const auto& map : it->second)
                     {
-                        new_item.map_ids.push_back(map.ID);
-                        new_item.names.push_back(map.Name);
-                        new_item.is_pvp.push_back(map.PvP);
+                        new_item.map_ids.push_back(map.map_id);
+                        new_item.names.push_back(map.map_name);
+                        new_item.is_pvp.push_back(map.is_pvp);
                     }
                 }
             }
