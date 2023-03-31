@@ -84,8 +84,6 @@ struct Chunk1_sub1
 
 struct ComplexStruct
 {
-    uint32_t unknown0;
-    uint32_t unknown1;
     uint32_t u0x0;
     uint32_t u0x4;
     uint32_t u0x8;
@@ -109,31 +107,11 @@ struct ComplexStruct
     ComplexStruct(uint32_t& curr_offset, const unsigned char* data, uint32_t data_size_bytes,
                   bool& parsed_correctly, Chunk1_sub1& sub_1)
     {
-        if ((sub_1.f0x8 & 0x20) == 0)
-            return;
-
-        if (curr_offset + 8 > data_size_bytes)
+        if (curr_offset + 0x2E >= data_size_bytes)
         {
             parsed_correctly = false;
             return;
         }
-        else
-        {
-            uint32_t unknown0;
-            uint32_t unknown1;
-        }
-
-        if (curr_offset + 8 + 0x2E > data_size_bytes)
-        {
-            parsed_correctly = false;
-            return;
-        }
-
-        unknown0 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
-        curr_offset += sizeof(uint32_t);
-
-        unknown1 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
-        curr_offset += sizeof(uint32_t);
 
         u0x0 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
         curr_offset += sizeof(uint32_t);
@@ -246,6 +224,12 @@ struct GeometryModel
     GeometryModel(uint32_t& curr_offset, const unsigned char* data, uint32_t data_size_bytes,
                   bool& parsed_correctly, int chunk_size)
     {
+        if (curr_offset + 0x24 >= data_size_bytes)
+        {
+            parsed_correctly = false;
+            return;
+        }
+
         std::memcpy(&unknown, &data[curr_offset], sizeof(unknown));
         curr_offset += sizeof(unknown);
 
@@ -355,7 +339,9 @@ struct GeometryChunk
     std::vector<uint8_t> unknown;
     std::vector<uint8_t> unknown2;
     std::vector<uint8_t> unknown3;
-    ComplexStruct complex_struct;
+    uint32_t unknown4;
+    uint32_t unknown5;
+    std::vector<ComplexStruct> complex_structs;
     std::vector<GeometryModel> models;
     std::vector<uint8_t> chunk_data;
 
@@ -382,7 +368,28 @@ struct GeometryChunk
                 curr_offset += unknown_size;
             }
 
-            complex_struct = ComplexStruct(curr_offset, data, data_size_bytes, parsed_correctly, sub_1);
+            if ((sub_1.f0x8 & 0x20))
+            {
+                if (curr_offset + 8 > data_size_bytes)
+                {
+                    parsed_correctly = false;
+                }
+                else
+                {
+                    unknown4 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
+                    curr_offset += sizeof(uint32_t);
+
+                    unknown5 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
+                    curr_offset += sizeof(uint32_t);
+
+                    for (int i = 0; i < unknown5; i++)
+                    {
+
+                        complex_structs.push_back(
+                          ComplexStruct(curr_offset, data, data_size_bytes, parsed_correctly, sub_1));
+                    }
+                }
+            }
 
             if (sub_1.num_some_struct2 > 0)
             {
