@@ -644,7 +644,34 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                             map_ids_text += ",";
                         }
                     }
-                    ImGui::Text(map_ids_text.c_str());
+
+                    // Check if the text would be clipped
+                    ImVec2 textSize = ImGui::CalcTextSize(map_ids_text.c_str());
+                    float availableWidth = ImGui::GetContentRegionAvail().x;
+
+                    if (textSize.x > availableWidth)
+                    {
+                        // Truncate the text to fit the available width
+                        std::string truncatedMapIdsText =
+                          truncate_text_with_ellipsis(map_ids_text, availableWidth);
+
+                        // Display the truncated text
+                        ImGui::TextUnformatted(truncatedMapIdsText.c_str());
+
+                        // Check if the mouse is hovering over the text
+                        if (ImGui::IsItemHovered())
+                        {
+                            // Show a tooltip with the full list of map_ids
+                            ImGui::BeginTooltip();
+                            ImGui::TextUnformatted(map_ids_text.c_str());
+                            ImGui::EndTooltip();
+                        }
+                    }
+                    else
+                    {
+                        // Display the full text without truncation
+                        ImGui::TextUnformatted(map_ids_text.c_str());
+                    }
                 }
                 else
                 {
