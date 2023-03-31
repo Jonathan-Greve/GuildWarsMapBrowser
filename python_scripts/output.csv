@@ -1,0 +1,728 @@
+file_hash,map_id,name,is_pvp
+0,1,Gladiators Arena,TRUE
+0,4,Warriors Isle,TRUE
+0,5,Hunters Isle,TRUE
+0,27,Griffons Mouth,TRUE
+0,34,The Fissure of Woe,TRUE
+0,50,Test Map,TRUE
+0,65,DAlessio Arena,TRUE
+0,66,All Call Click Point 1,TRUE
+0,70,Druids Isle,TRUE
+0,74,Tournament 6,TRUE
+0x36B4,75,The Hall of Heroes,TRUE
+0,76,Broken Tower,TRUE
+0x36A5,78,The Courtyard,TRUE
+0,79,Unholy Temples,TRUE
+0x3BB2,80,Burial Mounds,TRUE
+0,83,The Vault,TRUE
+0,85,Ascalon Arena,TRUE
+0,86,Sacred Temples,TRUE
+0,93,Spearhead Peak,TRUE
+0,125,Titans Tears,TRUE
+0,127,Scarred Earth,TRUE
+0,143,Ascalon Academy,TRUE
+0,149,Ascalon Academy,TRUE
+0,150,Ascalon Academy,FALSE
+0,151,Ascalon Academy,FALSE
+0,160,Green Hills County,TRUE
+0,161,Wizards Folly,TRUE
+0,167,Burning Isle,TRUE
+0,168,Druids Isle,TRUE
+0,169,[null],TRUE
+0,170,Frozen Isle,TRUE
+0,171,Warriors Isle,TRUE
+0,172,Hunters Isle,TRUE
+0,173,Wizards Isle,TRUE
+0,174,Nomads Isle,TRUE
+0,175,Isle of the Dead,TRUE
+0,176,Frozen Isle,TRUE
+0,177,Nomads Isle,TRUE
+0,178,Druids Isle,TRUE
+0,179,Isle of the Dead,TRUE
+0,180,Fort Koga,TRUE
+0,182,Amnoon Arena,TRUE
+0,183,Deldrimor Arena,TRUE
+0,184,The Crag,TRUE
+16428,185,The Underworld,TRUE
+16428,186,The Underworld,TRUE
+16428,187,The Underworld,TRUE
+0,190,Sorrows Furnace,TRUE
+0,192,All Call Click Point 2,TRUE
+0,207,Dragons Thieves,TRUE
+0,208,Heroes Crypt,TRUE
+0,221,Fort Aspenwood,TRUE
+0,223,The Jade Quarry,TRUE
+0,228,Grenz Frontier,TRUE
+0,229,The Ancestral Lands,TRUE
+0,231,Kaanai Canyon,TRUE
+0,253,Dwayna Vs Grenth,TRUE
+0,254,Dwaynas Camp,TRUE
+0,255,Grenths Camp,TRUE
+0,257,Minister Chos Estate,TRUE
+0,258,Zen Daijun,TRUE
+0,259,The Jade Quarry (Kurzick),TRUE
+0,260,Nahpui Quarter,TRUE
+0,261,Tahnnakai Temple,TRUE
+0,262,Arborstone,TRUE
+0,263,Boreas Seabed,TRUE
+0,264,Sunjiang District,TRUE
+0,267,The Eternal Grove,TRUE
+0,268,Gyala Hatchery,TRUE
+0,270,Raisu Palace,TRUE
+0,271,Imperial Sanctum,TRUE
+0,275,Isle of Weeping Stone,TRUE
+0,276,Isle of Jade,TRUE
+0,285,Monastery Overlook,TRUE
+0,299,Saltspray Beach,TRUE
+0,300,Etnaran Keys,TRUE
+0,304,Vizunah Square (Local Quarter,TRUE
+0,305,Vizunah Square (Foreign Quart,TRUE
+0,306,The Jade Quarry (Luxon),TRUE
+0,308,Ascalon Arena,TRUE
+0,309,Annihilation Training,TRUE
+0,310,Kill Count Training,TRUE
+0,311,Priest Annihilation Training,TRUE
+0,312,Obelisk Annihilation Training,TRUE
+0,314,Shiverpeak Arena,TRUE
+0,315,Travel,TRUE
+0,316,Travel,TRUE
+0,317,Travel,TRUE
+0,323,Fort Aspenwood (Kurzick),TRUE
+0,324,Fort Aspenwood (Luxon),TRUE
+0,325,The Harvest Ceremony,TRUE
+0,326,The Harvest Ceremony,TRUE
+0,327,Imperial Sanctum,TRUE
+0,328,Saltspray Beach (Luxon),TRUE
+0,329,Saltspray Beach (Kurzick),TRUE
+0,331,Grenz Frontier (Luxon),TRUE
+0,332,Grenz Frontier (Kurzick),TRUE
+0,333,The Ancestral Lands (Luxon),TRUE
+0,334,The Ancestral Lands (Kurzick),TRUE
+0,335,Etnaran Keys (Luxon),TRUE
+0,336,Etnaran Keys (Kurzick),TRUE
+0,337,Kaanai Canyon (Luxon),TRUE
+0,338,Kaanai Canyon (Kurzick),TRUE
+0,339,DAlessio Arena,TRUE
+0,340,Amnoon Arena,TRUE
+0,341,Fort Koga,TRUE
+0,342,Heroes Crypt,TRUE
+0,343,Shiverpeak Arena,TRUE
+0x36B4,344,The Hall of Heroes,TRUE
+0x36A5,345,The Courtyard,TRUE
+0,346,Scarred Earth,TRUE
+16428,347,The Underworld,TRUE
+0,351,Divine Path,TRUE
+0,352,Brawlers Pit,TRUE
+0,353,Petrified Arena,TRUE
+0,354,Seabed Arena,TRUE
+0,355,Isle of Weeping Stone,TRUE
+0,356,Isle of Jade,TRUE
+0,357,Imperial Isle,TRUE
+0,358,Isle of Meditation,TRUE
+0,359,Imperial Isle,TRUE
+0,365,Random Arenas Test,TRUE
+0,367,All Skills,TRUE
+0,368,Dragon Arena,TRUE
+0,370,"Kamadan, Jewel of Istan",TRUE
+0,372,"Fahranur, The First City",TRUE
+0,374,oleplaying Character //Buuug?,TRUE
+0,378,Wehhan Terraces,TRUE
+0,381,Yohlon Haven,TRUE
+0,383,Vortex,TRUE
+0,385,Lions Arch,TRUE
+0,400,Kaineng Center,TRUE
+0,401,Sebelkeh Basilica,TRUE
+0,405,Sun Docks,TRUE
+0,408,Here Be Dragons,TRUE
+0,409,Here Be Dragons,TRUE
+0,410,Here Be Dragons,TRUE
+0,411,Here Be Dragons,TRUE
+0,412,Here Be Dragons,TRUE
+0,417,Bejunkan Pier,TRUE
+0,418,Lions Gate,TRUE
+0,420,Secure the Refuge,TRUE
+0,421,Venta Cemetery,TRUE
+0,422,"Kamadan, Jewel of Istan",TRUE
+0,423,The Tribunal,TRUE
+0,432,Cliffs of Dohjok,FALSE
+0,445,The Ebony Citadel of Mallyx,TRUE
+0,447,Cliffs of Dohjok,TRUE
+0,448,Crystal Overlook,TRUE
+0,451,Gate of Anguish,TRUE
+0,452,Secure the Refuge,TRUE
+0,453,Evacuation,TRUE
+0,454,Test Map,TRUE
+0,455,Nightfallen Garden,TRUE
+0,457,Beknur Harbor,TRUE
+0,458,Kodonur Crossroads,TRUE
+0,459,Rilohn Refuge,TRUE
+0,460,Pogahn Passage,TRUE
+16428,461,The Underworld,TRUE
+0,462,Heart of Abaddon,TRUE
+16428,463,The Underworld,TRUE
+0,464,Nightfallen Coast,TRUE
+0,465,Nightfallen Jahai,TRUE
+0,466,Depths of Madness,TRUE
+0,467,Rollerbeetle Racing,TRUE
+0,471,Bloodstone Fen,TRUE
+0,472,Domain of Secrets,TRUE
+0,475,Jelly Den,TRUE
+0,490,Island of Shehkah,TRUE
+0,498,Travel,TRUE
+0,500,Bokka Amphitheatre,TRUE
+0,503,Throne Of Secrets,TRUE
+0,504,Churranu Island Arena,TRUE
+0,505,Shing Jea Monastery,TRUE
+0,506,Haiju Lagoon,TRUE
+0,507,Jaya Bluffs,TRUE
+0,508,Seitung Harbor,TRUE
+0,509,Tsumei Village,TRUE
+0,510,Seitung Harbor,TRUE
+0,511,Tsumei Village,TRUE
+0,512,Minister Chos Estate,TRUE
+0,514,Island of Shehkah,FALSE
+0,515,Jokanur Diggings,TRUE
+0,516,Blacktide Den,TRUE
+0,517,Consulate Docks,TRUE
+0,518,Tihark Orchard,TRUE
+0,519,Dzagonur Bastion,TRUE
+0,520,Hidden City of Ahdashim,TRUE
+0,521,Grand Court of Sebelkeh,TRUE
+0,522,Jennurs Horde,TRUE
+0,523,Nundu Bay,TRUE
+0,524,Gates of Desolation,TRUE
+0,525,Ruins of Morah,TRUE
+0,526,Domain of Pain,TRUE
+0,527,Gate of Madness,TRUE
+0,528,Abaddons Gate,TRUE
+0,529,Uncharted Isle,TRUE
+0,530,Isle of Wurms,TRUE
+0,533,Uncharted Isle,TRUE
+0,534,Isle of Wurms,TRUE
+0,535,Ahmtur Arena,TRUE
+0,536,Sunspear Arena,TRUE
+0,538,Isle of Solitude,FALSE
+0,541,Corrupted Isle,TRUE
+0,542,Isle of Solitude,TRUE
+0,547,Bombardment,TRUE
+0,550,Hero Battles,TRUE
+0,551,The Crossing,TRUE
+0,552,Desert Sands,TRUE
+0,555,The Shadow Nexus,TRUE
+0,556,Chahbek Village,TRUE
+0,557,Throne Of Secrets,TRUE
+0,560,Cathedral of Flames,TRUE
+0,561,Gate of Torment,TRUE
+0,562,Fortress of Jahai,TRUE
+0,563,Halls of Chokhin,TRUE
+0,564,Citadel of Dzagon,TRUE
+0,565,Dynastic Tombs,TRUE
+0,567,Cathedral of Flames: Level 2,TRUE
+0,568,Cathedral of Flames: Level 3,TRUE
+0,570,Catacombs of Kathandrax,TRUE
+0,571,Catacombs of Kathandrax: Leve,TRUE
+0,573,Rragars Menagerie,TRUE
+0,574,Rragars Menagerie: Level 2,TRUE
+0,575,Rragars Menagerie: Level 3,TRUE
+0,576,Jelly Den: Level 2,TRUE
+0,577,Slavers Exile,TRUE
+0,578,Oolas Lab,TRUE
+0,579,Oolas Lab: Level 2,TRUE
+0,580,Oolas Lab: Level 3,TRUE
+0,581,Shards of Orr,TRUE
+0,582,Shards of Orr: Level 2,TRUE
+0,583,Shards of Orr: Level 3,TRUE
+0,584,Arachnis Haunt,TRUE
+0,585,Arachnis Haunt: Level 2,TRUE
+0,586,Burning Embers,TRUE
+0,587,Burning Furnace,TRUE
+0,588,Burning Temple,TRUE
+0,589,Catacombs Lush,TRUE
+0,590,Catacombs Stone,TRUE
+0,591,Catacombs Tomb,TRUE
+0,592,5 team test,TRUE
+0x46D8A,593,Fetid River,TRUE
+0,594,Overlook,TRUE
+0,595,Cemetery,TRUE
+0,596,Forgotten Shrines,TRUE
+0,597,Track,TRUE
+0,599,Collision,TRUE
+0x36B4,600,The Hall of Heroes,TRUE
+0,601,Frozen Crevasse,TRUE
+0,602,Frozen Depleted,TRUE
+0,603,Frozen Fort,TRUE
+0,604,Vloxen Excavations,TRUE
+0,605,Vloxen Excavations: Level 2,TRUE
+0,606,Vloxen Excavations: Level 3,TRUE
+0,608,Heart of the Shiverpeaks: Lev,TRUE
+0,609,Heart of the Shiverpeaks: Lev,TRUE
+0,610,The Journey to Nornheim,TRUE
+0,611,The Journey to Nornheim,TRUE
+0,612,Bloodstone Caves,TRUE
+0,613,Bloodstone Caves: Level 2,TRUE
+0,614,Bloodstone Caves: Level 3,TRUE
+0,615,Bogroot Growths,TRUE
+0,616,Bogroot Growths: Level 2,TRUE
+0,617,Ravens Point,TRUE
+0,618,Ravens Point: Level 2,TRUE
+0,619,Ravens Point: Level 3,TRUE
+0,620,Slavers Exile,TRUE
+0,621,Slavers Exile,TRUE
+0,622,Slavers Exile,TRUE
+0,623,Slavers Exile,TRUE
+0,626,Battledepths: Level 2,TRUE
+0,627,Battledepths: Level 3,TRUE
+0,628,Sepulchre of Dragrimmar,TRUE
+0,629,Sepulchre of Dragrimmar: Leve,TRUE
+0,630,Frostmaws Burrows,TRUE
+0,631,Frostmaws Burrows: Level 2,TRUE
+0,632,Frostmaws Burrows: Level 3,TRUE
+0,633,Frostmaws Burrows: Level 4,TRUE
+0,634,Frostmaws Burrows: Level 5,TRUE
+0,635,Darkrime Delves,TRUE
+0,636,Darkrime Delves: Level 2,TRUE
+0,637,Darkrime Delves: Level 3,TRUE
+0,653,Revealing the Curse,TRUE
+0,654,My Side of the Mountain,TRUE
+0,655,Mountain Owl,TRUE
+0,656,Mountain Owl,TRUE
+0,657,Mountain Owl,TRUE
+0,658,Oolas Laboratory,TRUE
+0,659,Oolas Laboratory,TRUE
+0,660,Oolas Laboratory,TRUE
+0,661,Completing Gadds Research,TRUE
+0,662,Completing Gadds Research,TRUE
+0,663,Completing Gadds Research,TRUE
+0,664,Genius Operated Living Enchan,TRUE
+0,665,Assaulting the Charr Camp,TRUE
+0,666,Freeing Pyres Warband,TRUE
+0,667,Freeing Pyres Warband,TRUE
+0,668,Freeing Pyres Warband,TRUE
+0,669,Freeing the Vanguard,TRUE
+0,670,Source of Destruction,TRUE
+0,671,Source of Destruction,TRUE
+0,672,Source of Destruction,TRUE
+0,674,Steppe Practice,TRUE
+0,676,Catacombs of Kathandrax: Leve,TRUE
+0,677,Hall of Primordus,TRUE
+0,678,Mountain Holdout,TRUE
+0,679,Cinematic Cave Norn Cursed,TRUE
+0,680,Cinematic Steppe Interrogatio,TRUE
+0,681,Cinematic Interior Research,TRUE
+0,686,Polymock Coliseum,TRUE
+0,687,Polymock Glacier,TRUE
+0,688,Polymock Crossing,TRUE
+0,689,Cinematic Mountain Resolution,TRUE
+0,690,<Mountain Polar OP>,TRUE
+0,694,Cinematic Mountain Dwarfs,TRUE
+0,695,The Eye of the North,TRUE
+0,696,The Eye of the North,TRUE
+0,697,The Eye of the North,TRUE
+0,698,Hero Tutorial,TRUE
+0,699,Prototype Map,TRUE
+0,700,The Norn Fighting Tournament,TRUE
+0,701,Hundars Resplendent Treasure,TRUE
+0,702,Norn Brawling Championship,TRUE
+0,703,Kilroys Punchout Training,TRUE
+0,705,INTERIOR_WATCH_OP1_FINAL_BATT,TRUE
+0,706,Designer Test Map,TRUE
+0,707,The Great Norn Alemoot,TRUE
+0,708,(Mountain Traverse),TRUE
+0,709,Battle for Nornheim,TRUE
+0,710,Destroyer Ending,TRUE
+0,711,Alcazia Tangle,TRUE
+0,712,Mission Pack Test,TRUE
+0,713,North Kryta Province,TRUE
+0,714,Bukdek Byway,TRUE
+0,715,Plains of Jarin,TRUE
+0,716,Plains of Jarin,TRUE
+0,717,Plains of Jarin,TRUE
+0,718,Plains of Jarin,TRUE
+0,719,Plains of Jarin,TRUE
+0,720,Plains of Jarin,TRUE
+0,721,Plains of Jarin,TRUE
+0,722,Plains of Jarin,TRUE
+0,723,Plains of Jarin,TRUE
+0,724,Plains of Jarin,TRUE
+0,725,Plains of Jarin,TRUE
+0,727,Plains of Jarin,TRUE
+0,728,Crash! boom!,TRUE
+12269,2,DEV Test Arena (1v1),TRUE
+213190,3,Test Map,FALSE
+127532,6,Wizards Isle,FALSE
+127532,9,Wizards Isle,FALSE
+127484,7,Warriors Isle,FALSE
+127496,8,Hunters Isle,FALSE
+13531,10,Bloodstone Fen,FALSE
+40796,11,The Wilds,FALSE
+13105,12,Aurora Glade,FALSE
+14936,13,Diessa Lowlands,FALSE
+14936,36,Grendich Courthouse,FALSE
+35379,14,Gates of Kryta,FALSE
+35379,256,Gates of Kryta,FALSE
+33663,15,D`Alessio Seaboard,FALSE
+33665,16,Divine Coast,FALSE
+34039,17,Talmark Wilderness,FALSE
+34045,18,The Black Curtain,FALSE
+34045,138,Temple of the Ages,FALSE
+37216,19,Sanctum Cay,FALSE
+33642,20,Droknar`s Forge,FALSE
+13265,21,The Frost Gate,FALSE
+12040,22,Ice Caves of Sorrow,FALSE
+11565,23,Thunderhead Keep,FALSE
+47660,24,Iron Mines of Moladune,FALSE
+13019,25,Borlis Pass,FALSE
+46589,26,Talus Chute,FALSE
+13824,28,The Great Northern Wall,FALSE
+13906,29,Fort Ranik,FALSE
+13907,30,Ruins of Surmia,FALSE
+157168,31,Xaquang Skyway,FALSE
+157168,51,Senji`s Corner,FALSE
+13913,32,Nolani Academy,FALSE
+14937,33,Old Ascalon,FALSE
+14937,39,Sardelac Sanitarium,FALSE
+55563,35,Ember Light Camp,FALSE
+55563,121,Perdition Rock,FALSE
+152265,37,Glints Challenge,FALSE
+52837,38,Augury Rock,FALSE
+52837,115,Skyward Reach,FALSE
+52837,119,Augury Rock,FALSE
+51061,40,Piken Square,FALSE
+51061,102,The Breach,FALSE
+40803,41,Sage Lands,FALSE
+40803,140,Druid`s OVerlook,FALSE
+40809,42,Mamnoon Lagoon,FALSE
+40812,43,Silverwood,FALSE
+40812,142,Quarrel Falls,FALSE
+40798,44,Ettins Back,FALSE
+40798,139,Ventari`s Refuge,FALSE
+40802,45,Reed Bog,FALSE
+40808,46,The Falls,FALSE
+40801,47,Dry Top,FALSE
+40811,48,Tangle Root,FALSE
+40811,141,Maguuma Stade,FALSE
+40759,49,Henge of Denravi,FALSE
+127565,52,Burning Isle,FALSE
+127565,67,Burning Isle,FALSE
+41192,53,Tears of the Fallen,FALSE
+41193,54,Scoundrels Rise,FALSE
+13565,55,Lion`s Arch,FALSE
+34216,56,Cursed Lands,FALSE
+34216,57,Bergen Hot Springs,FALSE
+34216,59,Nebo Terrace,FALSE
+321286,58,North Kryta Province,FALSE
+34320,60,Majestys Rest,FALSE
+34321,61,Twin Serpent Lakes,FALSE
+34222,62,Watchtower Coast,FALSE
+34222,136,Beetletun,FALSE
+34281,63,Stingray Strand,FALSE
+34281,137,Fisherman`s Haven,FALSE
+34225,64,Kessex Peak,FALSE
+127589,68,Frozen Isle,FALSE
+127592,69,Nomads Isle,FALSE
+127643,71,Isle of the Dead,FALSE
+16428,84,The Underworld,TRUE
+10682,73,Riverside Province,FALSE
+155155,77,House zu Heltzer,FALSE
+155155,272,Altrumm Ruins,FALSE
+22052,81,Ascalon City,FALSE
+166048,82,Tomb of the Primeval Kings,FALSE
+46591,87,Icedome,FALSE
+46592,88,Iron Horse Mine,FALSE
+46593,89,Anvil Rock,FALSE
+46593,132,Icetooth Cave,FALSE
+46594,90,Lornars Pass,FALSE
+46594,133,Beacon`s Perch,FALSE
+12244,91,Snake Dance,FALSE
+12244,155,Camp Rankor,FALSE
+46597,92,Tascas Demise,FALSE
+46597,156,The Granite Citadel,FALSE
+46598,94,Ice Floe,FALSE
+46598,157,Marhan`s Grotto,FALSE
+46599,95,Witmans Folly,FALSE
+46599,158,Port Sledge,FALSE
+46600,96,Mineral Springs,FALSE
+46601,97,Dreadnoughts Drift,FALSE
+46602,98,Frozen Forest,FALSE
+46602,159,Copperhammer Mines,FALSE
+46603,99,Travelers Vale,FALSE
+46603,134,Yak`s bend,FALSE
+46603,181,Shiverpeak Arena,FALSE
+46603,322,Shiverpeak Arena,FALSE
+46604,100,Deldrimor Bowl,FALSE
+51060,101,Regent Valley,FALSE
+51062,103,Ascalon Foothills,FALSE
+51063,104,Pockmark Flats,FALSE
+51063,131,Serenity Temple,FALSE
+51064,105,Dragons Gullet,FALSE
+51064,106,Flame Temple Corridor,FALSE
+51066,107,Eastern Frontier,FALSE
+51066,135,Frontier Gate,FALSE
+52166,108,The Scar,FALSE
+52166,154,Destiny`s Gorge,FALSE
+52918,109,The Amnoon Oasis,FALSE
+52918,319,Amnoon Arena,FALSE
+52821,110,Diviners Ascent,FALSE
+52822,111,Vulture Drifts,FALSE
+52830,112,The Arid Sea,FALSE
+52835,113,Prophets Path,FALSE
+52835,152,Heroes` Audience,FALSE
+52836,114,Salt Flats,FALSE
+52836,153,Seeker`s Passage,FALSE
+52838,116,Dunes of Despair,FALSE
+52839,117,Thirsty River,FALSE
+52840,118,Elona Reach,FALSE
+52842,120,The Dragons Lair,FALSE
+55552,122,Ring Of Fire,FALSE
+55559,123,Abaddon`s Mouth,FALSE
+55560,124,Hell`s Precipice,FALSE
+55617,126,Golden Gates,TRUE
+155165,128,The Eternal Grove,FALSE
+155165,130,Vasburg Armory,FALSE
+155165,222,The Eternal Grove,FALSE
+154590,129,Lutgardis Conservatory,FALSE
+154590,201,Melandrus Hope,FALSE
+155167,144,Gyala Hatchery,FALSE
+155167,224,Gyala Hatchery,FALSE
+155167,279,Leviathan Pits,FALSE
+116016,145,The Catacombs,FALSE
+113021,146,Lakeside County,FALSE
+113021,148,Pre Ascalon City,FALSE
+113021,164,Ashford Abbey,FALSE
+116025,147,The Northlands,FALSE
+113437,162,Regent Valley,FALSE
+113437,166,Pre Fort Ranik,FALSE
+113190,163,The Barradin Estate,FALSE
+113355,165,Foible`s Fair,FALSE
+165083,188,Random Arenas,FALSE
+165176,189,Team Arenas,FALSE
+152201,191,Grenths Footprint,FALSE
+152201,206,Deldrimor War Camp,FALSE
+155157,193,Cavalon,FALSE
+155157,273,Zos Shrivros Channel,FALSE
+157175,194,Kaineng Center,FALSE
+157175,290,Bejunkan Pier,FALSE
+154527,195,Drazach Thicket,FALSE
+154527,286,Brauer Academy,FALSE
+156966,196,Jaya Bluffs,FALSE
+157169,197,Shenzun Tunnels,FALSE
+155075,198,Archipelagos,FALSE
+154893,199,Maishang Hills,FALSE
+154893,288,Bai Paasu Reach,FALSE
+154893,350,Eredon Terrace,FALSE
+155089,200,Mount Qinkai,FALSE
+155089,278,Breaker Hollow,FALSE
+155121,202,Rheas Crater,FALSE
+155121,289,Seafarer`s Rest,FALSE
+155150,203,Silent Surf,FALSE
+155168,204,Unwaking Waters,FALSE
+155168,227,Unwaking Waters,FALSE
+155168,277,Harvest Temple,FALSE
+155168,297,Unwaking Waters (Luxon),FALSE
+155168,298,Unwaking Waters (Kurzick),FALSE
+154638,205,Morostav Trail,FALSE
+157242,209,Mourning Veil Falls,FALSE
+157242,287,Durheim Archives,FALSE
+154676,210,Ferndale,FALSE
+154676,349,Saint Anjeka`s Shrine,FALSE
+155151,211,Pongmei Valley,FALSE
+155151,283,Maatu Keep,FALSE
+155151,348,Tanglewood Copse,FALSE
+156969,212,Monastery Overlook,FALSE
+156969,250,Seitung Harbor,FALSE
+156969,252,Linnok Courtyard,FALSE
+156969,313,Saoshang Trail,FALSE
+156969,416,Monastery Overlook,FALSE
+156882,213,Zen Daijun,FALSE
+156882,246,Zen Daijun,FALSE
+156827,214,Minister Cho`s Estate,FALSE
+156827,245,Minister Chos Estate,FALSE
+157176,215,Vizunah Square,FALSE
+157176,232,Shadows Passage,FALSE
+157176,291,Vizunah Square (Local Quarter,FALSE
+157176,292,Vizunah Square (Foreign Quart,FALSE
+157177,216,Nahpui Quarter,FALSE
+157177,265,Nahpui Quarter,FALSE
+157178,217,Tahnnakai Temple,FALSE
+157178,269,Tahnnakai Temple,FALSE
+157178,284,ZinKu Corridor,FALSE
+155158,218,Arborstone,FALSE
+155158,244,Arborstone,FALSE
+155159,219,Boreas Seabed,FALSE
+155159,247,Boreas Seabed,FALSE
+157179,220,Sunjiang District,FALSE
+157212,225,Raisu Palace,FALSE
+157212,233,Raisu Palace,FALSE
+157212,301,Raisu Pavilion,FALSE
+157213,226,Imperial Sanctum,FALSE
+155172,230,Amatz Basin,FALSE
+155176,234,The Aurios Mines,FALSE
+157021,235,Panjiang Peninsula,FALSE
+157048,236,Kinya Province,FALSE
+157048,251,Ran Musu Gardens,FALSE
+157079,237,Haiju Lagoon,FALSE
+157087,238,Sunqua Vale,FALSE
+157087,249,Tsumei Village,FALSE
+157167,239,Wajjun Bazaar,FALSE
+157167,302,Kaineng Docks,FALSE
+157167,303,The Marketplace,FALSE
+321291,240,Bukdek Byway,FALSE
+157172,241,The Undercity,FALSE
+257816,242,Shing Jea Monastery,FALSE
+157214,243,Shing Jea Arena,FALSE
+157214,366,Shing Jea Arena,FALSE
+165811,248,Great Temple of Balthazar,FALSE
+165811,280,Isle of the Nameless,FALSE
+167860,266,Urgozs Warren,FALSE
+167864,274,Dragon`s Throat,FALSE
+165826,281,Zaishen Challenge,FALSE
+165842,282,Zaishen Elite,FALSE
+155164,293,Fort Aspenwood (Luxon),FALSE
+155164,294,Fort Aspenwood (Kurzick),FALSE
+155164,388,Aspenwood Gate (Kurzick),FALSE
+155164,389,Aspenwood Gate (Luxon),FALSE
+155166,295,The Jade Quarry (Luxon),FALSE
+155166,296,The Jade Quarry (Kurzick),FALSE
+155166,390,Jade Flats (Kurzick),FALSE
+155166,391,Jade Flats (Luxon),FALSE
+188821,307,The Deep,FALSE
+127428,318,DAlessio Arena,FALSE
+59894,320,Fort Koga,FALSE
+154123,321,Heroes Crypt,FALSE
+165788,330,Heroes` Ascent,FALSE
+165764,360,Isle Of Meditation,FALSE
+165764,364,Isle of Meditation,FALSE
+157215,361,Isle of Weeping Stone,FALSE
+157221,362,Isle of Jade,FALSE
+165686,363,Imperial Isle,FALSE
+218083,369,Jahai Bluffs,FALSE
+212775,371,Marga Coast,FALSE
+212775,477,Nundu Bay,FALSE
+212844,373,Sunward Marches,FALSE
+212976,375,Vortex,FALSE
+212976,376,Camp Hojanu,FALSE
+215315,377,Bahdok Caverns,FALSE
+215315,427,Moddok Crevice,FALSE
+215191,379,Dejarin Estate,FALSE
+218847,380,Arkjok Ward,FALSE
+215155,382,"Gandara, the Moon Fortress",FALSE
+214069,384,The Floodplain of Mahnkelon,FALSE
+214069,425,Rilohn Refuge,FALSE
+218925,386,Turais Procession,FALSE
+216120,387,Sunspear Sanctuary,FALSE
+216120,436,Command Post,FALSE
+211038,392,Yatendi Canyons,FALSE
+211038,393,Chantry of Secrets,FALSE
+215636,394,Garden of Seborhin,FALSE
+216883,395,Holdings of Chokhin,FALSE
+211075,396,Mihanu Township,FALSE
+217149,397,Vehjin Mines,FALSE
+211957,398,Basalt Grotto,FALSE
+217403,399,Forum Highlands,FALSE
+217403,428,Tihark Orchard,FALSE
+212420,402,Resplendent Makuun,FALSE
+212420,403,Honur Hill,FALSE
+215818,404,Wilderness of Bahdza,FALSE
+217955,406,Vehtendi Valley,FALSE
+212438,407,Yahnur Market,FALSE
+212497,413,The Hidden City of Ahdashim,FALSE
+212497,434,Dasha Vestibule,FALSE
+216071,414,The Kodash Bazaar,FALSE
+195066,415,Lions Gate,FALSE
+211935,419,The Mirror of Lyss,FALSE
+211935,435,Grand Court of Sebelkeh,FALSE
+212586,424,Kodonur Crossroads,FALSE
+213215,426,Pogahn Passage,FALSE
+214476,429,Consulate,FALSE
+214476,449,"Kamadan, Jewel of Istan",FALSE
+214476,493,Consulate Docks,FALSE
+214476,543,Sun Docks,FALSE
+321293,430,Plains of Jarin,FALSE
+210513,431,Sunspear Great Hall,FALSE
+212428,433,Dzagonur Bastion,FALSE
+210198,437,Jokos Domain,FALSE
+210198,438,Bone Palace,FALSE
+210292,439,The Ruptured Heart,FALSE
+210292,440,The Mouth of Torment,FALSE
+216292,441,The Shattered Ravines,FALSE
+210307,442,Lair of the Forgotten,FALSE
+216305,443,Poisoned Outcrops,FALSE
+215929,444,The Sulfurous Wastes,FALSE
+210324,446,The Alkali Pan,FALSE
+210324,480,Ruins of Morah,FALSE
+214315,450,Gate of Torment,FALSE
+214315,469,Gate of Fear,FALSE
+214315,473,Gate of Secrets,FALSE
+214315,474,Gate of Anguish,FALSE
+214315,494,Gate of Pain,FALSE
+214315,495,Gate of Madness,FALSE
+214315,559,Gate of the Nightfallen Lands,FALSE
+249289,456,Churrhir Fields,FALSE
+249289,544,Chahbek Village,FALSE
+219186,468,Domain of Fear,FALSE
+216012,470,Domain of Pain,FALSE
+212000,476,Jennurs Horde,FALSE
+214076,478,Gate of Desolation,FALSE
+210612,479,Champions Dawn,FALSE
+216337,481,"Fahranur, The First City",FALSE
+290923,482,Bjora Marches,FALSE
+216351,483,Zehlon Reach,FALSE
+216372,484,Lahtenda Bog,FALSE
+287262,485,Arbor Bay,FALSE
+287262,624,Vloxs Falls,FALSE
+210727,486,Issnur Isles,FALSE
+210727,487,Beknur Harbor,FALSE
+216388,488,Mehtani Keys,FALSE
+210732,489,Kodlonu Hamlet,FALSE
+210623,491,Jokanur Diggings,FALSE
+210629,492,Blacktide Den,FALSE
+214168,496,Abaddons Gate,FALSE
+216140,497,Sunspear Arena,FALSE
+288299,499,Ice Cliff Chasms,FALSE
+288299,642,Eye of the North,FALSE
+288299,646,Hall of Monuments,FALSE
+288299,675,Boreal Station,FALSE
+290897,501,Riven Earth,FALSE
+210626,502,The Astralarium,FALSE
+288769,513,Drakkar Lake,FALSE
+288769,643,Sifhalla,FALSE
+208982,531,Uncharted Isle,FALSE
+209436,532,Isle of Wurms,FALSE
+209230,537,Corrupted Isle,FALSE
+209230,539,Corrupted Isle,FALSE
+210082,540,Isle of Solitude,FALSE
+210316,545,Remains of Sahlahja,FALSE
+290943,546,Jaga Moraine,FALSE
+289087,548,Norrhart Domains,FALSE
+289087,644,Gunnars Hold,FALSE
+289087,726,Plains of Jarin,FALSE
+246766,549,Hero Battles,FALSE
+289616,553,Varajar Fells,FALSE
+289616,645,Olafstead,FALSE
+212792,554,Dajkah Inlet,FALSE
+287493,558,Sparkfly Swamp,FALSE
+287493,638,Gadds Encampment,FALSE
+287674,566,Verdant Cascades,FALSE
+287674,639,Umbral Grotto,FALSE
+287783,569,Magus Stones,FALSE
+287783,640,Rata Sum,FALSE
+288071,572,Alcazia Tangle,FALSE
+288071,641,Tarnished Haven,FALSE
+290232,598,The Antechamber,TRUE
+292090,607,Heart of the Shiverpeaks,FALSE
+292300,625,Battledepths,FALSE
+289960,647,Dalada Uplands,FALSE
+289960,648,Doomlore Shrine,FALSE
+290181,649,Grothmar Wardowns,FALSE
+290181,650,Longeyes Ledge,FALSE
+291140,651,Sacnoth Valley,FALSE
+290182,652,Central Transfer Chamber,FALSE
+325399,673,A Time for Heroes,FALSE
+325404,682,Cinematic Eye Vision A,FALSE
+325404,683,Cinematic Eye Vision B,FALSE
+325404,684,Cinematic Eye Vision C,FALSE
+325404,685,Cinematic Eye Vision D,FALSE
+292198,691,Beneath Lions Arch,FALSE
+292198,692,Tunnels Below Cantha,FALSE
+292198,693,Caverns Below Kamadan,FALSE
+292319,704,Fronis Irontoe`s Lair,FALSE
