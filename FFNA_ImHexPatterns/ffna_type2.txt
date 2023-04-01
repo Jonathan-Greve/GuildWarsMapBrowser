@@ -1,6 +1,5 @@
 #include <std/mem.pat>
 #include <std/io.pat>
-// 0x101B99D => 0x1B79E
 std::mem::Section provider = std::mem::create_section("Memory provider");
 u32 fvf_array_0[22] @0x00 in provider;
 u32 fvf_array_1[8] @0x00+sizeof(fvf_array_0) in provider;
@@ -85,7 +84,6 @@ fn compute_str_len_plus_one(u32 address){
   
   return counter;
 };
-
 
 struct String {
   char string[compute_str_len_plus_one($)];
@@ -209,6 +207,13 @@ struct complex_struct{
     u8 data[size];
 };
 
+// To get file hash from name do:
+// (id0 - 0xff00ff) + (id2 * 0xff00);
+struct FileName{
+  u16 id0;
+  u16 id1;
+};
+
 struct Chunk1 {
   u32 chunk_id;
   u32 chunk_size; chunk1_size=chunk_size;
@@ -217,7 +222,10 @@ struct Chunk1 {
   u8 unknown[sub_1.some_num0*8 + sub_1.some_num1*9 +(-(sub_1.f0x20 != 0) & sub_1.some_num1)]; // shader and texture stuff/info?
   
   u32 extra_bytes = 0; // Used for counting bytes read in inner scopes.
+  
+  u32 data_size_here = 0;
   if (sub_1.f0x19 > 0){
+  
       u32 puVar15 = sub_1.f0x19*9;
       if (addressof(chunk_id) + puVar15 < addressof(chunk_id)+8+chunk_size){
         u32 puVar16 = sub_1.f0x1d * ((sub_1.f0x20 != 0)+3) + puVar15;
@@ -228,6 +236,8 @@ struct Chunk1 {
             
             String strings[sub_1.f0x1a];
             u8 unknown_data1[sub_1.f0x1e*2];
+            
+            extra_bytes += sizeof(unknown_data0) + sizeof(strings) + sizeof(unknown_data1);
           }
           else{
           u8 unknown_data0[puVar16];// cannot parse model
@@ -275,7 +285,9 @@ struct Chunk1 {
 struct Chunk2 {
   u32 chunk_id;
   u32 chunk_size;
-  u8 chunk_data[chunk_size];
+  u32 num_filenames;
+  FileName filenames[num_filenames];
+  u8 chunk_data[chunk_size-4-sizeof(filenames)];
 };
 
 struct Chunk3 {
@@ -289,8 +301,9 @@ struct ModelFile {
   u8 file_tpe;
   Chunk1 chunk1;
   Chunk2 chunk2;
-  Chunk3 chunk3;
+  Chunk3 chunk3[while($ < sizeof($))];
 };
 
 
 ModelFile model_file @ 0;
+
