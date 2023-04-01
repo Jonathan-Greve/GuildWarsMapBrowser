@@ -111,6 +111,7 @@ struct ComplexStruct
         {
             parsed_correctly = false;
             return;
+            return;
         }
 
         u0x0 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
@@ -185,7 +186,7 @@ struct ComplexStruct
 
         uint32_t size = res3 + res2 * 2;
 
-        if (curr_offset + size < data_size_bytes)
+        if (curr_offset + size < data_size_bytes && (curr_offset + size) > size)
         {
             struct_data.resize(size);
             std::memcpy(struct_data.data(), &data[curr_offset], struct_data.size());
@@ -194,6 +195,7 @@ struct ComplexStruct
         else
         {
             parsed_correctly = false;
+            return;
         }
     }
 };
@@ -227,6 +229,7 @@ struct GeometryModel
         if (curr_offset + 0x24 >= data_size_bytes)
         {
             parsed_correctly = false;
+            return;
             return;
         }
 
@@ -272,9 +275,11 @@ struct GeometryModel
         else
         {
             parsed_correctly = false;
+            return;
         }
 
-        if (vertex_size > 0 && num_vertices * vertex_size < chunk_size && num_vertices < 2000000)
+        if (vertex_size >= 8 && curr_offset + num_vertices * vertex_size < data_size_bytes &&
+            num_vertices < 2000000)
         {
 
             vertices.resize(num_vertices);
@@ -316,6 +321,7 @@ struct GeometryModel
         else
         {
             parsed_correctly = false;
+            return;
         }
         uint32_t extra_data_size = (u0 + u1 + u2 * 3) * 4;
         if (curr_offset + extra_data_size < data_size_bytes && u0 < 10000 && u1 < 10000 && u2 < 10000)
@@ -327,6 +333,62 @@ struct GeometryModel
         else
         {
             parsed_correctly = false;
+            return;
+        }
+    }
+};
+
+struct InteractiveModelMaybe
+{
+    uint32_t num_indices;
+    uint32_t num_vertices;
+    std::vector<uint16_t> indices;
+    std::vector<Vertex> vertices;
+
+    InteractiveModelMaybe() = default;
+    InteractiveModelMaybe(uint32_t& curr_offset, const unsigned char* data, uint32_t data_size_bytes,
+                          bool& parsed_correctly)
+    {
+        // Read num_indices and num_vertices
+        if (curr_offset + sizeof(num_indices) + sizeof(num_vertices) > data_size_bytes)
+        {
+            parsed_correctly = false;
+            return;
+            return;
+        }
+
+        std::memcpy(&num_indices, &data[curr_offset], sizeof(num_indices));
+        curr_offset += sizeof(num_indices);
+
+        std::memcpy(&num_vertices, &data[curr_offset], sizeof(num_vertices));
+        curr_offset += sizeof(num_vertices);
+
+        // Read indices
+        if (curr_offset + num_indices * sizeof(uint16_t) <= data_size_bytes)
+        {
+            indices.resize(num_indices);
+            std::memcpy(indices.data(), &data[curr_offset], num_indices * sizeof(uint16_t));
+            curr_offset += num_indices * sizeof(uint16_t);
+        }
+        else
+        {
+            parsed_correctly = false;
+            return;
+            return;
+        }
+
+        // Read vertices
+        if (curr_offset + num_vertices * sizeof(ModelVertex(0)) <= data_size_bytes)
+        {
+            vertices.resize(num_vertices);
+            std::memcpy(vertices.data(), &data[curr_offset], num_vertices * sizeof(ModelVertex(0)));
+            curr_offset += num_vertices * sizeof(ModelVertex(0));
+        }
+        else
+        {
+            parsed_correctly = false;
+            return;
+            return;
         }
     }
 };
@@ -339,11 +401,31 @@ struct GeometryChunk
     std::vector<uint8_t> unknown;
     std::vector<uint8_t> unknown2;
     std::vector<uint8_t> unknown3;
+    std::vector<uint8_t> unknown_data_0;
+    std::vector<uint8_t> unknown_data_1;
+    std::vector<std::string> strings;
+
     uint32_t unknown4;
     uint32_t unknown5;
     std::vector<ComplexStruct> complex_structs;
     std::vector<GeometryModel> models;
     std::vector<uint8_t> chunk_data;
+
+    uint32_t compute_str_len_plus_one(const unsigned char* data, uint32_t address)
+    {
+        uint32_t counter = 0;
+        bool found = false;
+        while (! found)
+        {
+            uint8_t curr_char = data[address + counter];
+            if (curr_char == 0)
+            {
+                found = true;
+            }
+            counter += 1;
+        }
+        return counter;
+    }
 
     GeometryChunk() = default;
 
@@ -368,11 +450,65 @@ struct GeometryChunk
                 curr_offset += unknown_size;
             }
 
+            if (sub_1.f0x19 > 0)
+            {
+                uint32_t puVar15 = sub_1.f0x19 * 9;
+                if (curr_offset + puVar15 < data_size_bytes)
+                {
+                    uint32_t puVar16 = sub_1.f0x1d * ((sub_1.f0x20 != 0) + 3) + puVar15;
+                    if (curr_offset + puVar16 < data_size_bytes)
+                    {
+                        uint32_t _Src = puVar16 + sub_1.f0x1a * 8;
+                        if (curr_offset + _Src < data_size_bytes)
+                        {
+                            unknown_data_0.resize(_Src);
+                            std::memcpy(unknown_data_0.data(), &data[curr_offset], _Src);
+                            curr_offset += _Src;
+
+                            strings.resize(sub_1.f0x1a);
+                            for (uint32_t i = 0; i < sub_1.f0x1a; ++i)
+                            {
+                                uint32_t str_len = compute_str_len_plus_one(data, curr_offset);
+                                strings[i] =
+                                  std::string(reinterpret_cast<const char*>(&data[curr_offset]), str_len - 1);
+                                curr_offset += str_len;
+                            }
+
+                            unknown_data_1.resize(sub_1.f0x1e * 2);
+                            std::memcpy(unknown_data_1.data(), &data[curr_offset], sub_1.f0x1e * 2);
+                            curr_offset += sub_1.f0x1e * 2;
+                        }
+                        else
+                        {
+                            unknown_data_0.resize(puVar16);
+                            std::memcpy(unknown_data_0.data(), &data[curr_offset], puVar16);
+                            curr_offset += puVar16;
+                            parsed_correctly = false;
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        unknown_data_0.resize(puVar15);
+                        std::memcpy(unknown_data_0.data(), &data[curr_offset], puVar15);
+                        curr_offset += puVar15;
+                        parsed_correctly = false;
+                        return;
+                    }
+                }
+                else
+                {
+                    parsed_correctly = false;
+                    return;
+                }
+            }
+
             if ((sub_1.f0x8 & 0x20))
             {
                 if (curr_offset + 8 > data_size_bytes)
                 {
                     parsed_correctly = false;
+                    return;
                 }
                 else
                 {
@@ -382,6 +518,11 @@ struct GeometryChunk
                     unknown5 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
                     curr_offset += sizeof(uint32_t);
 
+                    if (curr_offset + unknown5 * sizeof(ComplexStruct) > data_size_bytes)
+                    {
+                        parsed_correctly = false;
+                        return;
+                    }
                     for (int i = 0; i < unknown5; i++)
                     {
 
@@ -416,6 +557,7 @@ struct GeometryChunk
         else
         {
             parsed_correctly = false;
+            return;
         }
 
         // Copy remaining chunk_data after reading all other fields
@@ -428,6 +570,7 @@ struct GeometryChunk
         else
         {
             parsed_correctly = false;
+            return;
         }
     }
 };
