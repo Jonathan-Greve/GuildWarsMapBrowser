@@ -1,19 +1,8 @@
 
 #include "pch.h"
 #include "AtexAsm.h"
-#include <stdio.h>
 
 #pragma pack(1)
-
-union RGBA
-{
-    unsigned char c[4];
-    struct
-    {
-        unsigned char r, g, b, a;
-    };
-    unsigned int dw;
-};
 
 union DXT1Color
 {
@@ -33,7 +22,7 @@ struct DXT5Alpha
     __int64 table;
 };
 
-RGBA* ProcessDXT1(unsigned char* data, int xr, int yr)
+std::vector<RGBA> ProcessDXT1(unsigned char* data, int xr, int yr)
 {
     DXT1Color* coltable = new DXT1Color[xr * yr / 16];
     unsigned int* blocktable = new unsigned int[xr * yr / 16];
@@ -46,8 +35,8 @@ RGBA* ProcessDXT1(unsigned char* data, int xr, int yr)
         blocktable[x] = d[x * 2 + 1];
     }
 
-    RGBA* image = new RGBA[xr * yr];
-    memset(image, 0, xr * yr * 4);
+    std::vector<RGBA> image(xr * yr);
+    memset(image.data(), 0, xr * yr * 4);
 
     int p = 0;
     for (int y = 0; y < yr / 4; y++)
@@ -100,7 +89,7 @@ RGBA* ProcessDXT1(unsigned char* data, int xr, int yr)
     return image;
 }
 
-RGBA* ProcessDXT3(unsigned char* data, int xr, int yr)
+std::vector<RGBA> ProcessDXT3(unsigned char* data, int xr, int yr)
 {
     DXT1Color* coltable = new DXT1Color[xr * yr / 16];
     __int64* alphatable = new __int64[xr * yr / 16];
@@ -115,8 +104,8 @@ RGBA* ProcessDXT3(unsigned char* data, int xr, int yr)
         blocktable[x] = d[x * 4 + 3];
     }
 
-    RGBA* image = new RGBA[xr * yr];
-    memset(image, 0, xr * yr * 4);
+    std::vector<RGBA> image(xr * yr);
+    memset(image.data(), 0, xr * yr * 4);
 
     int p = 0;
     for (int y = 0; y < yr / 4; y++)
@@ -160,7 +149,7 @@ RGBA* ProcessDXT3(unsigned char* data, int xr, int yr)
     return image;
 }
 
-RGBA* ProcessDXT5(unsigned char* data, int xr, int yr)
+std::vector<RGBA> ProcessDXT5(unsigned char* data, int xr, int yr)
 {
     DXT1Color* coltable = new DXT1Color[xr * yr / 16];
     DXT5Alpha* alphatable = new DXT5Alpha[xr * yr / 16];
@@ -175,8 +164,8 @@ RGBA* ProcessDXT5(unsigned char* data, int xr, int yr)
         blocktable[x] = d[x * 4 + 3];
     }
 
-    RGBA* image = new RGBA[xr * yr];
-    memset(image, 0, xr * yr * 4);
+    std::vector<RGBA> image(xr * yr);
+    memset(image.data(), 0, xr * yr * 4);
 
     int p = 0;
     for (int y = 0; y < yr / 4; y++)
@@ -236,5 +225,74 @@ RGBA* ProcessDXT5(unsigned char* data, int xr, int yr)
     delete[] coltable;
     delete[] blocktable;
     delete[] alphatable;
+    return image;
+}
+
+#include <vector>
+
+std::vector<RGBA> ProcessImageFile(unsigned char* img, int size)
+{
+    int id1, id2;
+
+    id1 = ((unsigned int*)img)[0];
+    id2 = ((unsigned int*)img)[1];
+
+    if (id1 != 'XTTA' && id1 != 'XETA')
+    {
+        return std::vector<RGBA>();
+    }
+
+    if ((id2 & 0xffffff) != 'TXD')
+    {
+        return std::vector<RGBA>();
+    }
+
+    int cmptype = id2 >> 24;
+
+    SImageDescriptor r;
+    r.xres = *(unsigned short*)(img + 8);
+    r.yres = *(unsigned short*)(img + 10);
+    r.Data = img;
+    r.imageformat = 0xf;
+    r.a = size;
+    r.b = 6;
+    r.c = 0;
+
+    std::vector<RGBA> output(r.xres * r.yres);
+    r.image = (unsigned char*)output.data();
+
+    std::vector<RGBA> image;
+
+    switch (cmptype)
+    {
+    case '1':
+        AtexDecompress((unsigned int*)img, size, 0xf, r, (unsigned int*)output.data());
+        image = ProcessDXT1((unsigned char*)output.data(), r.xres, r.yres);
+        break;
+    case '2':
+    case '3':
+    case 'N':
+        AtexDecompress((unsigned int*)img, size, 0x11, r, (unsigned int*)output.data());
+        image = ProcessDXT3((unsigned char*)output.data(), r.xres, r.yres);
+        break;
+    case '4':
+    case '5':
+        AtexDecompress((unsigned int*)img, size, 0x13, r, (unsigned int*)output.data());
+        image = ProcessDXT5((unsigned char*)output.data(), r.xres, r.yres);
+        break;
+    case 'L':
+        AtexDecompress((unsigned int*)img, size, 0x12, r, (unsigned int*)output.data());
+        image = ProcessDXT5((unsigned char*)output.data(), r.xres, r.yres);
+        for (int x = 0; x < r.xres * r.yres; x++)
+        {
+            image[x].r = (image[x].r * image[x].a) / 255;
+            image[x].g = (image[x].g * image[x].a) / 255;
+            image[x].b = (image[x].b * image[x].a) / 255;
+        }
+        break;
+    default:
+        return std::vector<RGBA>();
+    }
+
     return image;
 }
