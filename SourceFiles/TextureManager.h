@@ -1,4 +1,6 @@
 #pragma once
+#include "AtexReader.h"
+
 class TextureManager
 {
 public:
@@ -75,6 +77,13 @@ public:
             return it->second.Get();
         }
         return nullptr;
+    }
+
+    HRESULT CreateTextureFromRGBA(int width, int height, const RGBA* data, int* textureID)
+    {
+        DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        *textureID = AddTexture((void*)data, width, height, format);
+        return (*textureID >= 0) ? S_OK : E_FAIL;
     }
 
     void Clear() { m_textures.clear(); }

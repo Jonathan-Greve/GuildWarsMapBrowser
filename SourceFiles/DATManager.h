@@ -34,6 +34,7 @@ public:
 
     FFNA_MapFile parse_ffna_map_file(int index);
     FFNA_ModelFile parse_ffna_model_file(int index);
+    std::vector<RGBA> parse_ffna_texture_file(int index);
 
 private:
     std::wstring m_dat_filepath;
