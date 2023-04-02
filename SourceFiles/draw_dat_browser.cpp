@@ -6,6 +6,7 @@
 inline extern FileType selected_file_type = FileType::NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
 inline extern FFNA_MapFile selected_ffna_map_file{};
+inline extern SelectedDatTexture selected_dat_texture{};
 
 inline extern std::vector<FileData> selected_map_files{};
 
@@ -54,11 +55,27 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
     switch (entry->type)
     {
     case ATEXDXT1:
+    case ATEXDXT2:
+    case ATEXDXT3:
+    case ATEXDXT4:
+    case ATEXDXT5:
+    case ATEXDXTN:
+    //case ATEXDXTA: Cannot parse this
     case ATEXDXTL:
-    case ATEXDXTA:
-    case ATTXDXTA:
+    case ATTXDXT1:
+    case ATTXDXT3:
+    case ATTXDXT5:
+    case ATTXDXTN:
+    //case ATTXDXTA: Cannot parse this
+    case ATTXDXTL:
     {
-        std::vector<RGBA> texture = dat_manager.parse_ffna_texture_file(index);
+        selected_dat_texture.dat_texture = dat_manager.parse_ffna_texture_file(index);
+        if (selected_dat_texture.dat_texture.width > 0 && selected_dat_texture.dat_texture.height > 0)
+        {
+            map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+              selected_dat_texture.dat_texture.width, selected_dat_texture.dat_texture.height,
+              selected_dat_texture.dat_texture.rgba_data.data(), &selected_dat_texture.texture_id);
+        }
     }
     break;
     case FFNA_Type2:

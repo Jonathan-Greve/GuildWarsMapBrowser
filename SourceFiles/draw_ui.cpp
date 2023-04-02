@@ -5,6 +5,9 @@
 #include "draw_dat_load_progress_bar.h"
 #include "draw_left_panel.h"
 #include "draw_right_panel.h"
+#include "draw_texture_panel.h"
+
+extern FileType selected_file_type;
 
 void draw_ui(InitializationState initialization_state, int dat_files_to_read, int dat_total_files,
              DATManager& dat_manager, MapRenderer* map_renderer)
@@ -25,6 +28,12 @@ void draw_ui(InitializationState initialization_state, int dat_files_to_read, in
             draw_data_browser(dat_manager, map_renderer);
             draw_left_panel(map_renderer);
             draw_right_panel(map_renderer);
+
+            if (selected_file_type >= ATEXDXT1 && selected_file_type <= ATTXDXTL &&
+                selected_file_type != ATEXDXTA && selected_file_type != ATTXDXTA)
+            {
+                draw_texture_panel(map_renderer);
+            }
         }
     }
 }
