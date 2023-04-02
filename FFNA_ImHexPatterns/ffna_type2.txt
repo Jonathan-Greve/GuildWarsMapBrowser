@@ -124,6 +124,39 @@ struct Chunk1_sub1 {
   u16 num_some_struct2;
 };
 
+struct Chunkfa1_sub1 {
+  u32 some_type_maybe; // always 0x26? It's also checked for this value in the source.
+  u32 f0x4;
+  s32 f0x8;
+  u32 f0xC;
+  u32 f0x10;
+  u32 f0x14;
+  u8 some_num0; // Num pixel shaders?
+  u8 f0x19;
+  u8 f0x1a;
+  u8 f0x1b;
+  u8 some_num1;
+  u8 f0x1d;
+  u8 f0x1e;
+  u8 f0x1f;
+  u32 f0x20;
+  u32 f0x24;
+  u32 magic_num0;
+  u32 animation_count;
+  u8 num_some_struct; // the structs have size 0x1c
+  u8 f0x31[3];
+  u32 f0x34;
+  u32 f0x38;
+  u32 f0x3C;
+  u32 f0x40;
+  u32 num_models;
+  u32 f0x48;
+  u16 f0x4C;
+  u8 f0x4E[2];
+  u16 f0x50;
+  u16 num_some_struct2;
+};
+
 struct geometry_sub_chunk {
   u32 zero_maybe;
   u32 indices0;
@@ -214,7 +247,7 @@ struct FileName{
   u16 id1;
 };
 
-struct Chunk1 {
+struct GeometryChunk {
   u32 chunk_id;
   u32 chunk_size; chunk1_size=chunk_size;
   // Data start
@@ -282,7 +315,9 @@ struct Chunk1 {
   u8 chunk_data[chunk_size-sizeof(sub_1)-sizeof(unknown)-extra-sizeof(geometry)-extra_bytes-sizeof(interactive_models_maybe)];
 };
 
-struct Chunk2 {
+
+
+struct FileNamesChunk {
   u32 chunk_id;
   u32 chunk_size;
   u32 num_filenames;
@@ -290,18 +325,50 @@ struct Chunk2 {
   u8 chunk_data[chunk_size-4-sizeof(filenames)];
 };
 
-struct Chunk3 {
+struct SomeAnimationStruct<auto anim_count> {
+  u8 some_data[anim_count << 4];
+  u32 loop_counter = 0;
+  
+};
+
+struct ChunkFA1 {
+  u32 chunk_id;
+  u32 chunk_size;
+  Chunkfa1_sub1 sub_1; 
+  u32 unknown;
+  u8 unknown_data[sub_1.f0x14 << 4];
+  u8 unknown_data1[sub_1.f0x34*0x18];
+  SomeAnimationStruct<sub_1.animation_count> some_anim_struct;
+  u8 chunk_data[chunk_size-sizeof(sub_1)-4-sizeof(unknown_data)
+  -sizeof(unknown_data1)-sizeof(some_anim_struct)];
+};
+
+struct UnknownChunk {
   u32 chunk_id;
   u32 chunk_size;
   u8 chunk_data[chunk_size];
 };
 
+struct Chunk {
+ u32 chunk_id = std::mem::read_unsigned($, 4);
+ if (chunk_id == 0xFA0){
+   GeometryChunk geometry_chunk;
+ }
+ else if (chunk_id == 0xFA1){
+   ChunkFA1 fa1_chunk;
+ }
+ else if (chunk_id == 0xFA5){
+   FileNamesChunk filenames_chunk;
+ }
+ else{
+   UnknownChunk unknown_chunk;
+ }
+};
+
 struct ModelFile {
   char ffna[4];
   u8 file_tpe;
-  Chunk1 chunk1;
-  Chunk2 chunk2;
-  Chunk3 chunk3[while($ < sizeof($))];
+  Chunk chunks[while($ < sizeof($))];
 };
 
 
