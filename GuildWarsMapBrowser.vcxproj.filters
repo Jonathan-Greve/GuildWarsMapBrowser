@@ -86,6 +86,9 @@
     <Filter Include="Input\Render\Terrain">
       <UniqueIdentifier>{f9aafacb-1ef7-42b2-af72-0f5f02ae2798}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dat reader\Dat file parsers\Texture">
+      <UniqueIdentifier>{f0c6d069-cc47-4e64-a8ef-5c794dfdc661}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
