@@ -230,7 +230,7 @@ std::vector<RGBA> ProcessDXT5(unsigned char* data, int xr, int yr)
 
 #include <vector>
 
-std::vector<RGBA> ProcessImageFile(unsigned char* img, int size)
+DatTexture ProcessImageFile(unsigned char* img, int size)
 {
     int id1, id2;
 
@@ -239,12 +239,12 @@ std::vector<RGBA> ProcessImageFile(unsigned char* img, int size)
 
     if (id1 != 'XTTA' && id1 != 'XETA')
     {
-        return std::vector<RGBA>();
+        return DatTexture();
     }
 
     if ((id2 & 0xffffff) != 'TXD')
     {
-        return std::vector<RGBA>();
+        return DatTexture();
     }
 
     int cmptype = id2 >> 24;
@@ -291,8 +291,8 @@ std::vector<RGBA> ProcessImageFile(unsigned char* img, int size)
         }
         break;
     default:
-        return std::vector<RGBA>();
+        return DatTexture();
     }
 
-    return image;
+    return DatTexture(r.xres, r.yres, image);
 }

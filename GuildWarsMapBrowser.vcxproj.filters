@@ -89,6 +89,9 @@
     <Filter Include="Dat reader\Dat file parsers\Texture">
       <UniqueIdentifier>{f0c6d069-cc47-4e64-a8ef-5c794dfdc661}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GUI\TexturePanel">
+      <UniqueIdentifier>{3102a9d6-166c-4f98-b19d-d482f1e84192}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -291,6 +294,9 @@
     <ClInclude Include="maps_constant_data.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="draw_texture_panel.h">
+      <Filter>GUI\TexturePanel</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -466,6 +472,9 @@
     </ClCompile>
     <ClCompile Include="draw_prop_model_info.cpp">
       <Filter>GUI\Draw model info</Filter>
+    </ClCompile>
+    <ClCompile Include="draw_texture_panel.cpp">
+      <Filter>GUI\TexturePanel</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
