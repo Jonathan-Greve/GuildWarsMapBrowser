@@ -28,8 +28,13 @@ struct Chunk2 {
   u32 f4;
 };
 
+struct Vertex2 {
+  float x;
+  float y;
+};
+
 struct PropInfo {
-  u16 f1;
+  u16 filename_index;
   float x;
   float y;
   float z;
@@ -43,7 +48,7 @@ struct PropInfo {
   float f11;
   u8 f12;
   u8 num_some_structs;
-  u8 some_structs[num_some_structs*8];
+  Vertex2 some_structs[num_some_structs];
 };
 
 struct PropArray{
@@ -60,10 +65,7 @@ struct SomeVertex{
   u32 f8;
 };
 
-struct Vertex2 {
-  float x;
-  float y;
-};
+
 
 struct SomeVertexData {
   u8 f0;
@@ -142,7 +144,8 @@ struct Chunk4 {
 
 struct Chunk5Element{
   u8 tag;
-  u32 size;
+  u16 size;
+  u16 unknown;
   u8 data[size];
 };
 
@@ -344,7 +347,7 @@ struct MapFile {
  Chunk5 chunk5;
  Chunk4 more_filnames_chunk; // Not sure what filenames yet
  Chunk7 chunk7;
- Chunk8 map_zones_and_terrain;
+ Chunk8 map_zones_and_terrain_chunk;
  Chunk9 chunk9;
  Chunk10 chunk10;
  Chunk11 chunk11;
