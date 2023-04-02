@@ -37,6 +37,26 @@ FFNA_ModelFile DATManager::parse_ffna_model_file(int index)
     return ffna_model_file;
 }
 
+std::vector<RGBA> DATManager::parse_ffna_texture_file(int index)
+{
+    MFTEntry* mft_entry = m_dat.get_MFT_entry_ptr(index);
+    if (! mft_entry)
+        throw "mft_entry not found.";
+
+    // Get decompressed file data
+    HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
+    auto data = m_dat.readFile(file_handle, index, true);
+    std::span<unsigned char> file_data(data, mft_entry->uncompressedSize);
+    CloseHandle(file_handle);
+
+    // Process texture data
+    auto rgba_data = ProcessImageFile(data, mft_entry->uncompressedSize);
+
+    delete[] data;
+
+    return rgba_data;
+}
+
 void DATManager::read_all_files()
 {
     const auto num_files = m_dat.getNumFiles();

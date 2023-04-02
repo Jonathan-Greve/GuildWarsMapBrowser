@@ -53,6 +53,14 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
     switch (entry->type)
     {
+    case ATEXDXT1:
+    case ATEXDXTL:
+    case ATEXDXTA:
+    case ATTXDXTA:
+    {
+        std::vector<RGBA> texture = dat_manager.parse_ffna_texture_file(index);
+    }
+    break;
     case FFNA_Type2:
         selected_ffna_model_file = dat_manager.parse_ffna_model_file(index);
         if (selected_ffna_model_file.parsed_correctly)
