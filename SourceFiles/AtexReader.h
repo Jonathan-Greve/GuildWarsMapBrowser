@@ -10,4 +10,11 @@ union RGBA
     unsigned int dw;
 };
 
-std::vector<RGBA> ProcessImageFile(unsigned char* img, int size);
+struct DatTexture
+{
+    int width;
+    int height;
+    std::vector<RGBA> rgba_data;
+};
+
+DatTexture ProcessImageFile(unsigned char* img, int size);

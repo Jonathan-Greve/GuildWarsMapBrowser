@@ -4,6 +4,12 @@
 
 using FileData = std::variant<FFNA_ModelFile /*, other types */>;
 
+struct SelectedDatTexture
+{
+    DatTexture dat_texture;
+    int texture_id;
+};
+
 enum DatBrowserItemColumnID
 {
     DatBrowserItemColumnID_id,
