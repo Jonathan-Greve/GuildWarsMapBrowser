@@ -6,6 +6,11 @@
 #include "Mesh.h"
 #include "Vertex.h"
 
+constexpr uint32_t GR_FVF_POSITION = 1; // 3 floats
+constexpr uint32_t GR_FVF_GROUP = 2; // uint32?
+constexpr uint32_t GR_FVF_NORMAL = 4; // 3 floats
+constexpr uint32_t GR_FVF_DIFFUSE = 8;
+
 inline int decode_filename(int id0, int id1) { return (id0 - 0xff00ff) + (id1 * 0xff00); }
 
 inline uint32_t get_fvf(uint32_t dat_fvf)
@@ -15,9 +20,6 @@ inline uint32_t get_fvf(uint32_t dat_fvf)
 
 inline uint32_t get_vertex_size_from_fvf(uint32_t fvf)
 {
-    // Just the arrays storing the size each FVF flag adds to the vertex size.
-    // There might be some DX9 function I could call to get the size from the FVF.
-    // But I'm not familiar with DX9 so I'll just do it like the GW source.
     constexpr uint32_t fvf_array_0[22] = {0x0, 0x8,  0x8,  0x10, 0x8,        0x10,      0x10, 0x18,
                                           0x8, 0x10, 0x10, 0x18, 0x10,       0x18,      0x18, 0x20,
                                           0x0, 0x0,  0x0,  0x1,  0xFFFFFFFF, 0xFFFFFFFF};
@@ -31,15 +33,27 @@ inline uint32_t get_vertex_size_from_fvf(uint32_t fvf)
 
 struct ModelVertex
 {
-    float x;
-    float y;
-    float z;
-    std::vector<float> dunno;
+    bool has_position;
+    bool has_group;
+    bool has_normal;
+    bool has_diffuse;
+
+    float x, y, z;
+    uint32_t group;
+    float normal_x, normal_y, normal_z;
+
+    std::vector<float> dunno; // texture coordinates and stuff
 
     ModelVertex() = default;
-    ModelVertex(size_t dunno_size)
-        : dunno(dunno_size)
+    ModelVertex(size_t vertex_size, int FVF)
     {
+        has_position = FVF & GR_FVF_POSITION;
+        has_group = FVF & GR_FVF_GROUP;
+        has_normal = FVF & GR_FVF_NORMAL;
+        has_diffuse = FVF & GR_FVF_DIFFUSE;
+
+        int dunno_size = vertex_size / sizeof(float) - has_position * 3 - has_group * 1 - has_normal * 3;
+        dunno.resize(dunno_size < 0 ? 0 : dunno_size);
     }
 };
 
@@ -261,7 +275,6 @@ struct GeometryModel
         curr_offset += sizeof(u2);
 
         uint32_t vertex_size = get_vertex_size_from_fvf(get_fvf(dat_fvf));
-        size_t dunno_size = vertex_size > 12 ? (vertex_size - 3 * sizeof(float)) / sizeof(float) : 0;
 
         total_num_indices = num_indices0 + (num_indices0 != num_indices1) * num_indices1 +
           (num_indices1 != num_indices2) * num_indices2;
@@ -285,19 +298,41 @@ struct GeometryModel
             vertices.resize(num_vertices);
             for (uint32_t i = 0; i < num_vertices; ++i)
             {
-                ModelVertex vertex(dunno_size);
-                std::memcpy(&vertex.x, &data[curr_offset], sizeof(vertex.x));
-                curr_offset += sizeof(vertex.x);
+                ModelVertex vertex(vertex_size, get_fvf(dat_fvf));
+                if (vertex.has_position)
+                {
+                    std::memcpy(&vertex.x, &data[curr_offset], sizeof(vertex.x));
+                    curr_offset += sizeof(vertex.x);
 
-                std::memcpy(&vertex.z, &data[curr_offset], sizeof(vertex.z));
-                curr_offset += sizeof(vertex.z);
+                    std::memcpy(&vertex.z, &data[curr_offset], sizeof(vertex.z));
+                    curr_offset += sizeof(vertex.z);
 
-                std::memcpy(&vertex.y, &data[curr_offset], sizeof(vertex.y));
-                vertex.y = -vertex.y;
-                curr_offset += sizeof(vertex.y);
+                    std::memcpy(&vertex.y, &data[curr_offset], sizeof(vertex.y));
+                    vertex.y = -vertex.y;
+                    curr_offset += sizeof(vertex.y);
+                }
 
-                std::memcpy(vertex.dunno.data(), &data[curr_offset], dunno_size * sizeof(float));
-                curr_offset += dunno_size * sizeof(float);
+                if (vertex.has_group)
+                {
+                    std::memcpy(&vertex.group, &data[curr_offset], sizeof(vertex.group));
+                    curr_offset += sizeof(vertex.group);
+                }
+
+                if (vertex.has_normal)
+                {
+                    std::memcpy(&vertex.normal_x, &data[curr_offset], sizeof(vertex.normal_x));
+                    curr_offset += sizeof(vertex.normal_x);
+
+                    std::memcpy(&vertex.normal_z, &data[curr_offset], sizeof(vertex.normal_z));
+                    curr_offset += sizeof(vertex.normal_z);
+
+                    std::memcpy(&vertex.normal_y, &data[curr_offset], sizeof(vertex.normal_y));
+                    vertex.normal_y = -vertex.normal_y;
+                    curr_offset += sizeof(vertex.normal_y);
+                }
+
+                std::memcpy(vertex.dunno.data(), &data[curr_offset], vertex.dunno.size() * sizeof(float));
+                curr_offset += vertex.dunno.size() * sizeof(float);
 
                 vertices[i] = vertex;
 
@@ -374,15 +409,15 @@ struct InteractiveModelMaybe
         {
             parsed_correctly = false;
             return;
-            return;
         }
 
         // Read vertices
-        if (curr_offset + num_vertices * sizeof(ModelVertex(0)) <= data_size_bytes)
+        if (curr_offset + num_vertices * sizeof(ModelVertex(12, GR_FVF_POSITION)) <= data_size_bytes)
         {
             vertices.resize(num_vertices);
-            std::memcpy(vertices.data(), &data[curr_offset], num_vertices * sizeof(ModelVertex(0)));
-            curr_offset += num_vertices * sizeof(ModelVertex(0));
+            std::memcpy(vertices.data(), &data[curr_offset],
+                        num_vertices * sizeof(ModelVertex(12, GR_FVF_POSITION)));
+            curr_offset += num_vertices * sizeof(ModelVertex(12, GR_FVF_POSITION));
         }
         else
         {
@@ -631,8 +666,11 @@ struct FFNA_ModelFile
         {
             ModelVertex model_vertex = sub_model.vertices[i];
             Vertex vertex;
+            if (! model_vertex.has_position || ! model_vertex.has_normal)
+                return Mesh({}, {});
 
             vertex.position = XMFLOAT3(model_vertex.x, model_vertex.y, model_vertex.z);
+            vertex.normal = XMFLOAT3(model_vertex.normal_x, model_vertex.normal_y, model_vertex.normal_z);
             vertex.tex_coord = XMFLOAT2(model_vertex.dunno[0], model_vertex.dunno[1]);
             vertices.push_back(vertex);
         }
@@ -650,13 +688,6 @@ struct FFNA_ModelFile
 
             //if (index0 == index1 || index0 == index2 || index1 == index2)
             //    continue;
-
-            XMFLOAT3 normal =
-              compute_normal(vertices[index0].position, vertices[index1].position, vertices[index2].position);
-
-            vertices[index0].normal = normal;
-            vertices[index1].normal = normal;
-            vertices[index2].normal = normal;
 
             indices.push_back(index0);
             indices.push_back(index1);
