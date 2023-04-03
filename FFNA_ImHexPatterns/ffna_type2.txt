@@ -66,8 +66,22 @@ fn get_vertex_size_from_fvf(u32 fvf)
 };
 
 struct Vertex<auto dat_fvf> {
-  u32 vertex_size = get_vertex_size_from_fvf(get_fvf(dat_fvf));
-  float data[vertex_size/4];
+  u32 FVF = get_fvf(dat_fvf);
+  u32 vertex_size = get_vertex_size_from_fvf(FVF);
+  u32 used_bytes = 0;
+  if (FVF & 1){
+    used_bytes += sizeof(float)*3;
+    float x,y,z;
+  }
+  if (FVF & 2){
+    used_bytes += 4;
+    u32 group;
+  }
+  if (FVF & 4){
+    used_bytes += sizeof(float)*3;
+    float normal_x,normal_y,normal_z;
+  }
+  float data[(vertex_size-used_bytes)/4];
 };
 
 fn compute_str_len_plus_one(u32 address){
@@ -245,6 +259,7 @@ struct complex_struct{
 struct FileName{
   u16 id0;
   u16 id1;
+  u16 unknown;
 };
 
 struct GeometryChunk {
@@ -357,7 +372,7 @@ struct Chunk {
  else if (chunk_id == 0xFA1){
    ChunkFA1 fa1_chunk;
  }
- else if (chunk_id == 0xFA5){
+ else if (chunk_id == 0xFA5 || chunk_id == 0xfa6){
    FileNamesChunk filenames_chunk;
  }
  else{
