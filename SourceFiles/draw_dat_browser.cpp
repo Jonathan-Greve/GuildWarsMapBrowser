@@ -78,6 +78,21 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
         }
     }
     break;
+    case DDS:
+    {
+        const std::vector<uint8_t> ddsData = dat_manager.parse_dds_file(index);
+        size_t ddsDataSize = ddsData.size();
+        HRESULT hr = map_renderer->GetTextureManager()->CreateTextureFromDDSInMemory(
+          ddsData.data(), ddsDataSize, &selected_dat_texture.texture_id,
+          &selected_dat_texture.dat_texture.width, &selected_dat_texture.dat_texture.height,
+          selected_dat_texture.dat_texture.rgba_data); // Pass the RGBA vector
+        if (FAILED(hr))
+        {
+            // Handle the error
+        }
+    }
+    break;
+        break;
     case FFNA_Type2:
         selected_ffna_model_file = dat_manager.parse_ffna_model_file(index);
         if (selected_ffna_model_file.parsed_correctly)

@@ -1,17 +1,19 @@
 #pragma once
 #include "AtexReader.h"
+#include "DirectXTex/DirectXTex.h"
 
 class TextureManager
 {
 public:
-    TextureManager(ID3D11Device* device)
+    TextureManager(ID3D11Device* device, ID3D11DeviceContext* device_context)
         : m_device(device)
+        , m_deviceContext(device_context)
     {
     }
 
     ~TextureManager() { Clear(); }
 
-    int AddTexture(void* data, UINT width, UINT height, DXGI_FORMAT format)
+    int AddTexture(const void* data, UINT width, UINT height, DXGI_FORMAT format)
     {
         int textureID = m_nextTextureID++;
 
@@ -86,10 +88,15 @@ public:
         return (*textureID >= 0) ? S_OK : E_FAIL;
     }
 
+    HRESULT CreateTextureFromDDSInMemory(const uint8_t* ddsData, size_t ddsDataSize, int* textureID_out,
+                                         int* width_out, int* height_out, std::vector<RGBA>& rgba_data_out);
+    HRESULT SaveTextureToFile(ID3D11ShaderResourceView* srv, const wchar_t* filename);
+
     void Clear() { m_textures.clear(); }
 
 private:
     ID3D11Device* m_device;
+    ID3D11DeviceContext* m_deviceContext;
     int m_nextTextureID = 0;
     std::unordered_map<int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> m_textures;
 };
