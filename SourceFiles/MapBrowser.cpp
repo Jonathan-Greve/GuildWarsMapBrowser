@@ -53,6 +53,9 @@ void MapBrowser::Initialize(HWND window, int width, int height)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
