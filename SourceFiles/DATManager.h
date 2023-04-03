@@ -35,6 +35,7 @@ public:
     FFNA_MapFile parse_ffna_map_file(int index);
     FFNA_ModelFile parse_ffna_model_file(int index);
     DatTexture parse_ffna_texture_file(int index);
+    std::vector<uint8_t> parse_dds_file(int index);
 
 private:
     std::wstring m_dat_filepath;

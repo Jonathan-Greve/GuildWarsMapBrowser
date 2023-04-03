@@ -92,6 +92,9 @@
     <Filter Include="GUI\TexturePanel">
       <UniqueIdentifier>{3102a9d6-166c-4f98-b19d-d482f1e84192}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dat reader\DDS DirectXTex">
+      <UniqueIdentifier>{346dff3f-4c3a-4b52-bc34-06161203469e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -297,6 +300,27 @@
     <ClInclude Include="draw_texture_panel.h">
       <Filter>GUI\TexturePanel</Filter>
     </ClInclude>
+    <ClInclude Include="DirectXTex\DDS.h">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\DirectXTex.h">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\DirectXTexP.h">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\scoped.h">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\DDSTextureLoader11.h">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\filters.h">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\BC.h">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -476,6 +500,42 @@
     <ClCompile Include="draw_texture_panel.cpp">
       <Filter>GUI\TexturePanel</Filter>
     </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexDDS.cpp">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexUtil.cpp">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DDSTextureLoader11.cpp">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexConvert.cpp">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexD3D11.cpp">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexImage.cpp">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexMipmaps.cpp">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexCompress.cpp">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\BC.cpp">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\BC4BC5.cpp">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\BC6HBC7.cpp">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexWIC.cpp">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SourceFiles\resource.rc" />
@@ -510,6 +570,9 @@
       <Filter>Dear ImGui\ImGuiFileDialog\dirent</Filter>
     </None>
     <None Include="SourceFiles\imgui.ini" />
+    <None Include="DirectXTex\DirectXTex.inl">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="SourceFiles\VertexShader.hlsl">

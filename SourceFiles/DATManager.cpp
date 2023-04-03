@@ -46,7 +46,6 @@ DatTexture DATManager::parse_ffna_texture_file(int index)
     // Get decompressed file data
     HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
     auto data = m_dat.readFile(file_handle, index, true);
-    std::span<unsigned char> file_data(data, mft_entry->uncompressedSize);
     CloseHandle(file_handle);
 
     // Process texture data
@@ -55,6 +54,23 @@ DatTexture DATManager::parse_ffna_texture_file(int index)
     delete[] data;
 
     return dat_texture;
+}
+
+std::vector<uint8_t> DATManager::parse_dds_file(int index)
+{
+    MFTEntry* mft_entry = m_dat.get_MFT_entry_ptr(index);
+    if (! mft_entry)
+        throw "mft_entry not found.";
+
+    // Get decompressed file data
+    HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
+    auto data = m_dat.readFile(file_handle, index, true);
+    std::vector<uint8_t> file_data(data, data + mft_entry->uncompressedSize);
+    CloseHandle(file_handle);
+
+    delete[] data;
+
+    return file_data;
 }
 
 void DATManager::read_all_files()

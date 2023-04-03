@@ -5,8 +5,9 @@
 
 extern SelectedDatTexture selected_dat_texture;
 
-bool SaveTextureToBMP(const char* filename, const DatTexture& texture);
-std::string OpenFileDialog();
+bool SaveTextureToPng(ID3D11ShaderResourceView* texture, std::wstring& filename,
+                      TextureManager* texture_manager);
+std::wstring OpenFileDialog();
 
 void draw_texture_panel(MapRenderer* map_renderer)
 {
@@ -41,10 +42,10 @@ void draw_texture_panel(MapRenderer* map_renderer)
         // Export texture functionality
         if (ImGui::Button("Export Texture"))
         {
-            std::string savePath = OpenFileDialog();
+            std::wstring savePath = OpenFileDialog();
             if (! savePath.empty())
             {
-                if (SaveTextureToBMP(savePath.c_str(), selected_dat_texture.dat_texture))
+                if (SaveTextureToPng(texture, savePath, map_renderer->GetTextureManager()))
                 {
                     ImGui::Text("Texture exported to: %s", savePath.c_str());
                 }
@@ -59,65 +60,37 @@ void draw_texture_panel(MapRenderer* map_renderer)
     }
 }
 
-bool SaveTextureToBMP(const char* filename, const DatTexture& texture)
+bool SaveTextureToPng(ID3D11ShaderResourceView* texture, std::wstring& filename,
+                      TextureManager* texture_manager)
 {
-    BITMAPFILEHEADER fileHeader;
-    BITMAPINFOHEADER infoHeader;
-
-    int width = texture.width;
-    int height = texture.height;
-
-    fileHeader.bfType = 0x4D42; // 'BM'
-    fileHeader.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + (width * height * 4);
-    fileHeader.bfReserved1 = 0;
-    fileHeader.bfReserved2 = 0;
-    fileHeader.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
-
-    infoHeader.biSize = sizeof(BITMAPINFOHEADER);
-    infoHeader.biWidth = width;
-    infoHeader.biHeight = -height; // Negative value for top-down bitmap
-    infoHeader.biPlanes = 1;
-    infoHeader.biBitCount = 32;
-    infoHeader.biCompression = BI_RGB;
-    infoHeader.biSizeImage = 0;
-    infoHeader.biXPelsPerMeter = 0;
-    infoHeader.biYPelsPerMeter = 0;
-    infoHeader.biClrUsed = 0;
-    infoHeader.biClrImportant = 0;
-
-    FILE* file;
-    errno_t err = fopen_s(&file, filename, "wb");
-    if (err != 0)
+    HRESULT hr = texture_manager->SaveTextureToFile(texture, filename.c_str());
+    if (FAILED(hr))
+    {
+        // Handle the error
         return false;
+    }
 
-    fwrite(&fileHeader, sizeof(BITMAPFILEHEADER), 1, file);
-    fwrite(&infoHeader, sizeof(BITMAPINFOHEADER), 1, file);
-    fwrite(texture.rgba_data.data(), sizeof(RGBA), width * height, file);
-
-    fclose(file);
     return true;
 }
 
-std::string OpenFileDialog()
+std::wstring OpenFileDialog()
 {
     OPENFILENAME ofn;
     wchar_t fileName[MAX_PATH] = L"";
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(OPENFILENAME);
     ofn.hwndOwner = NULL;
-    ofn.lpstrFilter = L"Bitmap Files (*.bmp)\0*.bmp\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFilter = L"PNG Files (*.png)\0*.png\0All Files (*.*)\0*.*\0";
     ofn.lpstrFile = fileName;
     ofn.nMaxFile = MAX_PATH;
     ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
-    ofn.lpstrDefExt = L"bmp";
+    ofn.lpstrDefExt = L"png";
 
     if (GetSaveFileName(&ofn))
     {
-        // Convert the wide string to a narrow string
         std::wstring wFileName(fileName);
-        std::string sFileName(wFileName.begin(), wFileName.end());
-        return sFileName;
+        return wFileName;
     }
 
-    return "";
+    return L"";
 }
