@@ -132,7 +132,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\jonag\source\repos\GuildWarsMapBrowser\SourceFiles;C:\Users\jonag\source\repos\GuildWarsMapBrowser\ImGuiFileDialog-Lib_Only;C:\Users\jonag\source\repos\GuildWarsMapBrowser\DearImGui;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\jonag\source\repos\GuildWarsMapBrowser\DirectXTex;C:\Users\jonag\source\repos\GuildWarsMapBrowser\SourceFiles;C:\Users\jonag\source\repos\GuildWarsMapBrowser\ImGuiFileDialog-Lib_Only;C:\Users\jonag\source\repos\GuildWarsMapBrowser\DearImGui;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
@@ -193,6 +193,13 @@
     <ClInclude Include="DearImGui\imstb_truetype.h" />
     <ClInclude Include="DearImGui\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="DefaultPixelShader.h" />
+    <ClInclude Include="DirectXTex\BC.h" />
+    <ClInclude Include="DirectXTex\DDS.h" />
+    <ClInclude Include="DirectXTex\DDSTextureLoader11.h" />
+    <ClInclude Include="DirectXTex\DirectXTex.h" />
+    <ClInclude Include="DirectXTex\DirectXTexP.h" />
+    <ClInclude Include="DirectXTex\filters.h" />
+    <ClInclude Include="DirectXTex\scoped.h" />
     <ClInclude Include="draw_chunk_20000000.h" />
     <ClInclude Include="draw_chunk_20000003.h" />
     <ClInclude Include="draw_left_panel.h" />
@@ -300,6 +307,26 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="DirectXTex\BC.cpp" />
+    <ClCompile Include="DirectXTex\BC4BC5.cpp" />
+    <ClCompile Include="DirectXTex\BC6HBC7.cpp" />
+    <ClCompile Include="DirectXTex\DDSTextureLoader11.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexCompress.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexConvert.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexD3D11.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexDDS.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexImage.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexMipmaps.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexUtil.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\DirectXTexWIC.cpp" />
     <ClCompile Include="draw_chunk_20000000.cpp" />
     <ClCompile Include="draw_chunk_20000003.cpp" />
     <ClCompile Include="draw_left_panel.cpp" />
@@ -375,6 +402,7 @@
     <Text Include="DearImGui\LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="DirectXTex\DirectXTex.inl" />
     <None Include="ImGuiFileDialog-Lib_Only\dirent\ChangeLog" />
     <None Include="ImGuiFileDialog-Lib_Only\dirent\LICENSE" />
     <None Include="ImGuiFileDialog-Lib_Only\dirent\README.md" />

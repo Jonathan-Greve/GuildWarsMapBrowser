@@ -30,7 +30,7 @@ public:
         , m_input_manager(input_manager)
     {
         m_mesh_manager = std::make_unique<MeshManager>(m_device, m_deviceContext);
-        m_texture_manager = std::make_unique<TextureManager>(m_device);
+        m_texture_manager = std::make_unique<TextureManager>(m_device, m_deviceContext);
         m_user_camera = std::make_unique<Camera>();
     }
 
