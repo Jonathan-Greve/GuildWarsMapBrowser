@@ -610,13 +610,71 @@ struct GeometryChunk
     }
 };
 
+struct TextureFileName
+{
+    uint16_t id0;
+    uint16_t id1;
+    uint16_t unknown;
+
+    TextureFileName() = default;
+
+    TextureFileName(uint32_t offset, const unsigned char* data)
+    {
+        std::memcpy(&id0, &data[offset], sizeof(id0));
+        std::memcpy(&id1, &data[offset + 2], sizeof(id1));
+        std::memcpy(&unknown, &data[offset + 4], sizeof(unknown));
+    }
+};
+
+struct TextureFileNamesChunk
+{
+    uint32_t chunk_id;
+    uint32_t chunk_size;
+    uint32_t num_texture_filenames;
+    std::vector<TextureFileName> texture_filenames;
+    std::vector<uint8_t> chunk_data;
+
+    TextureFileNamesChunk() = default;
+
+    TextureFileNamesChunk(uint32_t offset, const unsigned char* data, uint32_t data_size_bytes,
+                          bool& parsed_correctly)
+    {
+        std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
+        std::memcpy(&chunk_size, &data[offset + 4], sizeof(chunk_size));
+        std::memcpy(&num_texture_filenames, &data[offset + 8], sizeof(num_texture_filenames));
+
+        uint32_t curr_offset = offset + 12;
+        texture_filenames.resize(num_texture_filenames);
+
+        for (uint32_t i = 0; i < num_texture_filenames; ++i)
+        {
+            texture_filenames[i] = TextureFileName(curr_offset, data);
+            curr_offset += sizeof(TextureFileName);
+        }
+
+        size_t remaining_bytes = chunk_size - 4 - (sizeof(TextureFileName) * num_texture_filenames);
+        if (curr_offset + remaining_bytes <= offset + chunk_size + 8 && remaining_bytes < chunk_size)
+        {
+            chunk_data.resize(remaining_bytes);
+            std::memcpy(chunk_data.data(), &data[curr_offset], remaining_bytes);
+        }
+        else
+        {
+            parsed_correctly = false;
+            return;
+        }
+    }
+};
+
 constexpr uint32_t CHUNK_ID_GEOMETRY = 0x00000FA0;
+constexpr uint32_t CHUNK_ID_TEXTURE_FILENAMES = 0x00000FA5;
 
 struct FFNA_ModelFile
 {
     char ffna_signature[4];
     FFNAType ffna_type;
     GeometryChunk geometry_chunk;
+    TextureFileNamesChunk texture_filenames_chunk;
 
     bool parsed_correctly = true;
 
@@ -651,6 +709,15 @@ struct FFNA_ModelFile
             int offset = it->second;
             geometry_chunk = GeometryChunk(offset, data.data(), data.size_bytes(), parsed_correctly);
         }
+
+        // Check if the CHUNK_ID_TEXTURE_FILENAMES is in the riff_chunks map
+        it = riff_chunks.find(CHUNK_ID_TEXTURE_FILENAMES);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            texture_filenames_chunk =
+              TextureFileNamesChunk(offset, data.data(), data.size_bytes(), parsed_correctly);
+        }
     }
 
     Mesh GetMesh(int model_index)
@@ -659,8 +726,6 @@ struct FFNA_ModelFile
         std::vector<uint32_t> indices;
 
         auto sub_model = geometry_chunk.models[model_index];
-        //if (sub_model.unknown != model_index)
-        //    return Mesh({}, {});
 
         for (int i = 0; i < sub_model.vertices.size(); i++)
         {
@@ -671,7 +736,12 @@ struct FFNA_ModelFile
 
             vertex.position = XMFLOAT3(model_vertex.x, model_vertex.y, model_vertex.z);
             vertex.normal = XMFLOAT3(model_vertex.normal_x, model_vertex.normal_y, model_vertex.normal_z);
-            vertex.tex_coord = XMFLOAT2(model_vertex.dunno[0], model_vertex.dunno[1]);
+            int dunno_size = model_vertex.dunno.size();
+            if (dunno_size >= 2)
+            {
+                vertex.tex_coord =
+                  XMFLOAT2(model_vertex.dunno[dunno_size - 1], model_vertex.dunno[dunno_size - 2]);
+            }
             vertices.push_back(vertex);
         }
 
@@ -685,9 +755,6 @@ struct FFNA_ModelFile
             {
                 return Mesh({}, {});
             }
-
-            //if (index0 == index1 || index0 == index2 || index1 == index2)
-            //    continue;
 
             indices.push_back(index0);
             indices.push_back(index1);
