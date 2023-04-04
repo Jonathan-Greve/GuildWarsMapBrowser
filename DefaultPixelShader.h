@@ -39,7 +39,8 @@ cbuffer PerTerrainCB : register(b3)
     float max_x;
     float min_y;
     float max_y;
-
+    float water_level;
+    float pad[3];
 };
 
 struct PixelInputType
@@ -74,7 +75,15 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Combine the ambient, diffuse, and specular components to get the final color
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
-    return finalColor;
+
+     //Sample the texture using the provided texture coordinates and sampler state
+    float4 sampledTextureColor = shaderTexture.Sample(ss, input.texCoords);
+
+    // Multiply the sampled color with the finalColor
+    float4 outputColor = finalColor * sampledTextureColor;
+
+     //Return the result
+    return outputColor;
 }
 )";
 };
