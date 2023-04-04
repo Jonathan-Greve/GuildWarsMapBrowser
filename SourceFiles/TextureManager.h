@@ -39,7 +39,7 @@ public:
         HRESULT hr = m_device->CreateTexture2D(&texDesc, &initData, texture2D.GetAddressOf());
         if (FAILED(hr))
         {
-            throw std::runtime_error("Failed to create texture from data");
+            return -1;
         }
 
         D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -52,7 +52,7 @@ public:
         hr = m_device->CreateShaderResourceView(texture2D.Get(), &srvDesc, shaderResourceView.GetAddressOf());
         if (FAILED(hr))
         {
-            throw std::runtime_error("Failed to create shader resource view from texture data");
+            return -1;
         }
 
         m_textures[textureID] = shaderResourceView;
