@@ -83,9 +83,13 @@ public:
 
     HRESULT CreateTextureFromRGBA(int width, int height, const RGBA* data, int* textureID)
     {
-        DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        *textureID = AddTexture((void*)data, width, height, format);
-        return (*textureID >= 0) ? S_OK : E_FAIL;
+        if (width >= 0 && height >= 0)
+        {
+            DXGI_FORMAT format = DXGI_FORMAT_B8G8R8A8_UNORM;
+            *textureID = AddTexture((void*)data, width, height, format);
+            return (*textureID >= 0) ? S_OK : E_FAIL;
+        }
+        return E_FAIL;
     }
 
     HRESULT CreateTextureFromDDSInMemory(const uint8_t* ddsData, size_t ddsDataSize, int* textureID_out,

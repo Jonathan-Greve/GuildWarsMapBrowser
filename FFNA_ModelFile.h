@@ -739,8 +739,7 @@ struct FFNA_ModelFile
             int dunno_size = model_vertex.dunno.size();
             if (dunno_size >= 2)
             {
-                vertex.tex_coord =
-                  XMFLOAT2(model_vertex.dunno[dunno_size - 1], model_vertex.dunno[dunno_size - 2]);
+                vertex.tex_coord = XMFLOAT2(model_vertex.dunno[0], model_vertex.dunno[1]);
             }
             vertices.push_back(vertex);
         }
