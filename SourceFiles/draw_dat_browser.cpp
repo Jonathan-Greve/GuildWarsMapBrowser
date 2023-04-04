@@ -210,6 +210,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 {
                     if (ffna_model_file_ptr->parsed_correctly)
                     {
+                        // Load geometry
                         std::vector<Mesh> prop_meshes;
                         for (int j = 0; j < ffna_model_file_ptr->geometry_chunk.models.size(); j++)
                         {
@@ -217,6 +218,32 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                             if ((prop_mesh.indices.size() % 3) == 0)
                             {
                                 prop_meshes.push_back(prop_mesh);
+                            }
+                        }
+
+                        // Load textures
+                        std::vector<DatTexture> textures;
+                        std::vector<int> texture_ids;
+                        for (int j = 0;
+                             j < ffna_model_file_ptr->texture_filenames_chunk.texture_filenames.size(); j++)
+                        {
+                            auto texture_filename =
+                              ffna_model_file_ptr->texture_filenames_chunk.texture_filenames[j];
+                            auto decoded_filename =
+                              decode_filename(texture_filename.id0, texture_filename.id1);
+                            auto mft_entry_it = hash_index.find(decoded_filename);
+                            if (mft_entry_it != hash_index.end())
+                            {
+                                // Get texture from .dat
+                                textures.emplace_back(
+                                  dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0)));
+
+                                // Create texture
+                                int texture_id;
+                                auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                                  textures[j].width, textures[j].height, textures[j].rgba_data.data(),
+                                  &texture_id);
+                                texture_ids.push_back(texture_id);
                             }
                         }
 
