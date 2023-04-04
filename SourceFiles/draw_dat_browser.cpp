@@ -122,6 +122,28 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 }
             }
 
+            // Load textures
+            std::vector<DatTexture> textures;
+            std::vector<int> texture_ids;
+            for (int j = 0; j < selected_ffna_model_file.texture_filenames_chunk.texture_filenames.size();
+                 j++)
+            {
+                auto texture_filename = selected_ffna_model_file.texture_filenames_chunk.texture_filenames[j];
+                auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
+                auto mft_entry_it = hash_index.find(decoded_filename);
+                if (mft_entry_it != hash_index.end())
+                {
+                    // Get texture from .dat
+                    textures.emplace_back(dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0)));
+
+                    // Create texture
+                    int texture_id;
+                    auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                      textures[j].width, textures[j].height, textures[j].rgba_data.data(), &texture_id);
+                    texture_ids.push_back(texture_id);
+                }
+            }
+
             PerObjectCB per_object_cb;
 
             float modelWidth = overallMaxX - overallMinX;
@@ -145,6 +167,12 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             DirectX::XMStoreFloat4x4(&per_object_cb.world, world_matrix);
 
             auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cb, index);
+            for (const auto mesh_id : mesh_ids)
+            {
+                map_renderer->GetMeshManager()->AddTextureToMesh(
+                  mesh_id,
+                  map_renderer->GetTextureManager()->GetTexture(texture_ids[0 + (texture_ids.size() > 1)]));
+            }
         }
 
         break;
@@ -268,6 +296,13 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                         DirectX::XMStoreFloat4x4(&per_object_cb.world, transform_matrix);
 
                         auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cb, i);
+                        for (const auto mesh_id : mesh_ids)
+                        {
+                            map_renderer->GetMeshManager()->AddTextureToMesh(
+                              mesh_id,
+                              map_renderer->GetTextureManager()->GetTexture(
+                                texture_ids[0 + (texture_ids.size() > 0) * 0]));
+                        }
                     }
                 }
             }

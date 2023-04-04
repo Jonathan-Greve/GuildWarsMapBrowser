@@ -302,6 +302,7 @@ public:
     bool GetMeshShouldRender(int mesh_id) const { return m_mesh_manager->GetMeshShouldRender(mesh_id); }
 
     TextureManager* GetTextureManager() { return m_texture_manager.get(); }
+    MeshManager* GetMeshManager() { return m_mesh_manager.get(); }
 
     void Update(const float dt)
     {

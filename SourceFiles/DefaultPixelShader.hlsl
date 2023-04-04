@@ -70,7 +70,6 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Combine the ambient, diffuse, and specular components to get the final color
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
-    return finalColor;
 
      //Sample the texture using the provided texture coordinates and sampler state
     float4 sampledTextureColor = shaderTexture.Sample(ss, input.texCoords);
