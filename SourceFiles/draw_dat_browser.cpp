@@ -145,6 +145,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             }
 
             PerObjectCB per_object_cb;
+            per_object_cb.num_textures = prop_meshes[0].num_textures;
 
             float modelWidth = overallMaxX - overallMinX;
             float modelHeight = overallMaxY - overallMinY;
@@ -276,6 +277,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                         }
 
                         PerObjectCB per_object_cb;
+                        per_object_cb.num_textures = prop_meshes[0].num_textures;
+
                         DirectX::XMFLOAT3 translation(prop_info.x, prop_info.y, prop_info.z);
                         float sin_angle = prop_info.sin_angle;
                         float cos_angle = prop_info.cos_angle;

@@ -10,6 +10,8 @@ constexpr uint32_t GR_FVF_POSITION = 1; // 3 floats
 constexpr uint32_t GR_FVF_GROUP = 2; // uint32?
 constexpr uint32_t GR_FVF_NORMAL = 4; // 3 floats
 constexpr uint32_t GR_FVF_DIFFUSE = 8;
+constexpr uint32_t GR_FVF_BITANGENT = 0x30;
+constexpr uint32_t GR_FVF_TANGENT = 0x40;
 
 inline int decode_filename(int id0, int id1) { return (id0 - 0xff00ff) + (id1 * 0xff00); }
 
@@ -37,23 +39,39 @@ struct ModelVertex
     bool has_group;
     bool has_normal;
     bool has_diffuse;
+    bool has_specular;
+    bool has_tex_coord[8];
+    bool has_tangent;
+    bool has_bitangent;
 
     float x, y, z;
     uint32_t group;
     float normal_x, normal_y, normal_z;
+    float diffuse[4]; // Note sure if this is 3 or 4 floats
+    float specular[4]; // Note sure if this is 3 or 4 floats
+    float tangent_x, tangent_y, tangent_z;
+    float bitangent_x, bitangent_y, bitangent_z;
+    float tex_coord[8][2];
 
-    std::vector<float> dunno; // texture coordinates and stuff
+    int num_texcoords;
 
     ModelVertex() = default;
-    ModelVertex(size_t vertex_size, int FVF)
+    ModelVertex(DWORD FVF)
     {
-        has_position = FVF & GR_FVF_POSITION;
-        has_group = FVF & GR_FVF_GROUP;
-        has_normal = FVF & GR_FVF_NORMAL;
-        has_diffuse = FVF & GR_FVF_DIFFUSE;
+        const auto actual_FVF = FVF_to_ActualFVF(FVF);
+        has_position = (actual_FVF & D3DFVF_POSITION_MASK) != 0;
+        has_group = FVF & GR_FVF_GROUP; // GW specific?, so use GW FVF
+        has_normal = actual_FVF & D3DFVF_NORMAL;
+        has_diffuse = actual_FVF & D3DFVF_DIFFUSE;
+        has_specular = actual_FVF & D3DFVF_SPECULAR;
+        has_tangent = FVF & GR_FVF_TANGENT; // No tangent flag in D3DFVF, so use GW_FVF
+        has_bitangent = FVF & GR_FVF_BITANGENT; // No bitangent flag in D3DFVF, so use GW_FVF
 
-        int dunno_size = vertex_size / sizeof(float) - has_position * 3 - has_group * 1 - has_normal * 3;
-        dunno.resize(dunno_size < 0 ? 0 : dunno_size);
+        num_texcoords = (actual_FVF & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+        for (int i = 0; i < 8; ++i)
+        {
+            has_tex_coord[i] = i < num_texcoords;
+        }
     }
 };
 
@@ -298,7 +316,7 @@ struct GeometryModel
             vertices.resize(num_vertices);
             for (uint32_t i = 0; i < num_vertices; ++i)
             {
-                ModelVertex vertex(vertex_size, get_fvf(dat_fvf));
+                ModelVertex vertex(get_fvf(dat_fvf));
                 if (vertex.has_position)
                 {
                     std::memcpy(&vertex.x, &data[curr_offset], sizeof(vertex.x));
@@ -331,8 +349,54 @@ struct GeometryModel
                     curr_offset += sizeof(vertex.normal_y);
                 }
 
-                std::memcpy(vertex.dunno.data(), &data[curr_offset], vertex.dunno.size() * sizeof(float));
-                curr_offset += vertex.dunno.size() * sizeof(float);
+                // Assuming that tangent and bitangent information is stored as 3 floats each
+                if (vertex.has_tangent)
+                {
+                    std::memcpy(&vertex.tangent_x, &data[curr_offset], sizeof(vertex.tangent_x));
+                    curr_offset += sizeof(vertex.tangent_x);
+
+                    std::memcpy(&vertex.tangent_y, &data[curr_offset], sizeof(vertex.tangent_y));
+                    curr_offset += sizeof(vertex.tangent_y);
+
+                    std::memcpy(&vertex.tangent_z, &data[curr_offset], sizeof(vertex.tangent_z));
+                    curr_offset += sizeof(vertex.tangent_z);
+                }
+
+                if (vertex.has_bitangent)
+                {
+                    std::memcpy(&vertex.bitangent_x, &data[curr_offset], sizeof(vertex.bitangent_x));
+                    curr_offset += sizeof(vertex.bitangent_x);
+
+                    std::memcpy(&vertex.bitangent_y, &data[curr_offset], sizeof(vertex.bitangent_y));
+                    curr_offset += sizeof(vertex.bitangent_y);
+
+                    std::memcpy(&vertex.bitangent_z, &data[curr_offset], sizeof(vertex.bitangent_z));
+                    curr_offset += sizeof(vertex.bitangent_z);
+                }
+
+                if (vertex.has_diffuse)
+                {
+                    std::memcpy(&vertex.diffuse, &data[curr_offset], sizeof(vertex.diffuse));
+                    curr_offset += sizeof(vertex.diffuse);
+                }
+
+                if (vertex.has_specular)
+                {
+                    std::memcpy(&vertex.specular, &data[curr_offset], sizeof(vertex.specular));
+                    curr_offset += sizeof(vertex.specular);
+                }
+
+                for (int j = 0; j < 8; ++j)
+                {
+                    if (vertex.has_tex_coord[j])
+                    {
+                        std::memcpy(&vertex.tex_coord[j][0], &data[curr_offset], sizeof(float));
+                        curr_offset += sizeof(float);
+
+                        std::memcpy(&vertex.tex_coord[j][1], &data[curr_offset], sizeof(float));
+                        curr_offset += sizeof(float);
+                    }
+                }
 
                 vertices[i] = vertex;
 
@@ -412,12 +476,11 @@ struct InteractiveModelMaybe
         }
 
         // Read vertices
-        if (curr_offset + num_vertices * sizeof(ModelVertex(12, GR_FVF_POSITION)) <= data_size_bytes)
+        if (curr_offset + num_vertices * sizeof(ModelVertex) <= data_size_bytes)
         {
             vertices.resize(num_vertices);
-            std::memcpy(vertices.data(), &data[curr_offset],
-                        num_vertices * sizeof(ModelVertex(12, GR_FVF_POSITION)));
-            curr_offset += num_vertices * sizeof(ModelVertex(12, GR_FVF_POSITION));
+            std::memcpy(vertices.data(), &data[curr_offset], num_vertices * sizeof(ModelVertex));
+            curr_offset += num_vertices * sizeof(ModelVertex);
         }
         else
         {
@@ -736,11 +799,40 @@ struct FFNA_ModelFile
 
             vertex.position = XMFLOAT3(model_vertex.x, model_vertex.y, model_vertex.z);
             vertex.normal = XMFLOAT3(model_vertex.normal_x, model_vertex.normal_y, model_vertex.normal_z);
-            int dunno_size = model_vertex.dunno.size();
-            if (dunno_size >= 2)
+
+            if (model_vertex.has_tex_coord[0])
             {
-                vertex.tex_coord0 = XMFLOAT2(model_vertex.dunno[0], model_vertex.dunno[1]);
+                vertex.tex_coord0 = XMFLOAT2(model_vertex.tex_coord[0][0], model_vertex.tex_coord[0][1]);
             }
+            else if (model_vertex.has_tex_coord[1])
+            {
+                vertex.tex_coord1 = XMFLOAT2(model_vertex.tex_coord[1][0], model_vertex.tex_coord[1][1]);
+            }
+            else if (model_vertex.has_tex_coord[2])
+            {
+                vertex.tex_coord2 = XMFLOAT2(model_vertex.tex_coord[2][0], model_vertex.tex_coord[2][1]);
+            }
+            else if (model_vertex.has_tex_coord[3])
+            {
+                vertex.tex_coord3 = XMFLOAT2(model_vertex.tex_coord[3][0], model_vertex.tex_coord[3][1]);
+            }
+            else if (model_vertex.has_tex_coord[4])
+            {
+                vertex.tex_coord4 = XMFLOAT2(model_vertex.tex_coord[4][0], model_vertex.tex_coord[4][1]);
+            }
+            else if (model_vertex.has_tex_coord[5])
+            {
+                vertex.tex_coord5 = XMFLOAT2(model_vertex.tex_coord[5][0], model_vertex.tex_coord[5][1]);
+            }
+            else if (model_vertex.has_tex_coord[6])
+            {
+                vertex.tex_coord6 = XMFLOAT2(model_vertex.tex_coord[6][0], model_vertex.tex_coord[6][1]);
+            }
+            else if (model_vertex.has_tex_coord[7])
+            {
+                vertex.tex_coord7 = XMFLOAT2(model_vertex.tex_coord[7][0], model_vertex.tex_coord[7][1]);
+            }
+
             vertices.push_back(vertex);
         }
 
@@ -760,6 +852,6 @@ struct FFNA_ModelFile
             indices.push_back(index2);
         }
 
-        return Mesh(vertices, indices);
+        return Mesh(vertices, indices, texture_filenames_chunk.num_texture_filenames);
     }
 };
