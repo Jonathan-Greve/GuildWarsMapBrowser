@@ -14,8 +14,8 @@ public:
         D3D11_BUFFER_DESC vbDesc = {};
         vbDesc.Usage = D3D11_USAGE_IMMUTABLE;
         vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-        vbDesc.ByteWidth = sizeof(Vertex) * m_mesh.vertices.size();
-        vbDesc.StructureByteStride = sizeof(Vertex);
+        vbDesc.ByteWidth = sizeof(GWVertex) * m_mesh.vertices.size();
+        vbDesc.StructureByteStride = sizeof(GWVertex);
         D3D11_SUBRESOURCE_DATA vbData = {};
         vbData.pSysMem = m_mesh.vertices.data();
         device->CreateBuffer(&vbDesc, &vbData, &m_vertexBuffer);
@@ -42,7 +42,7 @@ public:
 
     void Draw(ID3D11DeviceContext* context)
     {
-        UINT stride = sizeof(Vertex);
+        UINT stride = sizeof(GWVertex);
         UINT offset = 0;
         context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
         context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);

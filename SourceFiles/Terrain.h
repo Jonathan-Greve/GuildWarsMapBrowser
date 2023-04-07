@@ -83,7 +83,7 @@ private:
         float delta_x = (m_bounds.map_max_x - m_bounds.map_min_x) / (m_grid_dim_x);
         float delta_z = (m_bounds.map_max_z - m_bounds.map_min_z) / (m_grid_dim_z);
 
-        std::vector<Vertex> vertices;
+        std::vector<GWVertex> vertices;
         std::vector<uint32_t> indices;
 
         // Loop over the grid and generate the vertices and normals using ComputeTriangleNormal
@@ -97,7 +97,14 @@ private:
 
                 vertices.push_back({{xPos, yPos, zPos},
                                     {0.0f, 0.0f, 0.0f},
-                                    {(float)x / m_grid_dim_x, (float)z / m_grid_dim_z}});
+                                    {(float)x / m_grid_dim_x, (float)z / m_grid_dim_z},
+                                    {0.0f, 0.0f},
+                                    {0.0f, 0.0f},
+                                    {0.0f, 0.0f},
+                                    {0.0f, 0.0f},
+                                    {0.0f, 0.0f},
+                                    {0.0f, 0.0f},
+                                    {0.0f, 0.0f}});
 
                 if (x < m_grid_dim_x - 1 && z < m_grid_dim_z - 1)
                 {
@@ -115,9 +122,9 @@ private:
 
         for (size_t i = 0; i < indices.size(); i += 3)
         {
-            Vertex& v0 = vertices[indices[i]];
-            Vertex& v1 = vertices[indices[i + 1]];
-            Vertex& v2 = vertices[indices[i + 2]];
+            GWVertex& v0 = vertices[indices[i]];
+            GWVertex& v1 = vertices[indices[i + 1]];
+            GWVertex& v2 = vertices[indices[i + 2]];
 
             XMFLOAT3 normal = compute_normal(v0.position, v1.position, v2.position);
             v0.normal = normal;
@@ -129,7 +136,7 @@ private:
           PerTerrainCB(m_grid_dim_x, m_grid_dim_z, m_bounds.map_min_x, m_bounds.map_max_x, m_bounds.map_min_y,
                        m_bounds.map_max_y, m_bounds.map_min_z, m_bounds.map_max_z, 0, {0, 0, 0});
 
-        return {vertices, indices};
+        return Mesh(vertices, indices);
     }
 
     std::vector<float> m_height_map;

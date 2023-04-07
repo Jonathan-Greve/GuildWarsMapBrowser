@@ -4,8 +4,13 @@
 struct PerObjectCB
 {
     DirectX::XMFLOAT4X4 world;
-    // Add any other per-object data here
+    int num_textures;
+    float pad[3];
 
     // Constructor to set the default values
-    PerObjectCB() { DirectX::XMStoreFloat4x4(&world, DirectX::XMMatrixIdentity()); }
+    PerObjectCB()
+    {
+        DirectX::XMStoreFloat4x4(&world, DirectX::XMMatrixIdentity());
+        num_textures = 0;
+    }
 };

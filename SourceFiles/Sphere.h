@@ -12,12 +12,14 @@ public:
 private:
     Mesh GenerateSphereMesh(float radius, uint32_t numSlices, uint32_t numStacks)
     {
-        std::vector<Vertex> vertices;
+        std::vector<GWVertex> vertices;
         std::vector<uint32_t> indices;
 
         // Generate vertices
         vertices.emplace_back(DirectX::XMFLOAT3(0.0f, radius, 0.0f), DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f),
-                              DirectX::XMFLOAT2(0.0f, 0.0f));
+                              XMFLOAT2(0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f),
+                              XMFLOAT2(0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f),
+                              XMFLOAT2(0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f));
 
         float phiStep = DirectX::XM_PI / numStacks;
         float thetaStep = 2.0f * DirectX::XM_PI / numSlices;
@@ -44,7 +46,9 @@ private:
         }
 
         vertices.emplace_back(DirectX::XMFLOAT3(0.0f, -radius, 0.0f), DirectX::XMFLOAT3(0.0f, -1.0f, 0.0f),
-                              DirectX::XMFLOAT2(0.0f, 1.0f));
+                              DirectX::XMFLOAT2(0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f),
+                              XMFLOAT2(0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f),
+                              XMFLOAT2(0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f));
 
         // Generate indices
         for (uint32_t i = 1; i <= numSlices; ++i)

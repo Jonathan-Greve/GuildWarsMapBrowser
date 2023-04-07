@@ -22,7 +22,10 @@ cbuffer PerFrameCB: register(b0)
 cbuffer PerObjectCB : register(b1)
 {
     matrix World;
+    int num_textures;
+    float pad1[3];
 };
+
 
 cbuffer PerCameraCB : register(b2)
 {
@@ -48,8 +51,15 @@ struct PixelInputType
 {
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
-    float2 texCoords : TEXCOORD0;
-    float terrain_height : TEXCOORD1;
+    float2 tex_coords0 : TEXCOORD0;
+    float2 tex_coords1 : TEXCOORD1;
+    float2 tex_coords2 : TEXCOORD2;
+    float2 tex_coords3 : TEXCOORD3;
+    float2 tex_coords4 : TEXCOORD4;
+    float2 tex_coords5 : TEXCOORD5;
+    float2 tex_coords6 : TEXCOORD6;
+    float2 tex_coords7 : TEXCOORD7;
+    float terrain_height : TEXCOORD8;
 };
 
 float4 main(PixelInputType input) : SV_TARGET

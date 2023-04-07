@@ -378,7 +378,7 @@ struct InteractiveModelMaybe
     uint32_t num_indices;
     uint32_t num_vertices;
     std::vector<uint16_t> indices;
-    std::vector<Vertex> vertices;
+    std::vector<ModelVertex> vertices;
 
     InteractiveModelMaybe() = default;
     InteractiveModelMaybe(uint32_t& curr_offset, const unsigned char* data, uint32_t data_size_bytes,
@@ -722,7 +722,7 @@ struct FFNA_ModelFile
 
     Mesh GetMesh(int model_index)
     {
-        std::vector<Vertex> vertices;
+        std::vector<GWVertex> vertices;
         std::vector<uint32_t> indices;
 
         auto sub_model = geometry_chunk.models[model_index];
@@ -730,16 +730,16 @@ struct FFNA_ModelFile
         for (int i = 0; i < sub_model.vertices.size(); i++)
         {
             ModelVertex model_vertex = sub_model.vertices[i];
-            Vertex vertex;
+            GWVertex vertex;
             if (! model_vertex.has_position || ! model_vertex.has_normal)
-                return Mesh({}, {});
+                return Mesh();
 
             vertex.position = XMFLOAT3(model_vertex.x, model_vertex.y, model_vertex.z);
             vertex.normal = XMFLOAT3(model_vertex.normal_x, model_vertex.normal_y, model_vertex.normal_z);
             int dunno_size = model_vertex.dunno.size();
             if (dunno_size >= 2)
             {
-                vertex.tex_coord = XMFLOAT2(model_vertex.dunno[0], model_vertex.dunno[1]);
+                vertex.tex_coord0 = XMFLOAT2(model_vertex.dunno[0], model_vertex.dunno[1]);
             }
             vertices.push_back(vertex);
         }
@@ -752,7 +752,7 @@ struct FFNA_ModelFile
 
             if (index0 >= vertices.size() || index1 >= vertices.size() || index2 >= vertices.size())
             {
-                return Mesh({}, {});
+                return Mesh();
             }
 
             indices.push_back(index0);
