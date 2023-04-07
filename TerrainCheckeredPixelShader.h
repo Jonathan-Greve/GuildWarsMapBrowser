@@ -22,6 +22,8 @@ cbuffer PerFrameCB: register(b0)
 cbuffer PerObjectCB : register(b1)
 {
     matrix World;
+    int num_textures;
+    float pad1[3];
 };
 
 cbuffer PerCameraCB : register(b2)
@@ -48,8 +50,15 @@ struct PixelInputType
 {
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
-    float2 texCoords : TEXCOORD0;
-    float terrain_height : TEXCOORD1;
+    float2 tex_coords0 : TEXCOORD0;
+    float2 tex_coords1 : TEXCOORD1;
+    float2 tex_coords2 : TEXCOORD2;
+    float2 tex_coords3 : TEXCOORD3;
+    float2 tex_coords4 : TEXCOORD4;
+    float2 tex_coords5 : TEXCOORD5;
+    float2 tex_coords6 : TEXCOORD6;
+    float2 tex_coords7 : TEXCOORD7;
+    float terrain_height : TEXCOORD8;
 };
 
 float4 main(PixelInputType input) : SV_TARGET
@@ -79,7 +88,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
     // Calculate new texture coordinates by repeating the texture over the terrain
-    float2 repeatedTexCoords = input.texCoords * float2(grid_dim_x, grid_dim_y);
+    float2 repeatedTexCoords = input.tex_coords0 * float2(grid_dim_x, grid_dim_y);
 
     // Sample the texture using the repeated texture coordinates and sampler state
     float4 sampledTextureColor = shaderTexture.Sample(ss, repeatedTexCoords);
