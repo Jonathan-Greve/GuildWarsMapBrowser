@@ -116,15 +116,67 @@ void draw_prop_model_info(const FFNA_ModelFile& model)
                         if (ImGui::TreeNodeEx((void*)(intptr_t)i, ImGuiTreeNodeFlags_DefaultOpen,
                                               "vertices[%zu]", i))
                         {
-                            ImGui::Text("x: %.3f, y: %.3f, z: %.3f", vertex.x, vertex.y, vertex.z);
-                            if (ImGui::TreeNode("Dunno Data"))
+                            ImGui::Text("Position: %s", vertex.has_position ? "Yes" : "No");
+                            if (vertex.has_position)
                             {
-                                for (size_t j = 0; j < vertex.dunno.size(); ++j)
-                                {
-                                    ImGui::Text("dunno[%zu]: %.3f", j, vertex.dunno[j]);
-                                }
-                                ImGui::TreePop();
+                                ImGui::Text("XYZ: %.2f, %.2f, %.2f", vertex.x, vertex.y, vertex.z);
                             }
+
+                            ImGui::Text("Group: %s", vertex.has_group ? "Yes" : "No");
+                            if (vertex.has_group)
+                            {
+                                ImGui::Text("Group: %u", vertex.group);
+                            }
+
+                            ImGui::Text("Normal: %s", vertex.has_normal ? "Yes" : "No");
+                            if (vertex.has_normal)
+                            {
+                                ImGui::Text("Normal: %.2f, %.2f, %.2f", vertex.normal_x, vertex.normal_y,
+                                            vertex.normal_z);
+                            }
+
+                            ImGui::Text("Diffuse: %s", vertex.has_diffuse ? "Yes" : "No");
+                            if (vertex.has_diffuse)
+                            {
+                                ImGui::Text("Diffuse: %.2f, %.2f, %.2f, %.2f", vertex.diffuse[0],
+                                            vertex.diffuse[1], vertex.diffuse[2], vertex.diffuse[3]);
+                            }
+
+                            ImGui::Text("Specular: %s", vertex.has_specular ? "Yes" : "No");
+                            if (vertex.has_specular)
+                            {
+                                ImGui::Text("Specular: %.2f, %.2f, %.2f, %.2f", vertex.specular[0],
+                                            vertex.specular[1], vertex.specular[2], vertex.specular[3]);
+                            }
+
+                            ImGui::Text("Tangent: %s", vertex.has_tangent ? "Yes" : "No");
+                            if (vertex.has_tangent)
+                            {
+                                ImGui::Text("Tangent: %.2f, %.2f, %.2f", vertex.tangent_x, vertex.tangent_y,
+                                            vertex.tangent_z);
+                            }
+
+                            ImGui::Text("Bitangent: %s", vertex.has_bitangent ? "Yes" : "No");
+                            if (vertex.has_bitangent)
+                            {
+                                ImGui::Text("Bitangent: %.2f, %.2f, %.2f", vertex.bitangent_x,
+                                            vertex.bitangent_y, vertex.bitangent_z);
+                            }
+
+                            for (int j = 0; j < 8; ++j)
+                            {
+                                if (vertex.has_tex_coord[j])
+                                {
+                                    ImGui::Text("Texture Coordinate %d: Yes", j);
+                                    ImGui::Text("TexCoord: %.2f, %.2f", vertex.tex_coord[j][0],
+                                                vertex.tex_coord[j][1]);
+                                }
+                                else
+                                {
+                                    ImGui::Text("Texture Coordinate %d: No", j);
+                                }
+                            }
+
                             ImGui::TreePop();
                         }
                     }
