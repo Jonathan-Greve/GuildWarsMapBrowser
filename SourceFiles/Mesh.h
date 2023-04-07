@@ -3,6 +3,6 @@
 
 struct Mesh
 {
-    std::vector<Vertex> vertices; // A vector of vertices
+    std::vector<GWVertex> vertices; // A vector of vertices
     std::vector<uint32_t> indices; // A vector of indices
 };
