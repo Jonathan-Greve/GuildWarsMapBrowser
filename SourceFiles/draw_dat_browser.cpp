@@ -153,7 +153,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
             float maxDimension = std::max({modelWidth, modelHeight, modelDepth});
 
-            float boundingBoxSize = 500.0f;
+            float boundingBoxSize = 3000.0f;
             float scale = boundingBoxSize / maxDimension;
 
             float centerX = overallMinX + modelWidth * 0.5f;
