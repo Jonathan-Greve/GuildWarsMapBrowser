@@ -81,6 +81,27 @@ public:
         return nullptr;
     }
 
+    std::vector<ID3D11ShaderResourceView*> GetTextures(const std::vector<int>& textureIDs) const
+    {
+        std::vector<ID3D11ShaderResourceView*> textures;
+        textures.reserve(textureIDs.size());
+
+        for (const int textureID : textureIDs)
+        {
+            ID3D11ShaderResourceView* texture = GetTexture(textureID);
+            if (texture)
+            {
+                textures.push_back(texture);
+            }
+            else
+            {
+                // Handle the case when a texture is not found, if necessary
+            }
+        }
+
+        return textures;
+    }
+
     HRESULT CreateTextureFromRGBA(int width, int height, const RGBA* data, int* textureID)
     {
         if (width >= 0 && height >= 0)

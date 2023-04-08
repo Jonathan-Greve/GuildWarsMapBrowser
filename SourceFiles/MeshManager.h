@@ -25,7 +25,7 @@ public:
         cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         cbDesc.ByteWidth = sizeof(PerObjectCB);
         cbDesc.StructureByteStride = sizeof(PerObjectCB);
-        m_device->CreateBuffer(&cbDesc, nullptr, &m_perObjectCB);
+        m_device->CreateBuffer(&cbDesc, nullptr, m_perObjectCB.GetAddressOf());
 
         // Set the constant buffer for the vertex shader
         ID3D11Buffer* constantBuffers[] = {m_perObjectCB.Get()};
@@ -135,12 +135,14 @@ public:
         return false;
     }
 
-    void AddTextureToMesh(int meshID, ID3D11ShaderResourceView* texture)
+    void SetTexturesForMesh(int meshID, const std::vector<ID3D11ShaderResourceView*>& textures,
+                            const std::vector<uint8_t>& uvSetIndices,
+                            const std::vector<uint8_t>& textureIndices)
     {
         auto it = m_triangleMeshes.find(meshID);
         if (it != m_triangleMeshes.end())
         {
-            it->second->SetTexture(texture);
+            it->second->SetTextures(textures, uvSetIndices, textureIndices);
         }
     }
 

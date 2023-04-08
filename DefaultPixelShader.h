@@ -4,7 +4,7 @@ struct DefaultPixelShader
 {
     static constexpr char shader_ps[] = R"(
 sampler ss: register(s0);
-Texture2D shaderTexture : register(t0);
+Texture2D shaderTextures[8] : register(t0);
 
 struct DirectionalLight
 {
@@ -23,7 +23,9 @@ cbuffer PerFrameCB: register(b0)
 cbuffer PerObjectCB : register(b1)
 {
     matrix World;
-    int num_textures;
+    uint4 uv_indices[8];
+    uint4 texture_indices[8];
+    uint num_uv_texture_pairs;
     float pad1[3];
 };
 
@@ -87,28 +89,45 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
     // Apply textures
-    float4 outputColor = float4(0, 0, 0, 0);
-    float4 sampledTextureColors[8];
-    sampledTextureColors[0] = shaderTexture.Sample(ss, input.tex_coords0);
-    sampledTextureColors[1] = shaderTexture.Sample(ss, input.tex_coords1);
-    sampledTextureColors[2] = shaderTexture.Sample(ss, input.tex_coords2);
-    sampledTextureColors[3] = shaderTexture.Sample(ss, input.tex_coords3);
-    sampledTextureColors[4] = shaderTexture.Sample(ss, input.tex_coords4);
-    sampledTextureColors[5] = shaderTexture.Sample(ss, input.tex_coords5);
-    sampledTextureColors[6] = shaderTexture.Sample(ss, input.tex_coords6);
-    sampledTextureColors[7] = shaderTexture.Sample(ss, input.tex_coords7);
-
-    for (int i = 0; i <= num_textures; ++i)
+    float4 sampledTextureColor = float4(0, 0, 0, 0);
+    for (int j = 0; j < (num_uv_texture_pairs + 3) / 4; ++j)
     {
-        // Basic linear blending
-        outputColor += sampledTextureColors[i] * (1.0 / (num_textures+1));
+        for (int k = 0; k < 4; ++k)
+        {
+            uint uv_set_index = uv_indices[j][k];
+            uint texture_index = texture_indices[j][k];
+
+            if (j * 4 + k >= num_uv_texture_pairs)
+            {
+                break;
+            }
+
+            switch (uv_set_index)
+            {
+            case 0: sampledTextureColor = shaderTextures[0].Sample(ss, input.tex_coords0); break;
+            case 1: sampledTextureColor = shaderTextures[1].Sample(ss, input.tex_coords1); break;
+            case 2: sampledTextureColor = shaderTextures[2].Sample(ss, input.tex_coords2); break;
+            case 3: sampledTextureColor = shaderTextures[3].Sample(ss, input.tex_coords3); break;
+            case 4: sampledTextureColor = shaderTextures[4].Sample(ss, input.tex_coords4); break;
+            case 5: sampledTextureColor = shaderTextures[5].Sample(ss, input.tex_coords5); break;
+            case 6: sampledTextureColor = shaderTextures[6].Sample(ss, input.tex_coords6); break;
+            case 7: sampledTextureColor = shaderTextures[7].Sample(ss, input.tex_coords7); break;
+            default: break;
+            }
+
+            sampledTextureColor += sampledTextureColor * (1.0 / num_uv_texture_pairs); // placeholder
+        }
     }
 
     // Multiply the blended color with the finalColor
-    float4 finalOutputColor = finalColor * outputColor;
+    if (num_uv_texture_pairs > 0) {
+        float4 finalColor = finalColor * sampledTextureColor;
+    }
 
     // Return the result
-    return finalOutputColor;
+    return finalColor;
 }
+
+
 )";
 };

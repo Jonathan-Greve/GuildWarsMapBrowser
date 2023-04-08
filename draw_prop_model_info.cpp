@@ -25,7 +25,7 @@ void draw_prop_model_info(const FFNA_ModelFile& model)
             ImGui::Text("f0x15: %u", sub_1.f0x15);
             ImGui::Text("f0x16: %u", sub_1.f0x16);
             ImGui::Text("f0x17: %u", sub_1.f0x17);
-            ImGui::Text("some_num0: %u", sub_1.some_num0);
+            ImGui::Text("max_UV_index: %u", sub_1.max_UV_index);
             ImGui::Text("some_num1: %u", sub_1.some_num1);
             ImGui::Text("f0x20: %u", sub_1.f0x20);
 
@@ -69,14 +69,76 @@ void draw_prop_model_info(const FFNA_ModelFile& model)
             ImGui::TreePop();
         }
 
-        if (ImGui::TreeNode("Unknown"))
+        if (ImGui::TreeNode("TextureAndVertexShader"))
         {
-            for (size_t i = 0; i < geometry_chunk.unknown.size(); ++i)
+            const auto& texture_and_vertex_shader = geometry_chunk.tex_and_vertex_shader_struct;
+
+            for (size_t i = 0; i < texture_and_vertex_shader.uts0.size(); ++i)
             {
-                ImGui::Text("unknown[%zu]: %u", i, geometry_chunk.unknown[i]);
+                ImGui::PushID(static_cast<int>(i));
+                if (ImGui::TreeNode("UnknownTexStruct0"))
+                {
+                    const UnknownTexStruct0& uts0 = texture_and_vertex_shader.uts0[i];
+                    ImGui::Text("uts0[%zu].some_flags: %u", i, uts0.some_flags);
+                    ImGui::Text("uts0[%zu].f0x1: %u", i, uts0.f0x1);
+                    ImGui::Text("uts0[%zu].f0x2: %u", i, uts0.f0x2);
+                    ImGui::Text("uts0[%zu].pixel_shader_id: %u", i, uts0.pixel_shader_id);
+                    ImGui::Text("uts0[%zu].f0x7: %u", i, uts0.f0x7);
+                    ImGui::TreePop();
+                }
+                ImGui::PopID();
             }
+
+            if (ImGui::TreeNode("flags0"))
+            {
+                for (size_t i = 0; i < texture_and_vertex_shader.flags0.size(); ++i)
+                {
+                    ImGui::Text("flags0[%zu]: %u", i, texture_and_vertex_shader.flags0[i]);
+                }
+                ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNode("tex_array"))
+            {
+                for (size_t i = 0; i < texture_and_vertex_shader.tex_array.size(); ++i)
+                {
+                    ImGui::Text("tex_array[%zu]: %u", i, texture_and_vertex_shader.tex_array[i]);
+                }
+                ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNode("zeros"))
+            {
+                for (size_t i = 0; i < texture_and_vertex_shader.zeros.size(); ++i)
+                {
+                    ImGui::Text("zeros[%zu]: %u", i, texture_and_vertex_shader.zeros[i]);
+                }
+                ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNode("some_pixel_shader_flags_maybe"))
+            {
+                for (size_t i = 0; i < texture_and_vertex_shader.some_pixel_shader_flags_maybe.size(); ++i)
+                {
+                    ImGui::Text("some_pixel_shader_flags_maybe[%zu]: %u", i,
+                                texture_and_vertex_shader.some_pixel_shader_flags_maybe[i]);
+                }
+                ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNode("texture_index_UV_mapping_maybe"))
+            {
+                for (size_t i = 0; i < texture_and_vertex_shader.texture_index_UV_mapping_maybe.size(); ++i)
+                {
+                    ImGui::Text("texture_index_UV_mapping_maybe[%zu]: %u", i,
+                                texture_and_vertex_shader.texture_index_UV_mapping_maybe[i]);
+                }
+                ImGui::TreePop();
+            }
+
             ImGui::TreePop();
         }
+
         for (int j = 0; j < geometry_chunk.models.size(); j++)
         {
             auto sub_model = geometry_chunk.models[j];

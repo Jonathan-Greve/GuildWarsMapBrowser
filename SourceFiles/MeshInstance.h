@@ -38,7 +38,33 @@ public:
     const PerObjectCB& GetPerObjectData() const { return m_per_object_data; }
     void SetPerObjectData(const PerObjectCB& data) { m_per_object_data = data; }
 
-    void SetTexture(ID3D11ShaderResourceView* texture) { m_texture = texture; }
+    void SetTextures(const std::vector<ID3D11ShaderResourceView*>& textures,
+                     const std::vector<uint8_t>& uvSetIndices, const std::vector<uint8_t>& textureIndices)
+    {
+        if (uvSetIndices.size() != textureIndices.size() || textures.size() >= 32 ||
+            uvSetIndices.size() >= 32)
+        {
+            return; // Failed, maybe throw here on handle error.
+        }
+
+        // Clear previously set textures and reset the uv_index and texture_indices arrays
+        m_textures.clear();
+        m_per_object_data.num_uv_texture_pairs = uvSetIndices.size();
+
+        for (int i = 0; i < uvSetIndices.size(); ++i)
+        {
+            int packedIndex = i / 4;
+            int offset = i % 4;
+            m_per_object_data.uv_indices[packedIndex][offset] = uvSetIndices[i];
+            m_per_object_data.texture_indices[packedIndex][offset] = textureIndices[i];
+        }
+
+        for (size_t i = 0; i < textures.size(); ++i)
+        {
+            // Add the texture to the corresponding uvSetIndex
+            m_textures.push_back(textures[i]);
+        }
+    }
 
     void Draw(ID3D11DeviceContext* context)
     {
@@ -47,7 +73,7 @@ public:
         context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
         context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
-        context->PSSetShaderResources(0, 1, m_texture.GetAddressOf());
+        context->PSSetShaderResources(0, m_textures.size(), m_textures.data()->GetAddressOf());
 
         context->DrawIndexed(m_mesh.indices.size(), 0, 0);
     }
@@ -59,5 +85,5 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_texture;
+    std::vector<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> m_textures;
 };

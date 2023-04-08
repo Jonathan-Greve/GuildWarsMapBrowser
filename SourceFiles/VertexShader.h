@@ -21,7 +21,12 @@ cbuffer PerFrameCB: register(b0)
 cbuffer PerObjectCB : register(b1)
 {
     matrix World;
+    uint num_uv_texture_pairs;
+    uint uv_indices[32];
+    uint texture_indices[32];
+    float pad1[3];
 };
+
 
 cbuffer PerCameraCB : register(b2)
 {
@@ -83,6 +88,7 @@ PixelInputType main(VertexInputType input)
     return output;
 }
 
+
 )";
 
 class VertexShader
@@ -99,9 +105,14 @@ public:
         ComPtr<ID3DBlob> vertex_shader_blob;
         ComPtr<ID3DBlob> error_blob;
 
+        UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
+#if defined(DEBUG) || defined(_DEBUG)
+        flags |= D3DCOMPILE_DEBUG;
+        flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+
         // Compile from memory (the string above). Make sure that the shader_vs string is the same as the one in the .hlsl file.
-        HRESULT hr = D3DCompile(shader_vs, strlen(shader_vs), NULL, NULL, NULL, "main", "vs_5_0",
-                                D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG, 0,
+        HRESULT hr = D3DCompile(shader_vs, strlen(shader_vs), NULL, NULL, NULL, "main", "vs_5_0", flags, 0,
                                 vertex_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
 
         if (FAILED(hr))

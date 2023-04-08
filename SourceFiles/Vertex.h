@@ -77,7 +77,10 @@ inline uint32_t FVF_to_ActualFVF(uint32_t FVF)
         do
         {
             currFlag = *(pArray - 1);
-            assert(currFlag != 0);
+            if (currFlag == 0)
+            {
+                return 0;
+            }
 
             if ((currFlag & FVF) == currFlag)
             {
