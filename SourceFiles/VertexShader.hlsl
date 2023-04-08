@@ -15,7 +15,12 @@ cbuffer PerFrameCB: register(b0)
 cbuffer PerObjectCB : register(b1)
 {
     matrix World;
+    uint num_uv_texture_pairs;
+    uint uv_indices[32];
+    uint texture_indices[32];
+    float pad1[3];
 };
+
 
 cbuffer PerCameraCB : register(b2)
 {

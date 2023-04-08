@@ -85,7 +85,7 @@ private:
                                          // Bottom face
                                          21, 20, 23, 21, 23, 22};
 
-        return Mesh(vertices, indices);
+        return Mesh(vertices, indices, 1);
     }
 
     std::unique_ptr<MeshInstance> m_meshInstance;

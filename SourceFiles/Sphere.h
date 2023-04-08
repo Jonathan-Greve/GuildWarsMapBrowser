@@ -85,7 +85,7 @@ private:
             indices.push_back(baseIndex + i + 1);
         }
 
-        return Mesh(vertices, indices);
+        return Mesh(vertices, indices, 1);
     }
 
     std::unique_ptr<MeshInstance> m_meshInstance;

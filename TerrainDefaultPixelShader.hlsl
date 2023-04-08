@@ -1,5 +1,5 @@
 sampler ss: register(s0);
-Texture2D shaderTexture : register(t0);
+Texture2D shaderTextures[8] : register(t0);
 
 struct DirectionalLight
 {
@@ -18,8 +18,10 @@ cbuffer PerFrameCB: register(b0)
 cbuffer PerObjectCB : register(b1)
 {
     matrix World;
-    int num_textures;
+    uint num_uv_texture_pairs;
     float pad1[3];
+    uint uv_indices[32];
+    uint texture_indices[32];
 };
 
 
