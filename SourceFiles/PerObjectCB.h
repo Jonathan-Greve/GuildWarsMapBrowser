@@ -1,16 +1,23 @@
-#pragma once
-#include <DirectXMath.h>
-
 struct PerObjectCB
 {
     DirectX::XMFLOAT4X4 world;
-    int num_textures;
+    uint32_t uv_indices[8][4];
+    uint32_t texture_indices[8][4];
+    uint32_t num_uv_texture_pairs;
     float pad[3];
 
-    // Constructor to set the default values
     PerObjectCB()
+        : num_uv_texture_pairs(0)
     {
         DirectX::XMStoreFloat4x4(&world, DirectX::XMMatrixIdentity());
-        num_textures = 0;
+
+        for (int i = 0; i < 8; ++i)
+        {
+            for (int j = 0; j < 4; ++j)
+            {
+                uv_indices[i][j] = 0;
+                texture_indices[i][j] = 0;
+            }
+        }
     }
 };

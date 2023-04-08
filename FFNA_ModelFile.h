@@ -56,9 +56,14 @@ struct ModelVertex
     int num_texcoords;
 
     ModelVertex() = default;
-    ModelVertex(DWORD FVF)
+    ModelVertex(DWORD FVF, bool& parsed_correctly)
     {
         const auto actual_FVF = FVF_to_ActualFVF(FVF);
+        if (actual_FVF == 0)
+        {
+            parsed_correctly = false;
+            return;
+        }
         has_position = (actual_FVF & D3DFVF_POSITION_MASK) != 0;
         has_group = FVF & GR_FVF_GROUP; // GW specific?, so use GW FVF
         has_normal = actual_FVF & D3DFVF_NORMAL;
@@ -86,7 +91,7 @@ struct Chunk1_sub1
     uint8_t f0x15;
     uint8_t f0x16;
     uint8_t f0x17;
-    uint8_t some_num0; // Num pixel shaders?
+    uint8_t max_UV_index; // Num pixel shaders?
     uint8_t f0x19;
     uint8_t f0x1a;
     uint8_t f0x1b;
@@ -316,7 +321,12 @@ struct GeometryModel
             vertices.resize(num_vertices);
             for (uint32_t i = 0; i < num_vertices; ++i)
             {
-                ModelVertex vertex(get_fvf(dat_fvf));
+                ModelVertex vertex(get_fvf(dat_fvf), parsed_correctly);
+                if (vertex.num_texcoords < 0)
+                {
+                    parsed_correctly = false;
+                    return;
+                }
                 if (vertex.has_position)
                 {
                     std::memcpy(&vertex.x, &data[curr_offset], sizeof(vertex.x));
@@ -491,12 +501,105 @@ struct InteractiveModelMaybe
     }
 };
 
+#pragma pack(push, 1) // Set packing alignment to 1 byte
+struct UnknownTexStruct0
+{
+    uint8_t some_flags;
+    uint8_t f0x1;
+    uint32_t f0x2;
+    uint8_t pixel_shader_id;
+    uint8_t f0x7;
+};
+#pragma pack(pop) // Restore the original packing alignment
+
+struct TextureAndVertexShader
+{
+    std::vector<UnknownTexStruct0> uts0;
+    std::vector<uint16_t> flags0;
+    std::vector<uint8_t> tex_array;
+    std::vector<uint8_t> zeros;
+    std::vector<uint8_t> some_pixel_shader_flags_maybe;
+    std::vector<uint8_t> texture_index_UV_mapping_maybe;
+
+    TextureAndVertexShader() = default;
+    TextureAndVertexShader(size_t max_UV_index, size_t num1, bool f0x20, uint32_t& curr_offset,
+                           const unsigned char* data, uint32_t data_size_bytes, bool& parsed_correctly)
+    {
+        if (max_UV_index > 40 || num1 > 40)
+        {
+            parsed_correctly == false;
+            return;
+        }
+        // Resize vectors
+        uts0.resize(max_UV_index);
+        flags0.resize(num1);
+        tex_array.resize(num1);
+        zeros.resize(num1 * 4);
+        some_pixel_shader_flags_maybe.resize(num1);
+        texture_index_UV_mapping_maybe.resize(num1);
+
+        // Read uts0
+        if (curr_offset + sizeof(UnknownTexStruct0) * max_UV_index > data_size_bytes)
+        {
+            parsed_correctly = false;
+            return;
+        }
+        std::memcpy(uts0.data(), &data[curr_offset], sizeof(UnknownTexStruct0) * max_UV_index);
+        curr_offset += sizeof(UnknownTexStruct0) * max_UV_index;
+
+        if (curr_offset + sizeof(uint16_t) * num1 > data_size_bytes)
+        {
+            parsed_correctly = false;
+            return;
+        }
+        // Read flags0
+        std::memcpy(flags0.data(), &data[curr_offset], sizeof(uint16_t) * num1);
+        curr_offset += sizeof(uint16_t) * num1;
+
+        // Read tex_array
+        if (curr_offset + sizeof(uint8_t) * num1 > data_size_bytes)
+        {
+            parsed_correctly = false;
+            return;
+        }
+        std::memcpy(tex_array.data(), &data[curr_offset], sizeof(uint8_t) * num1);
+        curr_offset += sizeof(uint8_t) * num1;
+
+        // Read zeros
+        if (curr_offset + sizeof(uint8_t) * num1 * 4 > data_size_bytes)
+        {
+            parsed_correctly = false;
+            return;
+        }
+        std::memcpy(zeros.data(), &data[curr_offset], sizeof(uint8_t) * num1 * 4);
+        curr_offset += sizeof(uint8_t) * num1 * 4;
+
+        // Read some_pixel_shader_flags_maybe
+        if (curr_offset + sizeof(uint8_t) * num1 > data_size_bytes)
+        {
+            parsed_correctly = false;
+            return;
+        }
+        std::memcpy(some_pixel_shader_flags_maybe.data(), &data[curr_offset], sizeof(uint8_t) * num1);
+        curr_offset += sizeof(uint8_t) * num1;
+
+        // Read texture_index_UV_mapping_maybe
+        if (curr_offset + sizeof(uint8_t) * num1 > data_size_bytes)
+        {
+            parsed_correctly = false;
+            return;
+        }
+        std::memcpy(texture_index_UV_mapping_maybe.data(), &data[curr_offset], sizeof(uint8_t) * num1);
+        curr_offset += sizeof(uint8_t) * num1;
+    }
+};
+
 struct GeometryChunk
 {
     uint32_t chunk_id;
     uint32_t chunk_size;
     Chunk1_sub1 sub_1;
-    std::vector<uint8_t> unknown;
+    TextureAndVertexShader tex_and_vertex_shader_struct;
     std::vector<uint8_t> unknown2;
     std::vector<uint8_t> unknown3;
     std::vector<uint8_t> unknown_data_0;
@@ -538,15 +641,11 @@ struct GeometryChunk
         curr_offset += sizeof(sub_1);
         if (sub_1.num_models > 0)
         {
-
-            uint32_t unknown_size =
-              sub_1.some_num0 * 8 + sub_1.some_num1 * 9 + (-(sub_1.f0x20 != 0) & sub_1.some_num1);
-            if (unknown_size < chunk_size)
-            {
-                unknown.resize(unknown_size);
-                std::memcpy(unknown.data(), &data[curr_offset], unknown_size);
-                curr_offset += unknown_size;
-            }
+            tex_and_vertex_shader_struct =
+              TextureAndVertexShader(sub_1.max_UV_index, sub_1.some_num1, sub_1.f0x20, curr_offset, data,
+                                     data_size_bytes, parsed_correctly);
+            if (! parsed_correctly)
+                return;
 
             if (sub_1.f0x19 > 0)
             {
@@ -790,12 +889,19 @@ struct FFNA_ModelFile
 
         auto sub_model = geometry_chunk.models[model_index];
 
+        int max_num_tex_coords = 0;
+
         for (int i = 0; i < sub_model.vertices.size(); i++)
         {
             ModelVertex model_vertex = sub_model.vertices[i];
             GWVertex vertex;
             if (! model_vertex.has_position || ! model_vertex.has_normal)
                 return Mesh();
+
+            if (max_num_tex_coords < model_vertex.num_texcoords)
+            {
+                max_num_tex_coords = model_vertex.num_texcoords;
+            }
 
             vertex.position = XMFLOAT3(model_vertex.x, model_vertex.y, model_vertex.z);
             vertex.normal = XMFLOAT3(model_vertex.normal_x, model_vertex.normal_y, model_vertex.normal_z);
@@ -804,31 +910,31 @@ struct FFNA_ModelFile
             {
                 vertex.tex_coord0 = XMFLOAT2(model_vertex.tex_coord[0][0], model_vertex.tex_coord[0][1]);
             }
-            else if (model_vertex.has_tex_coord[1])
+            if (model_vertex.has_tex_coord[1])
             {
                 vertex.tex_coord1 = XMFLOAT2(model_vertex.tex_coord[1][0], model_vertex.tex_coord[1][1]);
             }
-            else if (model_vertex.has_tex_coord[2])
+            if (model_vertex.has_tex_coord[2])
             {
                 vertex.tex_coord2 = XMFLOAT2(model_vertex.tex_coord[2][0], model_vertex.tex_coord[2][1]);
             }
-            else if (model_vertex.has_tex_coord[3])
+            if (model_vertex.has_tex_coord[3])
             {
                 vertex.tex_coord3 = XMFLOAT2(model_vertex.tex_coord[3][0], model_vertex.tex_coord[3][1]);
             }
-            else if (model_vertex.has_tex_coord[4])
+            if (model_vertex.has_tex_coord[4])
             {
                 vertex.tex_coord4 = XMFLOAT2(model_vertex.tex_coord[4][0], model_vertex.tex_coord[4][1]);
             }
-            else if (model_vertex.has_tex_coord[5])
+            if (model_vertex.has_tex_coord[5])
             {
                 vertex.tex_coord5 = XMFLOAT2(model_vertex.tex_coord[5][0], model_vertex.tex_coord[5][1]);
             }
-            else if (model_vertex.has_tex_coord[6])
+            if (model_vertex.has_tex_coord[6])
             {
                 vertex.tex_coord6 = XMFLOAT2(model_vertex.tex_coord[6][0], model_vertex.tex_coord[6][1]);
             }
-            else if (model_vertex.has_tex_coord[7])
+            if (model_vertex.has_tex_coord[7])
             {
                 vertex.tex_coord7 = XMFLOAT2(model_vertex.tex_coord[7][0], model_vertex.tex_coord[7][1]);
             }
@@ -850,6 +956,27 @@ struct FFNA_ModelFile
             indices.push_back(index0);
             indices.push_back(index1);
             indices.push_back(index2);
+        }
+
+        for (int i = 0; i < geometry_chunk.tex_and_vertex_shader_struct.tex_array.size(); i++)
+        {
+            uint8_t& uv_set_index = geometry_chunk.tex_and_vertex_shader_struct.tex_array[i];
+            if (max_num_tex_coords < uv_set_index && max_num_tex_coords > 0)
+            {
+                uv_set_index = max_num_tex_coords - 1;
+            }
+        }
+
+        for (int i = 0; i < geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe.size();
+             i++)
+        {
+            uint8_t& texture_index =
+              geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe[i];
+            if (texture_filenames_chunk.num_texture_filenames < texture_index &&
+                texture_filenames_chunk.num_texture_filenames > 0)
+            {
+                texture_index = texture_filenames_chunk.num_texture_filenames - 1;
+            }
         }
 
         return Mesh(vertices, indices, texture_filenames_chunk.num_texture_filenames);

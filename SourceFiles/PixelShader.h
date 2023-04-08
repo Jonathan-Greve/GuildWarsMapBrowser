@@ -27,6 +27,7 @@ public:
         UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
 #if defined(DEBUG) || defined(_DEBUG)
         flags |= D3DCOMPILE_DEBUG;
+        flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
         Microsoft::WRL::ComPtr<ID3DBlob> pixel_shader_blob;
         Microsoft::WRL::ComPtr<ID3DBlob> error_blob;

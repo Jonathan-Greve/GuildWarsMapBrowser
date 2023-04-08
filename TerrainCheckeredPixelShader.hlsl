@@ -1,5 +1,5 @@
 sampler ss: register(s0);
-Texture2D shaderTexture : register(t0);
+Texture2D shaderTextures[8] : register(t0);
 
 struct DirectionalLight
 {
@@ -18,7 +18,9 @@ cbuffer PerFrameCB: register(b0)
 cbuffer PerObjectCB : register(b1)
 {
     matrix World;
-    int num_textures;
+    uint4 uv_indices[8];
+    uint4 texture_indices[8];
+    uint num_uv_texture_pairs;
     float pad1[3];
 };
 
@@ -86,8 +88,10 @@ float4 main(PixelInputType input) : SV_TARGET
     // Calculate new texture coordinates by repeating the texture over the terrain
     float2 repeatedTexCoords = input.tex_coords0 * float2(grid_dim_x, grid_dim_y);
 
-    // Sample the texture using the repeated texture coordinates and sampler state
-    float4 sampledTextureColor = shaderTexture.Sample(ss, repeatedTexCoords);
+    float4 sampledTextureColor = float4(0, 0, 0, 0);
+    if (num_uv_texture_pairs == 1) {
+        sampledTextureColor = shaderTextures[0].Sample(ss, repeatedTexCoords); 
+    }
 
     float4 outputColor;
     // Multiply the sampled color with the finalColor

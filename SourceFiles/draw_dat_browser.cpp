@@ -145,7 +145,6 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             }
 
             PerObjectCB per_object_cb;
-            per_object_cb.num_textures = prop_meshes[0].num_textures;
 
             float modelWidth = overallMaxX - overallMinX;
             float modelHeight = overallMaxY - overallMinY;
@@ -170,9 +169,13 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cb, index);
             for (const auto mesh_id : mesh_ids)
             {
-                map_renderer->GetMeshManager()->AddTextureToMesh(
-                  mesh_id,
-                  map_renderer->GetTextureManager()->GetTexture(texture_ids[0 + (texture_ids.size() > 1)]));
+                auto& tex_array =
+                  selected_ffna_model_file.geometry_chunk.tex_and_vertex_shader_struct.tex_array;
+                auto& uv_tex_mapping = selected_ffna_model_file.geometry_chunk.tex_and_vertex_shader_struct
+                                         .texture_index_UV_mapping_maybe;
+                map_renderer->GetMeshManager()->SetTexturesForMesh(
+                  mesh_id, map_renderer->GetTextureManager()->GetTextures(texture_ids), tex_array,
+                  uv_tex_mapping);
             }
         }
 
@@ -277,7 +280,6 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                         }
 
                         PerObjectCB per_object_cb;
-                        per_object_cb.num_textures = prop_meshes[0].num_textures;
 
                         DirectX::XMFLOAT3 translation(prop_info.x, prop_info.y, prop_info.z);
                         float sin_angle = prop_info.sin_angle;
@@ -298,13 +300,17 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
                         DirectX::XMStoreFloat4x4(&per_object_cb.world, transform_matrix);
 
-                        auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cb, i);
+                        auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cb, index);
                         for (const auto mesh_id : mesh_ids)
                         {
-                            map_renderer->GetMeshManager()->AddTextureToMesh(
-                              mesh_id,
-                              map_renderer->GetTextureManager()->GetTexture(
-                                texture_ids[0 + (texture_ids.size() > 0) * 0]));
+                            auto& tex_array =
+                              ffna_model_file_ptr->geometry_chunk.tex_and_vertex_shader_struct.tex_array;
+                            auto& uv_tex_mapping =
+                              ffna_model_file_ptr->geometry_chunk.tex_and_vertex_shader_struct
+                                .texture_index_UV_mapping_maybe;
+                            map_renderer->GetMeshManager()->SetTexturesForMesh(
+                              mesh_id, map_renderer->GetTextureManager()->GetTextures(texture_ids), tex_array,
+                              uv_tex_mapping);
                         }
                     }
                 }

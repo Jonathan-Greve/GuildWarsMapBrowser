@@ -81,7 +81,7 @@ public:
         auto texture_id =
           m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
                                         texture_height, DXGI_FORMAT_R8G8B8A8_UNORM);
-        m_mesh_manager->AddTextureToMesh(box_id, m_texture_manager->GetTexture(texture_id));
+        m_mesh_manager->SetTexturesForMesh(box_id, {m_texture_manager->GetTexture(texture_id)}, {0}, {0});
 
         // Create and initialize the VertexShader
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
@@ -205,8 +205,8 @@ public:
               m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
                                             texture_height, DXGI_FORMAT_R8G8B8A8_UNORM);
         }
-        m_mesh_manager->AddTextureToMesh(m_terrain_mesh_id,
-                                         m_texture_manager->GetTexture(m_terrain_texture_id));
+        m_mesh_manager->SetTexturesForMesh(m_terrain_mesh_id,
+                                           {m_texture_manager->GetTexture(m_terrain_texture_id)}, {0}, {0});
 
         m_terrain = std::move(terrain);
         m_is_terrain_mesh_set = true;
