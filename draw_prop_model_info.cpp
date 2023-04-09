@@ -79,7 +79,7 @@ void draw_prop_model_info(const FFNA_ModelFile& model)
                 if (ImGui::TreeNode("UnknownTexStruct0"))
                 {
                     const UnknownTexStruct0& uts0 = texture_and_vertex_shader.uts0[i];
-                    ImGui::Text("uts0[%zu].some_flags: %u", i, uts0.some_flags);
+                    ImGui::Text("uts0[%zu].using_no_cull: %u", i, uts0.using_no_cull);
                     ImGui::Text("uts0[%zu].f0x1: %u", i, uts0.f0x1);
                     ImGui::Text("uts0[%zu].f0x2: %u", i, uts0.f0x2);
                     ImGui::Text("uts0[%zu].pixel_shader_id: %u", i, uts0.pixel_shader_id);
@@ -116,12 +116,11 @@ void draw_prop_model_info(const FFNA_ModelFile& model)
                 ImGui::TreePop();
             }
 
-            if (ImGui::TreeNode("some_pixel_shader_flags_maybe"))
+            if (ImGui::TreeNode("blend_state"))
             {
-                for (size_t i = 0; i < texture_and_vertex_shader.some_pixel_shader_flags_maybe.size(); ++i)
+                for (size_t i = 0; i < texture_and_vertex_shader.blend_state.size(); ++i)
                 {
-                    ImGui::Text("some_pixel_shader_flags_maybe[%zu]: %u", i,
-                                texture_and_vertex_shader.some_pixel_shader_flags_maybe[i]);
+                    ImGui::Text("blend_state[%zu]: %u", i, texture_and_vertex_shader.blend_state[i]);
                 }
                 ImGui::TreePop();
             }
