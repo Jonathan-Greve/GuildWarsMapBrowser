@@ -57,6 +57,7 @@ public:
 
         // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
         auto box_id = m_mesh_manager->AddBox({300, 300, 300});
+        //auto box_mesh_instance = m_mesh_manager->GetMesh(box_id);
         auto sphere_id = m_mesh_manager->AddSphere(300, 100, 100);
 
         // Move the sphere and box next to eachother
@@ -65,6 +66,7 @@ public:
         DirectX::XMStoreFloat4x4(&boxWorldMatrix, DirectX::XMMatrixTranslation(30000, 0, 0));
         PerObjectCB boxPerObjectData;
         boxPerObjectData.world = boxWorldMatrix;
+        boxPerObjectData.num_uv_texture_pairs = 1;
         m_mesh_manager->UpdateMeshPerObjectData(box_id, boxPerObjectData);
 
         // Move the sphere to the right of the box (e.g., 250 units on the X-axis)
@@ -81,7 +83,7 @@ public:
         auto texture_id =
           m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
                                         texture_height, DXGI_FORMAT_R8G8B8A8_UNORM);
-        m_mesh_manager->SetTexturesForMesh(box_id, {m_texture_manager->GetTexture(texture_id)}, {0}, {0});
+        m_mesh_manager->SetTexturesForMesh(box_id, {m_texture_manager->GetTexture(texture_id)});
 
         // Create and initialize the VertexShader
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
@@ -178,8 +180,21 @@ public:
             UnsetTerrain();
         }
 
-        m_terrain_mesh_id =
-          m_mesh_manager->AddCustomMesh(terrain->get_mesh(), m_terrain_current_pixel_shader_type);
+        auto mesh = terrain->get_mesh();
+        mesh->num_textures = 1;
+        m_terrain_mesh_id = m_mesh_manager->AddCustomMesh(mesh, m_terrain_current_pixel_shader_type);
+
+        PerObjectCB terrainPerObjectData;
+        terrainPerObjectData.num_uv_texture_pairs = mesh->num_textures;
+        for (int i = 0; i < mesh->uv_coord_indices.size(); i++)
+        {
+            int index0 = i / 4;
+            int index1 = i % 4;
+
+            terrainPerObjectData.uv_indices[index0][index1] = (uint32_t)mesh->uv_coord_indices[i];
+            terrainPerObjectData.texture_indices[index0][index1] = (uint32_t)mesh->tex_indices[i];
+        }
+        m_mesh_manager->UpdateMeshPerObjectData(m_terrain_mesh_id, terrainPerObjectData);
 
         auto water_level = m_terrain ? m_terrain->m_per_terrain_cb.water_level : 0.0f;
         terrain->m_per_terrain_cb =
@@ -206,7 +221,7 @@ public:
                                             texture_height, DXGI_FORMAT_R8G8B8A8_UNORM);
         }
         m_mesh_manager->SetTexturesForMesh(m_terrain_mesh_id,
-                                           {m_texture_manager->GetTexture(m_terrain_texture_id)}, {0}, {0});
+                                           {m_texture_manager->GetTexture(m_terrain_texture_id)});
 
         m_terrain = std::move(terrain);
         m_is_terrain_mesh_set = true;
@@ -232,11 +247,15 @@ public:
     }
 
     // A prop consists of 1+ sub models/meshes.
-    std::vector<int> AddProp(std::vector<Mesh> meshes, PerObjectCB per_object_cb, uint32_t model_id)
+    std::vector<int> AddProp(std::vector<Mesh> meshes, std::vector<PerObjectCB> per_object_cbs,
+                             uint32_t model_id)
     {
         std::vector<int> mesh_ids;
-        for (const auto& mesh : meshes)
+        for (int i = 0; i < meshes.size(); i++)
         {
+            const auto& mesh = meshes[i];
+            const auto& per_object_cb = per_object_cbs[i];
+
             int mesh_id = m_mesh_manager->AddCustomMesh(mesh);
             m_mesh_manager->UpdateMeshPerObjectData(mesh_id, per_object_cb);
             mesh_ids.push_back(mesh_id);

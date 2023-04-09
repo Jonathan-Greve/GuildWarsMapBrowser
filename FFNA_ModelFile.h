@@ -148,7 +148,6 @@ struct ComplexStruct
         {
             parsed_correctly = false;
             return;
-            return;
         }
 
         u0x0 = *reinterpret_cast<const uint32_t*>(data + curr_offset);
@@ -266,7 +265,6 @@ struct GeometryModel
         if (curr_offset + 0x24 >= data_size_bytes)
         {
             parsed_correctly = false;
-            return;
             return;
         }
 
@@ -463,7 +461,6 @@ struct InteractiveModelMaybe
         {
             parsed_correctly = false;
             return;
-            return;
         }
 
         std::memcpy(&num_indices, &data[curr_offset], sizeof(num_indices));
@@ -496,7 +493,6 @@ struct InteractiveModelMaybe
         {
             parsed_correctly = false;
             return;
-            return;
         }
     }
 };
@@ -520,14 +516,15 @@ struct TextureAndVertexShader
     std::vector<uint8_t> zeros;
     std::vector<uint8_t> some_pixel_shader_flags_maybe;
     std::vector<uint8_t> texture_index_UV_mapping_maybe;
+    std::vector<uint8_t> unknown;
 
     TextureAndVertexShader() = default;
     TextureAndVertexShader(size_t max_UV_index, size_t num1, bool f0x20, uint32_t& curr_offset,
                            const unsigned char* data, uint32_t data_size_bytes, bool& parsed_correctly)
     {
-        if (max_UV_index > 40 || num1 > 40)
+        if (max_UV_index > 100 || num1 > 100)
         {
-            parsed_correctly == false;
+            parsed_correctly = false;
             return;
         }
         // Resize vectors
@@ -591,6 +588,19 @@ struct TextureAndVertexShader
         }
         std::memcpy(texture_index_UV_mapping_maybe.data(), &data[curr_offset], sizeof(uint8_t) * num1);
         curr_offset += sizeof(uint8_t) * num1;
+
+        if (-(f0x20 != 0))
+        {
+            if (curr_offset + sizeof(uint8_t) * num1 > data_size_bytes)
+            {
+                parsed_correctly = false;
+                return;
+            }
+
+            unknown.resize(num1);
+            std::memcpy(unknown.data(), &data[curr_offset], sizeof(uint8_t) * num1);
+            curr_offset += sizeof(uint8_t) * num1;
+        }
     }
 };
 
@@ -641,11 +651,18 @@ struct GeometryChunk
         curr_offset += sizeof(sub_1);
         if (sub_1.num_models > 0)
         {
+            const bool prev_parsed_correctly = parsed_correctly;
+            const int prev_offset = curr_offset;
             tex_and_vertex_shader_struct =
               TextureAndVertexShader(sub_1.max_UV_index, sub_1.some_num1, sub_1.f0x20, curr_offset, data,
                                      data_size_bytes, parsed_correctly);
-            if (! parsed_correctly)
-                return;
+            if (prev_parsed_correctly != parsed_correctly)
+            {
+                // We want to render the models even if we can't apply textures.
+                parsed_correctly == true;
+                curr_offset = prev_offset + sub_1.max_UV_index * 3 + sub_1.some_num1 * 9 +
+                  (-(sub_1.f0x20 != 0) & sub_1.some_num1);
+            }
 
             if (sub_1.f0x19 > 0)
             {
@@ -889,7 +906,31 @@ struct FFNA_ModelFile
 
         auto sub_model = geometry_chunk.models[model_index];
 
+        bool parsed_texture = sizeof(geometry_chunk.tex_and_vertex_shader_struct) > 0 &&
+          geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0 &&
+          geometry_chunk.tex_and_vertex_shader_struct.tex_array.size() > 0 &&
+          geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe.size() > 0;
         int max_num_tex_coords = 0;
+
+        int num_uv_coords_start_index = 0;
+        if (parsed_texture)
+        {
+            for (int i = 0; i < model_index; i++)
+            {
+                auto uts = geometry_chunk.tex_and_vertex_shader_struct
+                             .uts0[i % geometry_chunk.tex_and_vertex_shader_struct.uts0.size()];
+                num_uv_coords_start_index += uts.f0x7;
+            }
+        }
+
+        int num_uv_coords_to_use = 0;
+        if (parsed_texture)
+        {
+            num_uv_coords_to_use =
+              geometry_chunk.tex_and_vertex_shader_struct
+                .uts0[model_index % geometry_chunk.tex_and_vertex_shader_struct.uts0.size()]
+                .f0x7;
+        }
 
         for (int i = 0; i < sub_model.vertices.size(); i++)
         {
@@ -958,27 +999,37 @@ struct FFNA_ModelFile
             indices.push_back(index2);
         }
 
-        for (int i = 0; i < geometry_chunk.tex_and_vertex_shader_struct.tex_array.size(); i++)
+        std::vector<uint8_t> uv_coords_indices;
+        std::vector<uint8_t> tex_indices;
+        if (parsed_texture)
         {
-            uint8_t& uv_set_index = geometry_chunk.tex_and_vertex_shader_struct.tex_array[i];
-            if (max_num_tex_coords < uv_set_index && max_num_tex_coords > 0)
+            for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
-                uv_set_index = max_num_tex_coords - 1;
+                uint8_t uv_set_index =
+                  geometry_chunk.tex_and_vertex_shader_struct
+                    .tex_array[i % geometry_chunk.tex_and_vertex_shader_struct.tex_array.size()];
+                if (max_num_tex_coords < uv_set_index && max_num_tex_coords > 0)
+                {
+                    uv_set_index = max_num_tex_coords - 1;
+                }
+                uv_coords_indices.push_back(uv_set_index);
+            }
+
+            for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
+            {
+                uint8_t texture_index =
+                  geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe
+                    [i % geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe.size()];
+                if (texture_filenames_chunk.num_texture_filenames < texture_index &&
+                    texture_filenames_chunk.num_texture_filenames > 0)
+                {
+                    texture_index = texture_filenames_chunk.num_texture_filenames - 1;
+                }
+                tex_indices.push_back(texture_index);
             }
         }
 
-        for (int i = 0; i < geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe.size();
-             i++)
-        {
-            uint8_t& texture_index =
-              geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe[i];
-            if (texture_filenames_chunk.num_texture_filenames < texture_index &&
-                texture_filenames_chunk.num_texture_filenames > 0)
-            {
-                texture_index = texture_filenames_chunk.num_texture_filenames - 1;
-            }
-        }
-
-        return Mesh(vertices, indices, texture_filenames_chunk.num_texture_filenames);
+        return Mesh(vertices, indices, uv_coords_indices, tex_indices,
+                    texture_filenames_chunk.num_texture_filenames);
     }
 };

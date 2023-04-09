@@ -38,27 +38,14 @@ public:
     const PerObjectCB& GetPerObjectData() const { return m_per_object_data; }
     void SetPerObjectData(const PerObjectCB& data) { m_per_object_data = data; }
 
-    void SetTextures(const std::vector<ID3D11ShaderResourceView*>& textures,
-                     const std::vector<uint8_t>& uvSetIndices, const std::vector<uint8_t>& textureIndices)
+    void SetTextures(const std::vector<ID3D11ShaderResourceView*>& textures)
     {
-        if (uvSetIndices.size() != textureIndices.size() || textures.size() >= 32 ||
-            uvSetIndices.size() >= 32)
+        if (textures.size() >= 32)
         {
             return; // Failed, maybe throw here on handle error.
         }
 
-        // Clear previously set textures and reset the uv_index and texture_indices arrays
         m_textures.clear();
-        m_per_object_data.num_uv_texture_pairs = uvSetIndices.size();
-
-        for (int i = 0; i < uvSetIndices.size(); ++i)
-        {
-            int packedIndex = i / 4;
-            int offset = i % 4;
-            m_per_object_data.uv_indices[packedIndex][offset] = uvSetIndices[i];
-            m_per_object_data.texture_indices[packedIndex][offset] = textureIndices[i];
-        }
-
         for (size_t i = 0; i < textures.size(); ++i)
         {
             // Add the texture to the corresponding uvSetIndex

@@ -135,14 +135,29 @@ public:
         return false;
     }
 
-    void SetTexturesForMesh(int meshID, const std::vector<ID3D11ShaderResourceView*>& textures,
-                            const std::vector<uint8_t>& uvSetIndices,
-                            const std::vector<uint8_t>& textureIndices)
+    std::shared_ptr<MeshInstance> GetMesh(int meshID)
     {
         auto it = m_triangleMeshes.find(meshID);
         if (it != m_triangleMeshes.end())
         {
-            it->second->SetTextures(textures, uvSetIndices, textureIndices);
+            return it->second;
+        }
+
+        it = m_lineMeshes.find(meshID);
+        if (it != m_lineMeshes.end())
+        {
+            return it->second;
+        }
+
+        return nullptr;
+    }
+
+    void SetTexturesForMesh(int meshID, const std::vector<ID3D11ShaderResourceView*>& textures)
+    {
+        auto it = m_triangleMeshes.find(meshID);
+        if (it != m_triangleMeshes.end())
+        {
+            it->second->SetTextures(textures);
         }
     }
 

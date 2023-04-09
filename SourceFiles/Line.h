@@ -36,7 +36,7 @@ private:
         };
         std::vector<uint32_t> indices = {0, 1};
 
-        return Mesh(vertices, indices, 1);
+        return Mesh(vertices, indices);
     }
 
     std::unique_ptr<MeshInstance> m_meshInstance;
