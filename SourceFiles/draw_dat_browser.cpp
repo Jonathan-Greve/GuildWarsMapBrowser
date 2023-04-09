@@ -144,38 +144,54 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 }
             }
 
-            PerObjectCB per_object_cb;
+            std::vector<PerObjectCB> per_object_cbs;
+            per_object_cbs.resize(prop_meshes.size());
+            for (int i = 0; i < per_object_cbs.size(); i++)
+            {
+                float modelWidth = overallMaxX - overallMinX;
+                float modelHeight = overallMaxY - overallMinY;
+                float modelDepth = overallMaxZ - overallMinZ;
 
-            float modelWidth = overallMaxX - overallMinX;
-            float modelHeight = overallMaxY - overallMinY;
-            float modelDepth = overallMaxZ - overallMinZ;
+                float maxDimension = std::max({modelWidth, modelHeight, modelDepth});
 
-            float maxDimension = std::max({modelWidth, modelHeight, modelDepth});
+                float boundingBoxSize = 3000.0f;
+                float scale = boundingBoxSize / maxDimension;
 
-            float boundingBoxSize = 3000.0f;
-            float scale = boundingBoxSize / maxDimension;
+                float centerX = overallMinX + modelWidth * 0.5f;
+                float centerY = overallMinY + modelHeight * 0.5f;
+                float centerZ = overallMinZ + modelDepth * 0.5f;
 
-            float centerX = overallMinX + modelWidth * 0.5f;
-            float centerY = overallMinY + modelHeight * 0.5f;
-            float centerZ = overallMinZ + modelDepth * 0.5f;
+                DirectX::XMMATRIX scaling_matrix = DirectX::XMMatrixScaling(scale, scale, scale);
+                DirectX::XMMATRIX translation_matrix =
+                  DirectX::XMMatrixTranslation(-centerX * scale, -centerY * scale, -centerZ * scale);
+                DirectX::XMMATRIX world_matrix = scaling_matrix * translation_matrix;
 
-            DirectX::XMMATRIX scaling_matrix = DirectX::XMMatrixScaling(scale, scale, scale);
-            DirectX::XMMATRIX translation_matrix =
-              DirectX::XMMatrixTranslation(-centerX * scale, -centerY * scale, -centerZ * scale);
-            DirectX::XMMATRIX world_matrix = scaling_matrix * translation_matrix;
+                DirectX::XMStoreFloat4x4(&per_object_cbs[i].world, world_matrix);
 
-            DirectX::XMStoreFloat4x4(&per_object_cb.world, world_matrix);
+                auto& prop_mesh = prop_meshes[i];
+                if (prop_mesh.uv_coord_indices.size() != prop_mesh.tex_indices.size() ||
+                    prop_mesh.uv_coord_indices.size() >= 32)
+                {
+                    return; // Failed, maybe throw here on handle error.
+                }
 
-            auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cb, index);
+                per_object_cbs[i].num_uv_texture_pairs = prop_mesh.uv_coord_indices.size();
+
+                for (int j = 0; j < prop_mesh.uv_coord_indices.size(); j++)
+                {
+                    int index0 = j / 4;
+                    int index1 = j % 4;
+
+                    per_object_cbs[i].uv_indices[index0][index1] = (uint32_t)prop_mesh.uv_coord_indices[j];
+                    per_object_cbs[i].texture_indices[index0][index1] = (uint32_t)prop_mesh.tex_indices[j];
+                }
+            }
+
+            auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, index);
             for (const auto mesh_id : mesh_ids)
             {
-                auto& tex_array =
-                  selected_ffna_model_file.geometry_chunk.tex_and_vertex_shader_struct.tex_array;
-                auto& uv_tex_mapping = selected_ffna_model_file.geometry_chunk.tex_and_vertex_shader_struct
-                                         .texture_index_UV_mapping_maybe;
                 map_renderer->GetMeshManager()->SetTexturesForMesh(
-                  mesh_id, map_renderer->GetTextureManager()->GetTextures(texture_ids), tex_array,
-                  uv_tex_mapping);
+                  mesh_id, map_renderer->GetTextureManager()->GetTextures(texture_ids));
             }
         }
 
@@ -279,38 +295,55 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                             }
                         }
 
-                        PerObjectCB per_object_cb;
+                        std::vector<PerObjectCB> per_object_cbs;
+                        per_object_cbs.resize(prop_meshes.size());
+                        for (int j = 0; j < per_object_cbs.size(); j++)
+                        {
+                            DirectX::XMFLOAT3 translation(prop_info.x, prop_info.y, prop_info.z);
+                            float sin_angle = prop_info.sin_angle;
+                            float cos_angle = prop_info.cos_angle;
+                            float rotation_angle = std::atan2(
+                              sin_angle,
+                              cos_angle); // Calculate the rotation angle from the sine and cosine values
 
-                        DirectX::XMFLOAT3 translation(prop_info.x, prop_info.y, prop_info.z);
-                        float sin_angle = prop_info.sin_angle;
-                        float cos_angle = prop_info.cos_angle;
-                        float rotation_angle = std::atan2(
-                          sin_angle,
-                          cos_angle); // Calculate the rotation angle from the sine and cosine values
+                            float scale = prop_info.scaling_factor;
 
-                        float scale = prop_info.scaling_factor;
+                            DirectX::XMMATRIX scaling_matrix = DirectX::XMMatrixScaling(scale, scale, scale);
+                            DirectX::XMMATRIX rotation_matrix = DirectX::XMMatrixRotationY(rotation_angle);
+                            DirectX::XMMATRIX translation_matrix =
+                              DirectX::XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
 
-                        DirectX::XMMATRIX scaling_matrix = DirectX::XMMatrixScaling(scale, scale, scale);
-                        DirectX::XMMATRIX rotation_matrix = DirectX::XMMatrixRotationY(rotation_angle);
-                        DirectX::XMMATRIX translation_matrix =
-                          DirectX::XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
+                            DirectX::XMMATRIX transform_matrix = DirectX::XMMatrixMultiply(
+                              scaling_matrix, DirectX::XMMatrixMultiply(rotation_matrix, translation_matrix));
 
-                        DirectX::XMMATRIX transform_matrix = DirectX::XMMatrixMultiply(
-                          scaling_matrix, DirectX::XMMatrixMultiply(rotation_matrix, translation_matrix));
+                            DirectX::XMStoreFloat4x4(&per_object_cbs[j].world, transform_matrix);
 
-                        DirectX::XMStoreFloat4x4(&per_object_cb.world, transform_matrix);
+                            auto& prop_mesh = prop_meshes[j];
+                            if (prop_mesh.uv_coord_indices.size() != prop_mesh.tex_indices.size() ||
+                                prop_mesh.uv_coord_indices.size() >= 32)
+                            {
+                                return; // Failed, maybe throw here on handle error.
+                            }
 
-                        auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cb, index);
+                            per_object_cbs[j].num_uv_texture_pairs = prop_mesh.uv_coord_indices.size();
+
+                            for (int k = 0; k < prop_mesh.uv_coord_indices.size(); k++)
+                            {
+                                int index0 = k / 4;
+                                int index1 = k % 4;
+
+                                per_object_cbs[j].uv_indices[index0][index1] =
+                                  (uint32_t)prop_mesh.uv_coord_indices[k];
+                                per_object_cbs[j].texture_indices[index0][index1] =
+                                  (uint32_t)prop_mesh.tex_indices[k];
+                            }
+                        }
+
+                        auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, i);
                         for (const auto mesh_id : mesh_ids)
                         {
-                            auto& tex_array =
-                              ffna_model_file_ptr->geometry_chunk.tex_and_vertex_shader_struct.tex_array;
-                            auto& uv_tex_mapping =
-                              ffna_model_file_ptr->geometry_chunk.tex_and_vertex_shader_struct
-                                .texture_index_UV_mapping_maybe;
                             map_renderer->GetMeshManager()->SetTexturesForMesh(
-                              mesh_id, map_renderer->GetTextureManager()->GetTextures(texture_ids), tex_array,
-                              uv_tex_mapping);
+                              mesh_id, map_renderer->GetTextureManager()->GetTextures(texture_ids));
                         }
                     }
                 }
