@@ -500,7 +500,7 @@ struct InteractiveModelMaybe
 #pragma pack(push, 1) // Set packing alignment to 1 byte
 struct UnknownTexStruct0
 {
-    uint8_t some_flags;
+    uint8_t using_no_cull; // 0 if cull enabled, 1 if no culling enabled.
     uint8_t f0x1;
     uint32_t f0x2;
     uint8_t pixel_shader_id;
@@ -514,7 +514,7 @@ struct TextureAndVertexShader
     std::vector<uint16_t> flags0;
     std::vector<uint8_t> tex_array;
     std::vector<uint8_t> zeros;
-    std::vector<uint8_t> some_pixel_shader_flags_maybe;
+    std::vector<uint8_t> blend_state;
     std::vector<uint8_t> texture_index_UV_mapping_maybe;
     std::vector<uint8_t> unknown;
 
@@ -532,7 +532,7 @@ struct TextureAndVertexShader
         flags0.resize(num1);
         tex_array.resize(num1);
         zeros.resize(num1 * 4);
-        some_pixel_shader_flags_maybe.resize(num1);
+        blend_state.resize(num1);
         texture_index_UV_mapping_maybe.resize(num1);
 
         // Read uts0
@@ -571,13 +571,13 @@ struct TextureAndVertexShader
         std::memcpy(zeros.data(), &data[curr_offset], sizeof(uint8_t) * num1 * 4);
         curr_offset += sizeof(uint8_t) * num1 * 4;
 
-        // Read some_pixel_shader_flags_maybe
+        // Read blend_state
         if (curr_offset + sizeof(uint8_t) * num1 > data_size_bytes)
         {
             parsed_correctly = false;
             return;
         }
-        std::memcpy(some_pixel_shader_flags_maybe.data(), &data[curr_offset], sizeof(uint8_t) * num1);
+        std::memcpy(blend_state.data(), &data[curr_offset], sizeof(uint8_t) * num1);
         curr_offset += sizeof(uint8_t) * num1;
 
         // Read texture_index_UV_mapping_maybe
