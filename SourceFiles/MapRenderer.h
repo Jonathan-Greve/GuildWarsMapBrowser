@@ -10,6 +10,7 @@
 #include "PerTerrainCB.h"
 #include "CheckerboardTexture.h"
 #include "Terrain.h"
+#include "BlendStateManager.h"
 
 enum class RasterizerStateType
 {
@@ -31,6 +32,7 @@ public:
     {
         m_mesh_manager = std::make_unique<MeshManager>(m_device, m_deviceContext);
         m_texture_manager = std::make_unique<TextureManager>(m_device, m_deviceContext);
+        m_blend_state_manager = std::make_unique<BlendStateManager>(m_device, m_deviceContext);
         m_user_camera = std::make_unique<Camera>();
     }
 
@@ -392,6 +394,7 @@ private:
     InputManager* m_input_manager;
     std::unique_ptr<MeshManager> m_mesh_manager;
     std::unique_ptr<TextureManager> m_texture_manager;
+    std::unique_ptr<BlendStateManager> m_blend_state_manager;
     std::unique_ptr<Camera> m_user_camera;
     std::unique_ptr<VertexShader> m_vertex_shader;
     std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>> m_pixel_shaders;

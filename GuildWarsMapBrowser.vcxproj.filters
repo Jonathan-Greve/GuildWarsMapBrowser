@@ -95,6 +95,9 @@
     <Filter Include="Dat reader\DDS DirectXTex">
       <UniqueIdentifier>{346dff3f-4c3a-4b52-bc34-06161203469e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Input\Render\Blend">
+      <UniqueIdentifier>{cc7be27a-d599-44cf-a57b-14e0e22d12f7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -321,6 +324,9 @@
     <ClInclude Include="DirectXTex\BC.h">
       <Filter>Dat reader\DDS DirectXTex</Filter>
     </ClInclude>
+    <ClInclude Include="BlendStateManager.h">
+      <Filter>Input\Render\Blend</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -535,6 +541,9 @@
     </ClCompile>
     <ClCompile Include="DirectXTex\DirectXTexWIC.cpp">
       <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="BlendStateManager.cpp">
+      <Filter>Input\Render\Blend</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

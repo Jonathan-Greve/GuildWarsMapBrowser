@@ -53,7 +53,7 @@ void draw_prop_model_info(const FFNA_ModelFile& model)
             ImGui::Text("f0x40: %u", sub_1.f0x40);
             ImGui::Text("num_models: %u", sub_1.num_models);
             ImGui::Text("f0x48: %u", sub_1.f0x48);
-            ImGui::Text("f0x4C: %hu", sub_1.f0x4C);
+            ImGui::Text("collision_count: %hu", sub_1.collision_count);
 
             ImGui::Text("f0x4E:");
             ImGui::Indent();

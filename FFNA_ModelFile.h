@@ -109,7 +109,7 @@ struct Chunk1_sub1
     uint32_t f0x40;
     uint32_t num_models;
     uint32_t f0x48;
-    uint16_t f0x4C;
+    uint16_t collision_count;
     uint8_t f0x4E[2];
     uint16_t f0x50;
     uint16_t num_some_struct2;
