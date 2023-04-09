@@ -15,7 +15,10 @@ public:
 
     int AddTexture(const void* data, UINT width, UINT height, DXGI_FORMAT format)
     {
-        int textureID = m_nextTextureID++;
+        if (! data || width <= 0 || height <= 0)
+        {
+            return -1;
+        }
 
         D3D11_TEXTURE2D_DESC texDesc = {};
         texDesc.Width = width;
@@ -55,6 +58,7 @@ public:
             return -1;
         }
 
+        int textureID = m_nextTextureID++;
         m_textures[textureID] = shaderResourceView;
         return textureID;
     }

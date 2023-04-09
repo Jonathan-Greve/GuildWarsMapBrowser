@@ -90,6 +90,9 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Apply textures
     float4 sampledTextureColor = float4(0, 0, 0, 0);
+    float2 texCoordsArray[8] = { input.tex_coords0, input.tex_coords1, input.tex_coords2, input.tex_coords3,
+                                 input.tex_coords4, input.tex_coords5, input.tex_coords6, input.tex_coords7 };
+
     for (int j = 0; j < (num_uv_texture_pairs + 3) / 4; ++j)
     {
         for (int k = 0; k < 4; ++k)
@@ -102,26 +105,22 @@ float4 main(PixelInputType input) : SV_TARGET
                 break;
             }
 
-            switch (uv_set_index)
+            for (int t = 0; t < 8; ++t)
             {
-            case 0: sampledTextureColor = shaderTextures[0].Sample(ss, input.tex_coords0); break;
-            case 1: sampledTextureColor = shaderTextures[1].Sample(ss, input.tex_coords1); break;
-            case 2: sampledTextureColor = shaderTextures[2].Sample(ss, input.tex_coords2); break;
-            case 3: sampledTextureColor = shaderTextures[3].Sample(ss, input.tex_coords3); break;
-            case 4: sampledTextureColor = shaderTextures[4].Sample(ss, input.tex_coords4); break;
-            case 5: sampledTextureColor = shaderTextures[5].Sample(ss, input.tex_coords5); break;
-            case 6: sampledTextureColor = shaderTextures[6].Sample(ss, input.tex_coords6); break;
-            case 7: sampledTextureColor = shaderTextures[7].Sample(ss, input.tex_coords7); break;
-            default: break;
+                if (t == texture_index)
+                {
+                    sampledTextureColor = shaderTextures[t].Sample(ss, texCoordsArray[uv_set_index]);
+                    sampledTextureColor += sampledTextureColor * (1.0 / num_uv_texture_pairs); // placeholder
+                }
             }
-
-            sampledTextureColor += sampledTextureColor * (1.0 / num_uv_texture_pairs); // placeholder
         }
     }
 
+
+
     // Multiply the blended color with the finalColor
     if (num_uv_texture_pairs > 0) {
-        float4 finalColor = finalColor * sampledTextureColor;
+        finalColor = finalColor * sampledTextureColor;
     }
 
     // Return the result
