@@ -132,7 +132,7 @@ struct Chunk1_sub1 {
   u32 f0x40;
   u32 num_models;
   u32 f0x48;
-  u16 f0x4C;
+  u16 collision_count;
   u8 f0x4E[2];
   u16 f0x50;
   u16 num_some_struct2;
@@ -357,7 +357,7 @@ struct GeometryChunk {
   }
   geometry_sub_chunk geometry[sub_1.num_models];
   
-  InteractiveModelMaybe interactive_models_maybe[sub_1.f0x4C];
+  InteractiveModelMaybe interactive_models_maybe[sub_1.collision_count];
   
   u8 chunk_data[chunk_size-sizeof(sub_1)-sizeof(TaVS)-extra-sizeof(geometry)-extra_bytes-sizeof(interactive_models_maybe)];
 };
