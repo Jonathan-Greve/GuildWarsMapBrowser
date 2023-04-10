@@ -9,6 +9,8 @@
 #include "Line.h"
 #include "RenderConstants.h"
 #include "PixelShader.h"
+#include "BlendStateManager.h"
+#include "RasterizerStateManager.h"
 
 class MeshManager
 {
@@ -228,10 +230,14 @@ public:
         m_renderBatch.SortCommands();
     }
 
-    void Render(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders)
+    void Render(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
+                BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager)
     {
         static D3D11_PRIMITIVE_TOPOLOGY currentTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
         static PixelShaderType current_ps_shader_type = PixelShaderType::Default;
+        bool current_should_cull = true;
+        BlendState current_blend_state = BlendState::Opaque;
+
         for (const RenderCommand& command : m_renderBatch.GetCommands())
         {
             if (! command.should_render)
@@ -248,6 +254,27 @@ public:
                 m_deviceContext->PSSetSamplers(0, 1,
                                                pixel_shaders[command.pixelShaderType]->GetSamplerState());
                 current_ps_shader_type = command.pixelShaderType;
+            }
+
+            if (command.should_cull != current_should_cull)
+            {
+                if (command.should_cull)
+                {
+                    rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid);
+                }
+                else
+                {
+                    rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid_NoCull);
+                }
+
+                current_should_cull = command.should_cull;
+            }
+
+            if (command.blend_state != current_blend_state)
+            {
+                blend_state_manager->SetBlendState(command.blend_state);
+
+                current_blend_state = command.blend_state;
             }
 
             PerObjectCB transposedData = command.meshInstance->GetPerObjectData();
@@ -282,8 +309,13 @@ private:
                                 PixelShaderType pixel_shader_type)
     {
         m_triangleMeshes[mesh_instance->GetMeshID()] = mesh_instance;
+        bool should_cull = mesh_instance->GetMesh().should_cull;
+        auto blend_state = mesh_instance->GetMesh().blend_state;
 
-        RenderCommand command = {mesh_instance, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, pixel_shader_type};
+        RenderCommand command = {mesh_instance,     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST,
+                                 pixel_shader_type, should_cull,
+                                 blend_state,       true};
+
         m_renderBatch.AddCommand(command);
     }
 };

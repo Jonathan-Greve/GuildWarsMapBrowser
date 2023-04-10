@@ -648,6 +648,7 @@ struct GeometryChunk
 
         uint32_t curr_offset = offset + 8;
         sub_1 = Chunk1_sub1(&data[curr_offset]);
+        sub_1.num_models /= 2;
         curr_offset += sizeof(sub_1);
         if (sub_1.num_models > 0)
         {
@@ -911,6 +912,8 @@ struct FFNA_ModelFile
           geometry_chunk.tex_and_vertex_shader_struct.tex_array.size() > 0 &&
           geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe.size() > 0;
         int max_num_tex_coords = 0;
+        bool should_cull = false;
+        BlendState blend_state = BlendState::Opaque;
 
         int num_uv_coords_start_index = 0;
         if (parsed_texture)
@@ -926,10 +929,10 @@ struct FFNA_ModelFile
         int num_uv_coords_to_use = 0;
         if (parsed_texture)
         {
-            num_uv_coords_to_use =
-              geometry_chunk.tex_and_vertex_shader_struct
-                .uts0[model_index % geometry_chunk.tex_and_vertex_shader_struct.uts0.size()]
-                .f0x7;
+            auto uts = geometry_chunk.tex_and_vertex_shader_struct
+                         .uts0[model_index % geometry_chunk.tex_and_vertex_shader_struct.uts0.size()];
+            num_uv_coords_to_use = uts.f0x7;
+            should_cull = ! (bool)uts.using_no_cull;
         }
 
         for (int i = 0; i < sub_model.vertices.size(); i++)
@@ -1027,9 +1030,19 @@ struct FFNA_ModelFile
                 }
                 tex_indices.push_back(texture_index);
             }
+
+            // Blend state (Wrong not how the game does it, just for testing)
+            for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
+            {
+                if (geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 8)
+                {
+                    blend_state = BlendState::AlphaBlend;
+                    break;
+                }
+            }
         }
 
-        return Mesh(vertices, indices, uv_coords_indices, tex_indices,
+        return Mesh(vertices, indices, uv_coords_indices, tex_indices, should_cull, blend_state,
                     texture_filenames_chunk.num_texture_filenames);
     }
 };
