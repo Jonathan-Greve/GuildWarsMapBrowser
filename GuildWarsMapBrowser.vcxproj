@@ -194,6 +194,7 @@
     <ClInclude Include="DearImGui\imstb_truetype.h" />
     <ClInclude Include="DearImGui\misc\cpp\imgui_stdlib.h" />
     <ClInclude Include="DefaultPixelShader.h" />
+    <ClInclude Include="DepthStencilStateManager.h" />
     <ClInclude Include="DirectXTex\BC.h" />
     <ClInclude Include="DirectXTex\DDS.h" />
     <ClInclude Include="DirectXTex\DDSTextureLoader11.h" />
@@ -310,6 +311,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="DepthStencilStateManager.cpp" />
     <ClCompile Include="DirectXTex\BC.cpp" />
     <ClCompile Include="DirectXTex\BC4BC5.cpp" />
     <ClCompile Include="DirectXTex\BC6HBC7.cpp" />

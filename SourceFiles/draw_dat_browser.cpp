@@ -10,6 +10,10 @@ inline extern SelectedDatTexture selected_dat_texture{};
 
 inline extern std::vector<FileData> selected_map_files{};
 
+inline bool is_parsing_data = false;
+inline bool items_to_parse = 0;
+inline bool items_parsed = 0;
+
 const char* type_strings[26] = {
   " ",        "AMAT",     "Amp",      "ATEXDXT1", "ATEXDXT2",     "ATEXDXT3",   "ATEXDXT4",
   "ATEXDXT5", "ATEXDXTN", "ATEXDXTA", "ATEXDXTL", "ATTXDXT1",     "ATTXDXT3",   "ATTXDXT5",
