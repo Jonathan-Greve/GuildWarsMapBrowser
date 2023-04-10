@@ -240,8 +240,6 @@ public:
         bool current_should_cull = true;
         BlendState current_blend_state = BlendState::Opaque;
 
-        DepthStencilStateType current_stencil_state_type = DepthStencilStateType::Enabled;
-
         for (const RenderCommand& command : m_renderBatch.GetCommands())
         {
             if (! command.should_render)
