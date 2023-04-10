@@ -12,6 +12,7 @@
 #include "Terrain.h"
 #include "BlendStateManager.h"
 #include "RasterizerStateManager.h"
+#include "DepthStencilStateManager.h"
 
 using namespace DirectX;
 
@@ -27,6 +28,7 @@ public:
         m_texture_manager = std::make_unique<TextureManager>(m_device, m_deviceContext);
         m_blend_state_manager = std::make_unique<BlendStateManager>(m_device, m_deviceContext);
         m_rasterizer_state_manager = std::make_unique<RasterizerStateManager>(m_device, m_deviceContext);
+        m_stencil_state_manager = std::make_unique<DepthStencilStateManager>(m_device, m_deviceContext);
         m_user_camera = std::make_unique<Camera>();
     }
 
@@ -341,8 +343,8 @@ public:
 
     void Render()
     {
-        m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(),
-                               m_rasterizer_state_manager.get());
+        m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                               m_stencil_state_manager.get());
     }
 
 private:
@@ -353,6 +355,7 @@ private:
     std::unique_ptr<TextureManager> m_texture_manager;
     std::unique_ptr<BlendStateManager> m_blend_state_manager;
     std::unique_ptr<RasterizerStateManager> m_rasterizer_state_manager;
+    std::unique_ptr<DepthStencilStateManager> m_stencil_state_manager;
     std::unique_ptr<Camera> m_user_camera;
     std::unique_ptr<VertexShader> m_vertex_shader;
     std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>> m_pixel_shaders;
