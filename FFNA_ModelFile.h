@@ -396,7 +396,7 @@ struct GeometryModel
 
                 for (int j = 0; j < 8; ++j)
                 {
-                    if (vertex.has_tex_coord[j])
+                    if (vertex.has_tex_coord[j] && curr_offset + sizeof(float) < data_size_bytes)
                     {
                         std::memcpy(&vertex.tex_coord[j][0], &data[curr_offset], sizeof(float));
                         curr_offset += sizeof(float);
@@ -648,7 +648,7 @@ struct GeometryChunk
 
         uint32_t curr_offset = offset + 8;
         sub_1 = Chunk1_sub1(&data[curr_offset]);
-        sub_1.num_models /= 2;
+        sub_1.num_models;
         curr_offset += sizeof(sub_1);
         if (sub_1.num_models > 0)
         {
@@ -904,6 +904,11 @@ struct FFNA_ModelFile
     {
         std::vector<GWVertex> vertices;
         std::vector<uint32_t> indices;
+        int model_index_1 = model_index;
+        if (geometry_chunk.sub_1.f0x48 > 0)
+        {
+            model_index_1 = model_index % geometry_chunk.sub_1.f0x48;
+        }
 
         auto sub_model = geometry_chunk.models[model_index];
 
@@ -918,7 +923,7 @@ struct FFNA_ModelFile
         int num_uv_coords_start_index = 0;
         if (parsed_texture)
         {
-            for (int i = 0; i < model_index; i++)
+            for (int i = 0; i < model_index_1; i++)
             {
                 auto uts = geometry_chunk.tex_and_vertex_shader_struct
                              .uts0[i % geometry_chunk.tex_and_vertex_shader_struct.uts0.size()];
@@ -930,7 +935,7 @@ struct FFNA_ModelFile
         if (parsed_texture)
         {
             auto uts = geometry_chunk.tex_and_vertex_shader_struct
-                         .uts0[model_index % geometry_chunk.tex_and_vertex_shader_struct.uts0.size()];
+                         .uts0[model_index_1 % geometry_chunk.tex_and_vertex_shader_struct.uts0.size()];
             num_uv_coords_to_use = uts.f0x7;
             should_cull = ! (bool)uts.using_no_cull;
         }
@@ -1034,7 +1039,8 @@ struct FFNA_ModelFile
             // Blend state (Wrong not how the game does it, just for testing)
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
-                if (geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 8)
+                if (geometry_chunk.tex_and_vertex_shader_struct
+                      .blend_state[i % geometry_chunk.tex_and_vertex_shader_struct.blend_state.size()] == 8)
                 {
                     blend_state = BlendState::AlphaBlend;
                     break;
