@@ -11,14 +11,7 @@
 #include "CheckerboardTexture.h"
 #include "Terrain.h"
 #include "BlendStateManager.h"
-
-enum class RasterizerStateType
-{
-    Solid,
-    Solid_NoCull,
-    Wireframe,
-    Wireframe_NoCull
-};
+#include "RasterizerStateManager.h"
 
 using namespace DirectX;
 
@@ -33,6 +26,7 @@ public:
         m_mesh_manager = std::make_unique<MeshManager>(m_device, m_deviceContext);
         m_texture_manager = std::make_unique<TextureManager>(m_device, m_deviceContext);
         m_blend_state_manager = std::make_unique<BlendStateManager>(m_device, m_deviceContext);
+        m_rasterizer_state_manager = std::make_unique<RasterizerStateManager>(m_device, m_deviceContext);
         m_user_camera = std::make_unique<Camera>();
     }
 
@@ -122,8 +116,6 @@ public:
 
         buffer_desc.ByteWidth = sizeof(PerTerrainCB);
         m_device->CreateBuffer(&buffer_desc, nullptr, m_per_terrain_cb.GetAddressOf());
-
-        CreateRasterizerStates();
 
         //
         m_deviceContext->VSSetConstantBuffers(PER_FRAME_CB_SLOT, 1, m_per_frame_cb.GetAddressOf());
@@ -285,35 +277,14 @@ public:
         m_user_camera->OnViewPortChanged(viewport_width, viewport_height);
     }
 
-    void CreateRasterizerStates()
+    RasterizerStateType GetCurrentRasterizerState()
     {
-        // Setup various rasterizer states
-        D3D11_RASTERIZER_DESC rsDesc;
-        ZeroMemory(&rsDesc, sizeof(D3D11_RASTERIZER_DESC));
-        rsDesc.FillMode = D3D11_FILL_SOLID;
-        rsDesc.CullMode = D3D11_CULL_NONE;
-        rsDesc.FrontCounterClockwise = false;
-        rsDesc.DepthClipEnable = true;
-
-        auto hr = m_device->CreateRasterizerState(&rsDesc, m_solid_no_cull_rs.GetAddressOf());
-        if (FAILED(hr))
-            throw "Failed creating solid frame rasterizer state.";
-        rsDesc.FillMode = D3D11_FILL_WIREFRAME;
-        hr = m_device->CreateRasterizerState(&rsDesc, m_wireframe_no_cull_rs.GetAddressOf());
-        if (FAILED(hr))
-            throw "Failed creating solid frame rasterizer state.";
-        rsDesc.CullMode = D3D11_CULL_BACK;
-        hr = m_device->CreateRasterizerState(&rsDesc, m_wireframe_rs.GetAddressOf());
-        if (FAILED(hr))
-            throw "Failed creating solid frame rasterizer state.";
-        rsDesc.FillMode = D3D11_FILL_SOLID;
-        hr = m_device->CreateRasterizerState(&rsDesc, m_solid_rs.GetAddressOf());
-        if (FAILED(hr))
-            throw "Failed creating solid frame rasterizer state.";
+        return m_rasterizer_state_manager->GetCurrentRasterizerState();
     }
-
-    RasterizerStateType GetCurrentRasterizerState() { return m_currentRasterizerState; }
-    void SwitchRasterizerState(RasterizerStateType state) { m_currentRasterizerState = state; }
+    void SwitchRasterizerState(RasterizerStateType state)
+    {
+        m_rasterizer_state_manager->SetRasterizerState(state);
+    }
 
     void SetMeshShouldRender(int mesh_id, bool should_render)
     {
@@ -370,22 +341,8 @@ public:
 
     void Render()
     {
-        switch (m_currentRasterizerState)
-        {
-        case RasterizerStateType::Solid:
-            m_deviceContext->RSSetState(m_solid_rs.Get());
-            break;
-        case RasterizerStateType::Solid_NoCull:
-            m_deviceContext->RSSetState(m_solid_no_cull_rs.Get());
-            break;
-        case RasterizerStateType::Wireframe:
-            m_deviceContext->RSSetState(m_wireframe_rs.Get());
-            break;
-        case RasterizerStateType::Wireframe_NoCull:
-            m_deviceContext->RSSetState(m_wireframe_no_cull_rs.Get());
-            break;
-        }
-        m_mesh_manager->Render(m_pixel_shaders);
+        m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(),
+                               m_rasterizer_state_manager.get());
     }
 
 private:
@@ -395,6 +352,7 @@ private:
     std::unique_ptr<MeshManager> m_mesh_manager;
     std::unique_ptr<TextureManager> m_texture_manager;
     std::unique_ptr<BlendStateManager> m_blend_state_manager;
+    std::unique_ptr<RasterizerStateManager> m_rasterizer_state_manager;
     std::unique_ptr<Camera> m_user_camera;
     std::unique_ptr<VertexShader> m_vertex_shader;
     std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>> m_pixel_shaders;
@@ -402,12 +360,6 @@ private:
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_frame_cb;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_camera_cb;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_terrain_cb;
-
-    Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_wireframe_rs;
-    Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_wireframe_no_cull_rs;
-    Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_solid_rs;
-    Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_solid_no_cull_rs;
-    RasterizerStateType m_currentRasterizerState = RasterizerStateType::Solid;
 
     std::unique_ptr<Terrain> m_terrain;
     PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainCheckered;

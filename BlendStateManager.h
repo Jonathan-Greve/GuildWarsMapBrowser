@@ -1,18 +1,18 @@
 #pragma once
 
+enum class BlendState
+{
+    Opaque,
+    AlphaBlend,
+    Additive,
+    Multiplicative,
+    Screen,
+    Subtractive
+};
+
 class BlendStateManager
 {
 public:
-    enum class BlendState
-    {
-        Opaque,
-        AlphaBlend,
-        Additive,
-        Multiplicative,
-        Screen,
-        Subtractive
-    };
-
     BlendStateManager(ID3D11Device* device, ID3D11DeviceContext* device_context)
         : m_device(device)
         , m_deviceContext(device_context)

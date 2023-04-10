@@ -104,14 +104,13 @@ float4 main(PixelInputType input) : SV_TARGET
             {
                 if (t == texture_index)
                 {
-                    sampledTextureColor = shaderTextures[t].Sample(ss, texCoordsArray[uv_set_index]);
-                    sampledTextureColor += sampledTextureColor * (1.0 / num_uv_texture_pairs); // placeholder
+                    float4 currentSampledTextureColor = shaderTextures[t].Sample(ss, texCoordsArray[uv_set_index]);
+                    sampledTextureColor.rgb = currentSampledTextureColor.rgb * currentSampledTextureColor.a + sampledTextureColor.rgb * (1.0 - currentSampledTextureColor.a);
+                    sampledTextureColor.a += currentSampledTextureColor.a * (1.0 - sampledTextureColor.a);
                 }
             }
         }
     }
-
-
 
     // Multiply the blended color with the finalColor
     if (num_uv_texture_pairs > 0) {
@@ -121,3 +120,4 @@ float4 main(PixelInputType input) : SV_TARGET
     // Return the result
     return finalColor;
 }
+

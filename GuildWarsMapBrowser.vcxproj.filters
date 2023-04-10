@@ -327,6 +327,9 @@
     <ClInclude Include="BlendStateManager.h">
       <Filter>Input\Render\Blend</Filter>
     </ClInclude>
+    <ClInclude Include="RasterizerStateManager.h">
+      <Filter>Input\Render\Renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -544,6 +547,9 @@
     </ClCompile>
     <ClCompile Include="BlendStateManager.cpp">
       <Filter>Input\Render\Blend</Filter>
+    </ClCompile>
+    <ClCompile Include="RasterizerStateManager.cpp">
+      <Filter>Input\Render\Renderer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
