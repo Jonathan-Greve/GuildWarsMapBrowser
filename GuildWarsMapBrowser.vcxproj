@@ -217,6 +217,7 @@
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
     <ClInclude Include="maps_constant_data.h" />
     <ClInclude Include="PerTerrainCB.h" />
+    <ClInclude Include="RasterizerStateManager.h" />
     <ClInclude Include="SourceFiles\AtexAsm.h" />
     <ClInclude Include="SourceFiles\AtexReader.h" />
     <ClInclude Include="SourceFiles\Box.h" />
@@ -347,6 +348,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="PerTerrainCB.cpp" />
+    <ClCompile Include="RasterizerStateManager.cpp" />
     <ClCompile Include="SourceFiles\AtexAsm.cpp" />
     <ClCompile Include="SourceFiles\AtexReader.cpp" />
     <ClCompile Include="SourceFiles\Box.cpp" />

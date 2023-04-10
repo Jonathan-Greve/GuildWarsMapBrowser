@@ -53,6 +53,8 @@ public:
         }
     }
 
+    const Mesh& GetMesh() { return m_mesh; }
+
     void Draw(ID3D11DeviceContext* context)
     {
         UINT stride = sizeof(GWVertex);

@@ -37,11 +37,20 @@ public:
         std::sort(sortedCommandsVector.begin(), sortedCommandsVector.end(),
                   [](const RenderCommand& a, const RenderCommand& b)
                   {
-                      if (a.primitiveTopology == b.primitiveTopology)
+                      if (a.primitiveTopology != b.primitiveTopology)
+                      {
+                          return a.primitiveTopology < b.primitiveTopology;
+                      }
+                      if (a.pixelShaderType != b.pixelShaderType)
                       {
                           return a.pixelShaderType < b.pixelShaderType;
                       }
-                      return a.primitiveTopology < b.primitiveTopology;
+                      if (a.should_cull != b.should_cull)
+                      {
+                          return a.should_cull >
+                            b.should_cull; // Change '<' to '>', so that no_cull commands come last
+                      }
+                      return a.blend_state > b.blend_state;
                   });
 
         m_sortedCommands.clear();
