@@ -110,7 +110,8 @@ float4 main(PixelInputType input) : SV_TARGET
                 if (t == texture_index)
                 {
                     float4 currentSampledTextureColor = shaderTextures[t].Sample(ss, texCoordsArray[uv_set_index]);
-                    sampledTextureColor.rgb = currentSampledTextureColor.rgb * currentSampledTextureColor.a + sampledTextureColor.rgb * (1.0 - currentSampledTextureColor.a);
+                    // Use lerp for blending textures
+                    sampledTextureColor.rgb = lerp(sampledTextureColor.rgb, currentSampledTextureColor.rgb, 1.0 / ((float)num_uv_texture_pairs));
                     sampledTextureColor.a += currentSampledTextureColor.a * (1.0 - sampledTextureColor.a);
                 }
             }
@@ -125,7 +126,6 @@ float4 main(PixelInputType input) : SV_TARGET
     // Return the result
     return finalColor;
 }
-
 
 )";
 };
