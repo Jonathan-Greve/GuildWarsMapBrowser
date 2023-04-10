@@ -309,8 +309,8 @@ private:
                                 PixelShaderType pixel_shader_type)
     {
         m_triangleMeshes[mesh_instance->GetMeshID()] = mesh_instance;
-        bool should_cull = mesh_instance->GetMesh().should_cull;
-        auto blend_state = mesh_instance->GetMesh().blend_state;
+        bool should_cull = false;
+        auto blend_state = BlendState::Opaque;
 
         RenderCommand command = {mesh_instance,     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST,
                                  pixel_shader_type, should_cull,
