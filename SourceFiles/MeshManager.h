@@ -239,6 +239,7 @@ public:
         static PixelShaderType current_ps_shader_type = PixelShaderType::Default;
         bool current_should_cull = true;
         BlendState current_blend_state = BlendState::Opaque;
+        m_renderBatch.SortCommands();
 
         for (const RenderCommand& command : m_renderBatch.GetCommands())
         {
