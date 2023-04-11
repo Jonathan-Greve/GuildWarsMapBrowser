@@ -7,7 +7,7 @@ extern SelectedDatTexture selected_dat_texture;
 
 bool SaveTextureToPng(ID3D11ShaderResourceView* texture, std::wstring& filename,
                       TextureManager* texture_manager);
-std::wstring OpenFileDialog();
+std::wstring OpenPngFileDialog();
 
 void draw_texture_panel(MapRenderer* map_renderer)
 {
@@ -42,7 +42,7 @@ void draw_texture_panel(MapRenderer* map_renderer)
         // Export texture functionality
         if (ImGui::Button("Export Texture"))
         {
-            std::wstring savePath = OpenFileDialog();
+            std::wstring savePath = OpenPngFileDialog();
             if (! savePath.empty())
             {
                 if (SaveTextureToPng(texture, savePath, map_renderer->GetTextureManager()))
@@ -73,7 +73,7 @@ bool SaveTextureToPng(ID3D11ShaderResourceView* texture, std::wstring& filename,
     return true;
 }
 
-std::wstring OpenFileDialog()
+std::wstring OpenPngFileDialog()
 {
     OPENFILENAME ofn;
     wchar_t fileName[MAX_PATH] = L"";
