@@ -8,14 +8,12 @@ public:
     {
         int mesh_id = command.meshInstance->GetMeshID();
         m_commands[mesh_id] = command;
-        m_sortedCommands[mesh_id] = command;
         m_needsSorting = true;
     }
 
     void RemoveCommand(const int mesh_id)
     {
         m_commands.erase(mesh_id);
-        m_sortedCommands.erase(mesh_id);
         m_needsSorting = true;
     }
 
@@ -26,39 +24,17 @@ public:
             return;
         }
 
-        std::vector<RenderCommand> sortedCommandsVector;
-        sortedCommandsVector.reserve(m_commands.size());
+        m_sortedCommands.clear();
+        m_sortedCommands.reserve(m_commands.size());
 
         for (auto& cmd : m_commands)
         {
-            sortedCommandsVector.push_back(cmd.second);
+            m_sortedCommands.push_back(cmd.second);
         }
 
-        std::sort(sortedCommandsVector.begin(), sortedCommandsVector.end(),
+        std::sort(m_sortedCommands.begin(), m_sortedCommands.end(),
                   [](const RenderCommand& a, const RenderCommand& b)
-                  {
-                      if (a.blend_state != b.blend_state)
-                      {
-                          return a.blend_state == BlendState::Opaque ||
-                            (a.blend_state == BlendState::AlphaBlend && b.blend_state != BlendState::Opaque);
-                      }
-                      if (a.should_cull != b.should_cull)
-                      {
-                          return a.should_cull > b.should_cull;
-                      }
-                      if (a.primitiveTopology != b.primitiveTopology)
-                      {
-                          return a.primitiveTopology < b.primitiveTopology;
-                      }
-                      return a.pixelShaderType < b.pixelShaderType;
-                  });
-
-        m_sortedCommands.clear();
-        for (auto& cmd : sortedCommandsVector)
-        {
-            int mesh_id = cmd.meshInstance->GetMeshID();
-            m_sortedCommands[mesh_id] = cmd;
-        }
+                  { return a.blend_state < b.blend_state; });
 
         m_needsSorting = false;
     }
@@ -69,7 +45,7 @@ public:
         if (it != m_commands.end())
         {
             it->second.should_render = should_render;
-            m_sortedCommands[mesh_id].should_render = should_render;
+            m_needsSorting = true;
         }
     }
 
@@ -85,16 +61,7 @@ public:
         {
             SortCommands();
         }
-
-        std::vector<RenderCommand> result;
-        result.reserve(m_sortedCommands.size());
-
-        for (const auto& cmd : m_sortedCommands)
-        {
-            result.push_back(cmd.second);
-        }
-
-        return result;
+        return m_sortedCommands;
     }
 
     const RenderCommand* const GetCommand(int mesh_id)
@@ -123,6 +90,6 @@ public:
 
 private:
     std::unordered_map<int, RenderCommand> m_commands;
-    std::unordered_map<int, RenderCommand> m_sortedCommands;
+    std::vector<RenderCommand> m_sortedCommands;
     bool m_needsSorting = false;
 };

@@ -904,14 +904,15 @@ struct FFNA_ModelFile
     {
         std::vector<GWVertex> vertices;
         std::vector<uint32_t> indices;
-        int model_index_1 = model_index;
-        if (geometry_chunk.sub_1.f0x48 > 0 &&
-            (geometry_chunk.sub_1.num_models % geometry_chunk.sub_1.f0x48) == 0)
-        {
-            model_index_1 = model_index % geometry_chunk.sub_1.f0x48;
-        }
 
         auto sub_model = geometry_chunk.models[model_index];
+
+        int model_index_1 = model_index;
+        if (geometry_chunk.sub_1.f0x48 > 0 /*&&
+            (geometry_chunk.sub_1.num_models % geometry_chunk.sub_1.f0x48) == 0*/)
+        {
+            model_index_1 = sub_model.unknown;
+        }
 
         bool parsed_texture = sizeof(geometry_chunk.tex_and_vertex_shader_struct) > 0 &&
           geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0 &&
