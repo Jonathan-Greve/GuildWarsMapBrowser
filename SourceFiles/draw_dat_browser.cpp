@@ -174,7 +174,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
                 auto& prop_mesh = prop_meshes[i];
                 if (prop_mesh.uv_coord_indices.size() != prop_mesh.tex_indices.size() ||
-                    prop_mesh.uv_coord_indices.size() >= 32)
+                    prop_mesh.uv_coord_indices.size() >= MAX_NUM_TEX_INDICES)
                 {
                     return; // Failed, maybe throw here on handle error.
                 }
@@ -324,7 +324,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
                             auto& prop_mesh = prop_meshes[j];
                             if (prop_mesh.uv_coord_indices.size() != prop_mesh.tex_indices.size() ||
-                                prop_mesh.uv_coord_indices.size() >= 32)
+                                prop_mesh.uv_coord_indices.size() >= MAX_NUM_TEX_INDICES)
                             {
                                 return; // Failed, maybe throw here on handle error.
                             }
