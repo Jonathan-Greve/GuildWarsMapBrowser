@@ -860,6 +860,8 @@ struct FFNA_ModelFile
 
     std::unordered_map<uint32_t, int> riff_chunks;
 
+    std::unordered_set<int> seen_model_ids;
+
     FFNA_ModelFile() = default;
     FFNA_ModelFile(int offset, std::span<unsigned char>& data)
     {
@@ -907,12 +909,7 @@ struct FFNA_ModelFile
 
         auto sub_model = geometry_chunk.models[model_index];
 
-        int model_index_1 = model_index;
-        if (geometry_chunk.sub_1.f0x48 > 0 /*&&
-            (geometry_chunk.sub_1.num_models % geometry_chunk.sub_1.f0x48) == 0*/)
-        {
-            model_index_1 = sub_model.unknown;
-        }
+        int sub_model_index = sub_model.unknown;
 
         bool parsed_texture = sizeof(geometry_chunk.tex_and_vertex_shader_struct) > 0 &&
           geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0 &&
@@ -925,7 +922,7 @@ struct FFNA_ModelFile
         int num_uv_coords_start_index = 0;
         if (parsed_texture)
         {
-            for (int i = 0; i < model_index_1; i++)
+            for (int i = 0; i < sub_model_index; i++)
             {
                 auto uts = geometry_chunk.tex_and_vertex_shader_struct
                              .uts0[i % geometry_chunk.tex_and_vertex_shader_struct.uts0.size()];
@@ -937,9 +934,9 @@ struct FFNA_ModelFile
         if (parsed_texture)
         {
             auto uts = geometry_chunk.tex_and_vertex_shader_struct
-                         .uts0[model_index_1 % geometry_chunk.tex_and_vertex_shader_struct.uts0.size()];
+                         .uts0[sub_model_index % geometry_chunk.tex_and_vertex_shader_struct.uts0.size()];
             num_uv_coords_to_use = uts.f0x7;
-            should_cull = ! (bool)uts.using_no_cull;
+            should_cull = uts.using_no_cull == 0;
         }
 
         for (int i = 0; i < sub_model.vertices.size(); i++)
