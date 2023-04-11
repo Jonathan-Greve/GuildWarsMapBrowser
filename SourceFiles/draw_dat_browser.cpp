@@ -2,6 +2,7 @@
 #include "draw_dat_browser.h"
 #include "GuiGlobalConstants.h"
 #include "maps_constant_data.h"
+#include <commdlg.h>
 
 inline extern FileType selected_file_type = FileType::NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
@@ -363,6 +364,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 std::string truncate_text_with_ellipsis(const std::string& text, float maxWidth);
 int custom_stoi(const std::string& input);
 std::string to_lower(const std::string& input);
+std::wstring OpenFileDialog();
 
 void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 {
@@ -723,6 +725,21 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                     }
                 }
 
+                //Add context menu on right clicking item in table
+                if (ImGui::BeginPopupContextItem("ItemContextMenu"))
+                {
+                    if (ImGui::MenuItem("Save decompressed data to file"))
+                    {
+                        std::wstring savePath = OpenFileDialog();
+                        if (! savePath.empty())
+                        {
+                            dat_manager.save_raw_decompressed_data_to_file(item.id, savePath);
+                        }
+                    }
+
+                    ImGui::EndPopup();
+                }
+
                 ImGui::TableNextColumn();
                 if (item.type == FFNA_Type3)
                 {
@@ -1055,4 +1072,26 @@ std::string to_lower(const std::string& input)
     std::transform(result.begin(), result.end(), result.begin(),
                    [](unsigned char c) { return std::tolower(c); });
     return result;
+}
+
+inline std::wstring OpenFileDialog()
+{
+    OPENFILENAME ofn;
+    wchar_t fileName[MAX_PATH] = L"";
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(OPENFILENAME);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFilter = L"GWRAW Files (*.gwraw)\0*.gwraw\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFile = fileName;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+    ofn.lpstrDefExt = L"gwraw";
+
+    if (GetSaveFileName(&ofn))
+    {
+        std::wstring wFileName(fileName);
+        return wFileName;
+    }
+
+    return L"";
 }

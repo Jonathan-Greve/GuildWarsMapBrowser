@@ -37,6 +37,8 @@ public:
     DatTexture parse_ffna_texture_file(int index);
     std::vector<uint8_t> parse_dds_file(int index);
 
+    bool save_raw_decompressed_data_to_file(int index, std::wstring filepath);
+
 private:
     std::wstring m_dat_filepath;
     GWDat m_dat;
