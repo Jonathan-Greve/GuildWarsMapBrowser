@@ -40,7 +40,7 @@ public:
 
     void SetTextures(const std::vector<ID3D11ShaderResourceView*>& textures)
     {
-        if (textures.size() >= 32)
+        if (textures.size() >= MAX_NUM_TEX_INDICES)
         {
             return; // Failed, maybe throw here on handle error.
         }
