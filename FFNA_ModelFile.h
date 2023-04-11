@@ -905,7 +905,8 @@ struct FFNA_ModelFile
         std::vector<GWVertex> vertices;
         std::vector<uint32_t> indices;
         int model_index_1 = model_index;
-        if (geometry_chunk.sub_1.f0x48 > 0)
+        if (geometry_chunk.sub_1.f0x48 > 0 &&
+            (geometry_chunk.sub_1.num_models % geometry_chunk.sub_1.f0x48) == 0)
         {
             model_index_1 = model_index % geometry_chunk.sub_1.f0x48;
         }

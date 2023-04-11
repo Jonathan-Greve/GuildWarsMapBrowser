@@ -2,6 +2,8 @@
 #include "Vertex.h"
 #include "BlendStateManager.h"
 
+constexpr int MAX_NUM_TEX_INDICES = 100;
+
 struct Mesh
 {
     std::vector<GWVertex> vertices;
