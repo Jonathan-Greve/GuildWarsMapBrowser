@@ -27,16 +27,23 @@ public:
         m_sortedCommands.clear();
         m_sortedCommands.reserve(m_commands.size());
 
-        for (auto& cmd : m_commands)
+        for (const auto& entry : m_commands)
         {
-            m_sortedCommands.push_back(cmd.second);
+            m_sortedCommands.push_back(entry.second);
         }
 
-        std::sort(m_sortedCommands.begin(), m_sortedCommands.end(),
-                  [](const RenderCommand& a, const RenderCommand& b)
-                  { return a.blend_state < b.blend_state; });
+        auto comparator = [](const RenderCommand& a, const RenderCommand& b) -> bool
+        {
+            ;
+            if (a.blend_state != BlendState::AlphaBlend && b.blend_state != BlendState::AlphaBlend)
+            {
+                return a.should_cull > b.should_cull;
+            }
 
-        m_needsSorting = false;
+            return a.blend_state < b.blend_state;
+        };
+
+        std::sort(m_sortedCommands.begin(), m_sortedCommands.end(), comparator);
     }
 
     void SetShouldRender(int mesh_id, bool should_render)
