@@ -149,6 +149,24 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 }
             }
 
+            // The number of textures might exceed 8 for a model since each submodel might use up to 8 separate textures.
+            // So for each submodel's Mesh we must make sure that the uv_indices[i] < 8 and tex_indices[i] < 8.
+            std::vector<std::vector<int>> per_mesh_tex_ids(prop_meshes.size());
+            for (int i = 0; i < prop_meshes.size(); i++)
+            {
+                std::vector<uint8_t> mesh_tex_indices;
+                for (int j = 0; j < prop_meshes[i].tex_indices.size(); j++)
+                {
+                    int tex_index = prop_meshes[i].tex_indices[j];
+                    per_mesh_tex_ids[i].push_back(texture_ids[tex_index]);
+
+                    mesh_tex_indices.push_back(j);
+                }
+
+                prop_meshes[i].tex_indices = mesh_tex_indices;
+            }
+
+            // Create the PerObjectCB for each submodel
             std::vector<PerObjectCB> per_object_cbs;
             per_object_cbs.resize(prop_meshes.size());
             for (int i = 0; i < per_object_cbs.size(); i++)
@@ -193,10 +211,13 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             }
 
             auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, index);
-            for (const auto mesh_id : mesh_ids)
+            for (int i = 0; i < mesh_ids.size(); i++)
             {
+                int mesh_id = mesh_ids[i];
+                auto& mesh_texture_ids = per_mesh_tex_ids[i];
+
                 map_renderer->GetMeshManager()->SetTexturesForMesh(
-                  mesh_id, map_renderer->GetTextureManager()->GetTextures(texture_ids));
+                  mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids));
             }
         }
 
@@ -300,6 +321,23 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                             }
                         }
 
+                        // The number of textures might exceed 8 for a model since each submodel might use up to 8 separate textures.
+                        // So for each submodel's Mesh we must make sure that the uv_indices[i] < 8 and tex_indices[i] < 8.
+                        std::vector<std::vector<int>> per_mesh_tex_ids(prop_meshes.size());
+                        for (int i = 0; i < prop_meshes.size(); i++)
+                        {
+                            std::vector<uint8_t> mesh_tex_indices;
+                            for (int j = 0; j < prop_meshes[i].tex_indices.size(); j++)
+                            {
+                                int tex_index = prop_meshes[i].tex_indices[j];
+                                per_mesh_tex_ids[i].push_back(texture_ids[tex_index]);
+
+                                mesh_tex_indices.push_back(j);
+                            }
+
+                            prop_meshes[i].tex_indices = mesh_tex_indices;
+                        }
+
                         std::vector<PerObjectCB> per_object_cbs;
                         per_object_cbs.resize(prop_meshes.size());
                         for (int j = 0; j < per_object_cbs.size(); j++)
@@ -345,10 +383,13 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                         }
 
                         auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, i);
-                        for (const auto mesh_id : mesh_ids)
+                        for (int i = 0; i < mesh_ids.size(); i++)
                         {
+                            int mesh_id = mesh_ids[i];
+                            auto& mesh_texture_ids = per_mesh_tex_ids[i];
+
                             map_renderer->GetMeshManager()->SetTexturesForMesh(
-                              mesh_id, map_renderer->GetTextureManager()->GetTextures(texture_ids));
+                              mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids));
                         }
                     }
                 }

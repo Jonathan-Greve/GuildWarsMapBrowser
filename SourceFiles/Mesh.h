@@ -2,7 +2,7 @@
 #include "Vertex.h"
 #include "BlendStateManager.h"
 
-constexpr int MAX_NUM_TEX_INDICES = 200;
+constexpr int MAX_NUM_TEX_INDICES = 8;
 
 struct Mesh
 {
