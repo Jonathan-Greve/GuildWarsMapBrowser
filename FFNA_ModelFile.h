@@ -650,7 +650,7 @@ struct GeometryChunk
         sub_1 = Chunk1_sub1(&data[curr_offset]);
         sub_1.num_models;
         curr_offset += sizeof(sub_1);
-        if (sub_1.num_models > 0)
+        if (sub_1.num_models > 0 || sub_1.f0x48 > 0)
         {
             const bool prev_parsed_correctly = parsed_correctly;
             const int prev_offset = curr_offset;
@@ -762,7 +762,13 @@ struct GeometryChunk
                 curr_offset += unknown3_size;
             }
 
-            for (int i = 0; i < sub_1.num_models; i++)
+            int num_models = sub_1.num_models;
+            if (sub_1.num_models < sub_1.f0x48 && sub_1.f0x48 < 100)
+            {
+                num_models = sub_1.f0x48;
+            }
+
+            for (int i = 0; i < num_models; i++)
             {
                 auto new_model =
                   GeometryModel(curr_offset, data, data_size_bytes, parsed_correctly, chunk_size);
@@ -909,7 +915,7 @@ struct FFNA_ModelFile
 
         auto sub_model = geometry_chunk.models[model_index];
 
-        int sub_model_index = sub_model.unknown;
+        int sub_model_index = sub_model.unknown % geometry_chunk.models.size();
 
         bool parsed_texture = sizeof(geometry_chunk.tex_and_vertex_shader_struct) > 0 &&
           geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0 &&
@@ -924,8 +930,7 @@ struct FFNA_ModelFile
         {
             for (int i = 0; i < sub_model_index; i++)
             {
-                auto uts = geometry_chunk.tex_and_vertex_shader_struct
-                             .uts0[i % geometry_chunk.tex_and_vertex_shader_struct.uts0.size()];
+                auto uts = geometry_chunk.tex_and_vertex_shader_struct.uts0[i];
                 num_uv_coords_start_index += uts.f0x7;
             }
         }
@@ -933,8 +938,7 @@ struct FFNA_ModelFile
         int num_uv_coords_to_use = 0;
         if (parsed_texture)
         {
-            auto uts = geometry_chunk.tex_and_vertex_shader_struct
-                         .uts0[sub_model_index % geometry_chunk.tex_and_vertex_shader_struct.uts0.size()];
+            auto uts = geometry_chunk.tex_and_vertex_shader_struct.uts0[sub_model_index];
             num_uv_coords_to_use = uts.f0x7;
             should_cull = uts.using_no_cull == 0;
         }
@@ -1025,8 +1029,7 @@ struct FFNA_ModelFile
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
                 uint8_t texture_index =
-                  geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe
-                    [i % geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe.size()];
+                  geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe[i];
                 if (texture_filenames_chunk.num_texture_filenames < texture_index &&
                     texture_filenames_chunk.num_texture_filenames > 0)
                 {
@@ -1038,8 +1041,7 @@ struct FFNA_ModelFile
             // Blend state (Wrong not how the game does it, just for testing)
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
-                if (geometry_chunk.tex_and_vertex_shader_struct
-                      .blend_state[i % geometry_chunk.tex_and_vertex_shader_struct.blend_state.size()] == 8)
+                if (geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 8 || ! should_cull)
                 {
                     blend_state = BlendState::AlphaBlend;
                     break;
@@ -1048,6 +1050,6 @@ struct FFNA_ModelFile
         }
 
         return Mesh(vertices, indices, uv_coords_indices, tex_indices, should_cull, blend_state,
-                    texture_filenames_chunk.num_texture_filenames);
+                    tex_indices.size());
     }
 };
