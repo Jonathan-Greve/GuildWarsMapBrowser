@@ -80,7 +80,7 @@ public:
         CheckerboardTexture checkerboard_texture(texture_width, texture_height, tile_size);
         auto texture_id =
           m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
-                                        texture_height, DXGI_FORMAT_R8G8B8A8_UNORM);
+                                        texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 3214972);
         m_mesh_manager->SetTexturesForMesh(box_id, {m_texture_manager->GetTexture(texture_id)});
 
         // Create and initialize the VertexShader
@@ -215,7 +215,7 @@ public:
             CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size);
             m_terrain_texture_id =
               m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
-                                            texture_height, DXGI_FORMAT_R8G8B8A8_UNORM);
+                                            texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 48090321);
         }
         m_mesh_manager->SetTexturesForMesh(m_terrain_mesh_id,
                                            {m_texture_manager->GetTexture(m_terrain_texture_id)});

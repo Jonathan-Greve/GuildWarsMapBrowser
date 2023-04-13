@@ -4,14 +4,27 @@
 
 HRESULT TextureManager::CreateTextureFromDDSInMemory(const uint8_t* ddsData, size_t ddsDataSize,
                                                      int* textureID_out, int* width_out, int* height_out,
-                                                     std::vector<RGBA>& rgba_data_out)
+                                                     std::vector<RGBA>& rgba_data_out, int file_hash)
 {
+    if (cached_textures.contains(file_hash))
+        return cached_textures[file_hash];
+
+    if (! ddsData)
+    {
+        return E_FAIL;
+    }
+
     DirectX::TexMetadata metadata;
     DirectX::ScratchImage image;
 
     HRESULT hr = DirectX::LoadFromDDSMemory(ddsData, ddsDataSize, DirectX::DDS_FLAGS_NONE, &metadata, image);
     if (SUCCEEDED(hr))
     {
+        if (metadata.height <= 0 || metadata.width <= 0)
+        {
+            return E_FAIL;
+        }
+
         DXGI_FORMAT targetFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
         if (metadata.format != targetFormat)
@@ -55,7 +68,7 @@ HRESULT TextureManager::CreateTextureFromDDSInMemory(const uint8_t* ddsData, siz
         initData.SysMemPitch = static_cast<UINT>(img->rowPitch);
         initData.SysMemSlicePitch = static_cast<UINT>(img->slicePitch);
 
-        *textureID_out = AddTexture(initData.pSysMem, width, height, format);
+        *textureID_out = AddTexture(initData.pSysMem, width, height, format, file_hash);
         *width_out = width;
         *height_out = height;
 

@@ -13,8 +13,11 @@ public:
 
     ~TextureManager() { Clear(); }
 
-    int AddTexture(const void* data, UINT width, UINT height, DXGI_FORMAT format)
+    int AddTexture(const void* data, UINT width, UINT height, DXGI_FORMAT format, int file_hash)
     {
+        if (cached_textures.contains(file_hash))
+            return cached_textures[file_hash];
+
         if (! data || width <= 0 || height <= 0)
         {
             return -1;
@@ -60,6 +63,8 @@ public:
 
         int textureID = m_nextTextureID++;
         m_textures[textureID] = shaderResourceView;
+        cached_textures[file_hash] = textureID;
+
         return textureID;
     }
 
@@ -85,6 +90,17 @@ public:
         return nullptr;
     }
 
+    int GetTextureIdByHash(int file_hash) const
+    {
+        auto it = cached_textures.find(file_hash);
+
+        if (it != cached_textures.end())
+        {
+            return it->second;
+        }
+        return -1;
+    }
+
     std::vector<ID3D11ShaderResourceView*> GetTextures(const std::vector<int>& textureIDs) const
     {
         std::vector<ID3D11ShaderResourceView*> textures;
@@ -106,19 +122,20 @@ public:
         return textures;
     }
 
-    HRESULT CreateTextureFromRGBA(int width, int height, const RGBA* data, int* textureID)
+    HRESULT CreateTextureFromRGBA(int width, int height, const RGBA* data, int* textureID, int file_hash)
     {
         if (width >= 0 && height >= 0)
         {
             DXGI_FORMAT format = DXGI_FORMAT_B8G8R8A8_UNORM;
-            *textureID = AddTexture((void*)data, width, height, format);
+            *textureID = AddTexture((void*)data, width, height, format, file_hash);
             return (*textureID >= 0) ? S_OK : E_FAIL;
         }
         return E_FAIL;
     }
 
     HRESULT CreateTextureFromDDSInMemory(const uint8_t* ddsData, size_t ddsDataSize, int* textureID_out,
-                                         int* width_out, int* height_out, std::vector<RGBA>& rgba_data_out);
+                                         int* width_out, int* height_out, std::vector<RGBA>& rgba_data_out,
+                                         int file_hash);
     HRESULT SaveTextureToFile(ID3D11ShaderResourceView* srv, const wchar_t* filename);
 
     void Clear() { m_textures.clear(); }
@@ -127,5 +144,6 @@ private:
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_deviceContext;
     int m_nextTextureID = 0;
+    std::unordered_map<int, int> cached_textures; // file hash -> texture id;
     std::unordered_map<int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> m_textures;
 };
