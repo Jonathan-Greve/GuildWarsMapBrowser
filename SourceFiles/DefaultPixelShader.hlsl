@@ -108,6 +108,9 @@ float4 main(PixelInputType input) : SV_TARGET
                     // Use lerp for blending textures
                     sampledTextureColor.rgb = lerp(sampledTextureColor.rgb, currentSampledTextureColor.rgb, 1.0 / ((float)num_uv_texture_pairs));
                     sampledTextureColor.a += currentSampledTextureColor.a * (1.0 - sampledTextureColor.a);
+                    if (currentSampledTextureColor.a <= 0) {
+                        discard;
+                    }
                 }
             }
         }

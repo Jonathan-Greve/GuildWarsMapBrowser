@@ -915,7 +915,7 @@ struct FFNA_ModelFile
 
         auto sub_model = geometry_chunk.models[model_index];
 
-        int sub_model_index = sub_model.unknown % geometry_chunk.models.size();
+        int sub_model_index = sub_model.unknown % geometry_chunk.tex_and_vertex_shader_struct.uts0.size();
 
         bool parsed_texture = sizeof(geometry_chunk.tex_and_vertex_shader_struct) > 0 &&
           geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0 &&
@@ -1041,7 +1041,7 @@ struct FFNA_ModelFile
             // Blend state (Wrong not how the game does it, just for testing)
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
-                if (geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 8 || ! should_cull)
+                if (geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 8)
                 {
                     blend_state = BlendState::AlphaBlend;
                     break;
