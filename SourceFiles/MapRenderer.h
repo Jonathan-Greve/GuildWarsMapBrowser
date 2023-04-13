@@ -189,6 +189,7 @@ public:
 
             terrainPerObjectData.uv_indices[index0][index1] = (uint32_t)mesh->uv_coord_indices[i];
             terrainPerObjectData.texture_indices[index0][index1] = (uint32_t)mesh->tex_indices[i];
+            terrainPerObjectData.blend_flags[index0][index1] = (uint32_t)mesh->blend_flags[i];
         }
         m_mesh_manager->UpdateMeshPerObjectData(m_terrain_mesh_id, terrainPerObjectData);
 

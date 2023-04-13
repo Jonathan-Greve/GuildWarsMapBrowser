@@ -915,7 +915,11 @@ struct FFNA_ModelFile
 
         auto sub_model = geometry_chunk.models[model_index];
 
-        int sub_model_index = sub_model.unknown % geometry_chunk.tex_and_vertex_shader_struct.uts0.size();
+        int sub_model_index = sub_model.unknown;
+        if (geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0)
+        {
+            sub_model_index %= geometry_chunk.tex_and_vertex_shader_struct.uts0.size();
+        }
 
         bool parsed_texture = sizeof(geometry_chunk.tex_and_vertex_shader_struct) > 0 &&
           geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0 &&
@@ -1012,13 +1016,12 @@ struct FFNA_ModelFile
 
         std::vector<uint8_t> uv_coords_indices;
         std::vector<uint8_t> tex_indices;
+        std::vector<uint8_t> blend_flags;
         if (parsed_texture)
         {
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
-                uint8_t uv_set_index =
-                  geometry_chunk.tex_and_vertex_shader_struct
-                    .tex_array[i % geometry_chunk.tex_and_vertex_shader_struct.tex_array.size()];
+                uint8_t uv_set_index = geometry_chunk.tex_and_vertex_shader_struct.tex_array[i];
                 if (max_num_tex_coords < uv_set_index && max_num_tex_coords > 0)
                 {
                     uv_set_index = max_num_tex_coords - 1;
@@ -1038,10 +1041,16 @@ struct FFNA_ModelFile
                 tex_indices.push_back(texture_index);
             }
 
+            for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
+            {
+                uint8_t blend_flag = geometry_chunk.tex_and_vertex_shader_struct.blend_state[i];
+                blend_flags.push_back(blend_flag);
+            }
+
             // Blend state (Wrong not how the game does it, just for testing)
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
-                if (geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 8)
+                if (geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 8 || ! should_cull)
                 {
                     blend_state = BlendState::AlphaBlend;
                     break;
@@ -1049,7 +1058,7 @@ struct FFNA_ModelFile
             }
         }
 
-        return Mesh(vertices, indices, uv_coords_indices, tex_indices, should_cull, blend_state,
+        return Mesh(vertices, indices, uv_coords_indices, tex_indices, blend_flags, should_cull, blend_state,
                     tex_indices.size());
     }
 };

@@ -15,9 +15,10 @@ cbuffer PerFrameCB: register(b0)
 cbuffer PerObjectCB : register(b1)
 {
     matrix World;
+    uint4 uv_indices[8];
+    uint4 texture_indices[8];
+    uint4 blend_flags[8];
     uint num_uv_texture_pairs;
-    uint uv_indices[32];
-    uint texture_indices[32];
     float pad1[3];
 };
 
@@ -67,8 +68,10 @@ PixelInputType main(VertexInputType input)
     float4 viewPosition = mul(worldPosition, View);
     output.position = mul(viewPosition, Projection);
 
-    // Pass the normal and texture coordinates to the pixel shader
-    output.normal = mul(input.normal, (float3x3)World);
+    // Transform the normal using the inverse transpose of the world matrix
+    output.normal = normalize(mul(input.normal, World));
+
+    // Pass the texture coordinates to the pixel shader
     output.tex_coords0 = input.tex_coords0;
     output.tex_coords1 = input.tex_coords1;
     output.tex_coords2 = input.tex_coords2;
