@@ -79,7 +79,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
         {
             map_renderer->GetTextureManager()->CreateTextureFromRGBA(
               selected_dat_texture.dat_texture.width, selected_dat_texture.dat_texture.height,
-              selected_dat_texture.dat_texture.rgba_data.data(), &selected_dat_texture.texture_id);
+              selected_dat_texture.dat_texture.rgba_data.data(), &selected_dat_texture.texture_id,
+              entry->Hash);
         }
     }
     break;
@@ -90,7 +91,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
         HRESULT hr = map_renderer->GetTextureManager()->CreateTextureFromDDSInMemory(
           ddsData.data(), ddsDataSize, &selected_dat_texture.texture_id,
           &selected_dat_texture.dat_texture.width, &selected_dat_texture.dat_texture.height,
-          selected_dat_texture.dat_texture.rgba_data); // Pass the RGBA vector
+          selected_dat_texture.dat_texture.rgba_data, entry->Hash); // Pass the RGBA vector
         if (FAILED(hr))
         {
             // Handle the error
@@ -128,23 +129,29 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             }
 
             // Load textures
-            std::vector<DatTexture> textures;
             std::vector<int> texture_ids;
             for (int j = 0; j < selected_ffna_model_file.texture_filenames_chunk.texture_filenames.size();
                  j++)
             {
                 auto texture_filename = selected_ffna_model_file.texture_filenames_chunk.texture_filenames[j];
                 auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
+
+                int texture_id = map_renderer->GetTextureManager()->GetTextureIdByHash(decoded_filename);
+                if (texture_id >= 0)
+                {
+                    texture_ids.push_back(texture_id);
+                    continue;
+                }
+
                 auto mft_entry_it = hash_index.find(decoded_filename);
                 if (mft_entry_it != hash_index.end())
                 {
-                    // Get texture from .dat
-                    textures.emplace_back(dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0)));
+                    auto dat_texture = dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
 
                     // Create texture
-                    int texture_id;
                     auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
-                      textures[j].width, textures[j].height, textures[j].rgba_data.data(), &texture_id);
+                      dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
+                      decoded_filename);
                     texture_ids.push_back(texture_id);
                 }
             }
@@ -297,7 +304,6 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                         }
 
                         // Load textures
-                        std::vector<DatTexture> textures;
                         std::vector<int> texture_ids;
                         for (int j = 0;
                              j < ffna_model_file_ptr->texture_filenames_chunk.texture_filenames.size(); j++)
@@ -306,18 +312,26 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                               ffna_model_file_ptr->texture_filenames_chunk.texture_filenames[j];
                             auto decoded_filename =
                               decode_filename(texture_filename.id0, texture_filename.id1);
+
+                            int texture_id =
+                              map_renderer->GetTextureManager()->GetTextureIdByHash(decoded_filename);
+                            if (texture_id >= 0)
+                            {
+                                texture_ids.push_back(texture_id);
+                                continue;
+                            }
+
                             auto mft_entry_it = hash_index.find(decoded_filename);
                             if (mft_entry_it != hash_index.end())
                             {
                                 // Get texture from .dat
-                                textures.emplace_back(
-                                  dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0)));
+                                auto dat_texture =
+                                  dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
 
                                 // Create texture
-                                int texture_id;
                                 auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
-                                  textures[j].width, textures[j].height, textures[j].rgba_data.data(),
-                                  &texture_id);
+                                  dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
+                                  &texture_id, decoded_filename);
                                 texture_ids.push_back(texture_id);
                             }
                         }
