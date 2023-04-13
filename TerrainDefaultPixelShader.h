@@ -22,12 +22,12 @@ cbuffer PerFrameCB: register(b0)
 cbuffer PerObjectCB : register(b1)
 {
     matrix World;
+    uint4 uv_indices[8];
+    uint4 texture_indices[8];
+    uint4 blend_flags[8];
     uint num_uv_texture_pairs;
     float pad1[3];
-    uint uv_indices[32];
-    uint texture_indices[32];
 };
-
 
 cbuffer PerCameraCB : register(b2)
 {
@@ -102,7 +102,6 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Return the result
     return outputColor;
-};
 }
 )";
 };

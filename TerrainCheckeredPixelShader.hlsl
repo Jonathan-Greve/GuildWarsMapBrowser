@@ -20,6 +20,7 @@ cbuffer PerObjectCB : register(b1)
     matrix World;
     uint4 uv_indices[8];
     uint4 texture_indices[8];
+    uint4 blend_flags[8];
     uint num_uv_texture_pairs;
     float pad1[3];
 };
