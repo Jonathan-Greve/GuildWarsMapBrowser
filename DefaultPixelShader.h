@@ -25,6 +25,7 @@ cbuffer PerObjectCB : register(b1)
     matrix World;
     uint4 uv_indices[8];
     uint4 texture_indices[8];
+    uint4 blend_flags[8];
     uint num_uv_texture_pairs;
     float pad1[3];
 };
@@ -99,6 +100,7 @@ float4 main(PixelInputType input) : SV_TARGET
         {
             uint uv_set_index = uv_indices[j][k];
             uint texture_index = texture_indices[j][k];
+            uint blend_flag = blend_flags[j][k];
 
             if (j * 4 + k >= num_uv_texture_pairs)
             {
@@ -112,10 +114,18 @@ float4 main(PixelInputType input) : SV_TARGET
                     float4 currentSampledTextureColor = shaderTextures[t].Sample(ss, texCoordsArray[uv_set_index]);
                     // Use lerp for blending textures
                     sampledTextureColor.rgb = lerp(sampledTextureColor.rgb, currentSampledTextureColor.rgb, 1.0 / ((float)num_uv_texture_pairs));
-                    sampledTextureColor.a += currentSampledTextureColor.a * (1.0 - sampledTextureColor.a);
-                    if (currentSampledTextureColor.a <= 0) {
-                        discard;
+                    float alpha = currentSampledTextureColor.a;
+                    if (blend_flag == 6 || blend_flag == 7) {
+                        alpha = 1 - alpha;
                     }
+                    else if (blend_flag == 0) {
+                        alpha = 1;
+                    }
+                    sampledTextureColor.a += alpha * (1.0 - sampledTextureColor.a);
+                    //if (currentSampledTextureColor.a <= 0) {
+                    //    discard;
+                    //}
+                    break;
                 }
             }
         }
@@ -129,5 +139,6 @@ float4 main(PixelInputType input) : SV_TARGET
     // Return the result
     return finalColor;
 }
+
 )";
 };

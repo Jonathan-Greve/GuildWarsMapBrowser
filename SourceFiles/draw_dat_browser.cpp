@@ -207,6 +207,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
                     per_object_cbs[i].uv_indices[index0][index1] = (uint32_t)prop_mesh.uv_coord_indices[j];
                     per_object_cbs[i].texture_indices[index0][index1] = (uint32_t)prop_mesh.tex_indices[j];
+                    per_object_cbs[i].blend_flags[index0][index1] = (uint32_t)prop_mesh.blend_flags[j];
                 }
             }
 
@@ -379,6 +380,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                                   (uint32_t)prop_mesh.uv_coord_indices[k];
                                 per_object_cbs[j].texture_indices[index0][index1] =
                                   (uint32_t)prop_mesh.tex_indices[k];
+                                per_object_cbs[j].blend_flags[index0][index1] =
+                                  (uint32_t)prop_mesh.blend_flags[k];
                             }
                         }
 
