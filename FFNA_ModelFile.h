@@ -650,7 +650,7 @@ struct GeometryChunk
         sub_1 = Chunk1_sub1(&data[curr_offset]);
         sub_1.num_models;
         curr_offset += sizeof(sub_1);
-        if (sub_1.num_models > 0 || sub_1.f0x48 > 0)
+        if (sub_1.num_models > 0)
         {
             const bool prev_parsed_correctly = parsed_correctly;
             const int prev_offset = curr_offset;
@@ -763,11 +763,6 @@ struct GeometryChunk
             }
 
             int num_models = sub_1.num_models;
-            if (sub_1.num_models < sub_1.f0x48 && sub_1.f0x48 < 100)
-            {
-                num_models = sub_1.f0x48;
-            }
-
             for (int i = 0; i < num_models; i++)
             {
                 auto new_model =
