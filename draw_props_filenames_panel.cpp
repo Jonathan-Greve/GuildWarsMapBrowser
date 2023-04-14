@@ -17,13 +17,6 @@ void draw_props_filenames_panel(const Chunk4& chunk)
             ImGui::TreePop();
         }
 
-        if (ImGui::TreeNode("File Name"))
-        {
-            ImGui::Text("ID0: %hu", chunk.file_name.id0);
-            ImGui::Text("ID1: %hu", chunk.file_name.id1);
-            ImGui::TreePop();
-        }
-
         if (ImGui::TreeNode("Filenames array"))
         {
             ImGui::Text("Number of Elements: %zu", chunk.array.size());

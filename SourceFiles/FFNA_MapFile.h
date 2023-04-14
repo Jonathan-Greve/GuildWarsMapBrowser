@@ -362,17 +362,17 @@ struct FileName
 
 struct Chunk4DataElement
 {
-    uint16_t f1;
     FileName filename;
+    uint16_t f1;
 
     Chunk4DataElement() = default;
 
     Chunk4DataElement(int& offset, const unsigned char* data)
     {
+        filename = FileName(offset, data);
+
         std::memcpy(&f1, &data[offset], sizeof(f1));
         offset += sizeof(f1);
-
-        filename = FileName(offset, data);
     }
 };
 
@@ -381,7 +381,6 @@ struct Chunk4
     uint32_t chunk_id;
     uint32_t chunk_size;
     Chunk4DataHeader data_header;
-    FileName file_name;
     std::vector<Chunk4DataElement> array;
     std::vector<uint8_t> chunk_data;
 
@@ -397,17 +396,14 @@ struct Chunk4
 
         data_header = Chunk4DataHeader(offset, data);
 
-        file_name = FileName(offset, data);
-
-        int array_size = (chunk_size - sizeof(data_header) - sizeof(file_name)) / 6;
+        int array_size = (chunk_size - sizeof(data_header)) / 6;
         array.reserve(array_size);
         for (int i = 0; i < array_size; ++i)
         {
             array.emplace_back(offset, data);
         }
 
-        int chunk_data_size =
-          chunk_size - sizeof(data_header) - sizeof(file_name) - sizeof(Chunk4DataElement) * array_size;
+        int chunk_data_size = chunk_size - sizeof(data_header) - sizeof(Chunk4DataElement) * array_size;
         chunk_data.resize(chunk_data_size);
         std::memcpy(chunk_data.data(), &data[offset], chunk_data.size());
     }

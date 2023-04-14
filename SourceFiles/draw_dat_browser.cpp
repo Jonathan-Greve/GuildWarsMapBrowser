@@ -285,10 +285,10 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
         {
             PropInfo prop_info = selected_ffna_map_file.props_info_chunk.prop_array.props_info[i];
 
-            if (prop_info.filename_index - 1 < selected_map_files.size())
+            if (prop_info.filename_index  < selected_map_files.size())
             {
                 if (auto ffna_model_file_ptr =
-                      std::get_if<FFNA_ModelFile>(&selected_map_files[prop_info.filename_index - 1]))
+                      std::get_if<FFNA_ModelFile>(&selected_map_files[prop_info.filename_index]))
                 {
                     if (ffna_model_file_ptr->parsed_correctly)
                     {
