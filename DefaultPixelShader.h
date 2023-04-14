@@ -115,7 +115,7 @@ float4 main(PixelInputType input) : SV_TARGET
                     // Use lerp for blending textures
                     sampledTextureColor.rgb = lerp(sampledTextureColor.rgb, currentSampledTextureColor.rgb, 1.0 / ((float)num_uv_texture_pairs));
                     float alpha = currentSampledTextureColor.a;
-                    if (blend_flag == 6 || blend_flag == 7) {
+                    if (blend_flag == 3 || blend_flag == 6 || blend_flag == 7) {
                         alpha = 1 - alpha;
                     }
                     else if (blend_flag == 0) {
