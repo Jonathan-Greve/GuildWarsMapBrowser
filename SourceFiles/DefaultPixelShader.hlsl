@@ -117,9 +117,6 @@ float4 main(PixelInputType input) : SV_TARGET
                         alpha = 1;
                     }
                     sampledTextureColor.a += alpha * (1.0 - sampledTextureColor.a);
-                    //if (currentSampledTextureColor.a <= 0) {
-                    //    discard;
-                    //}
                     break;
                 }
             }
