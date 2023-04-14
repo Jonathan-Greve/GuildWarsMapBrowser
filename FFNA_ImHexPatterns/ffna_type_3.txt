@@ -335,33 +335,48 @@ enum FFNAType : u8 {
   Type7
 };
 
+struct UnknownChunk {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk {
+ u32 chunk_id = std::mem::read_unsigned($, 4);
+ if (chunk_id == 0x20000000){
+   Chunk1 chunk1;
+ }
+ else if (chunk_id == 0x20000002){
+   Chunk8 terrain_chunk;
+ }
+ else if (chunk_id == 0x20000003){
+   Chunk5 chunk5;
+ }
+ else if (chunk_id == 0x20000004){
+   Chunk3 chunk3;
+ }
+ else if (chunk_id == 0x2000000C){
+   Chunk2 chunk2;
+ }
+ else if (chunk_id == 0x21000003){
+   Chunk4 more_filenames_chunk;
+ }
+ else if (chunk_id == 0x21000004){
+   Chunk4 filenames_chunk;
+ }
+ else if (chunk_id == 0x2000000C){
+   Chunk2 chunk2;
+ }
+ else{
+   UnknownChunk unknown_chunk;
+ }
+};
 
 
 struct MapFile {
  char ffna_signature[4];
  FFNAType ffna_type;
- Chunk1 chunk1;
- Chunk2 chunk2;
- Chunk3 chunk3;
- Chunk4 prop_filenames_chunk; // Not sure if only prop filenames
- Chunk5 chunk5;
- Chunk4 more_filnames_chunk; // Not sure what filenames yet
- Chunk7 chunk7;
- Chunk8 map_zones_and_terrain_chunk;
- Chunk9 chunk9;
- Chunk10 chunk10;
- Chunk11 chunk11;
- Chunk12 chunk12;
- Chunk13 chunk13;
- Chunk14 chunk14;
- Chunk15 chunk15;
- Chunk16 chunk16;
- Chunk17 chunk17;
- Chunk18 chunk18;
- Chunk19 chunk19;
- Chunk20 chunk20;
- Chunk21 chunk21;
- Chunk22 chunk22;
-};
-
-MapFile map_file @ 0;
+ Chunk chunks[while($ < sizeof($))];
+ };
+ 
+ MapFile mapfile @ 0;
