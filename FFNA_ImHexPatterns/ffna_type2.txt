@@ -1,5 +1,6 @@
 #include <std/mem.pat>
 #include <std/io.pat>
+#pragma pattern_limit 500000
 std::mem::Section provider = std::mem::create_section("Memory provider");
 u32 fvf_array_0[22] @0x00 in provider;
 u32 fvf_array_1[8] @0x00+sizeof(fvf_array_0) in provider;
@@ -293,6 +294,12 @@ struct TextureAndVertexShader<auto num_textures, auto num1, auto f0x20> {
   u8 u1[(-(f0x20 != 0) & num1)];
 };
 
+struct f0x48_data
+{
+  u32 count;
+  u8 data[count*8];
+};
+
 struct GeometryChunk {
   u32 chunk_id;
   u32 chunk_size; chunk1_size=chunk_size;
@@ -355,11 +362,18 @@ struct GeometryChunk {
     u8 some_data0[some_array[0x28]*0x18+some_array[0x2c]*0x10];
     extra += sizeof(some_array) + sizeof(some_data0);
   }
+  
+
   geometry_sub_chunk geometry[sub_1.num_models];
+
+  
   
   InteractiveModelMaybe interactive_models_maybe[sub_1.collision_count];
-  
-  u8 chunk_data[chunk_size-sizeof(sub_1)-sizeof(TaVS)-extra-sizeof(geometry)-extra_bytes-sizeof(interactive_models_maybe)];
+  f0x48_data t[sub_1.f0x48];
+  u8 chunk_data[chunk_size-sizeof(sub_1)-sizeof(TaVS)-extra
+     -sizeof(geometry)-extra_bytes
+     -sizeof(interactive_models_maybe)
+     -sizeof(t)];
 };
 
 
@@ -418,6 +432,4 @@ struct ModelFile {
   Chunk chunks[while($ < sizeof($))];
 };
 
-
-ModelFile model_file @ 0;
-
+ModelFile modelfile @ 0;
