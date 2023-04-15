@@ -100,6 +100,64 @@ fn compute_str_len_plus_one(u32 address){
   return counter;
 };
 
+fn read_u32(u32 address) {
+    u32 value @ address;
+
+    return value;
+};
+
+fn get_some_size(u32 address, u32 sub_1_0x52){
+  u32 iVar3 = 0;
+  u32 iVar5 = 0;
+  u32 iVar6 = 0;
+  u32 iVar7 = 0;
+  u32 local_c = 0;
+  
+  if (1 < sub_1_0x52){
+    s32 iVar4 = (sub_1_0x52 - 2 >> 1) + 1;
+    
+    local_c = iVar4 * 2;
+      
+    u32 piVar1 = address + 0x2C;
+      
+    
+    while (true){
+      u32 v3 @ (piVar1 + 0xC * 4);
+      iVar3 += v3;
+        
+      u32 v5 @ (piVar1 - 4);
+      iVar5 += v5;
+        
+      u32 v6 @ piVar1;
+      iVar6 += v6;
+        
+      u32 v7 @ (piVar1 + 0xB * 4);
+      iVar7 += v7;
+        
+      piVar1 += 0x60;
+        
+      iVar4 -= 1;
+      if (iVar4 <= 0){
+        break;
+      }
+    }
+  }
+  
+  u32 iVar4 = 0;
+  u32 local_18;
+  if (local_c < sub_1_0x52){
+    local_18 = read_u32(address + 0x28 + local_c*6*8);
+    iVar4 = read_u32(address + 0x2C + local_c*6*8);
+  }
+  
+  local_18 += iVar7 + iVar5;
+  iVar4 += iVar3 + iVar6;
+  
+  u32 size = iVar4 * 0x10 + local_18 * 0x18;
+  
+  return size;
+};
+
 struct String {
   char string[compute_str_len_plus_one($)];
 };
@@ -135,8 +193,8 @@ struct Chunk1_sub1 {
   u32 f0x48;
   u16 collision_count;
   u8 f0x4E[2];
-  u16 f0x50;
   u16 num_some_struct2;
+  u16 f0x52;
 };
 
 struct Chunkfa1_sub1 {
@@ -168,8 +226,8 @@ struct Chunkfa1_sub1 {
   u32 f0x48;
   u16 f0x4C;
   u8 f0x4E[2];
-  u16 f0x50;
   u16 num_some_struct2;
+  u16 f0x52;
 };
 
 struct geometry_sub_chunk {
@@ -300,11 +358,25 @@ struct f0x48_data
   u8 data[count*8];
 };
 
+struct SomeStruct2{
+  u8 unknown[8];
+  u32 f0x8;
+  u32 f0xC;
+  u32 f0x10;
+  u32 f0x14;
+  
+  u32 data_size = f0x8 * 7 + (f0xC + f0x10 + f0x14)*8;
+  u8 data[data_size];
+};
+
 struct GeometryChunk {
   u32 chunk_id;
   u32 chunk_size; chunk1_size=chunk_size;
   // Data start
   Chunk1_sub1 sub_1; sub_1_address=addressof(sub_1); sub_1_f0x8=sub_1.f0x8;
+
+  u8 unknown0[sub_1.num_some_struct];
+  SomeStruct2 some_struct_2s[sub_1.num_some_struct2];
 
   TextureAndVertexShader<sub_1.some_num0, sub_1.some_num1, sub_1.f0x20 > TaVS;
   
@@ -341,7 +413,7 @@ struct GeometryChunk {
     if (sub_1_address+chunk1_size < addressof($)+8){
     }
     else{
-      u32 unknown0;
+      u32 unknown2;
       u32 unknown1;
       complex_struct cs[unknown1];
       
@@ -350,10 +422,16 @@ struct GeometryChunk {
   }
   
   
-  if (sub_1.f0x8 < 0){
-    // Do something
+  if ((sub_1.f0x8 & 8) >> 3 == 1){
+    if (sub_1.f0x52 != 0){
+      
+    }
+    u32 size1 = get_some_size($, sub_1.f0x52);
+    u8 data0x52[sub_1.f0x52*0x30];
+    u8 data0x52_2[size1];
+    
+    extra_bytes += sizeof(data0x52) + sizeof(data0x52_2);
   }
-  
   
   
   u32 extra = 0;
