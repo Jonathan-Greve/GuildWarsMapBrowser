@@ -285,7 +285,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
         {
             PropInfo prop_info = selected_ffna_map_file.props_info_chunk.prop_array.props_info[i];
 
-            if (prop_info.filename_index  < selected_map_files.size())
+            if (prop_info.filename_index < selected_map_files.size())
             {
                 if (auto ffna_model_file_ptr =
                       std::get_if<FFNA_ModelFile>(&selected_map_files[prop_info.filename_index]))
@@ -422,7 +422,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 std::string truncate_text_with_ellipsis(const std::string& text, float maxWidth);
 int custom_stoi(const std::string& input);
 std::string to_lower(const std::string& input);
-std::wstring OpenFileDialog();
+std::wstring OpenFileDialog(std::wstring filename = L"");
 
 void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 {
@@ -788,7 +788,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                 {
                     if (ImGui::MenuItem("Save decompressed data to file"))
                     {
-                        std::wstring savePath = OpenFileDialog();
+                        std::wstring savePath = OpenFileDialog(std::format(L"0x{:X}", item.hash));
                         if (! savePath.empty())
                         {
                             dat_manager.save_raw_decompressed_data_to_file(item.id, savePath);
@@ -1132,10 +1132,12 @@ std::string to_lower(const std::string& input)
     return result;
 }
 
-inline std::wstring OpenFileDialog()
+inline std::wstring OpenFileDialog(std::wstring filename)
 {
     OPENFILENAME ofn;
-    wchar_t fileName[MAX_PATH] = L"";
+    wchar_t fileName[MAX_PATH];
+    wcsncpy(fileName, filename.c_str(), MAX_PATH);
+    fileName[MAX_PATH - 1] = L'\0'; // Ensure null termination
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(OPENFILENAME);
     ofn.hwndOwner = NULL;
