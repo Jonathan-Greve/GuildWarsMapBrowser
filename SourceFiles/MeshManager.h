@@ -279,7 +279,6 @@ public:
 
                 current_blend_state = command.blend_state;
             }
-            blend_state_manager->SetBlendState(BlendState::AlphaBlend);
 
             PerObjectCB transposedData = command.meshInstance->GetPerObjectData();
 
