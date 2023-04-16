@@ -841,9 +841,9 @@ struct GeometryChunk
                                 curr_offset += str_len;
                             }
 
-                            unknown_data_1.resize(sub_1.f0x1e * 2);
-                            std::memcpy(unknown_data_1.data(), &data[curr_offset], sub_1.f0x1e * 2);
-                            curr_offset += sub_1.f0x1e * 2;
+                            unknown_data_1.resize(sub_1.f0x1e * 2 * 4);
+                            std::memcpy(unknown_data_1.data(), &data[curr_offset], sub_1.f0x1e * 2 * 4);
+                            curr_offset += sub_1.f0x1e * 2 * 4;
                         }
                         else
                         {
