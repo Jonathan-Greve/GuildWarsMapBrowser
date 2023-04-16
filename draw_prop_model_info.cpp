@@ -63,8 +63,8 @@ void draw_prop_model_info(const FFNA_ModelFile& model)
             }
             ImGui::Unindent();
 
-            ImGui::Text("f0x50: %hu", sub_1.f0x50);
             ImGui::Text("num_some_struct2: %hu", sub_1.num_some_struct2);
+            ImGui::Text("f0x52: %hu", sub_1.f0x52);
 
             ImGui::TreePop();
         }
