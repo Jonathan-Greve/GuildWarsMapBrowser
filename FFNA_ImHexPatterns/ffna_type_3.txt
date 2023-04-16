@@ -128,18 +128,17 @@ struct FileName{
 };
 
 struct Chunk4DataElement{
-  u16 f1;
   FileName filename;
+  u16 f1;
 };
 
 struct Chunk4 {
   u32 chunk_id;
   u32 chunk_size;
   Chunk4DataHeader data_header;
-  FileName file_name;
   //Chunk4DataElement array[228];
-  Chunk4DataElement array[(chunk_size-sizeof(data_header)-sizeof(file_name))/6];
-  u8 chunk_data[chunk_size-sizeof(data_header)-sizeof(file_name)-sizeof(array)];
+  Chunk4DataElement array[(chunk_size-sizeof(data_header))/6];
+  u8 chunk_data[chunk_size-sizeof(data_header)-sizeof(array)];
 };
 
 struct Chunk5Element{
@@ -218,7 +217,7 @@ struct Chunk8 {
   float terrain_height_vertices[terrain_x_dims*terrain_y_dims]; // same as [terrain_height_size_bytes/4]
   u8 tag2;
   u32 num_terrain_tiles; // num terrain height vertices
-  u8 something_for_each_tile[num_terrain_tiles];
+  u8 terrain_texture_indices_maybe[num_terrain_tiles];
   u8 tag3;
   u32 some_size2;
   u8 some_size3;
@@ -234,10 +233,13 @@ struct Chunk8 {
   u8 something_for_each_tile1[num_terrain_tiles1];
   u8 tag7;
   u32 some_size7;
-  u8 some_data7[some_size7];
-  u8 chunk_data[chunk_size-75-sizeof(terrain_height_vertices)
-    -sizeof(something_for_each_tile)-sizeof(some_data3)-sizeof(some_data4)
-    -sizeof(some_data5)-sizeof(something_for_each_tile1)-sizeof(some_data7)];
+  u32 some_size8;
+  u8 some_data7_0[some_size8];
+  u8 some_data7_1[some_size7-some_size8];
+  u8 chunk_data[chunk_size-79-sizeof(terrain_height_vertices)
+    -sizeof(terrain_texture_indices_maybe)-sizeof(some_data3)-sizeof(some_data4)
+    -sizeof(some_data5)-sizeof(something_for_each_tile1)-sizeof(some_data7_0)
+    -sizeof(some_data7_1)];
 };
 
 struct Chunk9 {
@@ -358,6 +360,9 @@ struct Chunk {
  else if (chunk_id == 0x2000000C){
    Chunk2 chunk2;
  }
+ else if (chunk_id == 0x21000002){
+   Chunk4 terrain_textures_filename;
+ }
  else if (chunk_id == 0x21000003){
    Chunk4 more_filenames_chunk;
  }
@@ -380,3 +385,4 @@ struct MapFile {
  };
  
  MapFile mapfile @ 0;
+ 
