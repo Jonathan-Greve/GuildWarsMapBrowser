@@ -33,6 +33,100 @@ inline uint32_t get_vertex_size_from_fvf(uint32_t fvf)
       fvf_array_2[fvf & 0xf];
 }
 
+inline uint32_t get_some_size(const unsigned char* data, uint32_t sub_1_0x52, uint32_t data_size_bytes,
+                              bool& parsed_correctly)
+{
+    uint32_t iVar3 = 0;
+    uint32_t iVar5 = 0;
+    uint32_t iVar6 = 0;
+    uint32_t iVar7 = 0;
+    uint32_t local_c = 0;
+
+    if (1 < sub_1_0x52)
+    {
+        int32_t iVar4 = ((sub_1_0x52 - 2) >> 1) + 1;
+
+        local_c = iVar4 * 2;
+
+        const unsigned char* piVar1 = data + 0x2C;
+
+        while (true)
+        {
+            if (piVar1 + 0xC * 4 - data >= data_size_bytes)
+            {
+                parsed_correctly = false;
+                return 0;
+            }
+
+            uint32_t v3 = *reinterpret_cast<const uint32_t*>(piVar1 + 0xC * 4);
+            iVar3 += v3;
+
+            if (piVar1 - 4 - data >= data_size_bytes)
+            {
+                parsed_correctly = false;
+                return 0;
+            }
+
+            uint32_t v5 = *reinterpret_cast<const uint32_t*>(piVar1 - 4);
+            iVar5 += v5;
+
+            if (piVar1 - data >= data_size_bytes)
+            {
+                parsed_correctly = false;
+                return 0;
+            }
+
+            uint32_t v6 = *reinterpret_cast<const uint32_t*>(piVar1);
+            iVar6 += v6;
+
+            if (piVar1 + 0xB * 4 - data >= data_size_bytes)
+            {
+                parsed_correctly = false;
+                return 0;
+            }
+
+            uint32_t v7 = *reinterpret_cast<const uint32_t*>(piVar1 + 0xB * 4);
+            iVar7 += v7;
+
+            piVar1 += 0x60;
+
+            iVar4 -= 1;
+            if (iVar4 <= 0)
+            {
+                break;
+            }
+        }
+    }
+
+    uint32_t iVar4 = 0;
+    uint32_t local_18;
+    if (local_c < sub_1_0x52)
+    {
+        if (data + 0x28 + local_c * 6 * 8 - data >= data_size_bytes)
+        {
+            parsed_correctly = false;
+            return 0;
+        }
+
+        local_18 = *reinterpret_cast<const uint32_t*>(data + 0x28 + local_c * 6 * 8);
+
+        if (data + 0x2C + local_c * 6 * 8 - data >= data_size_bytes)
+        {
+            parsed_correctly = false;
+            return 0;
+        }
+
+        iVar4 = *reinterpret_cast<const uint32_t*>(data + 0x2C + local_c * 6 * 8);
+    }
+
+    local_18 += iVar7 + iVar5;
+    iVar4 += iVar3 + iVar6;
+
+    uint32_t size = iVar4 * 0x10 + local_18 * 0x18;
+
+    return size;
+}
+
 struct ModelVertex
 {
     bool has_position;
@@ -111,8 +205,8 @@ struct Chunk1_sub1
     uint32_t f0x48;
     uint16_t collision_count;
     uint8_t f0x4E[2];
-    uint16_t f0x50;
     uint16_t num_some_struct2;
+    uint16_t f0x52;
 
     Chunk1_sub1() = default;
 
@@ -232,6 +326,62 @@ struct ComplexStruct
         {
             parsed_correctly = false;
             return;
+        }
+    }
+};
+
+struct Sub1F0x52Struct
+{
+    std::vector<uint8_t> data0x52;
+    std::vector<uint8_t> data0x52_2;
+
+    Sub1F0x52Struct() = default;
+
+    Sub1F0x52Struct(uint32_t& curr_offset, const unsigned char* data, uint32_t data_size_bytes,
+                    bool& parsed_correctly, Chunk1_sub1& sub_1)
+    {
+        if ((sub_1.f0x8 & 8) >> 3 == 1)
+        {
+            if (sub_1.f0x52 != 0)
+            {
+                uint32_t size1 =
+                  get_some_size(data + curr_offset, sub_1.f0x52, data_size_bytes, parsed_correctly);
+                if (! parsed_correctly)
+                {
+                    return;
+                }
+
+                data0x52.resize(sub_1.f0x52 * 0x30);
+
+                if (curr_offset + data0x52.size() <= data_size_bytes)
+                {
+                    std::memcpy(data0x52.data(), &data[curr_offset], data0x52.size());
+                }
+                else
+                {
+                    parsed_correctly = false;
+                    return;
+                }
+                curr_offset += data0x52.size();
+
+                if (curr_offset + size1 >= data_size_bytes)
+                {
+                    parsed_correctly = false;
+                    return;
+                }
+
+                data0x52_2.resize(size1);
+                if (curr_offset + data0x52_2.size() <= data_size_bytes)
+                {
+                    std::memcpy(data0x52_2.data(), &data[curr_offset], data0x52_2.size());
+                }
+                else
+                {
+                    parsed_correctly = false;
+                    return;
+                }
+                curr_offset += data0x52_2.size();
+            }
         }
     }
 };
@@ -616,6 +766,8 @@ struct GeometryChunk
     std::vector<uint8_t> unknown_data_1;
     std::vector<std::string> strings;
 
+    Sub1F0x52Struct sub1_f0x52_struct;
+
     uint32_t unknown4;
     uint32_t unknown5;
     std::vector<ComplexStruct> complex_structs;
@@ -745,6 +897,12 @@ struct GeometryChunk
                           ComplexStruct(curr_offset, data, data_size_bytes, parsed_correctly, sub_1));
                     }
                 }
+            }
+
+            sub1_f0x52_struct = Sub1F0x52Struct(curr_offset, data, data_size_bytes, parsed_correctly, sub_1);
+            if (! parsed_correctly)
+            {
+                return;
             }
 
             if (sub_1.num_some_struct2 > 0)
