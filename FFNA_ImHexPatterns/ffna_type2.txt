@@ -113,26 +113,36 @@ fn get_some_size(u32 address, u32 sub_1_0x52){
   u32 iVar7 = 0;
   u32 local_c = 0;
   
+  std::print("address: {}", address);
+  std::print("sub_1_0x52: {}", sub_1_0x52);
+  
   if (1 < sub_1_0x52){
     s32 iVar4 = (sub_1_0x52 - 2 >> 1) + 1;
+    std::print("iVar4: {}", iVar4);
     
     local_c = iVar4 * 2;
+    std::print("local_c: {}", local_c);
       
     u32 piVar1 = address + 0x2C;
       
     
     while (true){
+      std::print("--------- iVar4: {} ---------", iVar4);
       u32 v3 @ (piVar1 + 0xC * 4);
       iVar3 += v3;
+      std::print("iVar3: {}", iVar3);
         
       u32 v5 @ (piVar1 - 4);
       iVar5 += v5;
+      std::print("iVar5: {}", iVar5);
         
       u32 v6 @ piVar1;
       iVar6 += v6;
+      std::print("iVar6: {}", iVar6);
         
       u32 v7 @ (piVar1 + 0xB * 4);
       iVar7 += v7;
+      std::print("iVar7 : {}", iVar7);
         
       piVar1 += 0x60;
         
@@ -154,6 +164,8 @@ fn get_some_size(u32 address, u32 sub_1_0x52){
   iVar4 += iVar3 + iVar6;
   
   u32 size = iVar4 * 0x10 + local_18 * 0x18;
+  
+  std::print("{}", size);
   
   return size;
 };
@@ -394,7 +406,7 @@ struct GeometryChunk {
             u8 unknown_data0[_Src];
             
             String strings[sub_1.f0x1a];
-            u8 unknown_data1[sub_1.f0x1e*2];
+            u8 unknown_data1[sub_1.f0x1e*2*4];
             
             extra_bytes += sizeof(unknown_data0) + sizeof(strings) + sizeof(unknown_data1);
           }
