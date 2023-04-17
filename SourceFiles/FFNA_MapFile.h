@@ -591,7 +591,7 @@ struct Chunk8
     std::vector<float> terrain_heightmap;
     uint8_t tag2;
     uint32_t num_terrain_tiles;
-    std::vector<uint8_t> something_for_each_tile;
+    std::vector<uint8_t> terrain_texture_indices_maybe;
     uint8_t tag3;
     uint32_t some_size2;
     uint8_t some_size3;
@@ -668,9 +668,10 @@ struct Chunk8
         std::memcpy(&num_terrain_tiles, &data[offset], sizeof(num_terrain_tiles));
         offset += sizeof(num_terrain_tiles);
 
-        something_for_each_tile.resize(num_terrain_tiles);
-        std::memcpy(something_for_each_tile.data(), &data[offset], something_for_each_tile.size());
-        offset += something_for_each_tile.size();
+        terrain_texture_indices_maybe.resize(num_terrain_tiles);
+        std::memcpy(terrain_texture_indices_maybe.data(), &data[offset],
+                    terrain_texture_indices_maybe.size());
+        offset += terrain_texture_indices_maybe.size();
 
         std::memcpy(&tag3, &data[offset], sizeof(tag3));
         offset += sizeof(tag3);
@@ -726,7 +727,7 @@ struct Chunk8
         offset += some_data7.size();
 
         int chunk_data_size = chunk_size - 75 - terrain_heightmap.size() * sizeof(float) -
-          something_for_each_tile.size() - some_data3.size() - some_data4.size() - some_data5.size() -
+          terrain_texture_indices_maybe.size() - some_data3.size() - some_data4.size() - some_data5.size() -
           something_for_each_tile1.size() - some_data7.size();
         chunk_data.resize(chunk_data_size);
         std::memcpy(chunk_data.data(), &data[offset], chunk_data.size());
@@ -753,6 +754,7 @@ constexpr uint32_t CHUNK_ID_20000000 = 0x20000000;
 constexpr uint32_t CHUNK_ID_TERRAIN = 0x20000002;
 constexpr uint32_t CHUNK_ID_PROPS_INFO = 0x20000004;
 constexpr uint32_t CHUNK_ID_MAP_INFO = 0x2000000C;
+constexpr uint32_t CHUNK_ID_TERRAIN_FILENAMES = 0x21000002;
 constexpr uint32_t CHUNK_ID_PROPS_FILENAMES0 = 0x21000004;
 constexpr uint32_t CHUNK_ID_PROPS_FILENAMES = 0x21000004;
 
@@ -768,6 +770,7 @@ struct FFNA_MapFile
     Chunk4 more_filnames_chunk; // same structure as chunk 4
     Chunk7 chunk7;
     Chunk8 terrain_chunk;
+    Chunk4 terrain_texture_filenames; // same structure as chunk 4
 
     std::unordered_map<uint32_t, int> riff_chunks;
 
@@ -839,6 +842,14 @@ struct FFNA_MapFile
         {
             int offset = it->second;
             prop_filenames_chunk = Chunk4(offset, data.data());
+        }
+
+        // Check if the CHUNK_ID_TERRAIN_FILENAMES is in the riff_chunks map
+        it = riff_chunks.find(CHUNK_ID_TERRAIN_FILENAMES);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            terrain_texture_filenames = Chunk4(offset, data.data());
         }
     }
 };
