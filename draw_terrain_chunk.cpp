@@ -34,11 +34,11 @@ void draw_terrain_chunk(const Chunk8& chunk)
         ImGui::Text("Tag2: 0x%02X", chunk.tag2);
         ImGui::Text("Num Terrain Tiles: %u", chunk.num_terrain_tiles);
 
-        if (ImGui::TreeNode("Something For Each Tile"))
+        if (ImGui::TreeNode("Terrain texture indices (maybe)"))
         {
-            for (size_t i = 0; i < chunk.something_for_each_tile.size(); ++i)
+            for (size_t i = 0; i < chunk.terrain_texture_indices_maybe.size(); ++i)
             {
-                ImGui::Text("Tile[%zu]: 0x%02X", i, chunk.something_for_each_tile[i]);
+                ImGui::Text("Tile[%zu]: 0x%02X", i, chunk.terrain_texture_indices_maybe[i]);
             }
             ImGui::TreePop();
         }
