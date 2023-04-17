@@ -225,7 +225,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 auto& mesh_texture_ids = per_mesh_tex_ids[i];
 
                 map_renderer->GetMeshManager()->SetTexturesForMesh(
-                  mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids));
+                  mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids), 0);
             }
         }
 
@@ -266,12 +266,16 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                   entry->Hash);
             }
 
+            auto& terrain_texture_indices =
+              selected_ffna_map_file.terrain_chunk.terrain_texture_indices_maybe;
+
             // Create terrain
             terrain = std::make_unique<Terrain>(selected_ffna_map_file.terrain_chunk.terrain_x_dims,
                                                 selected_ffna_map_file.terrain_chunk.terrain_y_dims,
                                                 selected_ffna_map_file.terrain_chunk.terrain_heightmap,
+                                                terrain_texture_indices,
                                                 selected_ffna_map_file.map_info_chunk.map_bounds);
-            map_renderer->SetTerrain(std::move(terrain));
+            map_renderer->SetTerrain(std::move(terrain), selected_dat_texture.texture_id);
         }
 
         // Load models
@@ -435,7 +439,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                             auto& mesh_texture_ids = per_mesh_tex_ids[i];
 
                             map_renderer->GetMeshManager()->SetTexturesForMesh(
-                              mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids));
+                              mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids), 0);
                         }
                     }
                 }

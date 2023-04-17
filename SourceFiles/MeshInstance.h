@@ -1,6 +1,7 @@
 #pragma once
 #include "Mesh.h"
 #include "PerObjectCB.h"
+#include <array>
 
 class MeshInstance
 {
@@ -38,18 +39,20 @@ public:
     const PerObjectCB& GetPerObjectData() const { return m_per_object_data; }
     void SetPerObjectData(const PerObjectCB& data) { m_per_object_data = data; }
 
-    void SetTextures(const std::vector<ID3D11ShaderResourceView*>& textures)
+    void SetTextures(const std::vector<ID3D11ShaderResourceView*>& textures, int slot)
     {
+        assert(slot <= 1); // Ensure slot is either 0 or 1
+
         if (textures.size() >= MAX_NUM_TEX_INDICES)
         {
-            return; // Failed, maybe throw here on handle error.
+            return; // Failed, maybe throw here or handle error.
         }
 
-        m_textures.clear();
+        m_textures[slot].clear();
         for (size_t i = 0; i < textures.size(); ++i)
         {
-            // Add the texture to the corresponding uvSetIndex
-            m_textures.push_back(textures[i]);
+            // Add the texture to the corresponding slot
+            m_textures[slot].push_back(textures[i]);
         }
     }
 
@@ -62,7 +65,11 @@ public:
         context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
         context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
-        context->PSSetShaderResources(0, m_textures.size(), m_textures.data()->GetAddressOf());
+        for (int slot = 0; slot < 2; ++slot)
+        {
+            context->PSSetShaderResources(slot, m_textures[slot].size(),
+                                          m_textures[slot].data()->GetAddressOf());
+        }
 
         context->DrawIndexed(m_mesh.indices.size(), 0, 0);
     }
@@ -74,5 +81,5 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
-    std::vector<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> m_textures;
+    std::array<std::vector<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>, 2> m_textures;
 };

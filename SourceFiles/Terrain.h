@@ -11,10 +11,11 @@ class Terrain
 {
 public:
     Terrain(int32_t grid_dim_x, uint32_t grid_dim_y, const std::vector<float>& height_map,
-            const MapBounds& bounds)
+            const std::vector<uint8_t>& terrain_texture_indices, const MapBounds& bounds)
         : m_grid_dim_x(grid_dim_x)
         , m_grid_dim_z(grid_dim_y)
         , m_height_map(height_map)
+        , m_terrain_texture_indices(terrain_texture_indices)
         , m_bounds(bounds)
     {
         // Generate terrain mesh
@@ -27,8 +28,10 @@ public:
     uint32_t m_grid_dim_z;
     MapBounds m_bounds;
     PerTerrainCB m_per_terrain_cb;
+    std::vector<std::vector<uint32_t>> m_texture_index_grid;
 
     void update_per_terrain_CB(PerTerrainCB& new_cb) { m_per_terrain_cb = new_cb; }
+    const std::vector<std::vector<uint32_t>>& get_texture_index_grid() const { return m_texture_index_grid; }
 
 private:
     // Generates a terrain mesh based on the height map data
@@ -42,6 +45,9 @@ private:
         uint32_t sub_grid_cols = m_grid_dim_x / grid_dims;
 
         std::vector<std::vector<float>> grid(m_grid_dim_z + 1, std::vector<float>(m_grid_dim_x + 1, 0.0f));
+
+        // Each element is the index into the texture atlas representing which texture to use on that tile.
+        m_texture_index_grid.resize(m_grid_dim_z + 1, std::vector<uint32_t>(m_grid_dim_x + 1, 0.0f));
 
         float min = FLT_MAX;
         float max = FLT_MIN;
@@ -62,6 +68,7 @@ private:
                     for (int l = col_start; l < col_end; l++)
                     {
                         grid[m_grid_dim_z - k][l] = -m_height_map[count];
+                        m_texture_index_grid[m_grid_dim_z - k][l] = m_terrain_texture_indices[count];
                         count++;
 
                         if (grid[m_grid_dim_z - k][l] < min)
@@ -140,5 +147,6 @@ private:
     }
 
     std::vector<float> m_height_map;
+    std::vector<uint8_t> m_terrain_texture_indices;
     std::unique_ptr<Mesh> mesh;
 };

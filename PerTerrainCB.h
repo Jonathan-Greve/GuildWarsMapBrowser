@@ -11,4 +11,6 @@ struct PerTerrainCB
     float max_z;
     float water_level;
     float pad[3];
+
+    uint8_t terrain_texture_indices[65536 * 4];
 };
