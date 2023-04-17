@@ -138,6 +138,8 @@ public:
                                          int file_hash);
     HRESULT SaveTextureToFile(ID3D11ShaderResourceView* srv, const wchar_t* filename);
 
+    DatTexture BuildTextureAtlas(const std::vector<DatTexture>& terrain_dat_textures);
+
     void Clear() { m_textures.clear(); }
 
 private:
