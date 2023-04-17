@@ -233,11 +233,40 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
     case FFNA_Type3:
         selected_map_files.clear();
         selected_ffna_map_file = dat_manager.parse_ffna_map_file(index);
+
         if (selected_ffna_map_file.terrain_chunk.terrain_heightmap.size() > 0 &&
             selected_ffna_map_file.terrain_chunk.terrain_heightmap.size() ==
               selected_ffna_map_file.terrain_chunk.terrain_x_dims *
                 selected_ffna_map_file.terrain_chunk.terrain_y_dims)
         {
+            auto& terrain_texture_filenames = selected_ffna_map_file.terrain_texture_filenames.array;
+            std::vector<DatTexture> terrain_dat_textures;
+            for (int i = 0; i < terrain_texture_filenames.size(); i++)
+            {
+                auto decoded_filename =
+                  decode_filename(selected_ffna_map_file.terrain_texture_filenames.array[i].filename.id0,
+                                  selected_ffna_map_file.terrain_texture_filenames.array[i].filename.id1);
+                auto mft_entry_it = hash_index.find(decoded_filename);
+                if (mft_entry_it != hash_index.end())
+                {
+                    const DatTexture dat_texture =
+                      dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
+                    terrain_dat_textures.push_back(dat_texture);
+                }
+            }
+
+            selected_dat_texture.dat_texture =
+              map_renderer->GetTextureManager()->BuildTextureAtlas(terrain_dat_textures);
+
+            if (selected_dat_texture.dat_texture.width > 0 && selected_dat_texture.dat_texture.height > 0)
+            {
+                map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                  selected_dat_texture.dat_texture.width, selected_dat_texture.dat_texture.height,
+                  selected_dat_texture.dat_texture.rgba_data.data(), &selected_dat_texture.texture_id,
+                  entry->Hash);
+            }
+
+            // Create terrain
             terrain = std::make_unique<Terrain>(selected_ffna_map_file.terrain_chunk.terrain_x_dims,
                                                 selected_ffna_map_file.terrain_chunk.terrain_y_dims,
                                                 selected_ffna_map_file.terrain_chunk.terrain_heightmap,
