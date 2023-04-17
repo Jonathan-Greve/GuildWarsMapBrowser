@@ -154,3 +154,57 @@ HRESULT TextureManager::SaveTextureToFile(ID3D11ShaderResourceView* srv, const w
 
     return hr;
 }
+
+DatTexture TextureManager::BuildTextureAtlas(const std::vector<DatTexture>& terrain_dat_textures)
+{
+    // Check if the input vector is empty
+    if (terrain_dat_textures.empty())
+    {
+        return {};
+    }
+
+    // Assuming all textures have the same dimensions
+    int texWidth = terrain_dat_textures[0].width;
+    int texHeight = terrain_dat_textures[0].height;
+
+    unsigned int atlasWidth = texWidth * 8;
+    unsigned int atlasHeight = texHeight * 8;
+
+    std::vector<RGBA> atlasData(atlasWidth * atlasHeight, {0, 0, 0, 0});
+
+    int numTextures = static_cast<int>(terrain_dat_textures.size());
+
+    for (int row = 0; row < 8; ++row)
+    {
+        for (int col = 0; col < 8; ++col)
+        {
+            int textureIndex = row * 8 + col;
+
+            if (textureIndex < numTextures)
+            {
+                const std::vector<RGBA>& textureData = terrain_dat_textures[textureIndex].rgba_data;
+
+                for (int y = 0; y < texHeight; ++y)
+                {
+                    for (int x = 0; x < texWidth; ++x)
+                    {
+                        int atlasX = col * texWidth + x;
+                        int atlasY = row * texHeight + y;
+
+                        int atlasOffset = atlasY * atlasWidth + atlasX;
+                        int textureOffset = y * texWidth + x;
+
+                        atlasData[atlasOffset] = textureData[textureOffset];
+                    }
+                }
+            }
+        }
+    }
+
+    DatTexture terrain_atlas;
+    terrain_atlas.width = atlasWidth;
+    terrain_atlas.height = atlasHeight;
+    terrain_atlas.rgba_data = std::move(atlasData);
+
+    return terrain_atlas;
+}
