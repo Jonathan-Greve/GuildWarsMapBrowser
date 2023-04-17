@@ -155,12 +155,12 @@ public:
         return nullptr;
     }
 
-    void SetTexturesForMesh(int meshID, const std::vector<ID3D11ShaderResourceView*>& textures)
+    void SetTexturesForMesh(int meshID, const std::vector<ID3D11ShaderResourceView*>& textures, int slot)
     {
         auto it = m_triangleMeshes.find(meshID);
         if (it != m_triangleMeshes.end())
         {
-            it->second->SetTextures(textures);
+            it->second->SetTextures(textures, slot);
         }
     }
 

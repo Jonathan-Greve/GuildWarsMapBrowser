@@ -3,12 +3,14 @@
 #include "DefaultPixelShader.h"
 #include "TerrainCheckeredPixelShader.h"
 #include "TerrainDefaultPixelShader.h"
+#include "TerrainTexturedPixelShader.h"
 
 enum class PixelShaderType
 {
     Default,
     TerrainDefault,
-    TerrainCheckered
+    TerrainCheckered,
+    TerrainTextured
 };
 
 class PixelShader
@@ -48,6 +50,11 @@ public:
         case PixelShaderType::TerrainCheckered:
             hr = D3DCompile(TerrainCheckeredPixelShader::shader_ps,
                             strlen(TerrainCheckeredPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                            "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
+            break;
+        case PixelShaderType::TerrainTextured:
+            hr = D3DCompile(TerrainTexturedPixelShader::shader_ps,
+                            strlen(TerrainTexturedPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
                             "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         default:

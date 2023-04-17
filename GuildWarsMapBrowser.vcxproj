@@ -262,6 +262,7 @@
     <ClInclude Include="SourceFiles\xentax.h" />
     <ClInclude Include="TerrainCheckeredPixelShader.h" />
     <ClInclude Include="TerrainDefaultPixelShader.h" />
+    <ClInclude Include="TerrainTexturedPixelShader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BlendStateManager.cpp" />
@@ -394,6 +395,13 @@
     <ClCompile Include="SourceFiles\Vertex.cpp" />
     <ClCompile Include="SourceFiles\VertexShader.cpp" />
     <ClCompile Include="SourceFiles\xentax.cpp" />
+    <FxCompile Include="TerrainTexturedPixelShader.hlsl">
+      <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SourceFiles\resource.rc" />

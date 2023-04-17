@@ -333,6 +333,9 @@
     <ClInclude Include="DepthStencilStateManager.h">
       <Filter>Input\Render\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="TerrainTexturedPixelShader.h">
+      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -606,6 +609,9 @@
       <Filter>Input\Render\Shaders\Pixel shaders\Default</Filter>
     </FxCompile>
     <FxCompile Include="TerrainDefaultPixelShader.hlsl">
+      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
+    </FxCompile>
+    <FxCompile Include="TerrainTexturedPixelShader.hlsl">
       <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
   </ItemGroup>
