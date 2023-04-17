@@ -2,6 +2,20 @@
 #include "AtexReader.h"
 #include "DirectXTex/DirectXTex.h"
 
+inline UINT BytesPerPixel(DXGI_FORMAT format)
+{
+    switch (format)
+    {
+    case DXGI_FORMAT_R8_UNORM:
+        return 1;
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+    case DXGI_FORMAT_B8G8R8A8_UNORM:
+        return 4;
+    default:
+        return 0; // Return 0 for unsupported formats
+    }
+}
+
 class TextureManager
 {
 public:
@@ -38,8 +52,9 @@ public:
 
         D3D11_SUBRESOURCE_DATA initData = {};
         initData.pSysMem = data;
-        initData.SysMemPitch = static_cast<UINT>(width * 4);
-        initData.SysMemSlicePitch = static_cast<UINT>(width * height * 4);
+        UINT bytesPerPixel = BytesPerPixel(format);
+        initData.SysMemPitch = static_cast<UINT>(width * bytesPerPixel);
+        initData.SysMemSlicePitch = static_cast<UINT>(width * height * bytesPerPixel);
 
         Microsoft::WRL::ComPtr<ID3D11Texture2D> texture2D;
         HRESULT hr = m_device->CreateTexture2D(&texDesc, &initData, texture2D.GetAddressOf());
@@ -63,7 +78,11 @@ public:
 
         int textureID = m_nextTextureID++;
         m_textures[textureID] = shaderResourceView;
-        cached_textures[file_hash] = textureID;
+
+        if (file_hash >= 0)
+        {
+            cached_textures[file_hash] = textureID;
+        }
 
         return textureID;
     }

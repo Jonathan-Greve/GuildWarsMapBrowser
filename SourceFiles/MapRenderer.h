@@ -81,7 +81,7 @@ public:
         auto texture_id =
           m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
                                         texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 3214972);
-        m_mesh_manager->SetTexturesForMesh(box_id, {m_texture_manager->GetTexture(texture_id)});
+        m_mesh_manager->SetTexturesForMesh(box_id, {m_texture_manager->GetTexture(texture_id)}, 0);
 
         // Create and initialize the VertexShader
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
@@ -90,6 +90,13 @@ public:
         // Create and initialize the Default PixelShader
         m_pixel_shaders[PixelShaderType::Default] = std::make_unique<PixelShader>(m_device, m_deviceContext);
         m_pixel_shaders[PixelShaderType::Default]->Initialize(PixelShaderType::Default);
+
+        if (! m_pixel_shaders.contains(PixelShaderType::TerrainTextured))
+        {
+            m_pixel_shaders[PixelShaderType::TerrainTextured] =
+              std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::TerrainTextured]->Initialize(PixelShaderType::TerrainTextured);
+        }
 
         if (! m_pixel_shaders.contains(PixelShaderType::TerrainCheckered))
         {
@@ -169,7 +176,7 @@ public:
 
     Terrain* GetTerrain() { return m_terrain.get(); }
 
-    void SetTerrain(std::unique_ptr<Terrain> terrain)
+    void SetTerrain(std::unique_ptr<Terrain> terrain, int texture_atlas_id)
     {
         if (m_is_terrain_mesh_set)
         {
@@ -179,6 +186,7 @@ public:
         auto mesh = terrain->get_mesh();
         mesh->num_textures = 1;
         m_terrain_mesh_id = m_mesh_manager->AddCustomMesh(mesh, m_terrain_current_pixel_shader_type);
+        m_terrain_texture_atlas_id = texture_atlas_id;
 
         PerObjectCB terrainPerObjectData;
         terrainPerObjectData.num_uv_texture_pairs = mesh->num_textures;
@@ -213,12 +221,44 @@ public:
             int texture_width = texture_tile_size * 2;
             int texture_height = texture_tile_size * 2;
             CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size);
-            m_terrain_texture_id =
+            m_terrain_checkered_texture_id =
               m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
-                                            texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 48090321);
+                                            texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, -1);
         }
+
+        if (m_terrain_current_pixel_shader_type == PixelShaderType::TerrainCheckered ||
+            m_terrain_texture_atlas_id < 0)
+        {
+            m_mesh_manager->SetTexturesForMesh(
+              m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_checkered_texture_id)}, 0);
+        }
+        else
+        {
+            m_mesh_manager->SetTexturesForMesh(
+              m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 0);
+        }
+
+        // Now we create a texture used for splatting (blending terrain textures)
+        const auto& texture_index_grid = terrain->get_texture_index_grid();
+
+        // Create a 2D texture from the texture_index_grid
+        int texture_width = terrain->m_grid_dim_x;
+        int texture_height = terrain->m_grid_dim_z;
+        std::vector<uint8_t> texture_data(texture_width * texture_height);
+        for (int i = 0; i < texture_height; ++i)
+        {
+            for (int j = 0; j < texture_width; ++j)
+            {
+                texture_data[i * texture_width + j] = texture_index_grid[i][j];
+            }
+        }
+
+        // Create the texture and add it to the texture manager
+        m_terrain_texture_indices_id = m_texture_manager->AddTexture(
+          texture_data.data(), texture_width, texture_height, DXGI_FORMAT_R8_UNORM, -1);
+
         m_mesh_manager->SetTexturesForMesh(m_terrain_mesh_id,
-                                           {m_texture_manager->GetTexture(m_terrain_texture_id)});
+                                           {m_texture_manager->GetTexture(m_terrain_texture_indices_id)}, 1);
 
         m_terrain = std::move(terrain);
         m_is_terrain_mesh_set = true;
@@ -270,8 +310,22 @@ public:
     {
         if (m_is_terrain_mesh_set)
         {
-            m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
-            m_terrain_current_pixel_shader_type = pixel_shader_type;
+            if (pixel_shader_type == PixelShaderType::TerrainCheckered && m_terrain_checkered_texture_id >= 0)
+            {
+                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
+                m_mesh_manager->SetTexturesForMesh(
+                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_checkered_texture_id)}, 0);
+
+                m_terrain_current_pixel_shader_type = pixel_shader_type;
+            }
+            else if (pixel_shader_type == PixelShaderType::TerrainTextured && m_terrain_texture_atlas_id >= 0)
+            {
+                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
+                m_mesh_manager->SetTexturesForMesh(
+                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 0);
+
+                m_terrain_current_pixel_shader_type = pixel_shader_type;
+            }
         }
     }
 
@@ -366,13 +420,15 @@ private:
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_terrain_cb;
 
     std::unique_ptr<Terrain> m_terrain;
-    PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainCheckered;
+    PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainTextured;
 
     std::vector<std::pair<uint32_t, std::vector<int>>> m_prop_mesh_ids;
 
     bool m_is_terrain_mesh_set = false;
     int m_terrain_mesh_id = -1;
-    int m_terrain_texture_id = -1;
+    int m_terrain_checkered_texture_id = -1;
+    int m_terrain_texture_indices_id = -1;
+    int m_terrain_texture_atlas_id = -1;
 
     DirectionalLight m_directionalLight;
     bool m_per_frame_cb_changed = true;
