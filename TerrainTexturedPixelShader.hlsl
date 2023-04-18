@@ -1,5 +1,6 @@
 sampler ss: register(s0);
 Texture2D textureAtlas : register(t0);
+Texture2D terrain_texture_indices: register(t1);
 
 struct DirectionalLight
 {
@@ -86,11 +87,51 @@ float4 main(PixelInputType input) : SV_TARGET
     // Combine the ambient, diffuse, and specular components to get the final color
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
-    // Calculate new texture coordinates by repeating the texture over the terrain
-    float2 repeatedTexCoords = input.tex_coords0 * float2(grid_dim_x, grid_dim_y);
+    // ------------ TEXTURE START ----------------
 
-    // Sample the texture atlas using the updated texture coordinates
-    float4 sampledTextureColor = textureAtlas.Sample(ss, repeatedTexCoords);
+    // Sample the four nearest terrain_texture_indices
+    float2 texelSize = float2(1.0 / grid_dim_x, 1.0 / grid_dim_y);
+    float2 topLeftTexCoord = floor(input.tex_coords0 / texelSize) * texelSize;
+    float2 topRightTexCoord = topLeftTexCoord + float2(texelSize.x, 0);
+    float2 bottomLeftTexCoord = topLeftTexCoord + float2(0, texelSize.y);
+    float2 bottomRightTexCoord = topLeftTexCoord + texelSize;
+
+    uint topLeftIndex = uint(terrain_texture_indices.Sample(ss, topLeftTexCoord).r * 63);
+    uint topRightIndex = uint(terrain_texture_indices.Sample(ss, topRightTexCoord).r * 63);
+    uint bottomLeftIndex = uint(terrain_texture_indices.Sample(ss, bottomLeftTexCoord).r * 63);
+    uint bottomRightIndex = uint(terrain_texture_indices.Sample(ss, bottomRightTexCoord).r * 63);
+
+    // Calculate the UV coordinates for each texture in the textureAtlas
+    uint indices[4] = { topLeftIndex, topRightIndex, bottomLeftIndex, bottomRightIndex };
+    float atlasTileSize = 1.0 / 8.0;
+    float2 atlasCoords[4];
+    for (int i = 0; i < 4; ++i) {
+        uint index = indices[i];
+        float x = (index % 8) * atlasTileSize;
+        float y = (index / 8) * atlasTileSize;
+        float2 tileUpperLeftUV = float2(floor(input.tex_coords0.x / texelSize.x) * texelSize.x, floor(input.tex_coords0.y / texelSize.y) * texelSize.y);
+        float2 relativeUV = (input.tex_coords0 - tileUpperLeftUV) / texelSize;
+        atlasCoords[i] = float2(x, y) + relativeUV * atlasTileSize;
+    }
+
+    // Sample the textureAtlas using the calculated UV coordinates
+    float4 sampledColors[4];
+    for (int i = 0; i < 4; ++i) {
+        sampledColors[i] = textureAtlas.Sample(ss, atlasCoords[i]);
+    }
+
+    // Calculate the weights for bilinear interpolation
+    float2 weights = frac(input.tex_coords0 / texelSize);
+    float4 blendWeights = float4((1 - weights.x) * (1 - weights.y), weights.x * (1 - weights.y), (1 - weights.x) * weights.y, weights.x * weights.y);
+
+    // Blend the sampled colors based on the blend weights
+    float4 sampledTextureColor = float4(0, 0, 0, 0);
+    for (int i = 0; i < 4; ++i) {
+        sampledTextureColor += sampledColors[i] * blendWeights[i];
+    }
+
+    // ------------ TEXTURE END ----------------
+
 
     float4 outputColor;
     // Multiply the sampled color with the finalColor
