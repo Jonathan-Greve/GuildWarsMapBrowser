@@ -85,9 +85,9 @@ void draw_terrain_chunk(const Chunk8& chunk)
 
         if (ImGui::TreeNode("Something For Each Tile1"))
         {
-            for (size_t i = 0; i < chunk.something_for_each_tile1.size(); ++i)
+            for (size_t i = 0; i < chunk.terrain_texture_blend_weights_maybe.size(); ++i)
             {
-                ImGui::Text("Tile1[%zu]: 0x%02X", i, chunk.something_for_each_tile1[i]);
+                ImGui::Text("Tile1[%zu]: 0x%02X", i, chunk.terrain_texture_blend_weights_maybe[i]);
             }
             ImGui::TreePop();
         }

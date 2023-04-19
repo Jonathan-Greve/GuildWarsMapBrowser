@@ -41,7 +41,7 @@ public:
 
     void SetTextures(const std::vector<ID3D11ShaderResourceView*>& textures, int slot)
     {
-        assert(slot <= 1); // Ensure slot is either 0 or 1
+        assert(slot < 3); // Ensure slot is 2 at most (increase if neccessary)
 
         if (textures.size() >= MAX_NUM_TEX_INDICES)
         {
@@ -65,7 +65,7 @@ public:
         context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
         context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
-        for (int slot = 0; slot < 2; ++slot)
+        for (int slot = 0; slot < 3; ++slot)
         {
             context->PSSetShaderResources(slot, m_textures[slot].size(),
                                           m_textures[slot].data()->GetAddressOf());
@@ -81,5 +81,5 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
-    std::array<std::vector<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>, 2> m_textures;
+    std::array<std::vector<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>, 3> m_textures;
 };

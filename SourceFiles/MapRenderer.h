@@ -240,25 +240,33 @@ public:
 
         // Now we create a texture used for splatting (blending terrain textures)
         const auto& texture_index_grid = terrain->get_texture_index_grid();
+        const auto& texture_blend_weights_grid = terrain->get_texture_blend_weights_grid();
 
         // Create a 2D texture from the texture_index_grid
         int texture_width = terrain->m_grid_dim_x;
         int texture_height = terrain->m_grid_dim_z;
-        std::vector<uint8_t> texture_data(texture_width * texture_height);
+        std::vector<uint8_t> terain_texture_data(texture_width * texture_height);
+        std::vector<uint8_t> terain_texture_blend_weights_data(texture_width * texture_height);
         for (int i = 0; i < texture_height; ++i)
         {
             for (int j = 0; j < texture_width; ++j)
             {
-                texture_data[i * texture_width + j] = texture_index_grid[i][j];
+                terain_texture_data[i * texture_width + j] = texture_index_grid[i][j];
+                terain_texture_blend_weights_data[i * texture_width + j] = texture_blend_weights_grid[i][j];
             }
         }
 
         // Create the texture and add it to the texture manager
         m_terrain_texture_indices_id = m_texture_manager->AddTexture(
-          texture_data.data(), texture_width, texture_height, DXGI_FORMAT_R8_UNORM, -1);
+          terain_texture_data.data(), texture_width, texture_height, DXGI_FORMAT_R8_UNORM, -1);
+
+        m_terrain_texture_blend_weights_id = m_texture_manager->AddTexture(
+          terain_texture_blend_weights_data.data(), texture_width, texture_height, DXGI_FORMAT_R8_UNORM, -1);
 
         m_mesh_manager->SetTexturesForMesh(m_terrain_mesh_id,
                                            {m_texture_manager->GetTexture(m_terrain_texture_indices_id)}, 1);
+        m_mesh_manager->SetTexturesForMesh(
+          m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_blend_weights_id)}, 2);
 
         m_terrain = std::move(terrain);
         m_is_terrain_mesh_set = true;
@@ -428,6 +436,7 @@ private:
     int m_terrain_mesh_id = -1;
     int m_terrain_checkered_texture_id = -1;
     int m_terrain_texture_indices_id = -1;
+    int m_terrain_texture_blend_weights_id = -1;
     int m_terrain_texture_atlas_id = -1;
 
     DirectionalLight m_directionalLight;

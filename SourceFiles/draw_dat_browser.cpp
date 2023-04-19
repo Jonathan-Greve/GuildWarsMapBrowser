@@ -269,11 +269,14 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             auto& terrain_texture_indices =
               selected_ffna_map_file.terrain_chunk.terrain_texture_indices_maybe;
 
+            auto& terrain_texture_blend_weights =
+              selected_ffna_map_file.terrain_chunk.terrain_texture_blend_weights_maybe;
+
             // Create terrain
             terrain = std::make_unique<Terrain>(selected_ffna_map_file.terrain_chunk.terrain_x_dims,
                                                 selected_ffna_map_file.terrain_chunk.terrain_y_dims,
                                                 selected_ffna_map_file.terrain_chunk.terrain_heightmap,
-                                                terrain_texture_indices,
+                                                terrain_texture_indices, terrain_texture_blend_weights,
                                                 selected_ffna_map_file.map_info_chunk.map_bounds);
             map_renderer->SetTerrain(std::move(terrain), selected_dat_texture.texture_id);
         }

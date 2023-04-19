@@ -90,7 +90,8 @@ float4 main(PixelInputType input) : SV_TARGET
     // ------------ TEXTURE START ----------------
 
     // Sample the four nearest terrain_texture_indices
-    float2 texelSize = float2(1.0 / grid_dim_x, 1.0 / grid_dim_y);
+    float num_tiles_per_texture = 2.0;
+    float2 texelSize = float2(num_tiles_per_texture / grid_dim_x, num_tiles_per_texture / grid_dim_y);
     float2 topLeftTexCoord = floor(input.tex_coords0 / texelSize) * texelSize;
     float2 topRightTexCoord = topLeftTexCoord + float2(texelSize.x, 0);
     float2 bottomLeftTexCoord = topLeftTexCoord + float2(0, texelSize.y);
@@ -100,6 +101,11 @@ float4 main(PixelInputType input) : SV_TARGET
     uint topRightIndex = uint(terrain_texture_indices.Sample(ss, topRightTexCoord).r * 63);
     uint bottomLeftIndex = uint(terrain_texture_indices.Sample(ss, bottomLeftTexCoord).r * 63);
     uint bottomRightIndex = uint(terrain_texture_indices.Sample(ss, bottomRightTexCoord).r * 63);
+
+    float topLeftAlpha = terrain_texture_indices.Sample(ss, topLeftTexCoord).r;
+    float topRightAlpha = terrain_texture_indices.Sample(ss, topRightTexCoord).r;
+    float bottomLeftAlpha = terrain_texture_indices.Sample(ss, bottomLeftTexCoord).r;
+    float bottomRightAlpha = terrain_texture_indices.Sample(ss, bottomRightTexCoord).r;
 
     // Calculate the UV coordinates for each texture in the textureAtlas
     uint indices[4] = { topLeftIndex, topRightIndex, bottomLeftIndex, bottomRightIndex };
@@ -123,11 +129,12 @@ float4 main(PixelInputType input) : SV_TARGET
     // Calculate the weights for bilinear interpolation
     float2 weights = frac(input.tex_coords0 / texelSize);
     float4 blendWeights = float4((1 - weights.x) * (1 - weights.y), weights.x * (1 - weights.y), (1 - weights.x) * weights.y, weights.x * weights.y);
+    float4 alphas = { topLeftAlpha, topRightAlpha, bottomLeftAlpha, bottomRightAlpha };
 
     // Blend the sampled colors based on the blend weights
-    float4 sampledTextureColor = float4(0, 0, 0, 0);
+    float4 sampledTextureColor = float4(0, 0, 0, 1);
     for (int i = 0; i < 4; ++i) {
-        sampledTextureColor += sampledColors[i] * blendWeights[i];
+        sampledTextureColor.rgb += sampledColors[i].rgb * blendWeights[i];
     }
 
     // ------------ TEXTURE END ----------------

@@ -604,7 +604,7 @@ struct Chunk8
     std::vector<uint8_t> some_data5;
     uint8_t tag6;
     uint32_t num_terrain_tiles1;
-    std::vector<uint8_t> something_for_each_tile1;
+    std::vector<uint8_t> terrain_texture_blend_weights_maybe;
     uint8_t tag7;
     uint32_t some_size7;
     std::vector<uint8_t> some_data7;
@@ -712,9 +712,10 @@ struct Chunk8
         std::memcpy(&num_terrain_tiles1, &data[offset], sizeof(num_terrain_tiles1));
         offset += sizeof(num_terrain_tiles1);
 
-        something_for_each_tile1.resize(num_terrain_tiles1);
-        std::memcpy(something_for_each_tile1.data(), &data[offset], something_for_each_tile1.size());
-        offset += something_for_each_tile1.size();
+        terrain_texture_blend_weights_maybe.resize(num_terrain_tiles1);
+        std::memcpy(terrain_texture_blend_weights_maybe.data(), &data[offset],
+                    terrain_texture_blend_weights_maybe.size());
+        offset += terrain_texture_blend_weights_maybe.size();
 
         std::memcpy(&tag7, &data[offset], sizeof(tag7));
         offset += sizeof(tag7);
@@ -728,7 +729,7 @@ struct Chunk8
 
         int chunk_data_size = chunk_size - 75 - terrain_heightmap.size() * sizeof(float) -
           terrain_texture_indices_maybe.size() - some_data3.size() - some_data4.size() - some_data5.size() -
-          something_for_each_tile1.size() - some_data7.size();
+          terrain_texture_blend_weights_maybe.size() - some_data7.size();
         chunk_data.resize(chunk_data_size);
         std::memcpy(chunk_data.data(), &data[offset], chunk_data.size());
     }
