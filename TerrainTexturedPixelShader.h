@@ -5,6 +5,7 @@ struct TerrainTexturedPixelShader
 sampler ss: register(s0);
 Texture2D textureAtlas : register(t0);
 Texture2D terrain_texture_indices: register(t1);
+Texture2D terrain_texture_weights: register(t2);
 
 struct DirectionalLight
 {
@@ -92,27 +93,25 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
     // ------------ TEXTURE START ----------------
+    float2 texelSize = float2(1.0 / grid_dim_x, 1.0 / grid_dim_y);
 
-    // Sample the four nearest terrain_texture_indices
-    float num_tiles_per_texture = 1.0;
-    float2 texelSize = float2(num_tiles_per_texture / grid_dim_x, num_tiles_per_texture / grid_dim_y);
-    float2 topLeftTexCoord = floor(input.tex_coords0 / texelSize) * texelSize;
-    float2 topRightTexCoord = topLeftTexCoord + float2(texelSize.x, 0);
-    float2 bottomLeftTexCoord = topLeftTexCoord + float2(0, texelSize.y);
-    float2 bottomRightTexCoord = topLeftTexCoord + texelSize;
+    float2 topLeftTexCoord = input.tex_coords0;
+    float2 topRightTexCoord = input.tex_coords0 + float2(0, texelSize.y);
+    float2 bottomLeftTexCoord = input.tex_coords0 + float2(texelSize.x, 0);
+    float2 bottomRightTexCoord = input.tex_coords0 + texelSize;
 
-    uint topLeftIndex = uint(terrain_texture_indices.Sample(ss, topLeftTexCoord).r * 255);
-    uint topRightIndex = uint(terrain_texture_indices.Sample(ss, topRightTexCoord).r * 255);
-    uint bottomLeftIndex = uint(terrain_texture_indices.Sample(ss, bottomLeftTexCoord).r * 255);
-    uint bottomRightIndex = uint(terrain_texture_indices.Sample(ss, bottomRightTexCoord).r * 255);
+    int topLeftTexIdx = int(terrain_texture_indices.Sample(ss, topLeftTexCoord).r * 255);
+    int topRightTexIdx = int(terrain_texture_indices.Sample(ss, topRightTexCoord).r * 255);
+    int bottomLeftTexIdx = int(terrain_texture_indices.Sample(ss, bottomLeftTexCoord).r * 255);
+    int bottomRightTexIdx = int(terrain_texture_indices.Sample(ss, bottomRightTexCoord).r * 255);
 
-    float topLeftAlpha = terrain_texture_indices.Sample(ss, topLeftTexCoord).r;
-    float topRightAlpha = terrain_texture_indices.Sample(ss, topRightTexCoord).r;
-    float bottomLeftAlpha = terrain_texture_indices.Sample(ss, bottomLeftTexCoord).r;
-    float bottomRightAlpha = terrain_texture_indices.Sample(ss, bottomRightTexCoord).r;
+    float topLeftAlpha = terrain_texture_weights.Sample(ss, topLeftTexCoord).r;
+    float topRightAlpha = terrain_texture_weights.Sample(ss, topRightTexCoord).r;
+    float bottomLeftAlpha = terrain_texture_weights.Sample(ss, bottomLeftTexCoord).r;
+    float bottomRightAlpha = terrain_texture_weights.Sample(ss, bottomRightTexCoord).r;
 
     // Calculate the UV coordinates for each texture in the textureAtlas
-    uint indices[4] = { topLeftIndex, topRightIndex, bottomLeftIndex, bottomRightIndex };
+    uint indices[4] = { topLeftTexIdx, topRightTexIdx, bottomLeftTexIdx, bottomRightTexIdx };
     float atlasTileSize = 1.0 / 8.0;
     float2 atlasCoords[4];
     for (int i = 0; i < 4; ++i) {
@@ -137,8 +136,8 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Blend the sampled colors based on the blend weights
     float4 sampledTextureColor = float4(0, 0, 0, 1);
-    for (int i = 0; i < 4; ++i) {
-        sampledTextureColor.rgb += sampledColors[i].rgb * blendWeights[i];
+    for (int j = 0; j < 4; ++j) {
+        sampledTextureColor.rgb += sampledColors[j].rgb * blendWeights[j];
     }
 
     // ------------ TEXTURE END ----------------
