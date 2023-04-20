@@ -94,17 +94,17 @@ float4 main(PixelInputType input) : SV_TARGET
     // ------------ TEXTURE START ----------------
 
     // Sample the four nearest terrain_texture_indices
-    float num_tiles_per_texture = 2.0;
+    float num_tiles_per_texture = 1.0;
     float2 texelSize = float2(num_tiles_per_texture / grid_dim_x, num_tiles_per_texture / grid_dim_y);
     float2 topLeftTexCoord = floor(input.tex_coords0 / texelSize) * texelSize;
     float2 topRightTexCoord = topLeftTexCoord + float2(texelSize.x, 0);
     float2 bottomLeftTexCoord = topLeftTexCoord + float2(0, texelSize.y);
     float2 bottomRightTexCoord = topLeftTexCoord + texelSize;
 
-    uint topLeftIndex = 57 - uint(terrain_texture_indices.Sample(ss, topLeftTexCoord).r * 63);
-    uint topRightIndex = 57 - uint(terrain_texture_indices.Sample(ss, topRightTexCoord).r * 63);
-    uint bottomLeftIndex = 57 - uint(terrain_texture_indices.Sample(ss, bottomLeftTexCoord).r * 63);
-    uint bottomRightIndex = 57 - uint(terrain_texture_indices.Sample(ss, bottomRightTexCoord).r * 63);
+    uint topLeftIndex = uint(terrain_texture_indices.Sample(ss, topLeftTexCoord).r * 255);
+    uint topRightIndex = uint(terrain_texture_indices.Sample(ss, topRightTexCoord).r * 255);
+    uint bottomLeftIndex = uint(terrain_texture_indices.Sample(ss, bottomLeftTexCoord).r * 255);
+    uint bottomRightIndex = uint(terrain_texture_indices.Sample(ss, bottomRightTexCoord).r * 255);
 
     float topLeftAlpha = terrain_texture_indices.Sample(ss, topLeftTexCoord).r;
     float topRightAlpha = terrain_texture_indices.Sample(ss, topRightTexCoord).r;
