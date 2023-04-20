@@ -99,7 +99,7 @@ inline uint32_t get_some_size(const unsigned char* data, uint32_t sub_1_0x52, ui
     }
 
     uint32_t iVar4 = 0;
-    uint32_t local_18;
+    uint32_t local_18 = 0;
     if (local_c < sub_1_0x52)
     {
         if (data + 0x28 + local_c * 6 * 8 - data >= data_size_bytes)
