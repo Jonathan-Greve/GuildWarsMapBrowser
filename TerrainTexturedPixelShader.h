@@ -96,14 +96,15 @@ float4 main(PixelInputType input) : SV_TARGET
     float2 texelSize = float2(1.0 / grid_dim_x, 1.0 / grid_dim_y);
 
     float2 topLeftTexCoord = input.tex_coords0;
-    float2 topRightTexCoord = input.tex_coords0 + float2(0, texelSize.y);
-    float2 bottomLeftTexCoord = input.tex_coords0 + float2(texelSize.x, 0);
+    float2 topRightTexCoord = input.tex_coords0 + float2(texelSize.x, 0);
+    float2 bottomLeftTexCoord = input.tex_coords0 + float2(0, texelSize.y);
     float2 bottomRightTexCoord = input.tex_coords0 + texelSize;
 
-    int topLeftTexIdx = int(terrain_texture_indices.Sample(ss, topLeftTexCoord).r * 255);
-    int topRightTexIdx = int(terrain_texture_indices.Sample(ss, topRightTexCoord).r * 255);
-    int bottomLeftTexIdx = int(terrain_texture_indices.Sample(ss, bottomLeftTexCoord).r * 255);
-    int bottomRightTexIdx = int(terrain_texture_indices.Sample(ss, bottomRightTexCoord).r * 255);
+    // Sample the terrain_texture_indices without interpolation (use SampleLevel and mipmap level 0)
+    int topLeftTexIdx = int(terrain_texture_indices.SampleLevel(ss, topLeftTexCoord, 0).r * 255);
+    int topRightTexIdx = int(terrain_texture_indices.SampleLevel(ss, topRightTexCoord, 0).r * 255);
+    int bottomLeftTexIdx = int(terrain_texture_indices.SampleLevel(ss, bottomLeftTexCoord, 0).r * 255);
+    int bottomRightTexIdx = int(terrain_texture_indices.SampleLevel(ss, bottomRightTexCoord, 0).r * 255);
 
     float topLeftAlpha = terrain_texture_weights.Sample(ss, topLeftTexCoord).r;
     float topRightAlpha = terrain_texture_weights.Sample(ss, topRightTexCoord).r;
