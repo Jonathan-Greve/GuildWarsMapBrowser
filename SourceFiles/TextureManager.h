@@ -7,6 +7,9 @@ inline UINT BytesPerPixel(DXGI_FORMAT format)
     switch (format)
     {
     case DXGI_FORMAT_R8_UNORM:
+    case DXGI_FORMAT_R8_SNORM:
+    case DXGI_FORMAT_R8_UINT:
+    case DXGI_FORMAT_R8_SINT:
         return 1;
     case DXGI_FORMAT_R8G8B8A8_UNORM:
     case DXGI_FORMAT_B8G8R8A8_UNORM:

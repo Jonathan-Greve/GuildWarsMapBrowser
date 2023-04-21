@@ -98,8 +98,8 @@ private:
         m_bounds.map_max_y = max;
         m_bounds.map_min_y = min;
 
-        float delta_x = (m_bounds.map_max_x - m_bounds.map_min_x) / (m_grid_dim_x + 1);
-        float delta_z = (m_bounds.map_max_z - m_bounds.map_min_z) / (m_grid_dim_z + 1);
+        float delta_x = (m_bounds.map_max_x - m_bounds.map_min_x) / (m_grid_dim_x);
+        float delta_z = (m_bounds.map_max_z - m_bounds.map_min_z) / (m_grid_dim_z);
 
         std::vector<GWVertex> vertices;
         std::vector<uint32_t> indices;
