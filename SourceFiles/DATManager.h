@@ -14,15 +14,22 @@ enum InitializationState
 class DATManager
 {
 public:
-    void Init(std::wstring dat_filepath)
+    bool Init(std::wstring dat_filepath)
     {
         m_initialization_state = InitializationState::Started;
 
         m_dat_filepath = dat_filepath;
-        m_dat.readDat(m_dat_filepath.c_str());
+        int result = m_dat.readDat(m_dat_filepath.c_str());
+        if (result == 0)
+        {
+            m_initialization_state = InitializationState::NotStarted;
+            return false;
+        }
 
         auto read_all_thread = std::thread(&DATManager::read_all_files, this);
         read_all_thread.detach();
+
+        return true;
     }
 
     std::atomic<InitializationState> m_initialization_state{NotStarted};
