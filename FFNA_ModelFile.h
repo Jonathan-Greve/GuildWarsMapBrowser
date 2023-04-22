@@ -145,12 +145,14 @@ struct ModelVertex
     float specular[4]; // Note sure if this is 3 or 4 floats
     float tangent_x, tangent_y, tangent_z;
     float bitangent_x, bitangent_y, bitangent_z;
+    std::vector<float> unknown; // GW specific;
     float tex_coord[8][2];
 
-    int num_texcoords;
+    int num_texcoords = 0;
+    int num_unknown = 0;
 
     ModelVertex() = default;
-    ModelVertex(DWORD FVF, bool& parsed_correctly)
+    ModelVertex(DWORD FVF, bool& parsed_correctly, int vertex_size)
     {
         const auto actual_FVF = FVF_to_ActualFVF(FVF);
         if (actual_FVF == 0)
@@ -171,6 +173,9 @@ struct ModelVertex
         {
             has_tex_coord[i] = i < num_texcoords;
         }
+
+        num_unknown = (vertex_size / 4) - (has_position)*3 - (has_group)*1 - (has_normal)*3 -
+          (has_diffuse)*3 - (has_specular)*3 - (has_tangent)*3 - (has_bitangent)*3 - num_texcoords * 2;
     }
 };
 
@@ -469,7 +474,7 @@ struct GeometryModel
             vertices.resize(num_vertices);
             for (uint32_t i = 0; i < num_vertices; ++i)
             {
-                ModelVertex vertex(get_fvf(dat_fvf), parsed_correctly);
+                ModelVertex vertex(get_fvf(dat_fvf), parsed_correctly, vertex_size);
                 if (vertex.num_texcoords < 0)
                 {
                     parsed_correctly = false;
@@ -542,6 +547,14 @@ struct GeometryModel
                 {
                     std::memcpy(&vertex.specular, &data[curr_offset], sizeof(vertex.specular));
                     curr_offset += sizeof(vertex.specular);
+                }
+
+                if (vertex.num_unknown > 0)
+                {
+                    vertex.unknown.resize(vertex.num_unknown);
+                    std::memcpy(vertex.unknown.data(), &data[curr_offset],
+                                sizeof(float) * vertex.num_unknown);
+                    curr_offset += sizeof(float) * vertex.num_unknown;
                 }
 
                 for (int j = 0; j < 8; ++j)

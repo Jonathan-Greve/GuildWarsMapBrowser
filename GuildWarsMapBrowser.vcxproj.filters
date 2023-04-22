@@ -336,6 +336,9 @@
     <ClInclude Include="TerrainTexturedPixelShader.h">
       <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
     </ClInclude>
+    <ClInclude Include="DirectXTex\FlexibleVertexFormat.h">
+      <Filter>Dat reader\DDS DirectXTex</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
