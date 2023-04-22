@@ -136,7 +136,7 @@ std::vector<RGBA> ProcessDXT3(unsigned char* data, int xr, int yr)
                 {
                     image[x * 4 + a + (y * 4 + b) * xr] = ctbl[t & 3];
                     t = t >> 2;
-                    image[x * 4 + a + (y * 4 + b) * xr].a = (unsigned char)((k & 15) << 4);
+                    image[x * 4 + a + (y * 4 + b) * xr].a = 255;
                     k = k >> 4;
                 }
 
