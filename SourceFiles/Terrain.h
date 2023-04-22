@@ -77,9 +77,8 @@ private:
                     for (int l = col_start; l < col_end; l++)
                     {
                         grid[m_grid_dim_z - k][l] = -m_height_map[count];
-                        m_texture_index_grid[m_grid_dim_z - k][l] = m_terrain_texture_indices[count];
-                        m_texture_blend_weights_grid[m_grid_dim_z - k][l] =
-                          m_terrain_texture_blend_weights[count];
+                        m_texture_index_grid[k][l] = m_terrain_texture_indices[count];
+                        m_texture_blend_weights_grid[k][l] = m_terrain_texture_blend_weights[count];
                         count++;
 
                         if (grid[m_grid_dim_z - k][l] < min)
@@ -98,8 +97,8 @@ private:
         m_bounds.map_max_y = max;
         m_bounds.map_min_y = min;
 
-        float delta_x = (m_bounds.map_max_x - m_bounds.map_min_x) / (m_grid_dim_x);
-        float delta_z = (m_bounds.map_max_z - m_bounds.map_min_z) / (m_grid_dim_z);
+        float delta_x = (m_bounds.map_max_x - m_bounds.map_min_x) / (m_grid_dim_x + 1);
+        float delta_z = (m_bounds.map_max_z - m_bounds.map_min_z) / (m_grid_dim_z + 1);
 
         std::vector<GWVertex> vertices;
         std::vector<uint32_t> indices;
@@ -115,7 +114,7 @@ private:
 
                 vertices.push_back({{xPos, yPos, zPos},
                                     {0.0f, 0.0f, 0.0f},
-                                    {(float)x / m_grid_dim_x, (float)z / m_grid_dim_z},
+                                    {(float)x / (m_grid_dim_x - 1), 1.0f - (float)z / (m_grid_dim_z - 1)},
                                     {0.0f, 0.0f},
                                     {0.0f, 0.0f},
                                     {0.0f, 0.0f},

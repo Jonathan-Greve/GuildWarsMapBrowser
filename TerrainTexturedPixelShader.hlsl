@@ -89,7 +89,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
     // ------------ TEXTURE START ----------------
-    float2 texelSize = float2(1.0 / grid_dim_x, 1.0 / grid_dim_y);
+    float2 texelSize = float2(1.0 / (grid_dim_x + 1), 1.0 / (grid_dim_y + 1));
 
     // Calculate the tile index
     float2 tileIndex = floor(input.tex_coords0 / texelSize);
@@ -100,16 +100,25 @@ float4 main(PixelInputType input) : SV_TARGET
     float2 bottomLeftTexCoord = topLeftTexCoord + float2(0, texelSize.y);
     float2 bottomRightTexCoord = topLeftTexCoord + texelSize;
 
-    // Sample the terrain_texture_indices without interpolation (use SampleLevel and mipmap level 0)
-    int topLeftTexIdx = int(terrain_texture_indices.SampleLevel(ss, topLeftTexCoord, 0).r * 255);
-    int topRightTexIdx = int(terrain_texture_indices.SampleLevel(ss, topRightTexCoord, 0).r * 255);
-    int bottomLeftTexIdx = int(terrain_texture_indices.SampleLevel(ss, bottomLeftTexCoord, 0).r * 255);
-    int bottomRightTexIdx = int(terrain_texture_indices.SampleLevel(ss, bottomRightTexCoord, 0).r * 255);
+    // Calculate the texture size
+    float2 textureSize = float2(grid_dim_x + 1, grid_dim_y + 1);
 
-    float topLeftAlpha = terrain_texture_weights.Sample(ss, topLeftTexCoord).r;
-    float topRightAlpha = terrain_texture_weights.Sample(ss, topRightTexCoord).r;
-    float bottomLeftAlpha = terrain_texture_weights.Sample(ss, bottomLeftTexCoord).r;
-    float bottomRightAlpha = terrain_texture_weights.Sample(ss, bottomRightTexCoord).r;
+    // Convert normalized texture coordinates to integer pixel coordinates
+    int2 topLeftCoord = int2(topLeftTexCoord * textureSize);
+    int2 topRightCoord = int2(topRightTexCoord * textureSize);
+    int2 bottomLeftCoord = int2(bottomLeftTexCoord * textureSize);
+    int2 bottomRightCoord = int2(bottomRightTexCoord * textureSize);
+
+    // Load the terrain_texture_indices without interpolation
+    int topLeftTexIdx = int(terrain_texture_indices.Load(int3(topLeftCoord, 0)).r * 255.0);
+    int topRightTexIdx = int(terrain_texture_indices.Load(int3(topRightCoord, 0)).r * 255.0);
+    int bottomLeftTexIdx = int(terrain_texture_indices.Load(int3(bottomLeftCoord, 0)).r * 255.0);
+    int bottomRightTexIdx = int(terrain_texture_indices.Load(int3(bottomRightCoord, 0)).r * 255.0);
+
+    float topLeftAlpha = terrain_texture_weights.Load(int3(topLeftCoord, 0)).r;
+    float topRightAlpha = terrain_texture_weights.Load(int3(topRightCoord, 0)).r;
+    float bottomLeftAlpha = terrain_texture_weights.Load(int3(bottomLeftCoord, 0)).r;
+    float bottomRightAlpha = terrain_texture_weights.Load(int3(bottomRightCoord, 0)).r;
 
     // Calculate the UV coordinates for each texture in the textureAtlas
     uint indices[4] = { topLeftTexIdx, topRightTexIdx, bottomLeftTexIdx, bottomRightTexIdx };
@@ -120,7 +129,7 @@ float4 main(PixelInputType input) : SV_TARGET
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
         float2 relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-        atlasCoords[i] = float2(x, 1 - y) + float2(relativeUV.x, 1 - relativeUV.y) * atlasTileSize;
+        atlasCoords[i] = float2(x, y) + float2(relativeUV.x, relativeUV.y) * atlasTileSize;
     }
 
     // Sample the textureAtlas using the calculated UV coordinates
@@ -133,12 +142,14 @@ float4 main(PixelInputType input) : SV_TARGET
     float2 weights = frac(input.tex_coords0 / texelSize);
     float4 blendWeights = float4((1 - weights.x) * (1 - weights.y), weights.x * (1 - weights.y), (1 - weights.x) * weights.y, weights.x * weights.y);
     float4 alphas = { topLeftAlpha, topRightAlpha, bottomLeftAlpha, bottomRightAlpha };
+    float alphas_total = alphas[0] + alphas[1] + alphas[2] + alphas[3];
 
     // Blend the sampled colors based on the blend weights
-    float4 sampledTextureColor = float4(0, 0, 0, 1);
-    for (int j = 0; j < 4; ++j) {
-        sampledTextureColor.rgb += sampledColors[j].rgb * blendWeights[j];
-    }
+    float4 sampledTextureColor = sampledColors[0];
+    sampledTextureColor.a = 1;
+    //for (int j = 1; j < 4; ++j) {
+    //    sampledTextureColor.rgb += sampledColors[j].rgb * alphas[j] / alphas_total;
+    //}
 
     // ------------ TEXTURE END ----------------
 
