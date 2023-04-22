@@ -201,6 +201,7 @@
     <ClInclude Include="DirectXTex\DirectXTex.h" />
     <ClInclude Include="DirectXTex\DirectXTexP.h" />
     <ClInclude Include="DirectXTex\filters.h" />
+    <ClInclude Include="DirectXTex\FlexibleVertexFormat.h" />
     <ClInclude Include="DirectXTex\scoped.h" />
     <ClInclude Include="draw_chunk_20000000.h" />
     <ClInclude Include="draw_chunk_20000003.h" />
