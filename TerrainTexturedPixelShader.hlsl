@@ -89,7 +89,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
     // ------------ TEXTURE START ----------------
-    float2 texelSize = float2(1.0 / (grid_dim_x + 1), 1.0 / (grid_dim_y + 1));
+    float2 texelSize = float2(1.0 / (grid_dim_x), 1.0 / (grid_dim_y));
 
     // Calculate the tile index
     float2 tileIndex = floor(input.tex_coords0 / texelSize);
@@ -123,13 +123,26 @@ float4 main(PixelInputType input) : SV_TARGET
     // Calculate the UV coordinates for each texture in the textureAtlas
     uint indices[4] = { topLeftTexIdx, topRightTexIdx, bottomLeftTexIdx, bottomRightTexIdx };
     float atlasTileSize = 1.0 / 8.0;
+    float innerRegionScale = 0.5; // This is used to extract the inner 50% of the texture
     float2 atlasCoords[4];
     for (int i = 0; i < 4; ++i) {
         uint index = indices[i];
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
         float2 relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-        atlasCoords[i] = float2(x, y) + float2(relativeUV.x, relativeUV.y) * atlasTileSize;
+
+        // Apply mirroring on every other tile
+        if (uint(tileIndex.x) % 2 == 1) {
+            relativeUV.x = 1.0 - relativeUV.x;
+        }
+        if (uint(tileIndex.y) % 2 == 1) {
+            relativeUV.y = 1.0 - relativeUV.y;
+        }
+
+        // Map the relativeUV coordinates to the inner 50% of the atlas texture
+        float2 innerOffset = atlasTileSize * (1.0 - innerRegionScale) * 0.5;
+        float2 innerSize = atlasTileSize * innerRegionScale;
+        atlasCoords[i] = float2(x, y) + innerOffset + float2(relativeUV.x, relativeUV.y) * innerSize;
     }
 
     // Sample the textureAtlas using the calculated UV coordinates
@@ -138,19 +151,20 @@ float4 main(PixelInputType input) : SV_TARGET
         sampledColors[i] = textureAtlas.Sample(ss, atlasCoords[i]);
     }
 
-    // Calculate the weights for bilinear interpolation
-    float2 weights = frac(input.tex_coords0 / texelSize);
-    float4 blendWeights = float4((1 - weights.x) * (1 - weights.y), weights.x * (1 - weights.y), (1 - weights.x) * weights.y, weights.x * weights.y);
-    float4 alphas = { topLeftAlpha, topRightAlpha, bottomLeftAlpha, bottomRightAlpha };
-    float alphas_total = alphas[0] + alphas[1] + alphas[2] + alphas[3];
+    // Sample the terrain_texture_weights using input.tex_coords0
+    float4 weightColors = terrain_texture_weights.Sample(ss, input.tex_coords0);
 
-    // Blend the sampled colors based on the blend weights
-    float4 sampledTextureColor = sampledColors[0];
-    sampledTextureColor.a = 1;
-    //for (int j = 1; j < 4; ++j) {
-    //    sampledTextureColor.rgb += sampledColors[j].rgb * alphas[j] / alphas_total;
-    //}
+    // Calculate the total weight for normalization
+    float totalWeight = weightColors.r + weightColors.g + weightColors.b + weightColors.a;
 
+    // Normalize the weights
+    float4 normalizedWeights = weightColors / totalWeight;
+
+    // Perform texture splatting using the normalized weights
+    float4 splattedTextureColor = float4(0.0, 0.0, 0.0, 1.0);
+    for (int i = 0; i < 4; ++i) {
+        splattedTextureColor.rgb += sampledColors[i].rgb * normalizedWeights[i];
+    }
     // ------------ TEXTURE END ----------------
 
 
@@ -159,10 +173,10 @@ float4 main(PixelInputType input) : SV_TARGET
     // Multiply the sampled color with the finalColor
     if (input.terrain_height <= water_level) {
         float4 blue_color = float4(0.11, 0.65, 0.81, 1.0); // Water color
-        outputColor = finalColor * sampledTextureColor * blue_color;
+        outputColor = finalColor * splattedTextureColor * blue_color;
     }
     else {
-        outputColor = finalColor * sampledTextureColor;
+        outputColor = finalColor * splattedTextureColor;
     }
 
     // Return the result
