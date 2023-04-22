@@ -88,7 +88,12 @@ void MapBrowser::Update(DX::StepTimer const& timer)
 {
     if (gw_dat_path_set && m_dat_manager.m_initialization_state == InitializationState::NotStarted)
     {
-        m_dat_manager.Init(gw_dat_path);
+        bool succeeded = m_dat_manager.Init(gw_dat_path);
+        if (! succeeded)
+        {
+            gw_dat_path_set = false;
+            gw_dat_path = L"";
+        }
     }
 
     float elapsedTime = float(timer.GetElapsedSeconds());
