@@ -31,7 +31,8 @@ void draw_ui(InitializationState initialization_state, int dat_files_to_read, in
 
             if (selected_file_type >= ATEXDXT1 && selected_file_type <= ATTXDXTL &&
                   selected_file_type != ATEXDXTA && selected_file_type != ATTXDXTA ||
-                selected_file_type == DDS || selected_file_type == FFNA_Type3)
+                selected_file_type == DDS || selected_file_type == FFNA_Type3 ||
+                selected_file_type == FFNA_Type2)
             {
                 draw_texture_panel(map_renderer);
             }

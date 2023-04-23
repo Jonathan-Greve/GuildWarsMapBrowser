@@ -130,6 +130,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
             // Load textures
             std::vector<int> texture_ids;
+            std::vector<DatTexture> model_dat_textures;
             for (int j = 0; j < selected_ffna_model_file.texture_filenames_chunk.texture_filenames.size();
                  j++)
             {
@@ -147,6 +148,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 if (mft_entry_it != hash_index.end())
                 {
                     auto dat_texture = dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
+                    model_dat_textures.push_back(dat_texture);
 
                     // Create texture
                     auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
@@ -154,6 +156,17 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                       decoded_filename);
                     texture_ids.push_back(texture_id);
                 }
+            }
+
+            selected_dat_texture.dat_texture =
+              map_renderer->GetTextureManager()->BuildTextureAtlas(model_dat_textures, -1, -1);
+
+            if (selected_dat_texture.dat_texture.width > 0 && selected_dat_texture.dat_texture.height > 0)
+            {
+                map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                  selected_dat_texture.dat_texture.width, selected_dat_texture.dat_texture.height,
+                  selected_dat_texture.dat_texture.rgba_data.data(), &selected_dat_texture.texture_id,
+                  entry->Hash);
             }
 
             // The number of textures might exceed 8 for a model since each submodel might use up to 8 separate textures.
@@ -256,7 +269,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             }
 
             selected_dat_texture.dat_texture =
-              map_renderer->GetTextureManager()->BuildTextureAtlas(terrain_dat_textures);
+              map_renderer->GetTextureManager()->BuildTextureAtlas(terrain_dat_textures, 8, 8);
 
             if (selected_dat_texture.dat_texture.width > 0 && selected_dat_texture.dat_texture.height > 0)
             {

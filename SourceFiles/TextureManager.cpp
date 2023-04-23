@@ -154,8 +154,8 @@ HRESULT TextureManager::SaveTextureToFile(ID3D11ShaderResourceView* srv, const w
 
     return hr;
 }
-
-DatTexture TextureManager::BuildTextureAtlas(const std::vector<DatTexture>& terrain_dat_textures)
+DatTexture TextureManager::BuildTextureAtlas(const std::vector<DatTexture>& terrain_dat_textures,
+                                             int num_cols, int num_rows)
 {
     // Check if the input vector is empty
     if (terrain_dat_textures.empty())
@@ -163,33 +163,50 @@ DatTexture TextureManager::BuildTextureAtlas(const std::vector<DatTexture>& terr
         return {};
     }
 
-    // Assuming all textures have the same dimensions
-    int texWidth = terrain_dat_textures[0].width;
-    int texHeight = terrain_dat_textures[0].height;
+    // Find the maximum dimensions among all textures
+    int maxTexWidth = 0;
+    int maxTexHeight = 0;
 
-    unsigned int atlasWidth = texWidth * 8;
-    unsigned int atlasHeight = texHeight * 8;
+    for (const auto& texture : terrain_dat_textures)
+    {
+        maxTexWidth = std::max(maxTexWidth, texture.width);
+        maxTexHeight = std::max(maxTexHeight, texture.height);
+    }
+
+    // If either num_cols or num_rows is -1, compute them automatically
+    if (num_cols == -1 || num_rows == -1)
+    {
+        int numTextures = static_cast<int>(terrain_dat_textures.size());
+        num_cols = static_cast<int>(std::ceil(std::sqrt(numTextures)));
+        num_rows = static_cast<int>(std::ceil(static_cast<double>(numTextures) / num_cols));
+    }
+
+    unsigned int atlasWidth = maxTexWidth * num_cols;
+    unsigned int atlasHeight = maxTexHeight * num_rows;
 
     std::vector<RGBA> atlasData(atlasWidth * atlasHeight, {0, 0, 0, 0});
 
     int numTextures = static_cast<int>(terrain_dat_textures.size());
 
-    for (int row = 0; row < 8; ++row)
+    for (int row = 0; row < num_rows; ++row)
     {
-        for (int col = 0; col < 8; ++col)
+        for (int col = 0; col < num_cols; ++col)
         {
-            int textureIndex = row * 8 + col;
+            int textureIndex = row * num_cols + col;
 
             if (textureIndex < numTextures)
             {
-                const std::vector<RGBA>& textureData = terrain_dat_textures[textureIndex].rgba_data;
+                const auto& texture = terrain_dat_textures[textureIndex];
+                const std::vector<RGBA>& textureData = texture.rgba_data;
+                int texWidth = texture.width;
+                int texHeight = texture.height;
 
                 for (int y = 0; y < texHeight; ++y)
                 {
                     for (int x = 0; x < texWidth; ++x)
                     {
-                        int atlasX = col * texWidth + x;
-                        int atlasY = row * texHeight + y;
+                        int atlasX = col * maxTexWidth + x;
+                        int atlasY = row * maxTexHeight + y;
 
                         int atlasOffset = atlasY * atlasWidth + atlasX;
                         int textureOffset = y * texWidth + x;
