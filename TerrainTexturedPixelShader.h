@@ -127,7 +127,7 @@ float4 main(PixelInputType input) : SV_TARGET
     // Calculate the UV coordinates for each texture in the textureAtlas
     uint indices[4] = { topLeftTexIdx, topRightTexIdx, bottomLeftTexIdx, bottomRightTexIdx };
     float atlasTileSize = 1.0 / 8.0;
-    float innerRegionScale = 0.5; // This is used to extract the inner 50% of the texture
+    float innerRegionScale = 0.25; // This is used to extract the 25% of the texture from each corner
     float2 atlasCoords[4];
     for (int i = 0; i < 4; ++i) {
         uint index = indices[i];
@@ -143,10 +143,15 @@ float4 main(PixelInputType input) : SV_TARGET
             relativeUV.y = 1.0 - relativeUV.y;
         }
 
-        // Map the relativeUV coordinates to the inner 50% of the atlas texture
-        float2 innerOffset = atlasTileSize * (1.0 - innerRegionScale) * 0.5;
-        float2 innerSize = atlasTileSize * innerRegionScale;
-        atlasCoords[i] = float2(x, y) + innerOffset + float2(relativeUV.x, relativeUV.y) * innerSize;
+        // Calculate the offset based on the corner and the size of the region to extract
+        float2 cornerOffsets[4] = {
+            float2(0.0, atlasTileSize - atlasTileSize * innerRegionScale),
+            float2(atlasTileSize - atlasTileSize * innerRegionScale, atlasTileSize - atlasTileSize * innerRegionScale),
+            float2(0.0, 0.0),
+            float2(atlasTileSize - atlasTileSize * innerRegionScale, 0.0)
+        };
+
+        atlasCoords[i] = float2(x, y) + cornerOffsets[i] + relativeUV * (atlasTileSize * innerRegionScale);
     }
 
     // Sample the textureAtlas using the calculated UV coordinates
@@ -155,19 +160,14 @@ float4 main(PixelInputType input) : SV_TARGET
         sampledColors[i] = textureAtlas.Sample(ss, atlasCoords[i]);
     }
 
-    // Sample the terrain_texture_weights using input.tex_coords0
-    float4 weightColors = terrain_texture_weights.Sample(ss, input.tex_coords0);
-
-    // Calculate the total weight for normalization
-    float totalWeight = weightColors.r + weightColors.g + weightColors.b + weightColors.a;
-
-    // Normalize the weights
-    float4 normalizedWeights = weightColors / totalWeight;
+    // Calculate the weights for bilinear interpolation
+    float2 weights = frac(input.tex_coords0 / texelSize);
+    float4 blendWeights = float4((1 - weights.x) * (1 - weights.y), weights.x * (1 - weights.y), (1 - weights.x) * weights.y, weights.x * weights.y);
 
     // Perform texture splatting using the normalized weights
     float4 splattedTextureColor = float4(0.0, 0.0, 0.0, 1.0);
     for (int i = 0; i < 4; ++i) {
-        splattedTextureColor.rgb += sampledColors[i].rgb * normalizedWeights[i];
+        splattedTextureColor.rgb += sampledColors[i].rgb  * blendWeights[i];
     }
     // ------------ TEXTURE END ----------------
 
