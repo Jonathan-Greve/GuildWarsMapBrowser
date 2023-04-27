@@ -91,7 +91,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
     // ------------ TEXTURE START ----------------
-    float2 texelSize = float2(1.0 / (grid_dim_x - 1), 1.0 / (grid_dim_y - 1));
+    float2 texelSize = float2(1.0 / (grid_dim_x ), 1.0 / (grid_dim_y ));
 
     // Calculate the tile index
     float2 tileIndex = floor(input.tex_coords0 / texelSize);
@@ -123,8 +123,11 @@ float4 main(PixelInputType input) : SV_TARGET
     float innerRegionScale = 0.50; // This is used to extract the 25% of the texture from each corner
     float2 atlasCoords[8];
     int atlasCoordCount = 0;
-    float offset_factor = 0.12;
-    float scale_factor = 1 - offset_factor;
+    float offset_factor_x = 0.12;
+    float offset_factor_y = 0.08;
+    float scale_factor_x = 1 - offset_factor_x;
+    float scale_factor_y = 1 - offset_factor_y;
+
 
     float2 cornerOffsets[4] = {
         float2(0.0, 0.0), // TL
@@ -143,7 +146,7 @@ float4 main(PixelInputType input) : SV_TARGET
 
         // offset by offset_factor and make sure to stay within the bounds of the texture
         relativeUV.y = 1.0 - relativeUV.y;
-        float2 offset_relativeUV = float2(relativeUV.x * scale_factor + offset_factor, relativeUV.y * scale_factor);
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor_x + offset_factor_x, relativeUV.y * scale_factor_y);
 
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[0] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
@@ -155,7 +158,7 @@ float4 main(PixelInputType input) : SV_TARGET
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
 
-        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor);
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor_x, relativeUV.y * scale_factor_y);
 
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[0] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
@@ -167,7 +170,7 @@ float4 main(PixelInputType input) : SV_TARGET
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
 
-        float2 offset_relativeUV = float2(relativeUV.x * scale_factor + offset_factor, relativeUV.y * scale_factor + offset_factor);
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor_x + offset_factor_x, relativeUV.y * scale_factor_y + offset_factor_y);
 
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[2] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
@@ -180,7 +183,7 @@ float4 main(PixelInputType input) : SV_TARGET
         float y = (index / 8) * atlasTileSize;
 
         relativeUV.x = 1.0 - relativeUV.x;
-        float2 offset_relativeUV = float2(relativeUV.x * scale_factor + offset_factor, relativeUV.y * scale_factor);
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor_x + offset_factor_x, relativeUV.y * scale_factor_y);
 
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[2] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
@@ -194,7 +197,7 @@ float4 main(PixelInputType input) : SV_TARGET
 
         relativeUV.x = 1.0 - relativeUV.x;
         relativeUV.y = 1.0 - relativeUV.y;
-        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor);
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor_x, relativeUV.y * scale_factor_y);
 
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[3] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
@@ -206,7 +209,7 @@ float4 main(PixelInputType input) : SV_TARGET
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
 
-        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor + offset_factor);
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor_x, relativeUV.y * scale_factor_y + offset_factor_y);
 
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[1] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
@@ -220,7 +223,7 @@ float4 main(PixelInputType input) : SV_TARGET
 
         relativeUV.x = 1.0 - relativeUV.x;
         relativeUV.y = 1.0 - relativeUV.y;
-        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor);
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor_x, relativeUV.y * scale_factor_y);
 
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[1] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
@@ -232,7 +235,7 @@ float4 main(PixelInputType input) : SV_TARGET
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
 
-        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor);
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor_x, relativeUV.y * scale_factor_y);
 
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[3] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
