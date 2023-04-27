@@ -159,8 +159,7 @@ float4 main(PixelInputType input) : SV_TARGET
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
 
-        relativeUV.x = 1.0 - relativeUV.x;
-        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor + offset_factor);
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor);
 
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[0] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
@@ -185,15 +184,14 @@ float4 main(PixelInputType input) : SV_TARGET
         float y = (index / 8) * atlasTileSize;
 
         relativeUV.x = 1.0 - relativeUV.x;
-        relativeUV.y = 1.0 - relativeUV.y;
-        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor);
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor + offset_factor, relativeUV.y * scale_factor);
 
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[2] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
 
     // Case 5: top left corner
     relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-    if (true || topLeftTexIdx != topRightTexIdx && topLeftTexIdx != bottomLeftTexIdx) {
+    if (topLeftTexIdx != topRightTexIdx && topLeftTexIdx != bottomLeftTexIdx) {
         uint index = topLeftTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
@@ -207,19 +205,19 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Case 6: top right corner
     relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-    if (true || topRightTexIdx != topLeftTexIdx && topRightTexIdx != bottomRightTexIdx) {
+    if (topRightTexIdx != topLeftTexIdx && topRightTexIdx != bottomRightTexIdx) {
         uint index = topRightTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
 
-        float2 offset_relativeUV = float2(relativeUV.x * scale_factor + offset_factor, relativeUV.y * scale_factor + offset_factor);
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor + offset_factor);
 
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[1] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
 
     // Case 7: bottom left corner
     relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-    if (true || bottomLeftTexIdx != topLeftTexIdx && bottomLeftTexIdx != bottomRightTexIdx) {
+    if (bottomLeftTexIdx != topLeftTexIdx && bottomLeftTexIdx != bottomRightTexIdx) {
         uint index = bottomLeftTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
@@ -233,12 +231,12 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Case 8: bottom right corner
     relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-    if (true || bottomRightTexIdx != topRightTexIdx && bottomRightTexIdx != bottomLeftTexIdx) {
+    if (bottomRightTexIdx != topRightTexIdx && bottomRightTexIdx != bottomLeftTexIdx) {
         uint index = bottomRightTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
 
-        float2 offset_relativeUV = float2(relativeUV.x * scale_factor + offset_factor, relativeUV.y * scale_factor + offset_factor);
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor);
 
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[3] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
