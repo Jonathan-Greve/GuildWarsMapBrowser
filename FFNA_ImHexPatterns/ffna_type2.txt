@@ -403,12 +403,15 @@ struct GeometryChunk {
         if (addressof(chunk_id) + puVar16 < addressof(chunk_id)+8+chunk_size){
           u32 _Src = puVar16 + sub_1.f0x1a * 8;
           if (addressof(chunk_id) + _Src < addressof(chunk_id)+8+chunk_size){
-            u8 unknown_data0[_Src];
+            UnknownTexStruct1 uts1[sub_1.f0x19];
+            u16 unknown_tex_stuff0[sub_1.f0x1d];
+            u8 unknown_tex_stuff1[sub_1.f0x1d];
+            u8 unknown_data0[_Src-sizeof(uts1)-sizeof(unknown_tex_stuff0)-sizeof(unknown_tex_stuff1)];
             
             String strings[sub_1.f0x1a];
             u8 unknown_data1[sub_1.f0x1e*2*4];
             
-            extra_bytes += sizeof(unknown_data0) + sizeof(strings) + sizeof(unknown_data1);
+            extra_bytes += sizeof(uts1) + sizeof(unknown_tex_stuff0) + sizeof(unknown_tex_stuff1) + sizeof(unknown_data0) + sizeof(strings) + sizeof(unknown_data1);
           }
           else{
           u8 unknown_data0[puVar16];// cannot parse model
