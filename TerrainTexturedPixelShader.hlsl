@@ -1,3 +1,5 @@
+
+
 sampler ss: register(s0);
 Texture2D textureAtlas : register(t0);
 Texture2D terrain_texture_indices: register(t1);
@@ -89,7 +91,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
     // ------------ TEXTURE START ----------------
-    float2 texelSize = float2(1.0 / (grid_dim_x), 1.0 / (grid_dim_y));
+    float2 texelSize = float2(1.0 / (grid_dim_x - 1), 1.0 / (grid_dim_y - 1));
 
     // Calculate the tile index
     float2 tileIndex = floor(input.tex_coords0 / texelSize);
@@ -101,7 +103,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float2 bottomRightTexCoord = topLeftTexCoord + texelSize;
 
     // Calculate the texture size
-    float2 textureSize = float2(grid_dim_x + 1, grid_dim_y + 1);
+    float2 textureSize = float2(grid_dim_x, grid_dim_y);
 
     // Convert normalized texture coordinates to integer pixel coordinates
     int2 topLeftCoord = int2(topLeftTexCoord * textureSize);
@@ -115,59 +117,149 @@ float4 main(PixelInputType input) : SV_TARGET
     int bottomLeftTexIdx = int(terrain_texture_indices.Load(int3(bottomLeftCoord, 0)).r * 255.0);
     int bottomRightTexIdx = int(terrain_texture_indices.Load(int3(bottomRightCoord, 0)).r * 255.0);
 
-    float topLeftAlpha = terrain_texture_weights.Load(int3(topLeftCoord, 0)).r;
-    float topRightAlpha = terrain_texture_weights.Load(int3(topRightCoord, 0)).r;
-    float bottomLeftAlpha = terrain_texture_weights.Load(int3(bottomLeftCoord, 0)).r;
-    float bottomRightAlpha = terrain_texture_weights.Load(int3(bottomRightCoord, 0)).r;
-
     // Calculate the UV coordinates for each texture in the textureAtlas
     uint indices[4] = { topLeftTexIdx, topRightTexIdx, bottomLeftTexIdx, bottomRightTexIdx };
     float atlasTileSize = 1.0 / 8.0;
-    float innerRegionScale = 0.25; // This is used to extract the 25% of the texture from each corner
-    float2 atlasCoords[4];
-    for (int i = 0; i < 4; ++i) {
-        uint index = indices[i];
+    float innerRegionScale = 0.50; // This is used to extract the 25% of the texture from each corner
+    float2 atlasCoords[8];
+    int atlasCoordCount = 0;
+    float offset_factor = 0.12;
+    float scale_factor = 1 - offset_factor;
+
+    float2 cornerOffsets[4] = {
+        float2(0.0, 0.0), // TL
+        float2(atlasTileSize - atlasTileSize * innerRegionScale, 0.0), // TR
+        float2(0.0, atlasTileSize - atlasTileSize * innerRegionScale), // BL
+        float2(atlasTileSize - atlasTileSize * innerRegionScale, atlasTileSize - atlasTileSize * innerRegionScale) // BR
+    };
+
+
+    // Case 1: top edge shares vertices
+    float2 relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
+    if (topLeftTexIdx == topRightTexIdx) {
+        uint index = topLeftTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
-        float2 relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
 
-        // Apply mirroring on every other tile
-        if (uint(tileIndex.x) % 2 == 1) {
-            relativeUV.x = 1.0 - relativeUV.x;
-        }
-        if (uint(tileIndex.y) % 2 == 1) {
-            relativeUV.y = 1.0 - relativeUV.y;
-        }
+        // offset by offset_factor and make sure to stay within the bounds of the texture
+        relativeUV.y = 1.0 - relativeUV.y;
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor + offset_factor, relativeUV.y * scale_factor);
 
-        // Calculate the offset based on the corner and the size of the region to extract
-        float2 cornerOffsets[4] = {
-            float2(0.0, atlasTileSize - atlasTileSize * innerRegionScale),
-            float2(atlasTileSize - atlasTileSize * innerRegionScale, atlasTileSize - atlasTileSize * innerRegionScale),
-            float2(0.0, 0.0),
-            float2(atlasTileSize - atlasTileSize * innerRegionScale, 0.0)
-        };
+        atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[0] + offset_relativeUV * (atlasTileSize * innerRegionScale);
+    }
 
-        atlasCoords[i] = float2(x, y) + cornerOffsets[i] + relativeUV * (atlasTileSize * innerRegionScale);
+    // Case 2: bottom edge shares vertices
+    relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
+    if (bottomLeftTexIdx == bottomRightTexIdx) {
+        uint index = bottomLeftTexIdx;
+        float x = (index % 8) * atlasTileSize;
+        float y = (index / 8) * atlasTileSize;
+
+        relativeUV.x = 1.0 - relativeUV.x;
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor + offset_factor);
+
+        atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[0] + offset_relativeUV * (atlasTileSize * innerRegionScale);
+    }
+
+    // Case 3: left edge shares vertices
+    relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
+    if (topLeftTexIdx == bottomLeftTexIdx) {
+        uint index = topLeftTexIdx;
+        float x = (index % 8) * atlasTileSize;
+        float y = (index / 8) * atlasTileSize;
+
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor + offset_factor, relativeUV.y * scale_factor + offset_factor);
+
+        atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[2] + offset_relativeUV * (atlasTileSize * innerRegionScale);
+    }
+
+    // Case 4: right edge shares vertices
+    relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
+    if (topRightTexIdx == bottomRightTexIdx) {
+        uint index = topRightTexIdx;
+        float x = (index % 8) * atlasTileSize;
+        float y = (index / 8) * atlasTileSize;
+
+        relativeUV.x = 1.0 - relativeUV.x;
+        relativeUV.y = 1.0 - relativeUV.y;
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor);
+
+        atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[2] + offset_relativeUV * (atlasTileSize * innerRegionScale);
+    }
+
+    // Case 5: top left corner
+    relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
+    if (true || topLeftTexIdx != topRightTexIdx && topLeftTexIdx != bottomLeftTexIdx) {
+        uint index = topLeftTexIdx;
+        float x = (index % 8) * atlasTileSize;
+        float y = (index / 8) * atlasTileSize;
+
+        relativeUV.x = 1.0 - relativeUV.x;
+        relativeUV.y = 1.0 - relativeUV.y;
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor);
+
+        atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[3] + offset_relativeUV * (atlasTileSize * innerRegionScale);
+    }
+
+    // Case 6: top right corner
+    relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
+    if (true || topRightTexIdx != topLeftTexIdx && topRightTexIdx != bottomRightTexIdx) {
+        uint index = topRightTexIdx;
+        float x = (index % 8) * atlasTileSize;
+        float y = (index / 8) * atlasTileSize;
+
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor + offset_factor, relativeUV.y * scale_factor + offset_factor);
+
+        atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[1] + offset_relativeUV * (atlasTileSize * innerRegionScale);
+    }
+
+    // Case 7: bottom left corner
+    relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
+    if (true || bottomLeftTexIdx != topLeftTexIdx && bottomLeftTexIdx != bottomRightTexIdx) {
+        uint index = bottomLeftTexIdx;
+        float x = (index % 8) * atlasTileSize;
+        float y = (index / 8) * atlasTileSize;
+
+        relativeUV.x = 1.0 - relativeUV.x;
+        relativeUV.y = 1.0 - relativeUV.y;
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor, relativeUV.y * scale_factor);
+
+        atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[1] + offset_relativeUV * (atlasTileSize * innerRegionScale);
+    }
+
+    // Case 8: bottom right corner
+    relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
+    if (true || bottomRightTexIdx != topRightTexIdx && bottomRightTexIdx != bottomLeftTexIdx) {
+        uint index = bottomRightTexIdx;
+        float x = (index % 8) * atlasTileSize;
+        float y = (index / 8) * atlasTileSize;
+
+        float2 offset_relativeUV = float2(relativeUV.x * scale_factor + offset_factor, relativeUV.y * scale_factor + offset_factor);
+
+        atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[3] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
 
     // Sample the textureAtlas using the calculated UV coordinates
-    float4 sampledColors[4];
-    for (int i = 0; i < 4; ++i) {
+    int non_zero_alphas_count = 0;
+    float total_alpha = 0.0;
+    float4 sampledColors[8];
+    for (int i = 0; i < 8; ++i) {
+        if (i == atlasCoordCount) break;
         sampledColors[i] = textureAtlas.Sample(ss, atlasCoords[i]);
+        if (sampledColors[i].a > 0) {
+            non_zero_alphas_count += 1;
+            total_alpha += sampledColors[i].a;
+        }
     }
-
-    // Calculate the weights for bilinear interpolation
-    float2 weights = frac(input.tex_coords0 / texelSize);
-    float4 blendWeights = float4((1 - weights.x) * (1 - weights.y), weights.x * (1 - weights.y), (1 - weights.x) * weights.y, weights.x * weights.y);
 
     // Perform texture splatting using the normalized weights
     float4 splattedTextureColor = float4(0.0, 0.0, 0.0, 1.0);
-    for (int i = 0; i < 4; ++i) {
-        splattedTextureColor.rgb += sampledColors[i].rgb  * blendWeights[i];
+    for (int i = 0; i < 8; ++i) {
+        if (i == atlasCoordCount) break;
+        if (sampledColors[i].a == 0) continue;
+        splattedTextureColor.rgb += sampledColors[i].rgb * sampledColors[i].a / total_alpha;
     }
     // ------------ TEXTURE END ----------------
-
-
 
     float4 outputColor;
     // Multiply the sampled color with the finalColor
@@ -182,3 +274,4 @@ float4 main(PixelInputType input) : SV_TARGET
     // Return the result
     return outputColor;
 }
+
