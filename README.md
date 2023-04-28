@@ -1,4 +1,4 @@
-GuildWarsMapBrowser
+Guild Wars Map Browser
 =====================
 
 Browse the Guild Wars .dat file. Included features:
