@@ -141,7 +141,6 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 if (texture_id >= 0)
                 {
                     texture_ids.push_back(texture_id);
-                    continue;
                 }
 
                 auto mft_entry_it = hash_index.find(decoded_filename);
@@ -150,11 +149,13 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                     auto dat_texture = dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
                     model_dat_textures.push_back(dat_texture);
 
-                    // Create texture
+                    // Create texture if it wasn't cached.
+                    if (texture_id < 0) {
                     auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
                       dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
                       decoded_filename);
                     texture_ids.push_back(texture_id);
+                    }
                 }
             }
 

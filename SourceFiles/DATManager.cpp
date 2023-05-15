@@ -46,10 +46,11 @@ DatTexture DATManager::parse_ffna_texture_file(int index)
     // Get decompressed file data
     HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
     auto data = m_dat.readFile(file_handle, index, true);
+    std::span<unsigned char> file_data(data, mft_entry->uncompressedSize);
     CloseHandle(file_handle);
 
     // Process texture data
-    auto dat_texture = ProcessImageFile(data, mft_entry->uncompressedSize);
+    auto dat_texture = ProcessImageFile(file_data.data(), mft_entry->uncompressedSize);
 
     delete[] data;
 
