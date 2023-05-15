@@ -6,8 +6,16 @@ HRESULT TextureManager::CreateTextureFromDDSInMemory(const uint8_t* ddsData, siz
                                                      int* textureID_out, int* width_out, int* height_out,
                                                      std::vector<RGBA>& rgba_data_out, int file_hash)
 {
-    if (cached_textures.contains(file_hash))
-        return cached_textures[file_hash];
+    if (cached_textures.contains(file_hash)) {
+        const TextureData& textureData = cached_textures[file_hash];
+
+        *textureID_out = textureData.textureID;
+        *width_out = textureData.width;
+        *height_out = textureData.height;
+        rgba_data_out = textureData.rgba_data;
+
+        return S_OK;
+    }
 
     if (! ddsData)
     {
@@ -76,6 +84,16 @@ HRESULT TextureManager::CreateTextureFromDDSInMemory(const uint8_t* ddsData, siz
         size_t pixel_data_size = width * height * 4;
         rgba_data_out.resize(pixel_data_size / sizeof(RGBA));
         memcpy(rgba_data_out.data(), img->pixels, pixel_data_size);
+
+        if (file_hash >= 0) {
+            TextureData textureData;
+            textureData.textureID = *textureID_out; // Newly created texture ID
+            textureData.width = width;
+            textureData.height = height;
+            textureData.rgba_data = rgba_data_out; // The RGBA data
+
+            cached_textures[file_hash] = textureData;
+        }
 
         return (*textureID_out >= 0) ? S_OK : E_FAIL;
     }

@@ -19,6 +19,13 @@ inline UINT BytesPerPixel(DXGI_FORMAT format)
     }
 }
 
+struct TextureData {
+    int textureID;
+    int width;
+    int height;
+    std::vector<RGBA> rgba_data;
+};
+
 class TextureManager
 {
 public:
@@ -33,7 +40,7 @@ public:
     int AddTexture(const void* data, UINT width, UINT height, DXGI_FORMAT format, int file_hash)
     {
         if (cached_textures.contains(file_hash))
-            return cached_textures[file_hash];
+            return cached_textures[file_hash].textureID;
 
         if (! data || width <= 0 || height <= 0)
         {
@@ -84,7 +91,14 @@ public:
 
         if (file_hash >= 0)
         {
-            cached_textures[file_hash] = textureID;
+            // Cannot save RGBA data in textureData since texture might not be RGBA.
+            // But we can save the other fields.
+            TextureData textureData;
+            textureData.textureID = textureID; 
+            textureData.width = width;
+            textureData.height = height;
+
+            cached_textures[file_hash] = textureData;
         }
 
         return textureID;
@@ -118,7 +132,7 @@ public:
 
         if (it != cached_textures.end())
         {
-            return it->second;
+            return it->second.textureID;
         }
         return -1;
     }
@@ -169,6 +183,7 @@ private:
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_deviceContext;
     int m_nextTextureID = 0;
-    std::unordered_map<int, int> cached_textures; // file hash -> texture id;
+    std::unordered_map<int, TextureData> cached_textures;
+
     std::unordered_map<int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> m_textures;
 };
