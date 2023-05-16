@@ -6,8 +6,8 @@ Browse the Guild Wars .dat file. Included features:
 - Rendering 3D terrains for all maps.
 - Fly around in and explore the maps in first person.
  
- Here is an preview of Pre-searing near Old Ascalon City and the surrounding terrain:
-![Pre-searing Old Ascalon City](images/preview.png)
+ Here is an preview of Monastery Overlook as seen rendered in GuildWarsMapBrowser:
+![Monastery Overlook](images/preview3.png)
 
 
 Credits:
