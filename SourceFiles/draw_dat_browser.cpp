@@ -814,6 +814,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
         ImGuiSelectableFlags selectable_flags =
           ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap;
 
+
         while (clipper.Step())
             for (int row_n = clipper.DisplayStart; row_n < clipper.DisplayEnd; row_n++)
             {
@@ -837,6 +838,12 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                         selected_item_id = item.id;
                         parse_file(dat_manager, item.id, map_renderer, hash_index, items);
                     }
+                }
+                // If the item is focused (highlighted by navigation), select it immediately
+                else if (ImGui::IsItemFocused() && selected_item_id != row_n)
+                {
+                    selected_item_id = row_n;
+                    parse_file(dat_manager, item.id, map_renderer, hash_index, items);
                 }
 
                 //Add context menu on right clicking item in table
