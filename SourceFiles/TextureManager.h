@@ -19,7 +19,8 @@ inline UINT BytesPerPixel(DXGI_FORMAT format)
     }
 }
 
-struct TextureData {
+struct TextureData
+{
     int textureID;
     int width;
     int height;
@@ -94,7 +95,7 @@ public:
             // Cannot save RGBA data in textureData since texture might not be RGBA.
             // But we can save the other fields.
             TextureData textureData;
-            textureData.textureID = textureID; 
+            textureData.textureID = textureID;
             textureData.width = width;
             textureData.height = height;
 
