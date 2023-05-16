@@ -225,9 +225,6 @@
     <ClInclude Include="SourceFiles\DATManager.h">
       <Filter>Dat reader</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\FFNAType.h">
-      <Filter>Dat reader\Dat file parsers</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\StepTimer.h">
       <Filter>Common</Filter>
     </ClInclude>
@@ -339,6 +336,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\TerrainTexturedPixelShader.h">
       <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\FFNAType.h">
+      <Filter>Dat reader\Dat file parsers\Texture</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

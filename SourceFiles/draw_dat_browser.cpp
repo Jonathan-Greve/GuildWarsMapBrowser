@@ -3,7 +3,7 @@
 #include "GuiGlobalConstants.h"
 #include "maps_constant_data.h"
 #include <commdlg.h>
-#include <shobjidl.h> 
+#include <shobjidl.h>
 #include "writeOBJ.h"
 
 inline extern FileType selected_file_type = FileType::NONE;
@@ -135,61 +135,68 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             // Load textures
             std::vector<int> texture_ids;
             std::vector<DatTexture> model_dat_textures;
-            for (int j = 0; j < selected_ffna_model_file.texture_filenames_chunk.texture_filenames.size();
-                 j++)
+            std::vector<std::vector<int>> per_mesh_tex_ids(prop_meshes.size());
+            if (selected_ffna_model_file.textures_parsed_correctly)
             {
-                auto texture_filename = selected_ffna_model_file.texture_filenames_chunk.texture_filenames[j];
-                auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
-
-                int texture_id = map_renderer->GetTextureManager()->GetTextureIdByHash(decoded_filename);
-                if (texture_id >= 0)
+                for (int j = 0; j < selected_ffna_model_file.texture_filenames_chunk.texture_filenames.size();
+                     j++)
                 {
-                    texture_ids.push_back(texture_id);
-                }
+                    auto texture_filename =
+                      selected_ffna_model_file.texture_filenames_chunk.texture_filenames[j];
+                    auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
 
-                auto mft_entry_it = hash_index.find(decoded_filename);
-                if (mft_entry_it != hash_index.end())
-                {
-                    auto dat_texture = dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
-                    model_dat_textures.push_back(dat_texture);
-
-                    // Create texture if it wasn't cached.
-                    if (texture_id < 0)
+                    int texture_id = map_renderer->GetTextureManager()->GetTextureIdByHash(decoded_filename);
+                    if (texture_id >= 0)
                     {
-                        auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
-                          dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
-                          decoded_filename);
                         texture_ids.push_back(texture_id);
                     }
+
+                    auto mft_entry_it = hash_index.find(decoded_filename);
+                    if (mft_entry_it != hash_index.end())
+                    {
+                        auto dat_texture = dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
+                        model_dat_textures.push_back(dat_texture);
+
+                        // Create texture if it wasn't cached.
+                        if (texture_id < 0)
+                        {
+                            auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                              dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
+                              &texture_id, decoded_filename);
+                            texture_ids.push_back(texture_id);
+                        }
+                    }
                 }
-            }
 
-            selected_dat_texture.dat_texture =
-              map_renderer->GetTextureManager()->BuildTextureAtlas(model_dat_textures, -1, -1);
+                selected_dat_texture.dat_texture =
+                  map_renderer->GetTextureManager()->BuildTextureAtlas(model_dat_textures, -1, -1);
 
-            if (selected_dat_texture.dat_texture.width > 0 && selected_dat_texture.dat_texture.height > 0)
-            {
-                map_renderer->GetTextureManager()->CreateTextureFromRGBA(
-                  selected_dat_texture.dat_texture.width, selected_dat_texture.dat_texture.height,
-                  selected_dat_texture.dat_texture.rgba_data.data(), &selected_dat_texture.texture_id,
-                  entry->Hash);
-            }
-
-            // The number of textures might exceed 8 for a model since each submodel might use up to 8 separate textures.
-            // So for each submodel's Mesh we must make sure that the uv_indices[i] < 8 and tex_indices[i] < 8.
-            std::vector<std::vector<int>> per_mesh_tex_ids(prop_meshes.size());
-            for (int i = 0; i < prop_meshes.size(); i++)
-            {
-                std::vector<uint8_t> mesh_tex_indices;
-                for (int j = 0; j < prop_meshes[i].tex_indices.size(); j++)
+                if (selected_dat_texture.dat_texture.width > 0 && selected_dat_texture.dat_texture.height > 0)
                 {
-                    int tex_index = prop_meshes[i].tex_indices[j];
-                    per_mesh_tex_ids[i].push_back(texture_ids[tex_index]);
-
-                    mesh_tex_indices.push_back(j);
+                    map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                      selected_dat_texture.dat_texture.width, selected_dat_texture.dat_texture.height,
+                      selected_dat_texture.dat_texture.rgba_data.data(), &selected_dat_texture.texture_id,
+                      entry->Hash);
                 }
 
-                prop_meshes[i].tex_indices = mesh_tex_indices;
+                // The number of textures might exceed 8 for a model since each submodel might use up to 8 separate textures.
+                // So for each submodel's Mesh we must make sure that the uv_indices[i] < 8 and tex_indices[i] < 8.
+                for (int i = 0; i < prop_meshes.size(); i++)
+                {
+                    std::vector<uint8_t> mesh_tex_indices;
+                    for (int j = 0; j < prop_meshes[i].tex_indices.size(); j++)
+                    {
+                        int tex_index = prop_meshes[i].tex_indices[j];
+                        if (tex_index < texture_ids.size())
+                        {
+                            per_mesh_tex_ids[i].push_back(texture_ids[tex_index]);
+
+                            mesh_tex_indices.push_back(j);
+                        }
+                    }
+
+                    prop_meshes[i].tex_indices = mesh_tex_indices;
+                }
             }
 
             // Create the PerObjectCB for each submodel
@@ -238,13 +245,16 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             }
 
             auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, index);
-            for (int i = 0; i < mesh_ids.size(); i++)
+            if (selected_ffna_model_file.textures_parsed_correctly)
             {
-                int mesh_id = mesh_ids[i];
-                auto& mesh_texture_ids = per_mesh_tex_ids[i];
+                for (int i = 0; i < mesh_ids.size(); i++)
+                {
+                    int mesh_id = mesh_ids[i];
+                    auto& mesh_texture_ids = per_mesh_tex_ids[i];
 
-                map_renderer->GetMeshManager()->SetTexturesForMesh(
-                  mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids), 0);
+                    map_renderer->GetMeshManager()->SetTexturesForMesh(
+                      mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids), 0);
+                }
             }
         }
 
@@ -345,6 +355,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 if (auto ffna_model_file_ptr =
                       std::get_if<FFNA_ModelFile>(&selected_map_files[prop_info.filename_index]))
                 {
+
+                    std::vector<std::vector<int>> per_mesh_tex_ids;
                     if (ffna_model_file_ptr->parsed_correctly)
                     {
                         // Load geometry
@@ -360,52 +372,59 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
                         // Load textures
                         std::vector<int> texture_ids;
-                        for (int j = 0;
-                             j < ffna_model_file_ptr->texture_filenames_chunk.texture_filenames.size(); j++)
+                        if (ffna_model_file_ptr->textures_parsed_correctly)
                         {
-                            auto texture_filename =
-                              ffna_model_file_ptr->texture_filenames_chunk.texture_filenames[j];
-                            auto decoded_filename =
-                              decode_filename(texture_filename.id0, texture_filename.id1);
-
-                            int texture_id =
-                              map_renderer->GetTextureManager()->GetTextureIdByHash(decoded_filename);
-                            if (texture_id >= 0)
+                            for (int j = 0;
+                                 j < ffna_model_file_ptr->texture_filenames_chunk.texture_filenames.size();
+                                 j++)
                             {
-                                texture_ids.push_back(texture_id);
-                                continue;
+                                auto texture_filename =
+                                  ffna_model_file_ptr->texture_filenames_chunk.texture_filenames[j];
+                                auto decoded_filename =
+                                  decode_filename(texture_filename.id0, texture_filename.id1);
+
+                                int texture_id =
+                                  map_renderer->GetTextureManager()->GetTextureIdByHash(decoded_filename);
+                                if (texture_id >= 0)
+                                {
+                                    texture_ids.push_back(texture_id);
+                                    continue;
+                                }
+
+                                auto mft_entry_it = hash_index.find(decoded_filename);
+                                if (mft_entry_it != hash_index.end())
+                                {
+                                    // Get texture from .dat
+                                    auto dat_texture =
+                                      dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
+
+                                    // Create texture
+                                    auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                                      dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
+                                      &texture_id, decoded_filename);
+                                    texture_ids.push_back(texture_id);
+                                }
                             }
 
-                            auto mft_entry_it = hash_index.find(decoded_filename);
-                            if (mft_entry_it != hash_index.end())
+                            // The number of textures might exceed 8 for a model since each submodel might use up to 8 separate textures.
+                            // So for each submodel's Mesh we must make sure that the uv_indices[i] < 8 and tex_indices[i] < 8.
+                            per_mesh_tex_ids.resize(prop_meshes.size());
+                            for (int i = 0; i < prop_meshes.size(); i++)
                             {
-                                // Get texture from .dat
-                                auto dat_texture =
-                                  dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
+                                std::vector<uint8_t> mesh_tex_indices;
+                                for (int j = 0; j < prop_meshes[i].tex_indices.size(); j++)
+                                {
+                                    int tex_index = prop_meshes[i].tex_indices[j];
+                                    if (tex_index < texture_ids.size())
+                                    {
+                                        per_mesh_tex_ids[i].push_back(texture_ids[tex_index]);
 
-                                // Create texture
-                                auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
-                                  dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
-                                  &texture_id, decoded_filename);
-                                texture_ids.push_back(texture_id);
+                                        mesh_tex_indices.push_back(j);
+                                    }
+                                }
+
+                                prop_meshes[i].tex_indices = mesh_tex_indices;
                             }
-                        }
-
-                        // The number of textures might exceed 8 for a model since each submodel might use up to 8 separate textures.
-                        // So for each submodel's Mesh we must make sure that the uv_indices[i] < 8 and tex_indices[i] < 8.
-                        std::vector<std::vector<int>> per_mesh_tex_ids(prop_meshes.size());
-                        for (int i = 0; i < prop_meshes.size(); i++)
-                        {
-                            std::vector<uint8_t> mesh_tex_indices;
-                            for (int j = 0; j < prop_meshes[i].tex_indices.size(); j++)
-                            {
-                                int tex_index = prop_meshes[i].tex_indices[j];
-                                per_mesh_tex_ids[i].push_back(texture_ids[tex_index]);
-
-                                mesh_tex_indices.push_back(j);
-                            }
-
-                            prop_meshes[i].tex_indices = mesh_tex_indices;
                         }
 
                         std::vector<PerObjectCB> per_object_cbs;
@@ -455,13 +474,17 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                         }
 
                         auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, i);
-                        for (int i = 0; i < mesh_ids.size(); i++)
+                        if (ffna_model_file_ptr->textures_parsed_correctly)
                         {
-                            int mesh_id = mesh_ids[i];
-                            auto& mesh_texture_ids = per_mesh_tex_ids[i];
+                            for (int i = 0; i < mesh_ids.size(); i++)
+                            {
+                                int mesh_id = mesh_ids[i];
+                                auto& mesh_texture_ids = per_mesh_tex_ids[i];
 
-                            map_renderer->GetMeshManager()->SetTexturesForMesh(
-                              mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids), 0);
+                                map_renderer->GetMeshManager()->SetTexturesForMesh(
+                                  mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids),
+                                  0);
+                            }
                         }
                     }
                 }
@@ -813,7 +836,6 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
         static int selected_item_id = -1;
         ImGuiSelectableFlags selectable_flags =
           ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap;
-
 
         while (clipper.Step())
             for (int row_n = clipper.DisplayStart; row_n < clipper.DisplayEnd; row_n++)
@@ -1320,7 +1342,7 @@ inline std::wstring OpenFileDialog(std::wstring filename, std::wstring fileType)
     return L"";
 }
 
-#include <shobjidl.h> 
+#include <shobjidl.h>
 
 inline std::wstring OpenDirectoryDialog()
 {
@@ -1328,10 +1350,7 @@ inline std::wstring OpenDirectoryDialog()
     std::wstring wDirName;
 
     // CoCreate the dialog object.
-    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog,
-        NULL,
-        CLSCTX_INPROC_SERVER,
-        IID_PPV_ARGS(&pfd));
+    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pfd));
 
     if (SUCCEEDED(hr))
     {
@@ -1370,4 +1389,3 @@ inline std::wstring OpenDirectoryDialog()
     }
     return wDirName;
 }
-
