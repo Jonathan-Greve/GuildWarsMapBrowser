@@ -3,6 +3,7 @@
 #include "GuiGlobalConstants.h"
 #include "maps_constant_data.h"
 #include <commdlg.h>
+#include <shobjidl.h> 
 #include "writeOBJ.h"
 
 inline extern FileType selected_file_type = FileType::NONE;
@@ -477,6 +478,7 @@ std::string truncate_text_with_ellipsis(const std::string& text, float maxWidth)
 int custom_stoi(const std::string& input);
 std::string to_lower(const std::string& input);
 std::wstring OpenFileDialog(std::wstring filename = L"", std::wstring fileType = L"");
+std::wstring OpenDirectoryDialog();
 
 void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 {
@@ -851,7 +853,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 
                     if (item.type == FileType::FFNA_Type2)
                     {
-                        if (ImGui::MenuItem("Save model mesh"))
+                        if (ImGui::MenuItem("Export Mesh"))
                         {
                             std::wstring savePath =
                               OpenFileDialog(std::format(L"model_mesh_0x{:X}", item.hash), L"obj");
@@ -875,11 +877,48 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                                 }
                             }
                         }
+
+                        if (ImGui::MenuItem("Export Submeshes Individually"))
+                        {
+                            std::wstring saveDir = OpenDirectoryDialog();
+                            if (! saveDir.empty())
+                            {
+                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                for (size_t prop_mesh_index = 0; prop_mesh_index < prop_meshes.size();
+                                     ++prop_mesh_index)
+                                {
+                                    const auto& prop_mesh = prop_meshes[prop_mesh_index];
+                                    const auto obj_file_str = write_obj_str(&prop_mesh);
+
+                                    // Generate unique file name
+                                    std::string filename =
+                                      std::format("model_mesh_0x{:X}_{}.obj", item.hash, prop_mesh_index);
+
+                                    // Append the filename to the saveDir
+                                    std::wstring savePath =
+                                      saveDir + L"\\" + std::wstring(filename.begin(), filename.end());
+
+                                    // Convert the savePath to a string because std::ofstream does not work with std::wstring on all platforms
+                                    std::string savePathStr(savePath.begin(), savePath.end());
+
+                                    std::ofstream outFile(savePathStr);
+                                    if (outFile.is_open())
+                                    {
+                                        outFile << obj_file_str;
+                                        outFile.close();
+                                    }
+                                    else
+                                    {
+                                        // Error handling
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     if (item.type == FileType::FFNA_Type3)
                     {
-                        if (ImGui::MenuItem("Save terrain mesh"))
+                        if (ImGui::MenuItem("Export Terrain Mesh"))
                         {
                             std::wstring savePath =
                               OpenFileDialog(std::format(L"height_map_0x{:X}", item.hash), L"obj");
@@ -1273,3 +1312,55 @@ inline std::wstring OpenFileDialog(std::wstring filename, std::wstring fileType)
 
     return L"";
 }
+
+#include <shobjidl.h> 
+
+inline std::wstring OpenDirectoryDialog()
+{
+    IFileDialog* pfd;
+    std::wstring wDirName;
+
+    // CoCreate the dialog object.
+    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog,
+        NULL,
+        CLSCTX_INPROC_SERVER,
+        IID_PPV_ARGS(&pfd));
+
+    if (SUCCEEDED(hr))
+    {
+        DWORD dwOptions;
+        // Get the options for the dialog.
+        hr = pfd->GetOptions(&dwOptions);
+        if (SUCCEEDED(hr))
+        {
+            // Set the options to pick folders only.
+            hr = pfd->SetOptions(dwOptions | FOS_PICKFOLDERS);
+            if (SUCCEEDED(hr))
+            {
+                // Show the dialog.
+                hr = pfd->Show(NULL);
+                if (SUCCEEDED(hr))
+                {
+                    // Get the folder selected by the user.
+                    IShellItem* psi;
+                    hr = pfd->GetFolder(&psi);
+                    if (SUCCEEDED(hr))
+                    {
+                        PWSTR pszPath;
+                        hr = psi->GetDisplayName(SIGDN_FILESYSPATH, &pszPath);
+
+                        if (SUCCEEDED(hr))
+                        {
+                            wDirName = pszPath;
+                            CoTaskMemFree(pszPath);
+                        }
+                        psi->Release();
+                    }
+                }
+            }
+        }
+        pfd->Release();
+    }
+    return wDirName;
+}
+
