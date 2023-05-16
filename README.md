@@ -8,7 +8,8 @@ Browse the Guild Wars .dat file. Included features:
  
  Here is an preview of Monastery Overlook as seen rendered in GuildWarsMapBrowser:
 ![Monastery Overlook](images/preview3.png)
-
+And here is an example of rendering a model:
+![Model with file hash 0x2E100](images/preview4.png)
 
 Credits:
 Decompressing the .dat file uses the source code from:
