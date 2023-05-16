@@ -174,9 +174,9 @@ public:
         m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
     }
 
-    Terrain* GetTerrain() { return m_terrain.get(); }
+    Terrain* GetTerrain() { return m_terrain; }
 
-    void SetTerrain(std::unique_ptr<Terrain> terrain, int texture_atlas_id)
+    void SetTerrain(Terrain* terrain, int texture_atlas_id)
     {
         if (m_is_terrain_mesh_set)
         {
@@ -268,7 +268,7 @@ public:
         m_mesh_manager->SetTexturesForMesh(
           m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_blend_weights_id)}, 2);
 
-        m_terrain = std::move(terrain);
+        m_terrain = terrain;
         m_is_terrain_mesh_set = true;
     }
 
@@ -278,6 +278,7 @@ public:
         {
             m_mesh_manager->RemoveMesh(m_terrain_mesh_id);
             m_is_terrain_mesh_set = false;
+            m_terrain = nullptr;
         }
 
         for (const auto& [model_id, model_prop_ids] : m_prop_mesh_ids)
@@ -427,7 +428,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_camera_cb;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_terrain_cb;
 
-    std::unique_ptr<Terrain> m_terrain;
+    Terrain* m_terrain = nullptr;
     PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainTextured;
 
     std::vector<std::pair<uint32_t, std::vector<int>>> m_prop_mesh_ids;

@@ -3,6 +3,7 @@
 #include "GuiGlobalConstants.h"
 #include "maps_constant_data.h"
 #include <commdlg.h>
+#include "writeOBJ.h"
 
 inline extern FileType selected_file_type = FileType::NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
@@ -14,6 +15,8 @@ inline extern std::vector<FileData> selected_map_files{};
 inline bool is_parsing_data = false;
 inline bool items_to_parse = 0;
 inline bool items_parsed = 0;
+
+std::unique_ptr<Terrain> terrain;
 
 const char* type_strings[26] = {
   " ",        "AMAT",     "Amp",      "ATEXDXT1", "ATEXDXT2",     "ATEXDXT3",   "ATEXDXT4",
@@ -55,7 +58,6 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
         return;
 
     selected_file_type = static_cast<FileType>(entry->type);
-    std::unique_ptr<Terrain> terrain;
 
     switch (entry->type)
     {
@@ -150,11 +152,12 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                     model_dat_textures.push_back(dat_texture);
 
                     // Create texture if it wasn't cached.
-                    if (texture_id < 0) {
-                    auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
-                      dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
-                      decoded_filename);
-                    texture_ids.push_back(texture_id);
+                    if (texture_id < 0)
+                    {
+                        auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                          dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
+                          decoded_filename);
+                        texture_ids.push_back(texture_id);
                     }
                 }
             }
@@ -292,7 +295,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                                                 selected_ffna_map_file.terrain_chunk.terrain_heightmap,
                                                 terrain_texture_indices, terrain_texture_blend_weights,
                                                 selected_ffna_map_file.map_info_chunk.map_bounds);
-            map_renderer->SetTerrain(std::move(terrain), selected_dat_texture.texture_id);
+            map_renderer->SetTerrain(terrain.get(), selected_dat_texture.texture_id);
         }
 
         // Load models
@@ -472,7 +475,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 std::string truncate_text_with_ellipsis(const std::string& text, float maxWidth);
 int custom_stoi(const std::string& input);
 std::string to_lower(const std::string& input);
-std::wstring OpenFileDialog(std::wstring filename = L"");
+std::wstring OpenFileDialog(std::wstring filename = L"", std::wstring fileType = L"");
 
 void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 {
@@ -838,10 +841,39 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                 {
                     if (ImGui::MenuItem("Save decompressed data to file"))
                     {
-                        std::wstring savePath = OpenFileDialog(std::format(L"0x{:X}", item.hash));
+                        std::wstring savePath = OpenFileDialog(std::format(L"0x{:X}", item.hash), L"gwraw");
                         if (! savePath.empty())
                         {
                             dat_manager.save_raw_decompressed_data_to_file(item.id, savePath);
+                        }
+                    }
+
+                    if (item.type == FileType::FFNA_Type3)
+                    {
+                        if (ImGui::MenuItem("Save terrain mesh"))
+                        {
+                            std::wstring savePath =
+                              OpenFileDialog(std::format(L"height_map_0x{:X}", item.hash), L"obj");
+                            if (! savePath.empty())
+                            {
+                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                const auto& terrain_mesh = terrain.get()->get_mesh();
+                                const auto obj_file_str = write_obj_str(terrain_mesh);
+
+                                // Convert the savePath to a string because std::ofstream does not work with std::wstring on all platforms
+                                std::string savePathStr(savePath.begin(), savePath.end());
+
+                                std::ofstream outFile(savePathStr);
+                                if (outFile.is_open())
+                                {
+                                    outFile << obj_file_str;
+                                    outFile.close();
+                                }
+                                else
+                                {
+                                    // Error handling
+                                }
+                            }
                         }
                     }
 
@@ -1182,7 +1214,7 @@ std::string to_lower(const std::string& input)
     return result;
 }
 
-inline std::wstring OpenFileDialog(std::wstring filename)
+inline std::wstring OpenFileDialog(std::wstring filename, std::wstring fileType)
 {
     OPENFILENAME ofn;
     wchar_t fileName[MAX_PATH];
@@ -1191,11 +1223,18 @@ inline std::wstring OpenFileDialog(std::wstring filename)
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(OPENFILENAME);
     ofn.hwndOwner = NULL;
-    ofn.lpstrFilter = L"GWRAW Files (*.gwraw)\0*.gwraw\0All Files (*.*)\0*.*\0";
+
+    // prepare the filter string
+    std::wstring filter =
+      fileType + L" Files (*." + fileType + L")\0*." + fileType + L"\0All Files (*.*)\0*.*\0";
+    std::vector<wchar_t> filterNullTerm(filter.begin(), filter.end());
+    filterNullTerm.push_back('\0'); // Ensure null termination
+
+    ofn.lpstrFilter = &filterNullTerm[0];
     ofn.lpstrFile = fileName;
     ofn.nMaxFile = MAX_PATH;
     ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
-    ofn.lpstrDefExt = L"gwraw";
+    ofn.lpstrDefExt = fileType.c_str();
 
     if (GetSaveFileName(&ofn))
     {
