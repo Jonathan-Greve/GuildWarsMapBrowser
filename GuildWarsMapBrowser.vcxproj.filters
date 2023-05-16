@@ -339,6 +339,9 @@
     <ClInclude Include="DirectXTex\FlexibleVertexFormat.h">
       <Filter>Dat reader\DDS DirectXTex</Filter>
     </ClInclude>
+    <ClInclude Include="writeOBJ.h">
+      <Filter>Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -562,6 +565,9 @@
     </ClCompile>
     <ClCompile Include="DepthStencilStateManager.cpp">
       <Filter>Input\Render\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="writeOBJ.cpp">
+      <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
