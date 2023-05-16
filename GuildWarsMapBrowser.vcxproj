@@ -264,6 +264,7 @@
     <ClInclude Include="TerrainCheckeredPixelShader.h" />
     <ClInclude Include="TerrainDefaultPixelShader.h" />
     <ClInclude Include="TerrainTexturedPixelShader.h" />
+    <ClInclude Include="writeOBJ.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BlendStateManager.cpp" />
@@ -396,6 +397,7 @@
     <ClCompile Include="SourceFiles\Vertex.cpp" />
     <ClCompile Include="SourceFiles\VertexShader.cpp" />
     <ClCompile Include="SourceFiles\xentax.cpp" />
+    <ClCompile Include="writeOBJ.cpp" />
     <FxCompile Include="TerrainTexturedPixelShader.hlsl">
       <FileType>Document</FileType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
