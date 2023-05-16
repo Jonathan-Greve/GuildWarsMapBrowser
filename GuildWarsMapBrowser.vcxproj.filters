@@ -252,56 +252,8 @@
     <ClInclude Include="SourceFiles\DXMathHelpers.h">
       <Filter>Input\Render\Math helpers</Filter>
     </ClInclude>
-    <ClInclude Include="PerTerrainCB.h">
-      <Filter>Input\Render\Constant buffers</Filter>
-    </ClInclude>
-    <ClInclude Include="TerrainCheckeredPixelShader.h">
-      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
-    </ClInclude>
-    <ClInclude Include="DefaultPixelShader.h">
-      <Filter>Input\Render\Shaders\Pixel shaders\Default</Filter>
-    </ClInclude>
-    <ClInclude Include="draw_left_panel.h">
-      <Filter>GUI</Filter>
-    </ClInclude>
-    <ClInclude Include="draw_right_panel.h">
-      <Filter>GUI</Filter>
-    </ClInclude>
-    <ClInclude Include="TerrainDefaultPixelShader.h">
-      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\FFNA_MapFile.h">
       <Filter>Dat reader\Dat file parsers\Map</Filter>
-    </ClInclude>
-    <ClInclude Include="FFNA_ModelFile.h">
-      <Filter>Dat reader\Dat file parsers\Model</Filter>
-    </ClInclude>
-    <ClInclude Include="draw_props_info_panel.h">
-      <Filter>GUI\Draw map chunks info</Filter>
-    </ClInclude>
-    <ClInclude Include="draw_props_filenames_panel.h">
-      <Filter>GUI\Draw map chunks info</Filter>
-    </ClInclude>
-    <ClInclude Include="draw_chunk_20000003.h">
-      <Filter>GUI\Draw map chunks info</Filter>
-    </ClInclude>
-    <ClInclude Include="draw_terrain_chunk.h">
-      <Filter>GUI\Draw map chunks info</Filter>
-    </ClInclude>
-    <ClInclude Include="draw_map_info_chunk.h">
-      <Filter>GUI\Draw map chunks info</Filter>
-    </ClInclude>
-    <ClInclude Include="draw_chunk_20000000.h">
-      <Filter>GUI\Draw map chunks info</Filter>
-    </ClInclude>
-    <ClInclude Include="draw_prop_model_info.h">
-      <Filter>GUI\Draw model info</Filter>
-    </ClInclude>
-    <ClInclude Include="maps_constant_data.h">
-      <Filter>Common</Filter>
-    </ClInclude>
-    <ClInclude Include="draw_texture_panel.h">
-      <Filter>GUI\TexturePanel</Filter>
     </ClInclude>
     <ClInclude Include="DirectXTex\DDS.h">
       <Filter>Dat reader\DDS DirectXTex</Filter>
@@ -324,23 +276,69 @@
     <ClInclude Include="DirectXTex\BC.h">
       <Filter>Dat reader\DDS DirectXTex</Filter>
     </ClInclude>
-    <ClInclude Include="BlendStateManager.h">
-      <Filter>Input\Render\Blend</Filter>
-    </ClInclude>
-    <ClInclude Include="RasterizerStateManager.h">
-      <Filter>Input\Render\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="DepthStencilStateManager.h">
-      <Filter>Input\Render\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="TerrainTexturedPixelShader.h">
-      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
-    </ClInclude>
     <ClInclude Include="DirectXTex\FlexibleVertexFormat.h">
       <Filter>Dat reader\DDS DirectXTex</Filter>
     </ClInclude>
-    <ClInclude Include="writeOBJ.h">
+    <ClInclude Include="SourceFiles\FFNA_ModelFile.h" />
+    <ClInclude Include="SourceFiles\draw_props_info_panel.h">
+      <Filter>GUI\Draw model info</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_props_filenames_panel.h">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_prop_model_info.h">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\writeOBJ.h">
       <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\maps_constant_data.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_chunk_20000003.h">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_chunk_20000000.h">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_map_info_chunk.h">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_texture_panel.h">
+      <Filter>GUI\TexturePanel</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_terrain_chunk.h">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_right_panel.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_left_panel.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\DepthStencilStateManager.h">
+      <Filter>Input\Render\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\PerTerrainCB.h">
+      <Filter>Input\Render\Constant buffers</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\BlendStateManager.h">
+      <Filter>Input\Render\Blend</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\RasterizerStateManager.h">
+      <Filter>Input\Render\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\DefaultPixelShader.h">
+      <Filter>Input\Render\Shaders\Pixel shaders\Default</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\TerrainCheckeredPixelShader.h">
+      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\TerrainDefaultPixelShader.h">
+      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\TerrainTexturedPixelShader.h">
+      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -482,44 +480,8 @@
     <ClCompile Include="SourceFiles\DXMathHelpers.cpp">
       <Filter>Input\Render\Math helpers</Filter>
     </ClCompile>
-    <ClCompile Include="PerTerrainCB.cpp">
-      <Filter>Input\Render\Constant buffers</Filter>
-    </ClCompile>
-    <ClCompile Include="draw_left_panel.cpp">
-      <Filter>GUI</Filter>
-    </ClCompile>
-    <ClCompile Include="draw_right_panel.cpp">
-      <Filter>GUI</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\FFNA_MapFile.cpp">
       <Filter>Dat reader\Dat file parsers\Map</Filter>
-    </ClCompile>
-    <ClCompile Include="FFNA_ModelFile.cpp">
-      <Filter>Dat reader\Dat file parsers\Model</Filter>
-    </ClCompile>
-    <ClCompile Include="draw_props_filenames_panel.cpp">
-      <Filter>GUI\Draw map chunks info</Filter>
-    </ClCompile>
-    <ClCompile Include="draw_props_info_panel.cpp">
-      <Filter>GUI\Draw map chunks info</Filter>
-    </ClCompile>
-    <ClCompile Include="draw_chunk_20000003.cpp">
-      <Filter>GUI\Draw map chunks info</Filter>
-    </ClCompile>
-    <ClCompile Include="draw_terrain_chunk.cpp">
-      <Filter>GUI\Draw map chunks info</Filter>
-    </ClCompile>
-    <ClCompile Include="draw_map_info_chunk.cpp">
-      <Filter>GUI\Draw map chunks info</Filter>
-    </ClCompile>
-    <ClCompile Include="draw_chunk_20000000.cpp">
-      <Filter>GUI\Draw map chunks info</Filter>
-    </ClCompile>
-    <ClCompile Include="draw_prop_model_info.cpp">
-      <Filter>GUI\Draw model info</Filter>
-    </ClCompile>
-    <ClCompile Include="draw_texture_panel.cpp">
-      <Filter>GUI\TexturePanel</Filter>
     </ClCompile>
     <ClCompile Include="DirectXTex\DirectXTexDDS.cpp">
       <Filter>Dat reader\DDS DirectXTex</Filter>
@@ -557,17 +519,53 @@
     <ClCompile Include="DirectXTex\DirectXTexWIC.cpp">
       <Filter>Dat reader\DDS DirectXTex</Filter>
     </ClCompile>
-    <ClCompile Include="BlendStateManager.cpp">
+    <ClCompile Include="SourceFiles\draw_props_info_panel.cpp">
+      <Filter>GUI\Draw model info</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_prop_model_info.cpp">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_props_filenames_panel.cpp">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\writeOBJ.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_chunk_20000000.cpp">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_chunk_20000003.cpp">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_map_info_chunk.cpp">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_texture_panel.cpp">
+      <Filter>GUI\TexturePanel</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_terrain_chunk.cpp">
+      <Filter>GUI\Draw map chunks info</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_right_panel.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_left_panel.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\DepthStencilStateManager.cpp">
+      <Filter>Input\Render\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\PerTerrainCB.cpp">
+      <Filter>Input\Render\Constant buffers</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\BlendStateManager.cpp">
       <Filter>Input\Render\Blend</Filter>
     </ClCompile>
-    <ClCompile Include="RasterizerStateManager.cpp">
+    <ClCompile Include="SourceFiles\RasterizerStateManager.cpp">
       <Filter>Input\Render\Renderer</Filter>
     </ClCompile>
-    <ClCompile Include="DepthStencilStateManager.cpp">
-      <Filter>Input\Render\Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="writeOBJ.cpp">
-      <Filter>Common</Filter>
+    <ClCompile Include="SourceFiles\FFNA_ModelFile.cpp">
+      <Filter>Dat reader\Dat file parsers\Model</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -611,16 +609,16 @@
     <FxCompile Include="SourceFiles\VertexShader.hlsl">
       <Filter>Input\Render\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="TerrainCheckeredPixelShader.hlsl">
-      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
-    </FxCompile>
     <FxCompile Include="SourceFiles\DefaultPixelShader.hlsl">
       <Filter>Input\Render\Shaders\Pixel shaders\Default</Filter>
     </FxCompile>
-    <FxCompile Include="TerrainDefaultPixelShader.hlsl">
+    <FxCompile Include="SourceFiles\TerrainCheckeredPixelShader.hlsl">
       <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
-    <FxCompile Include="TerrainTexturedPixelShader.hlsl">
+    <FxCompile Include="SourceFiles\TerrainDefaultPixelShader.hlsl">
+      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\TerrainTexturedPixelShader.hlsl">
       <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
   </ItemGroup>

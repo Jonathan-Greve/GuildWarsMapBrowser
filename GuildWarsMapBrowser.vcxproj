@@ -183,7 +183,6 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="BlendStateManager.h" />
     <ClInclude Include="DearImGui\imconfig.h" />
     <ClInclude Include="DearImGui\imgui.h" />
     <ClInclude Include="DearImGui\imgui_impl_dx11.h" />
@@ -193,8 +192,6 @@
     <ClInclude Include="DearImGui\imstb_textedit.h" />
     <ClInclude Include="DearImGui\imstb_truetype.h" />
     <ClInclude Include="DearImGui\misc\cpp\imgui_stdlib.h" />
-    <ClInclude Include="DefaultPixelShader.h" />
-    <ClInclude Include="DepthStencilStateManager.h" />
     <ClInclude Include="DirectXTex\BC.h" />
     <ClInclude Include="DirectXTex\DDS.h" />
     <ClInclude Include="DirectXTex\DDSTextureLoader11.h" />
@@ -203,45 +200,46 @@
     <ClInclude Include="DirectXTex\filters.h" />
     <ClInclude Include="DirectXTex\FlexibleVertexFormat.h" />
     <ClInclude Include="DirectXTex\scoped.h" />
-    <ClInclude Include="draw_chunk_20000000.h" />
-    <ClInclude Include="draw_chunk_20000003.h" />
-    <ClInclude Include="draw_left_panel.h" />
-    <ClInclude Include="draw_map_info_chunk.h" />
-    <ClInclude Include="draw_props_filenames_panel.h" />
-    <ClInclude Include="draw_props_info_panel.h" />
-    <ClInclude Include="draw_prop_model_info.h" />
-    <ClInclude Include="draw_right_panel.h" />
-    <ClInclude Include="draw_terrain_chunk.h" />
-    <ClInclude Include="draw_texture_panel.h" />
-    <ClInclude Include="FFNA_ModelFile.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
-    <ClInclude Include="maps_constant_data.h" />
-    <ClInclude Include="PerTerrainCB.h" />
-    <ClInclude Include="RasterizerStateManager.h" />
     <ClInclude Include="SourceFiles\AtexAsm.h" />
     <ClInclude Include="SourceFiles\AtexReader.h" />
+    <ClInclude Include="SourceFiles\BlendStateManager.h" />
     <ClInclude Include="SourceFiles\Box.h" />
     <ClInclude Include="SourceFiles\Camera.h" />
     <ClInclude Include="SourceFiles\CheckerboardTexture.h" />
     <ClInclude Include="SourceFiles\ConstantBufferManager.h" />
     <ClInclude Include="SourceFiles\DATManager.h" />
+    <ClInclude Include="SourceFiles\DefaultPixelShader.h" />
+    <ClInclude Include="SourceFiles\DepthStencilStateManager.h" />
     <ClInclude Include="SourceFiles\DeviceResources.h" />
     <ClInclude Include="SourceFiles\DirectionalLight.h" />
+    <ClInclude Include="SourceFiles\draw_chunk_20000000.h" />
+    <ClInclude Include="SourceFiles\draw_chunk_20000003.h" />
     <ClInclude Include="SourceFiles\draw_dat_browser.h" />
     <ClInclude Include="SourceFiles\draw_dat_load_progress_bar.h" />
     <ClInclude Include="SourceFiles\draw_gui_for_open_dat_file.h" />
+    <ClInclude Include="SourceFiles\draw_left_panel.h" />
+    <ClInclude Include="SourceFiles\draw_map_info_chunk.h" />
+    <ClInclude Include="SourceFiles\draw_props_filenames_panel.h" />
+    <ClInclude Include="SourceFiles\draw_props_info_panel.h" />
+    <ClInclude Include="SourceFiles\draw_prop_model_info.h" />
+    <ClInclude Include="SourceFiles\draw_right_panel.h" />
+    <ClInclude Include="SourceFiles\draw_terrain_chunk.h" />
+    <ClInclude Include="SourceFiles\draw_texture_panel.h" />
     <ClInclude Include="SourceFiles\draw_ui.h" />
     <ClInclude Include="SourceFiles\DXMathHelpers.h" />
     <ClInclude Include="SourceFiles\FFNAType.h" />
     <ClInclude Include="SourceFiles\FFNA_MapFile.h" />
+    <ClInclude Include="SourceFiles\FFNA_ModelFile.h" />
     <ClInclude Include="SourceFiles\GuiGlobalConstants.h" />
     <ClInclude Include="SourceFiles\GWUnpacker.h" />
     <ClInclude Include="SourceFiles\InputManager.h" />
     <ClInclude Include="SourceFiles\Line.h" />
     <ClInclude Include="SourceFiles\MapBrowser.h" />
     <ClInclude Include="SourceFiles\MapRenderer.h" />
+    <ClInclude Include="SourceFiles\maps_constant_data.h" />
     <ClInclude Include="SourceFiles\Mesh.h" />
     <ClInclude Include="SourceFiles\MeshInstance.h" />
     <ClInclude Include="SourceFiles\MeshManager.h" />
@@ -250,24 +248,25 @@
     <ClInclude Include="SourceFiles\PerCameraCB.h" />
     <ClInclude Include="SourceFiles\PerFrameCB.h" />
     <ClInclude Include="SourceFiles\PerObjectCB.h" />
+    <ClInclude Include="SourceFiles\PerTerrainCB.h" />
     <ClInclude Include="SourceFiles\PixelShader.h" />
+    <ClInclude Include="SourceFiles\RasterizerStateManager.h" />
     <ClInclude Include="SourceFiles\RenderBatch.h" />
     <ClInclude Include="SourceFiles\RenderCommand.h" />
     <ClInclude Include="SourceFiles\RenderConstants.h" />
     <ClInclude Include="SourceFiles\Sphere.h" />
     <ClInclude Include="SourceFiles\StepTimer.h" />
     <ClInclude Include="SourceFiles\Terrain.h" />
+    <ClInclude Include="SourceFiles\TerrainCheckeredPixelShader.h" />
+    <ClInclude Include="SourceFiles\TerrainDefaultPixelShader.h" />
+    <ClInclude Include="SourceFiles\TerrainTexturedPixelShader.h" />
     <ClInclude Include="SourceFiles\TextureManager.h" />
     <ClInclude Include="SourceFiles\Vertex.h" />
     <ClInclude Include="SourceFiles\VertexShader.h" />
+    <ClInclude Include="SourceFiles\writeOBJ.h" />
     <ClInclude Include="SourceFiles\xentax.h" />
-    <ClInclude Include="TerrainCheckeredPixelShader.h" />
-    <ClInclude Include="TerrainDefaultPixelShader.h" />
-    <ClInclude Include="TerrainTexturedPixelShader.h" />
-    <ClInclude Include="writeOBJ.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="BlendStateManager.cpp" />
     <ClCompile Include="DearImGui\imgui.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
@@ -314,7 +313,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="DepthStencilStateManager.cpp" />
     <ClCompile Include="DirectXTex\BC.cpp" />
     <ClCompile Include="DirectXTex\BC4BC5.cpp" />
     <ClCompile Include="DirectXTex\BC6HBC7.cpp" />
@@ -335,40 +333,40 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DirectXTex\DirectXTexWIC.cpp" />
-    <ClCompile Include="draw_chunk_20000000.cpp" />
-    <ClCompile Include="draw_chunk_20000003.cpp" />
-    <ClCompile Include="draw_left_panel.cpp" />
-    <ClCompile Include="draw_map_info_chunk.cpp" />
-    <ClCompile Include="draw_props_filenames_panel.cpp" />
-    <ClCompile Include="draw_props_info_panel.cpp" />
-    <ClCompile Include="draw_prop_model_info.cpp" />
-    <ClCompile Include="draw_right_panel.cpp" />
-    <ClCompile Include="draw_terrain_chunk.cpp" />
-    <ClCompile Include="draw_texture_panel.cpp" />
-    <ClCompile Include="FFNA_ModelFile.cpp" />
     <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="PerTerrainCB.cpp" />
-    <ClCompile Include="RasterizerStateManager.cpp" />
     <ClCompile Include="SourceFiles\AtexAsm.cpp" />
     <ClCompile Include="SourceFiles\AtexReader.cpp" />
+    <ClCompile Include="SourceFiles\BlendStateManager.cpp" />
     <ClCompile Include="SourceFiles\Box.cpp" />
     <ClCompile Include="SourceFiles\Camera.cpp" />
     <ClCompile Include="SourceFiles\CheckerboardTexture.cpp" />
     <ClCompile Include="SourceFiles\ConstantBufferManager.cpp" />
     <ClCompile Include="SourceFiles\DATManager.cpp" />
+    <ClCompile Include="SourceFiles\DepthStencilStateManager.cpp" />
     <ClCompile Include="SourceFiles\DeviceResources.cpp" />
     <ClCompile Include="SourceFiles\DirectionalLight.cpp" />
+    <ClCompile Include="SourceFiles\draw_chunk_20000000.cpp" />
+    <ClCompile Include="SourceFiles\draw_chunk_20000003.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_browser.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_load_progress_bar.cpp" />
     <ClCompile Include="SourceFiles\draw_gui_for_open_dat_file.cpp" />
+    <ClCompile Include="SourceFiles\draw_left_panel.cpp" />
+    <ClCompile Include="SourceFiles\draw_map_info_chunk.cpp" />
+    <ClCompile Include="SourceFiles\draw_props_filenames_panel.cpp" />
+    <ClCompile Include="SourceFiles\draw_props_info_panel.cpp" />
+    <ClCompile Include="SourceFiles\draw_prop_model_info.cpp" />
+    <ClCompile Include="SourceFiles\draw_right_panel.cpp" />
+    <ClCompile Include="SourceFiles\draw_terrain_chunk.cpp" />
+    <ClCompile Include="SourceFiles\draw_texture_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_ui.cpp" />
     <ClCompile Include="SourceFiles\DXMathHelpers.cpp" />
     <ClCompile Include="SourceFiles\FFNA_MapFile.cpp" />
+    <ClCompile Include="SourceFiles\FFNA_ModelFile.cpp" />
     <ClCompile Include="SourceFiles\GuiGlobalConstants.cpp" />
     <ClCompile Include="SourceFiles\GWUnpacker.cpp" />
     <ClCompile Include="SourceFiles\InputManager.cpp" />
@@ -387,7 +385,9 @@
     <ClCompile Include="SourceFiles\PerCameraCB.cpp" />
     <ClCompile Include="SourceFiles\PerFrameCB.cpp" />
     <ClCompile Include="SourceFiles\PerObjectCB.cpp" />
+    <ClCompile Include="SourceFiles\PerTerrainCB.cpp" />
     <ClCompile Include="SourceFiles\PixelShader.cpp" />
+    <ClCompile Include="SourceFiles\RasterizerStateManager.cpp" />
     <ClCompile Include="SourceFiles\RenderBatch.cpp" />
     <ClCompile Include="SourceFiles\RenderCommand.cpp" />
     <ClCompile Include="SourceFiles\RenderConstants.cpp" />
@@ -396,12 +396,17 @@
     <ClCompile Include="SourceFiles\TextureManager.cpp" />
     <ClCompile Include="SourceFiles\Vertex.cpp" />
     <ClCompile Include="SourceFiles\VertexShader.cpp" />
+    <ClCompile Include="SourceFiles\writeOBJ.cpp" />
     <ClCompile Include="SourceFiles\xentax.cpp" />
-    <ClCompile Include="writeOBJ.cpp" />
-    <FxCompile Include="TerrainTexturedPixelShader.hlsl">
-      <FileType>Document</FileType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+    <FxCompile Include="SourceFiles\TerrainCheckeredPixelShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\TerrainDefaultPixelShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\TerrainTexturedPixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
     </FxCompile>
@@ -439,18 +444,6 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
-    </FxCompile>
-    <FxCompile Include="TerrainCheckeredPixelShader.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="TerrainDefaultPixelShader.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
