@@ -6,7 +6,8 @@ HRESULT TextureManager::CreateTextureFromDDSInMemory(const uint8_t* ddsData, siz
                                                      int* textureID_out, int* width_out, int* height_out,
                                                      std::vector<RGBA>& rgba_data_out, int file_hash)
 {
-    if (cached_textures.contains(file_hash)) {
+    if (cached_textures.contains(file_hash))
+    {
         const TextureData& textureData = cached_textures[file_hash];
 
         *textureID_out = textureData.textureID;
@@ -85,7 +86,8 @@ HRESULT TextureManager::CreateTextureFromDDSInMemory(const uint8_t* ddsData, siz
         rgba_data_out.resize(pixel_data_size / sizeof(RGBA));
         memcpy(rgba_data_out.data(), img->pixels, pixel_data_size);
 
-        if (file_hash >= 0) {
+        if (file_hash >= 0)
+        {
             TextureData textureData;
             textureData.textureID = *textureID_out; // Newly created texture ID
             textureData.width = width;
