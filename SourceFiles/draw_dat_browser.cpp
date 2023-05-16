@@ -17,6 +17,7 @@ inline bool items_to_parse = 0;
 inline bool items_parsed = 0;
 
 std::unique_ptr<Terrain> terrain;
+std::vector<Mesh> prop_meshes;
 
 const char* type_strings[26] = {
   " ",        "AMAT",     "Amp",      "ATEXDXT1", "ATEXDXT2",     "ATEXDXT3",   "ATEXDXT4",
@@ -106,8 +107,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
         if (selected_ffna_model_file.parsed_correctly)
         {
             map_renderer->UnsetTerrain();
+            prop_meshes.clear();
 
-            std::vector<Mesh> prop_meshes;
             float overallMinX = FLT_MAX, overallMinY = FLT_MAX, overallMinZ = FLT_MAX;
             float overallMaxX = FLT_MIN, overallMaxY = FLT_MIN, overallMaxZ = FLT_MIN;
 
@@ -346,7 +347,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                     if (ffna_model_file_ptr->parsed_correctly)
                     {
                         // Load geometry
-                        std::vector<Mesh> prop_meshes;
+                        prop_meshes.clear();
                         for (int j = 0; j < ffna_model_file_ptr->geometry_chunk.models.size(); j++)
                         {
                             Mesh prop_mesh = ffna_model_file_ptr->GetMesh(j);
@@ -845,6 +846,34 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                         if (! savePath.empty())
                         {
                             dat_manager.save_raw_decompressed_data_to_file(item.id, savePath);
+                        }
+                    }
+
+                    if (item.type == FileType::FFNA_Type2)
+                    {
+                        if (ImGui::MenuItem("Save model mesh"))
+                        {
+                            std::wstring savePath =
+                              OpenFileDialog(std::format(L"model_mesh_0x{:X}", item.hash), L"obj");
+                            if (! savePath.empty())
+                            {
+                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                const auto obj_file_str = write_obj_str(prop_meshes);
+
+                                // Convert the savePath to a string because std::ofstream does not work with std::wstring on all platforms
+                                std::string savePathStr(savePath.begin(), savePath.end());
+
+                                std::ofstream outFile(savePathStr);
+                                if (outFile.is_open())
+                                {
+                                    outFile << obj_file_str;
+                                    outFile.close();
+                                }
+                                else
+                                {
+                                    // Error handling
+                                }
+                            }
                         }
                     }
 
