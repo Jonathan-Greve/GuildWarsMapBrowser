@@ -989,7 +989,7 @@ struct TextureFileNamesChunk
     TextureFileNamesChunk() = default;
 
     TextureFileNamesChunk(uint32_t offset, const unsigned char* data, uint32_t data_size_bytes,
-                          bool& parsed_correctly)
+                          bool& textures_parsed_correctly)
     {
         std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
         std::memcpy(&chunk_size, &data[offset + 4], sizeof(chunk_size));
@@ -1012,7 +1012,7 @@ struct TextureFileNamesChunk
         }
         else
         {
-            parsed_correctly = false;
+            textures_parsed_correctly = false;
             return;
         }
     }
@@ -1029,6 +1029,7 @@ struct FFNA_ModelFile
     TextureFileNamesChunk texture_filenames_chunk;
 
     bool parsed_correctly = true;
+    bool textures_parsed_correctly = true;
 
     std::unordered_map<uint32_t, int> riff_chunks;
 
@@ -1070,7 +1071,7 @@ struct FFNA_ModelFile
         {
             int offset = it->second;
             texture_filenames_chunk =
-              TextureFileNamesChunk(offset, data.data(), data.size_bytes(), parsed_correctly);
+              TextureFileNamesChunk(offset, data.data(), data.size_bytes(), textures_parsed_correctly);
         }
     }
 
@@ -1087,7 +1088,7 @@ struct FFNA_ModelFile
             sub_model_index %= geometry_chunk.tex_and_vertex_shader_struct.uts0.size();
         }
 
-        bool parsed_texture = sizeof(geometry_chunk.tex_and_vertex_shader_struct) > 0 &&
+        bool parsed_texture = textures_parsed_correctly && sizeof(geometry_chunk.tex_and_vertex_shader_struct) > 0 &&
           geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0 &&
           geometry_chunk.tex_and_vertex_shader_struct.tex_array.size() > 0 &&
           geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe.size() > 0;
