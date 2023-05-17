@@ -24,6 +24,8 @@ public:
 
 private:
     POINT m_mouse_pos;
-    POINT right_mouse_button_down_pos;
+    POINT m_right_mouse_button_down_pos;
     std::vector<MouseMoveListener*> m_mouseMoveListeners;
+
+    bool m_isCursorShown = true;
 };
