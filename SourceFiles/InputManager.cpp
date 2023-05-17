@@ -50,11 +50,15 @@ void InputManager::OnMouseDown(int x, int y, WPARAM wParam, HWND hWnd, UINT mess
 
     if (message & WM_RBUTTONDOWN)
     {
-        // Hide the cursor
-        ShowCursor(FALSE);
+        if (m_isCursorShown)
+        {
+            // Hide the cursor
+            ShowCursor(FALSE);
+            m_isCursorShown = false;
+        }
 
         // Get the current cursor position
-        GetCursorPos(&right_mouse_button_down_pos);
+        GetCursorPos(&m_right_mouse_button_down_pos);
     }
 
     SetCapture(hWnd);
@@ -65,13 +69,16 @@ void InputManager::OnMouseUp(int x, int y, WPARAM wParam, HWND hWnd, UINT messag
 
     if (message & WM_RBUTTONUP)
     {
-
         // Set the cursor position to the stored position
-        SetCursorPos(right_mouse_button_down_pos.x, right_mouse_button_down_pos.y);
-    }
+        SetCursorPos(m_right_mouse_button_down_pos.x, m_right_mouse_button_down_pos.y);
 
-    // Show the cursor
-    ShowCursor(TRUE);
+        if (!m_isCursorShown)
+        {
+            // Show the cursor
+            ShowCursor(TRUE);
+            m_isCursorShown = true;
+        }
+    }
 
     // Release the mouse input
     ReleaseCapture();
