@@ -671,6 +671,19 @@ struct UnknownTexStruct0
 };
 #pragma pack(pop) // Restore the original packing alignment
 
+#pragma pack(push, 1) // Set packing alignment to 1 byte
+struct UnknownTexStruct1
+{
+    uint16_t some_flags0;
+    uint16_t some_flags1;
+    uint8_t f0x4;
+    uint8_t f0x5;
+    uint8_t f0x6;
+    uint8_t f0x7;
+    uint8_t f0x8;
+};
+#pragma pack(pop) // Restore the original packing alignment
+
 struct TextureAndVertexShader
 {
     std::vector<UnknownTexStruct0> uts0;
@@ -779,6 +792,10 @@ struct GeometryChunk
     std::vector<uint8_t> unknown_data_1;
     std::vector<std::string> strings;
 
+    std::vector<UnknownTexStruct1> uts1;
+    std::vector<uint16_t> unknown_tex_stuff0;
+    std::vector<uint8_t> unknown_tex_stuff1;
+
     Sub1F0x52Struct sub1_f0x52_struct;
 
     uint32_t unknown4;
@@ -841,9 +858,27 @@ struct GeometryChunk
                         uint32_t _Src = puVar16 + sub_1.f0x1a * 8;
                         if (curr_offset + _Src < data_size_bytes)
                         {
-                            unknown_data_0.resize(_Src);
-                            std::memcpy(unknown_data_0.data(), &data[curr_offset], _Src);
-                            curr_offset += _Src;
+                            uts1.resize(sub_1.f0x19);
+                            std::memcpy(uts1.data(), &data[curr_offset],
+                                        sizeof(UnknownTexStruct1) * sub_1.f0x19);
+                            curr_offset += sizeof(UnknownTexStruct1) * sub_1.f0x19;
+
+                            unknown_tex_stuff0.resize(sub_1.f0x1d);
+                            std::memcpy(unknown_tex_stuff0.data(), &data[curr_offset],
+                                        sizeof(uint16_t) * sub_1.f0x1d);
+                            curr_offset += sizeof(uint16_t) * sub_1.f0x1d;
+
+                            unknown_tex_stuff1.resize(sub_1.f0x1d);
+                            std::memcpy(unknown_tex_stuff1.data(), &data[curr_offset],
+                                        sizeof(uint8_t) * sub_1.f0x1d);
+                            curr_offset += sizeof(uint8_t) * sub_1.f0x1d;
+
+                            uint32_t unknown_data0_size = _Src - sizeof(UnknownTexStruct1) * uts1.size() -
+                              sizeof(uint16_t) * unknown_tex_stuff0.size() -
+                              sizeof(uint8_t) * unknown_tex_stuff1.size();
+                            unknown_data_0.resize(unknown_data0_size);
+                            std::memcpy(unknown_data_0.data(), &data[curr_offset], unknown_data0_size);
+                            curr_offset += unknown_data0_size;
 
                             strings.resize(sub_1.f0x1a);
                             for (uint32_t i = 0; i < sub_1.f0x1a; ++i)
@@ -1088,7 +1123,8 @@ struct FFNA_ModelFile
             sub_model_index %= geometry_chunk.tex_and_vertex_shader_struct.uts0.size();
         }
 
-        bool parsed_texture = textures_parsed_correctly && sizeof(geometry_chunk.tex_and_vertex_shader_struct) > 0 &&
+        bool parsed_texture_with_UTS = textures_parsed_correctly &&
+          sizeof(geometry_chunk.tex_and_vertex_shader_struct) > 0 &&
           geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0 &&
           geometry_chunk.tex_and_vertex_shader_struct.tex_array.size() > 0 &&
           geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe.size() > 0;
@@ -1097,7 +1133,7 @@ struct FFNA_ModelFile
         BlendState blend_state = BlendState::Opaque;
 
         int num_uv_coords_start_index = 0;
-        if (parsed_texture)
+        if (parsed_texture_with_UTS)
         {
             for (int i = 0; i < sub_model_index; i++)
             {
@@ -1107,7 +1143,7 @@ struct FFNA_ModelFile
         }
 
         int num_uv_coords_to_use = 0;
-        if (parsed_texture)
+        if (parsed_texture_with_UTS)
         {
             auto uts = geometry_chunk.tex_and_vertex_shader_struct.uts0[sub_model_index];
             num_uv_coords_to_use = uts.f0x7;
@@ -1184,7 +1220,7 @@ struct FFNA_ModelFile
         std::vector<uint8_t> uv_coords_indices;
         std::vector<uint8_t> tex_indices;
         std::vector<uint8_t> blend_flags;
-        if (parsed_texture)
+        if (parsed_texture_with_UTS)
         {
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
@@ -1222,6 +1258,17 @@ struct FFNA_ModelFile
                     blend_state = BlendState::AlphaBlend;
                     break;
                 }
+            }
+        }
+
+        if (textures_parsed_correctly && geometry_chunk.unknown_tex_stuff1.size() > 0)
+        {
+            for (int i = 0; i < geometry_chunk.unknown_tex_stuff1.size(); i++)
+            {
+                tex_indices.push_back(geometry_chunk.unknown_tex_stuff1[i]);
+                uv_coords_indices.push_back(i);
+                blend_flags.push_back(0);
+                break;
             }
         }
 

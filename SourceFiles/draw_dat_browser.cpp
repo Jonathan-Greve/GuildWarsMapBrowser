@@ -409,21 +409,21 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                             // The number of textures might exceed 8 for a model since each submodel might use up to 8 separate textures.
                             // So for each submodel's Mesh we must make sure that the uv_indices[i] < 8 and tex_indices[i] < 8.
                             per_mesh_tex_ids.resize(prop_meshes.size());
-                            for (int i = 0; i < prop_meshes.size(); i++)
+                            for (int k = 0; k < prop_meshes.size(); k++)
                             {
                                 std::vector<uint8_t> mesh_tex_indices;
-                                for (int j = 0; j < prop_meshes[i].tex_indices.size(); j++)
+                                for (int j = 0; j < prop_meshes[k].tex_indices.size(); j++)
                                 {
-                                    int tex_index = prop_meshes[i].tex_indices[j];
+                                    int tex_index = prop_meshes[k].tex_indices[j];
                                     if (tex_index < texture_ids.size())
                                     {
-                                        per_mesh_tex_ids[i].push_back(texture_ids[tex_index]);
+                                        per_mesh_tex_ids[k].push_back(texture_ids[tex_index]);
 
                                         mesh_tex_indices.push_back(j);
                                     }
                                 }
 
-                                prop_meshes[i].tex_indices = mesh_tex_indices;
+                                prop_meshes[k].tex_indices = mesh_tex_indices;
                             }
                         }
 
@@ -454,7 +454,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                             if (prop_mesh.uv_coord_indices.size() != prop_mesh.tex_indices.size() ||
                                 prop_mesh.uv_coord_indices.size() >= MAX_NUM_TEX_INDICES)
                             {
-                                return; // Failed, maybe throw here on handle error.
+                                ffna_model_file_ptr->textures_parsed_correctly = false;
+                                continue;
                             }
 
                             per_object_cbs[j].num_uv_texture_pairs = prop_mesh.uv_coord_indices.size();
@@ -476,10 +477,10 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                         auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, i);
                         if (ffna_model_file_ptr->textures_parsed_correctly)
                         {
-                            for (int i = 0; i < mesh_ids.size(); i++)
+                            for (int l = 0; l < mesh_ids.size(); l++)
                             {
-                                int mesh_id = mesh_ids[i];
-                                auto& mesh_texture_ids = per_mesh_tex_ids[i];
+                                int mesh_id = mesh_ids[l];
+                                auto& mesh_texture_ids = per_mesh_tex_ids[l];
 
                                 map_renderer->GetMeshManager()->SetTexturesForMesh(
                                   mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids),
