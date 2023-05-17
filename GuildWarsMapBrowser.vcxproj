@@ -422,6 +422,9 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="SourceFiles\directx.ico" />
+    <Image Include="SourceFiles\icon0.ico" />
+    <Image Include="SourceFiles\icon1.ico" />
+    <Image Include="SourceFiles\icon2.ico" />
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="SourceFiles\settings.manifest" />
