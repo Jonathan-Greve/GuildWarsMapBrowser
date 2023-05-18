@@ -276,7 +276,6 @@
     <ClInclude Include="DirectXTex\FlexibleVertexFormat.h">
       <Filter>Dat reader\DDS DirectXTex</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\FFNA_ModelFile.h" />
     <ClInclude Include="SourceFiles\draw_props_info_panel.h">
       <Filter>GUI\Draw model info</Filter>
     </ClInclude>
@@ -339,6 +338,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\FFNAType.h">
       <Filter>Dat reader\Dat file parsers\Texture</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\FFNA_ModelFile.h">
+      <Filter>Dat reader\Dat file parsers\Model</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
