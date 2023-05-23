@@ -200,6 +200,7 @@
     <ClInclude Include="DirectXTex\filters.h" />
     <ClInclude Include="DirectXTex\FlexibleVertexFormat.h" />
     <ClInclude Include="DirectXTex\scoped.h" />
+    <ClInclude Include="Extract_BASS_DLL_resource.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
@@ -215,6 +216,7 @@
     <ClInclude Include="SourceFiles\DepthStencilStateManager.h" />
     <ClInclude Include="SourceFiles\DeviceResources.h" />
     <ClInclude Include="SourceFiles\DirectionalLight.h" />
+    <ClInclude Include="SourceFiles\draw_audio_controller_panel.h" />
     <ClInclude Include="SourceFiles\draw_chunk_20000000.h" />
     <ClInclude Include="SourceFiles\draw_chunk_20000003.h" />
     <ClInclude Include="SourceFiles\draw_dat_browser.h" />
@@ -254,6 +256,7 @@
     <ClInclude Include="SourceFiles\RenderBatch.h" />
     <ClInclude Include="SourceFiles\RenderCommand.h" />
     <ClInclude Include="SourceFiles\RenderConstants.h" />
+    <ClInclude Include="SourceFiles\resource.h" />
     <ClInclude Include="SourceFiles\Sphere.h" />
     <ClInclude Include="SourceFiles\StepTimer.h" />
     <ClInclude Include="SourceFiles\Terrain.h" />
@@ -333,6 +336,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DirectXTex\DirectXTexWIC.cpp" />
+    <ClCompile Include="Extract_BASS_DLL_resource.cpp" />
     <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
@@ -350,6 +354,7 @@
     <ClCompile Include="SourceFiles\DepthStencilStateManager.cpp" />
     <ClCompile Include="SourceFiles\DeviceResources.cpp" />
     <ClCompile Include="SourceFiles\DirectionalLight.cpp" />
+    <ClCompile Include="SourceFiles\draw_audio_controller_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_chunk_20000000.cpp" />
     <ClCompile Include="SourceFiles\draw_chunk_20000003.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_browser.cpp" />
@@ -439,6 +444,8 @@
     <None Include="ImGuiFileDialog-Lib_Only\dirent\README.md" />
     <None Include="ImGuiFileDialog-Lib_Only\LICENSE" />
     <None Include="ImGuiFileDialog-Lib_Only\README.md" />
+    <None Include="SourceFiles\bass.dll" />
+    <None Include="SourceFiles\dll1.bin" />
     <None Include="SourceFiles\imgui.ini" />
   </ItemGroup>
   <ItemGroup>

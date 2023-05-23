@@ -46,6 +46,12 @@ public:
 
     bool save_raw_decompressed_data_to_file(int index, std::wstring filepath);
 
+    unsigned char* read_file(int index)
+    {
+        HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
+        return m_dat.readFile(file_handle, index, true);
+    }
+
 private:
     std::wstring m_dat_filepath;
     GWDat m_dat;

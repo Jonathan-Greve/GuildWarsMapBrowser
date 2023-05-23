@@ -6,10 +6,22 @@
 #include <shobjidl.h>
 #include "writeOBJ.h"
 
+extern LPFNBASSSTREAMCREATEFILE lpfnBassStreamCreateFile;
+extern LPFNBASSCHANNELBYTES2SECONDS lpfnBassChannelBytes2Seconds;
+extern LPFNBASSCHANNELGETLENGTH lpfnBassChannelGetLength;
+extern LPFNBASSSTREAMGETFILEPOSITION lpfnBassStreamGetFilePosition;
+extern LPFNBASSCHANNELGETINFO lpfnBassChannelGetInfo;
+extern LPFNBASSCHANNELPLAY lpfnBassChannelPlay;
+extern LPFNBASSCHANNELSTOP lpfnBassChannelStop;
+extern LPFNBASSSTREAMFREE lpfnBassStreamFree;
+
 inline extern FileType selected_file_type = FileType::NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
 inline extern FFNA_MapFile selected_ffna_map_file{};
 inline extern SelectedDatTexture selected_dat_texture{};
+
+inline extern HSTREAM selected_audio_stream_handle{};
+inline extern std::string audio_info = "";
 
 inline extern std::vector<FileData> selected_map_files{};
 
@@ -63,6 +75,41 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
     switch (entry->type)
     {
+    case SOUND:
+    case AMP:
+    {
+        unsigned char* audio_data = dat_manager.read_file(index);
+
+        if (selected_audio_stream_handle != 0) {
+            lpfnBassChannelStop(selected_audio_stream_handle);
+            lpfnBassStreamFree(selected_audio_stream_handle);
+        }
+
+        if (audio_data != nullptr)
+        {
+            selected_audio_stream_handle = lpfnBassStreamCreateFile(TRUE, // mem
+                                                                    audio_data, // file
+                                                                    0, // offset
+                                                                    entry->uncompressedSize, // length
+                                                                    BASS_STREAM_PRESCAN // flags
+            );
+
+            float time = lpfnBassChannelBytes2Seconds(selected_audio_stream_handle, lpfnBassChannelGetLength(selected_audio_stream_handle, BASS_POS_BYTE)); // playback duration
+            DWORD len = lpfnBassStreamGetFilePosition(selected_audio_stream_handle, BASS_FILEPOS_END); // file length
+            DWORD bitrate = (DWORD)(len / (125 * time) + 0.5); // bitrate (Kbps)
+
+            BASS_CHANNELINFO info;
+            lpfnBassChannelGetInfo(selected_audio_stream_handle, &info);
+
+            audio_info = "Bitrate: " + std::to_string(bitrate) +
+                "\nFrequency: " + std::to_string(info.freq / 1000) + " kHz" +
+                "\nChannels: " + (info.chans == 1 ? "mono" : "Stereo") +
+                "\nFormat: " + (info.ctype == BASS_CTYPE_STREAM_MP3 ? "mp3" : "unknown");;
+
+            lpfnBassChannelPlay(selected_audio_stream_handle, TRUE);
+        }
+    }
+    break;
     case ATEXDXT1:
     case ATEXDXT2:
     case ATEXDXT3:
@@ -228,19 +275,24 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 if (prop_mesh.uv_coord_indices.size() != prop_mesh.tex_indices.size() ||
                     prop_mesh.uv_coord_indices.size() >= MAX_NUM_TEX_INDICES)
                 {
-                    return; // Failed, maybe throw here on handle error.
+                    selected_ffna_model_file.textures_parsed_correctly = false;
+                    continue;
                 }
 
-                per_object_cbs[i].num_uv_texture_pairs = prop_mesh.uv_coord_indices.size();
-
-                for (int j = 0; j < prop_mesh.uv_coord_indices.size(); j++)
+                if (selected_ffna_model_file.textures_parsed_correctly)
                 {
-                    int index0 = j / 4;
-                    int index1 = j % 4;
+                    per_object_cbs[i].num_uv_texture_pairs = prop_mesh.uv_coord_indices.size();
+                    for (int j = 0; j < prop_mesh.uv_coord_indices.size(); j++)
+                    {
+                        int index0 = j / 4;
+                        int index1 = j % 4;
 
-                    per_object_cbs[i].uv_indices[index0][index1] = (uint32_t)prop_mesh.uv_coord_indices[j];
-                    per_object_cbs[i].texture_indices[index0][index1] = (uint32_t)prop_mesh.tex_indices[j];
-                    per_object_cbs[i].blend_flags[index0][index1] = (uint32_t)prop_mesh.blend_flags[j];
+                        per_object_cbs[i].uv_indices[index0][index1] =
+                          (uint32_t)prop_mesh.uv_coord_indices[j];
+                        per_object_cbs[i].texture_indices[index0][index1] =
+                          (uint32_t)prop_mesh.tex_indices[j];
+                        per_object_cbs[i].blend_flags[index0][index1] = (uint32_t)prop_mesh.blend_flags[j];
+                    }
                 }
             }
 
@@ -357,19 +409,19 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 {
 
                     std::vector<std::vector<int>> per_mesh_tex_ids;
+                    // Load geometry
+                    prop_meshes.clear();
+                    for (int j = 0; j < ffna_model_file_ptr->geometry_chunk.models.size(); j++)
+                    {
+                        Mesh prop_mesh = ffna_model_file_ptr->GetMesh(j);
+                        if ((prop_mesh.indices.size() % 3) == 0)
+                        {
+                            prop_meshes.push_back(prop_mesh);
+                        }
+                    }
+
                     if (ffna_model_file_ptr->parsed_correctly)
                     {
-                        // Load geometry
-                        prop_meshes.clear();
-                        for (int j = 0; j < ffna_model_file_ptr->geometry_chunk.models.size(); j++)
-                        {
-                            Mesh prop_mesh = ffna_model_file_ptr->GetMesh(j);
-                            if ((prop_mesh.indices.size() % 3) == 0)
-                            {
-                                prop_meshes.push_back(prop_mesh);
-                            }
-                        }
-
                         // Load textures
                         std::vector<int> texture_ids;
                         if (ffna_model_file_ptr->textures_parsed_correctly)
@@ -458,7 +510,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                                 continue;
                             }
 
-                            per_object_cbs[j].num_uv_texture_pairs = prop_mesh.uv_coord_indices.size();
+                            if (ffna_model_file_ptr->textures_parsed_correctly)
+                                per_object_cbs[j].num_uv_texture_pairs = prop_mesh.uv_coord_indices.size();
 
                             for (int k = 0; k < prop_mesh.uv_coord_indices.size(); k++)
                             {
