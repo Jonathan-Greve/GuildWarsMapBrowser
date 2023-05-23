@@ -17,6 +17,9 @@ extern LPFNBASSSTREAMGETFILEPOSITION lpfnBassStreamGetFilePosition = nullptr;
 extern LPFNBASSCHANNELGETINFO lpfnBassChannelGetInfo = nullptr;
 extern LPFNBASSCHANNELFLAGS lpfnBassChannelFlags = nullptr;
 extern LPFNBASSSTREAMFREE lpfnBassStreamFree = nullptr;
+extern LPFNBASSCHANNELSETPOSITION lpfnBassChannelSetPosition = nullptr;
+extern LPFNBASSCHANNELGETPOSITION lpfnBassChannelGetPosition = nullptr;
+extern LPFNBASSCHANNELSECONDS2BYTES lpfnBassChannelSeconds2Bytes = nullptr;
 
 using namespace DirectX;
 
@@ -139,6 +142,9 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
                     lpfnBassChannelFlags =
                       (LPFNBASSCHANNELFLAGS)GetProcAddress(hBassDll, "BASS_ChannelFlags");
                     lpfnBassStreamFree = (LPFNBASSSTREAMFREE)GetProcAddress(hBassDll, "BASS_StreamFree");
+                    lpfnBassChannelSetPosition = (LPFNBASSCHANNELSETPOSITION)GetProcAddress(hBassDll, "BASS_ChannelSetPosition");
+                    lpfnBassChannelGetPosition = (LPFNBASSCHANNELGETPOSITION)GetProcAddress(hBassDll, "BASS_ChannelGetPosition");
+                    lpfnBassChannelSeconds2Bytes = (LPFNBASSCHANNELSECONDS2BYTES)GetProcAddress(hBassDll, "BASS_ChannelSeconds2Bytes");
                 }
             }
         }

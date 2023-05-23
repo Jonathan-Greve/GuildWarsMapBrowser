@@ -14,6 +14,9 @@ extern LPFNBASSCHANNELGETINFO lpfnBassChannelGetInfo;
 extern LPFNBASSCHANNELPLAY lpfnBassChannelPlay;
 extern LPFNBASSCHANNELSTOP lpfnBassChannelStop;
 extern LPFNBASSSTREAMFREE lpfnBassStreamFree;
+extern LPFNBASSCHANNELFLAGS lpfnBassChannelFlags;
+
+extern bool repeat_audio;
 
 inline extern FileType selected_file_type = FileType::NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
@@ -105,6 +108,11 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 "\nFrequency: " + std::to_string(info.freq / 1000) + " kHz" +
                 "\nChannels: " + (info.chans == 1 ? "mono" : "Stereo") +
                 "\nFormat: " + (info.ctype == BASS_CTYPE_STREAM_MP3 ? "mp3" : "unknown");;
+
+            if (repeat_audio) {
+                // Turn on looping
+                lpfnBassChannelFlags(selected_audio_stream_handle, BASS_SAMPLE_LOOP, BASS_SAMPLE_LOOP);
+            }
 
             lpfnBassChannelPlay(selected_audio_stream_handle, TRUE);
         }
