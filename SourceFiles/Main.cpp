@@ -1,10 +1,22 @@
 //
 // Main.cpp
 //
-
 #include "pch.h"
 #include "MapBrowser.h"
 #include "InputManager.h"
+#include "Extract_BASS_DLL_resource.h"
+#include <filesystem>
+
+extern LPFNBASSSTREAMCREATEFILE lpfnBassStreamCreateFile = nullptr;
+extern LPFNBASSCHANNELPLAY lpfnBassChannelPlay = nullptr;
+extern LPFNBASSCHANNELPAUSE lpfnBassChannelPause = nullptr;
+extern LPFNBASSCHANNELSTOP lpfnBassChannelStop = nullptr;
+extern LPFNBASSCHANNELBYTES2SECONDS lpfnBassChannelBytes2Seconds = nullptr;
+extern LPFNBASSCHANNELGETLENGTH lpfnBassChannelGetLength = nullptr;
+extern LPFNBASSSTREAMGETFILEPOSITION lpfnBassStreamGetFilePosition = nullptr;
+extern LPFNBASSCHANNELGETINFO lpfnBassChannelGetInfo = nullptr;
+extern LPFNBASSCHANNELFLAGS lpfnBassChannelFlags = nullptr;
+extern LPFNBASSSTREAMFREE lpfnBassStreamFree = nullptr;
 
 using namespace DirectX;
 
@@ -14,6 +26,9 @@ using namespace DirectX;
 #endif
 
 #pragma warning(disable : 4061)
+
+extern bool is_bass_working = false;
+extern HMODULE hBassDll = LoadLibrary(TEXT("bass.dll"));
 
 namespace
 {
@@ -89,6 +104,44 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(g_map_browser.get()));
 
         GetClientRect(hwnd, &rc);
+
+        std::filesystem::path exePath = std::filesystem::current_path();
+        std::filesystem::path dllPath = exePath / "bass.dll";
+        if (std::filesystem::exists(dllPath) || extract_bass_dll_resource())
+        {
+            // Load the DLL
+            if (hBassDll != NULL)
+            {
+                // Get a pointer to the BASS_Init function
+                LPFNBASSINIT lpfnBassInit = (LPFNBASSINIT)GetProcAddress(hBassDll, "BASS_Init");
+                if (lpfnBassInit != NULL)
+                {
+                    // Call BASS_Init through the function pointer
+                    is_bass_working = lpfnBassInit(-1, 44100, 0, hwnd, NULL);
+                }
+
+                if (is_bass_working)
+                {
+                    lpfnBassStreamCreateFile =
+                      (LPFNBASSSTREAMCREATEFILE)GetProcAddress(hBassDll, "BASS_StreamCreateFile");
+                    lpfnBassChannelPlay = (LPFNBASSCHANNELPLAY)GetProcAddress(hBassDll, "BASS_ChannelPlay");
+                    lpfnBassChannelPause =
+                      (LPFNBASSCHANNELPAUSE)GetProcAddress(hBassDll, "BASS_ChannelPause");
+                    lpfnBassChannelStop = (LPFNBASSCHANNELSTOP)GetProcAddress(hBassDll, "BASS_ChannelStop");
+                    lpfnBassChannelBytes2Seconds =
+                      (LPFNBASSCHANNELBYTES2SECONDS)GetProcAddress(hBassDll, "BASS_ChannelBytes2Seconds");
+                    lpfnBassChannelGetLength =
+                      (LPFNBASSCHANNELGETLENGTH)GetProcAddress(hBassDll, "BASS_ChannelGetLength");
+                    lpfnBassStreamGetFilePosition =
+                      (LPFNBASSSTREAMGETFILEPOSITION)GetProcAddress(hBassDll, "BASS_StreamGetFilePosition");
+                    lpfnBassChannelGetInfo =
+                      (LPFNBASSCHANNELGETINFO)GetProcAddress(hBassDll, "BASS_ChannelGetInfo");
+                    lpfnBassChannelFlags =
+                      (LPFNBASSCHANNELFLAGS)GetProcAddress(hBassDll, "BASS_ChannelFlags");
+                    lpfnBassStreamFree = (LPFNBASSSTREAMFREE)GetProcAddress(hBassDll, "BASS_StreamFree");
+                }
+            }
+        }
 
         g_map_browser->Initialize(hwnd, rc.right - rc.left, rc.bottom - rc.top);
     }

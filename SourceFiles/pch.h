@@ -76,6 +76,20 @@
 #include <dxgidebug.h>
 #endif
 
+#include "bass.h"
+typedef BOOL(__stdcall* LPFNBASSINIT)(int, DWORD, DWORD, HWND, const void*);
+typedef HSTREAM(WINAPI* LPFNBASSSTREAMCREATEFILE)(BOOL mem, const void* file, QWORD  offset, QWORD  length,
+                                                DWORD flags);
+typedef BOOL(WINAPI* LPFNBASSCHANNELPLAY)(DWORD handle, BOOL restart);
+typedef BOOL(WINAPI* LPFNBASSCHANNELPAUSE)(DWORD handle);
+typedef BOOL(WINAPI* LPFNBASSCHANNELSTOP)(DWORD handle);
+typedef double (WINAPI* LPFNBASSCHANNELBYTES2SECONDS)(DWORD handle, QWORD bytes);
+typedef QWORD(WINAPI* LPFNBASSCHANNELGETLENGTH)(DWORD handle, DWORD mode);
+typedef DWORD(WINAPI* LPFNBASSSTREAMGETFILEPOSITION)(HSTREAM handle, DWORD mode);
+typedef BOOL(WINAPI* LPFNBASSCHANNELGETINFO)(DWORD handle, BASS_CHANNELINFO* info);
+typedef DWORD(WINAPI* LPFNBASSCHANNELFLAGS)(DWORD handle, DWORD flags, DWORD mask);
+typedef BOOL(WINAPI* LPFNBASSSTREAMFREE)(DWORD handle);
+
 namespace DX
 {
 // Helper class for COM exceptions
