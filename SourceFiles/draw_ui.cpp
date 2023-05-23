@@ -6,8 +6,10 @@
 #include "draw_left_panel.h"
 #include "draw_right_panel.h"
 #include "draw_texture_panel.h"
+#include "draw_audio_controller_panel.h"
 
 extern FileType selected_file_type;
+extern HSTREAM selected_audio_stream_handle;
 
 void draw_ui(InitializationState initialization_state, int dat_files_to_read, int dat_total_files,
              DATManager& dat_manager, MapRenderer* map_renderer)
@@ -35,6 +37,10 @@ void draw_ui(InitializationState initialization_state, int dat_files_to_read, in
                 selected_file_type == FFNA_Type2)
             {
                 draw_texture_panel(map_renderer);
+            }
+
+            if (selected_file_type == AMP || selected_file_type == SOUND) {
+                draw_audio_controller_panel(selected_audio_stream_handle);
             }
         }
     }

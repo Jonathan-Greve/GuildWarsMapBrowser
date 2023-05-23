@@ -342,6 +342,13 @@
     <ClInclude Include="SourceFiles\FFNA_ModelFile.h">
       <Filter>Dat reader\Dat file parsers\Model</Filter>
     </ClInclude>
+    <ClInclude Include="Extract_BASS_DLL_resource.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\resource.h" />
+    <ClInclude Include="SourceFiles\draw_audio_controller_panel.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -569,6 +576,12 @@
     <ClCompile Include="SourceFiles\FFNA_ModelFile.cpp">
       <Filter>Dat reader\Dat file parsers\Model</Filter>
     </ClCompile>
+    <ClCompile Include="Extract_BASS_DLL_resource.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_audio_controller_panel.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SourceFiles\resource.rc" />
@@ -614,6 +627,10 @@
     <None Include="SourceFiles\imgui.ini" />
     <None Include="DirectXTex\DirectXTex.inl">
       <Filter>Dat reader\DDS DirectXTex</Filter>
+    </None>
+    <None Include="SourceFiles\bass.dll" />
+    <None Include="SourceFiles\dll1.bin">
+      <Filter>Assets</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
