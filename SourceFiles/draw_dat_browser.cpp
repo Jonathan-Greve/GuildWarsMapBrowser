@@ -25,6 +25,8 @@ extern bool repeat_audio;
 extern float playback_speed;
 extern float volume_level;
 
+extern std::string selected_text_file_str = "";
+
 inline extern FileType selected_file_type = FileType::NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
 inline extern FFNA_MapFile selected_ffna_map_file{};
@@ -83,18 +85,31 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
     selected_file_type = static_cast<FileType>(entry->type);
 
+    if (selected_audio_stream_handle != 0)
+    {
+        lpfnBassChannelStop(selected_audio_stream_handle);
+        lpfnBassStreamFree(selected_audio_stream_handle);
+    }
+
+    static unsigned char* audio_data = nullptr;
+
+    if (audio_data != nullptr) {
+        delete audio_data;
+    }
+
     switch (entry->type)
     {
+    case TEXT:
+    {
+        unsigned char* text_data = dat_manager.read_file(index);
+        std::string text_str(reinterpret_cast<char*>(text_data));
+        selected_text_file_str = text_str;
+    }
+    break;
     case SOUND:
     case AMP:
     {
-        unsigned char* audio_data = dat_manager.read_file(index);
-
-        if (selected_audio_stream_handle != 0)
-        {
-            lpfnBassChannelStop(selected_audio_stream_handle);
-            lpfnBassStreamFree(selected_audio_stream_handle);
-        }
+        audio_data = dat_manager.read_file(index);
 
         if (audio_data != nullptr)
         {
@@ -133,7 +148,6 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             // Adjust the tempo
             lpfnBassChannelSetAttribute(selected_audio_stream_handle, BASS_ATTRIB_TEMPO,
                                         (playback_speed - 1.0f) * 100.0f);
-
 
             // Set audio volume level
             lpfnBassChannelSetAttribute(selected_audio_stream_handle, BASS_ATTRIB_VOL, volume_level);
@@ -971,8 +985,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                     {
                         if (ImGui::MenuItem("Save to mp3"))
                         {
-                            std::wstring savePath =
-                              OpenFileDialog(std::format(L"0x{:X}", item.hash), L"mp3");
+                            std::wstring savePath = OpenFileDialog(std::format(L"0x{:X}", item.hash), L"mp3");
                             if (! savePath.empty())
                             {
                                 dat_manager.save_raw_decompressed_data_to_file(item.id, savePath);

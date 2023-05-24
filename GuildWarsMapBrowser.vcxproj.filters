@@ -349,6 +349,7 @@
     <ClInclude Include="SourceFiles\draw_audio_controller_panel.h">
       <Filter>GUI</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\draw_text_panel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -580,6 +581,9 @@
       <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\draw_audio_controller_panel.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="draw_text_panel.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
   </ItemGroup>
