@@ -78,12 +78,12 @@
 
 #include "bass.h"
 typedef BOOL(__stdcall* LPFNBASSINIT)(int, DWORD, DWORD, HWND, const void*);
-typedef HSTREAM(WINAPI* LPFNBASSSTREAMCREATEFILE)(BOOL mem, const void* file, QWORD  offset, QWORD  length,
-                                                DWORD flags);
+typedef HSTREAM(WINAPI* LPFNBASSSTREAMCREATEFILE)(BOOL mem, const void* file, QWORD offset, QWORD length,
+                                                  DWORD flags);
 typedef BOOL(WINAPI* LPFNBASSCHANNELPLAY)(DWORD handle, BOOL restart);
 typedef BOOL(WINAPI* LPFNBASSCHANNELPAUSE)(DWORD handle);
 typedef BOOL(WINAPI* LPFNBASSCHANNELSTOP)(DWORD handle);
-typedef double (WINAPI* LPFNBASSCHANNELBYTES2SECONDS)(DWORD handle, QWORD bytes);
+typedef double(WINAPI* LPFNBASSCHANNELBYTES2SECONDS)(DWORD handle, QWORD bytes);
 typedef QWORD(WINAPI* LPFNBASSCHANNELGETLENGTH)(DWORD handle, DWORD mode);
 typedef DWORD(WINAPI* LPFNBASSSTREAMGETFILEPOSITION)(HSTREAM handle, DWORD mode);
 typedef BOOL(WINAPI* LPFNBASSCHANNELGETINFO)(DWORD handle, BASS_CHANNELINFO* info);
@@ -92,6 +92,10 @@ typedef BOOL(WINAPI* LPFNBASSSTREAMFREE)(DWORD handle);
 typedef BOOL(WINAPI* LPFNBASSCHANNELSETPOSITION)(DWORD handle, QWORD pos, DWORD mode);
 typedef QWORD(WINAPI* LPFNBASSCHANNELGETPOSITION)(DWORD handle, DWORD mode);
 typedef QWORD(WINAPI* LPFNBASSCHANNELSECONDS2BYTES)(DWORD handle, double seconds);
+typedef BOOL(WINAPI* LPFNBASSCHANNELSETATTRIBUTE)(DWORD handle, DWORD attrib, float value);
+
+#include "bass_fx.h"
+typedef DWORD(WINAPI* LPFNBASSFXTMPOCREATE)(DWORD chan, DWORD flags);
 
 namespace DX
 {

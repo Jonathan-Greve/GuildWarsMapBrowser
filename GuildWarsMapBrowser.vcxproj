@@ -445,6 +445,7 @@
     <None Include="ImGuiFileDialog-Lib_Only\LICENSE" />
     <None Include="ImGuiFileDialog-Lib_Only\README.md" />
     <None Include="SourceFiles\bass.dll" />
+    <None Include="SourceFiles\bass_fx.dll" />
     <None Include="SourceFiles\dll1.bin" />
     <None Include="SourceFiles\imgui.ini" />
   </ItemGroup>

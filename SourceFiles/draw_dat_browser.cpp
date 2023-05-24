@@ -6,6 +6,7 @@
 #include <shobjidl.h>
 #include "writeOBJ.h"
 
+// BASS
 extern LPFNBASSSTREAMCREATEFILE lpfnBassStreamCreateFile;
 extern LPFNBASSCHANNELBYTES2SECONDS lpfnBassChannelBytes2Seconds;
 extern LPFNBASSCHANNELGETLENGTH lpfnBassChannelGetLength;
@@ -15,8 +16,13 @@ extern LPFNBASSCHANNELPLAY lpfnBassChannelPlay;
 extern LPFNBASSCHANNELSTOP lpfnBassChannelStop;
 extern LPFNBASSSTREAMFREE lpfnBassStreamFree;
 extern LPFNBASSCHANNELFLAGS lpfnBassChannelFlags;
+extern LPFNBASSCHANNELSETATTRIBUTE lpfnBassChannelSetAttribute;
+
+// BASS_FX
+extern LPFNBASSFXTMPOCREATE lpfnBassFxTempoCreate;
 
 extern bool repeat_audio;
+extern float playback_speed;
 
 inline extern FileType selected_file_type = FileType::NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
@@ -83,40 +89,54 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
     {
         unsigned char* audio_data = dat_manager.read_file(index);
 
-        if (selected_audio_stream_handle != 0) {
+        if (selected_audio_stream_handle != 0)
+        {
             lpfnBassChannelStop(selected_audio_stream_handle);
             lpfnBassStreamFree(selected_audio_stream_handle);
         }
 
         if (audio_data != nullptr)
         {
-            selected_audio_stream_handle = lpfnBassStreamCreateFile(TRUE, // mem
-                                                                    audio_data, // file
-                                                                    0, // offset
-                                                                    entry->uncompressedSize, // length
-                                                                    BASS_STREAM_PRESCAN // flags
-            );
+            // create the original stream
+            HSTREAM orig_stream = lpfnBassStreamCreateFile(TRUE, // mem
+                                                           audio_data, // file
+                                                           0, // offset
+                                                           entry->uncompressedSize, // length
+                                                           BASS_STREAM_PRESCAN | BASS_STREAM_DECODE); // flags
 
-            float time = lpfnBassChannelBytes2Seconds(selected_audio_stream_handle, lpfnBassChannelGetLength(selected_audio_stream_handle, BASS_POS_BYTE)); // playback duration
-            DWORD len = lpfnBassStreamGetFilePosition(selected_audio_stream_handle, BASS_FILEPOS_END); // file length
+            // create the tempo stream from the original stream
+            selected_audio_stream_handle = lpfnBassFxTempoCreate(orig_stream, BASS_FX_FREESOURCE);
+
+            float time = lpfnBassChannelBytes2Seconds(
+              selected_audio_stream_handle,
+              lpfnBassChannelGetLength(selected_audio_stream_handle, BASS_POS_BYTE)); // playback duration
+            DWORD len =
+              lpfnBassStreamGetFilePosition(selected_audio_stream_handle, BASS_FILEPOS_END); // file length
             DWORD bitrate = (DWORD)(len / (125 * time) + 0.5); // bitrate (Kbps)
 
             BASS_CHANNELINFO info;
             lpfnBassChannelGetInfo(selected_audio_stream_handle, &info);
 
             audio_info = "Bitrate: " + std::to_string(bitrate) +
-                "\nFrequency: " + std::to_string(info.freq / 1000) + " kHz" +
-                "\nChannels: " + (info.chans == 1 ? "mono" : "Stereo") +
-                "\nFormat: " + (info.ctype == BASS_CTYPE_STREAM_MP3 ? "mp3" : "unknown");;
+              "\nFrequency: " + std::to_string(info.freq / 1000) + " kHz" +
+              "\nChannels: " + (info.chans == 1 ? "mono" : "Stereo") +
+              "\nFormat: " + (info.ctype == BASS_CTYPE_STREAM_MP3 ? "mp3" : "unknown");
+            ;
 
-            if (repeat_audio) {
+            if (repeat_audio)
+            {
                 // Turn on looping
                 lpfnBassChannelFlags(selected_audio_stream_handle, BASS_SAMPLE_LOOP, BASS_SAMPLE_LOOP);
             }
 
+            // Adjust the tempo
+            lpfnBassChannelSetAttribute(selected_audio_stream_handle, BASS_ATTRIB_TEMPO,
+                                        (playback_speed - 1.0f) * 100.0f);
+
             lpfnBassChannelPlay(selected_audio_stream_handle, TRUE);
         }
     }
+
     break;
     case ATEXDXT1:
     case ATEXDXT2:

@@ -7,6 +7,7 @@
 #include "Extract_BASS_DLL_resource.h"
 #include <filesystem>
 
+// BASS
 extern LPFNBASSSTREAMCREATEFILE lpfnBassStreamCreateFile = nullptr;
 extern LPFNBASSCHANNELPLAY lpfnBassChannelPlay = nullptr;
 extern LPFNBASSCHANNELPAUSE lpfnBassChannelPause = nullptr;
@@ -20,6 +21,10 @@ extern LPFNBASSSTREAMFREE lpfnBassStreamFree = nullptr;
 extern LPFNBASSCHANNELSETPOSITION lpfnBassChannelSetPosition = nullptr;
 extern LPFNBASSCHANNELGETPOSITION lpfnBassChannelGetPosition = nullptr;
 extern LPFNBASSCHANNELSECONDS2BYTES lpfnBassChannelSeconds2Bytes = nullptr;
+extern LPFNBASSCHANNELSETATTRIBUTE lpfnBassChannelSetAttribute = nullptr;
+
+// BASS_FX
+extern LPFNBASSFXTMPOCREATE lpfnBassFxTempoCreate = nullptr;
 
 using namespace DirectX;
 
@@ -31,7 +36,8 @@ using namespace DirectX;
 #pragma warning(disable : 4061)
 
 extern bool is_bass_working = false;
-extern HMODULE hBassDll = LoadLibrary(TEXT("bass.dll"));
+extern HMODULE hBassDll = 0;
+extern HMODULE hBassFxDll = 0;
 
 namespace
 {
@@ -109,42 +115,59 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         GetClientRect(hwnd, &rc);
 
         std::filesystem::path exePath = std::filesystem::current_path();
-        std::filesystem::path dllPath = exePath / "bass.dll";
-        if (std::filesystem::exists(dllPath) || extract_bass_dll_resource())
+        std::filesystem::path bass_dllPath = exePath / "bass.dll";
+        if (std::filesystem::exists(bass_dllPath) || extract_bass_dll_resource())
         {
-            // Load the DLL
-            if (hBassDll != NULL)
+            std::filesystem::path bass_fx_dllPath = exePath / "bass_fx.dll";
+            if (std::filesystem::exists(bass_fx_dllPath) || extract_bass_fx_dll_resource())
             {
-                // Get a pointer to the BASS_Init function
-                LPFNBASSINIT lpfnBassInit = (LPFNBASSINIT)GetProcAddress(hBassDll, "BASS_Init");
-                if (lpfnBassInit != NULL)
-                {
-                    // Call BASS_Init through the function pointer
-                    is_bass_working = lpfnBassInit(-1, 44100, 0, hwnd, NULL);
-                }
 
-                if (is_bass_working)
+                hBassDll = LoadLibrary(TEXT("bass.dll"));
+                hBassFxDll = LoadLibrary(TEXT("bass_fx.dll"));
+
+                // Load the DLL
+                if (hBassDll != NULL)
                 {
-                    lpfnBassStreamCreateFile =
-                      (LPFNBASSSTREAMCREATEFILE)GetProcAddress(hBassDll, "BASS_StreamCreateFile");
-                    lpfnBassChannelPlay = (LPFNBASSCHANNELPLAY)GetProcAddress(hBassDll, "BASS_ChannelPlay");
-                    lpfnBassChannelPause =
-                      (LPFNBASSCHANNELPAUSE)GetProcAddress(hBassDll, "BASS_ChannelPause");
-                    lpfnBassChannelStop = (LPFNBASSCHANNELSTOP)GetProcAddress(hBassDll, "BASS_ChannelStop");
-                    lpfnBassChannelBytes2Seconds =
-                      (LPFNBASSCHANNELBYTES2SECONDS)GetProcAddress(hBassDll, "BASS_ChannelBytes2Seconds");
-                    lpfnBassChannelGetLength =
-                      (LPFNBASSCHANNELGETLENGTH)GetProcAddress(hBassDll, "BASS_ChannelGetLength");
-                    lpfnBassStreamGetFilePosition =
-                      (LPFNBASSSTREAMGETFILEPOSITION)GetProcAddress(hBassDll, "BASS_StreamGetFilePosition");
-                    lpfnBassChannelGetInfo =
-                      (LPFNBASSCHANNELGETINFO)GetProcAddress(hBassDll, "BASS_ChannelGetInfo");
-                    lpfnBassChannelFlags =
-                      (LPFNBASSCHANNELFLAGS)GetProcAddress(hBassDll, "BASS_ChannelFlags");
-                    lpfnBassStreamFree = (LPFNBASSSTREAMFREE)GetProcAddress(hBassDll, "BASS_StreamFree");
-                    lpfnBassChannelSetPosition = (LPFNBASSCHANNELSETPOSITION)GetProcAddress(hBassDll, "BASS_ChannelSetPosition");
-                    lpfnBassChannelGetPosition = (LPFNBASSCHANNELGETPOSITION)GetProcAddress(hBassDll, "BASS_ChannelGetPosition");
-                    lpfnBassChannelSeconds2Bytes = (LPFNBASSCHANNELSECONDS2BYTES)GetProcAddress(hBassDll, "BASS_ChannelSeconds2Bytes");
+                    // Get a pointer to the BASS_Init function
+                    LPFNBASSINIT lpfnBassInit = (LPFNBASSINIT)GetProcAddress(hBassDll, "BASS_Init");
+                    if (lpfnBassInit != NULL)
+                    {
+                        // Call BASS_Init through the function pointer
+                        is_bass_working = lpfnBassInit(-1, 44100, 0, hwnd, NULL);
+                    }
+
+                    if (is_bass_working)
+                    {
+                        lpfnBassStreamCreateFile =
+                          (LPFNBASSSTREAMCREATEFILE)GetProcAddress(hBassDll, "BASS_StreamCreateFile");
+                        lpfnBassChannelPlay =
+                          (LPFNBASSCHANNELPLAY)GetProcAddress(hBassDll, "BASS_ChannelPlay");
+                        lpfnBassChannelPause =
+                          (LPFNBASSCHANNELPAUSE)GetProcAddress(hBassDll, "BASS_ChannelPause");
+                        lpfnBassChannelStop =
+                          (LPFNBASSCHANNELSTOP)GetProcAddress(hBassDll, "BASS_ChannelStop");
+                        lpfnBassChannelBytes2Seconds =
+                          (LPFNBASSCHANNELBYTES2SECONDS)GetProcAddress(hBassDll, "BASS_ChannelBytes2Seconds");
+                        lpfnBassChannelGetLength =
+                          (LPFNBASSCHANNELGETLENGTH)GetProcAddress(hBassDll, "BASS_ChannelGetLength");
+                        lpfnBassStreamGetFilePosition = (LPFNBASSSTREAMGETFILEPOSITION)GetProcAddress(
+                          hBassDll, "BASS_StreamGetFilePosition");
+                        lpfnBassChannelGetInfo =
+                          (LPFNBASSCHANNELGETINFO)GetProcAddress(hBassDll, "BASS_ChannelGetInfo");
+                        lpfnBassChannelFlags =
+                          (LPFNBASSCHANNELFLAGS)GetProcAddress(hBassDll, "BASS_ChannelFlags");
+                        lpfnBassStreamFree = (LPFNBASSSTREAMFREE)GetProcAddress(hBassDll, "BASS_StreamFree");
+                        lpfnBassChannelSetPosition =
+                          (LPFNBASSCHANNELSETPOSITION)GetProcAddress(hBassDll, "BASS_ChannelSetPosition");
+                        lpfnBassChannelGetPosition =
+                          (LPFNBASSCHANNELGETPOSITION)GetProcAddress(hBassDll, "BASS_ChannelGetPosition");
+                        lpfnBassChannelSeconds2Bytes =
+                          (LPFNBASSCHANNELSECONDS2BYTES)GetProcAddress(hBassDll, "BASS_ChannelSeconds2Bytes");
+                        lpfnBassChannelSetAttribute =
+                          (LPFNBASSCHANNELSETATTRIBUTE)GetProcAddress(hBassDll, "BASS_ChannelSetAttribute");
+                        lpfnBassFxTempoCreate =
+                          (LPFNBASSFXTMPOCREATE)GetProcAddress(hBassFxDll, "BASS_FX_TempoCreate");
+                    }
                 }
             }
         }
