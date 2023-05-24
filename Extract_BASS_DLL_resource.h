@@ -89,7 +89,7 @@ inline bool extract_bass_fx_dll_resource()
     TCHAR szPath[MAX_PATH];
     GetModuleFileName(NULL, szPath, MAX_PATH);
     PathRemoveFileSpec(szPath);
-    PathAppend(szPath, _T("bass_dx.dll"));
+    PathAppend(szPath, _T("bass_fx.dll"));
 
     // Create the file and write the resource data to it
     HANDLE hFile = CreateFile(szPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
