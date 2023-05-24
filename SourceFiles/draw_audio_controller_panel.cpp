@@ -6,6 +6,7 @@ extern bool is_bass_working;
 extern std::string audio_info;
 extern bool repeat_audio = false;
 extern float playback_speed = 1.0f;
+extern float volume_level = 1.0f;
 
 extern LPFNBASSCHANNELFLAGS lpfnBassChannelFlags;
 extern LPFNBASSCHANNELBYTES2SECONDS lpfnBassChannelBytes2Seconds;
@@ -113,6 +114,22 @@ void draw_audio_controller_panel(HSTREAM streamHandle)
         if (ImGui::IsItemHovered())
         {
             ImGui::SetTooltip("Change the speed of the playback. 1.0 is normal speed.");
+        }
+
+        ImGui::Spacing();
+        ImGui::Text("Volume Control");
+        ImGui::Separator();
+
+        // New control for volume
+        if (ImGui::SliderFloat("Volume", &volume_level, 0.0f, 1.0f))
+        {
+            lpfnBassChannelSetAttribute(streamHandle, BASS_ATTRIB_VOL, volume_level);
+        }
+
+        // Add tooltips for additional user information
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Change the volume of the playback. 0.0 is silent, 1.0 is maximum volume.");
         }
 
         ImGui::End();
