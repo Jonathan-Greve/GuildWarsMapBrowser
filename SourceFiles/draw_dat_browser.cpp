@@ -23,6 +23,7 @@ extern LPFNBASSFXTMPOCREATE lpfnBassFxTempoCreate;
 
 extern bool repeat_audio;
 extern float playback_speed;
+extern float volume_level;
 
 inline extern FileType selected_file_type = FileType::NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
@@ -132,6 +133,10 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             // Adjust the tempo
             lpfnBassChannelSetAttribute(selected_audio_stream_handle, BASS_ATTRIB_TEMPO,
                                         (playback_speed - 1.0f) * 100.0f);
+
+
+            // Set audio volume level
+            lpfnBassChannelSetAttribute(selected_audio_stream_handle, BASS_ATTRIB_VOL, volume_level);
 
             lpfnBassChannelPlay(selected_audio_stream_handle, TRUE);
         }
