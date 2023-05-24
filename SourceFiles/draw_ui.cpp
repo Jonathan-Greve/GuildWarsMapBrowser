@@ -8,10 +8,12 @@
 #include "draw_texture_panel.h"
 #include "draw_audio_controller_panel.h"
 #include "draw_text_panel.h"
+#include "draw_hex_editor_panel.h"
 
 extern FileType selected_file_type;
 extern HSTREAM selected_audio_stream_handle;
 extern std::string selected_text_file_str;
+extern std::vector<uint8_t> selected_raw_data;
 
 void draw_ui(InitializationState initialization_state, int dat_files_to_read, int dat_total_files,
              DATManager& dat_manager, MapRenderer* map_renderer)
@@ -47,6 +49,11 @@ void draw_ui(InitializationState initialization_state, int dat_files_to_read, in
             else if (selected_file_type == TEXT)
             {
                 draw_text_panel(selected_text_file_str);
+            }
+
+            if (selected_raw_data.size() > 0)
+            {
+                draw_hex_editor_panel(selected_raw_data.data(), selected_raw_data.size());
             }
         }
     }

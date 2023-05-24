@@ -98,6 +98,9 @@
     <Filter Include="Input\Render\Blend">
       <UniqueIdentifier>{cc7be27a-d599-44cf-a57b-14e0e22d12f7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dear ImGui\Hex Editor">
+      <UniqueIdentifier>{2b2ff04b-f5a3-4611-b69f-9bf81e9ec091}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -350,6 +353,10 @@
       <Filter>GUI</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\draw_text_panel.h" />
+    <ClInclude Include="SourceFiles\imgui_memory_editor.h">
+      <Filter>Dear ImGui\Hex Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="draw_hex_editor_panel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -586,6 +593,7 @@
     <ClCompile Include="draw_text_panel.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
+    <ClCompile Include="draw_hex_editor_panel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SourceFiles\resource.rc" />
