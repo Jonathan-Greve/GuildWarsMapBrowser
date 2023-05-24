@@ -31,6 +31,7 @@ inline extern FileType selected_file_type = FileType::NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
 inline extern FFNA_MapFile selected_ffna_map_file{};
 inline extern SelectedDatTexture selected_dat_texture{};
+inline extern std::vector<uint8_t> selected_raw_data{};
 
 inline extern HSTREAM selected_audio_stream_handle{};
 inline extern std::string audio_info = "";
@@ -91,31 +92,26 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
         lpfnBassStreamFree(selected_audio_stream_handle);
     }
 
-    static unsigned char* audio_data = nullptr;
-
-    if (audio_data != nullptr) {
-        delete audio_data;
-    }
+    unsigned char* raw_data = dat_manager.read_file(index);
+    selected_raw_data = std::vector<uint8_t>(raw_data, raw_data + entry->uncompressedSize);
+    delete raw_data;
 
     switch (entry->type)
     {
     case TEXT:
     {
-        unsigned char* text_data = dat_manager.read_file(index);
-        std::string text_str(reinterpret_cast<char*>(text_data));
+        std::string text_str(reinterpret_cast<char*>(selected_raw_data.data()));
         selected_text_file_str = text_str;
     }
     break;
     case SOUND:
     case AMP:
     {
-        audio_data = dat_manager.read_file(index);
-
-        if (audio_data != nullptr)
+        if (selected_raw_data.size() > 0)
         {
             // create the original stream
             HSTREAM orig_stream = lpfnBassStreamCreateFile(TRUE, // mem
-                                                           audio_data, // file
+                                                           selected_raw_data.data(), // file
                                                            0, // offset
                                                            entry->uncompressedSize, // length
                                                            BASS_STREAM_PRESCAN | BASS_STREAM_DECODE); // flags
