@@ -632,6 +632,7 @@
     <None Include="SourceFiles\dll1.bin">
       <Filter>Assets</Filter>
     </None>
+    <None Include="SourceFiles\bass_fx.dll" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="SourceFiles\VertexShader.hlsl">
