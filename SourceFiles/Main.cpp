@@ -126,7 +126,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
                 hBassFxDll = LoadLibrary(TEXT("bass_fx.dll"));
 
                 // Load the DLL
-                if (hBassDll != NULL)
+                if (hBassDll != NULL && hBassFxDll != NULL)
                 {
                     // Get a pointer to the BASS_Init function
                     LPFNBASSINIT lpfnBassInit = (LPFNBASSINIT)GetProcAddress(hBassDll, "BASS_Init");
