@@ -5,6 +5,7 @@
 extern bool is_bass_working;
 extern std::string audio_info;
 extern bool repeat_audio = false;
+extern float playback_speed = 1.0f;
 
 extern LPFNBASSCHANNELFLAGS lpfnBassChannelFlags;
 extern LPFNBASSCHANNELBYTES2SECONDS lpfnBassChannelBytes2Seconds;
@@ -17,6 +18,7 @@ extern LPFNBASSCHANNELSTOP lpfnBassChannelStop;
 extern LPFNBASSCHANNELSETPOSITION lpfnBassChannelSetPosition;
 extern LPFNBASSCHANNELGETPOSITION lpfnBassChannelGetPosition;
 extern LPFNBASSCHANNELSECONDS2BYTES lpfnBassChannelSeconds2Bytes;
+extern LPFNBASSCHANNELSETATTRIBUTE lpfnBassChannelSetAttribute;
 
 void draw_audio_controller_panel(HSTREAM streamHandle)
 {
@@ -34,7 +36,16 @@ void draw_audio_controller_panel(HSTREAM streamHandle)
 
         ImGui::Begin("Audio Control");
 
+        // Separate sections for better layout
+        ImGui::Text("Track Information");
+        ImGui::Separator();
         ImGui::Text("%s", audio_info.c_str());
+
+        ImGui::Spacing();
+        ImGui::Text("Playback Controls");
+        ImGui::Separator();
+
+        ImGui::SetCursorPosX((ImGui::GetWindowSize().x - 220) / 2); // Center buttons
 
         if (ImGui::Button("Play"))
         {
@@ -71,6 +82,10 @@ void draw_audio_controller_panel(HSTREAM streamHandle)
             }
         }
 
+        ImGui::Spacing();
+        ImGui::Text("Track Navigation");
+        ImGui::Separator();
+
         // Allow modification of the current position using a slider
         auto label = std::format("{:02d}:{:02d} / {:02d}:{:02d}", static_cast<int>(currPos) / 60,
                                  static_cast<int>(currPos) % 60, static_cast<int>(totalDur) / 60,
@@ -82,6 +97,22 @@ void draw_audio_controller_panel(HSTREAM streamHandle)
             lpfnBassChannelSetPosition(
               streamHandle, lpfnBassChannelSeconds2Bytes(streamHandle, static_cast<double>(currPos)),
               BASS_POS_BYTE);
+        }
+
+        ImGui::Spacing();
+        ImGui::Text("Playback Speed");
+        ImGui::Separator();
+
+        // New control for playback speed
+        if (ImGui::SliderFloat("Speed", &playback_speed, 0.01f, 10.0f))
+        {
+            lpfnBassChannelSetAttribute(streamHandle, BASS_ATTRIB_TEMPO, (playback_speed - 1.0f) * 100.0f);
+        }
+
+        // Add tooltips for additional user information
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip("Change the speed of the playback. 1.0 is normal speed.");
         }
 
         ImGui::End();
