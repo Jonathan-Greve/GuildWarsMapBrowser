@@ -200,6 +200,7 @@
     <ClInclude Include="DirectXTex\filters.h" />
     <ClInclude Include="DirectXTex\FlexibleVertexFormat.h" />
     <ClInclude Include="DirectXTex\scoped.h" />
+    <ClInclude Include="draw_hex_editor_panel.h" />
     <ClInclude Include="Extract_BASS_DLL_resource.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
@@ -238,6 +239,7 @@
     <ClInclude Include="SourceFiles\FFNA_ModelFile.h" />
     <ClInclude Include="SourceFiles\GuiGlobalConstants.h" />
     <ClInclude Include="SourceFiles\GWUnpacker.h" />
+    <ClInclude Include="SourceFiles\imgui_memory_editor.h" />
     <ClInclude Include="SourceFiles\InputManager.h" />
     <ClInclude Include="SourceFiles\Line.h" />
     <ClInclude Include="SourceFiles\MapBrowser.h" />
@@ -337,6 +339,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DirectXTex\DirectXTexWIC.cpp" />
+    <ClCompile Include="draw_hex_editor_panel.cpp" />
     <ClCompile Include="draw_text_panel.cpp" />
     <ClCompile Include="Extract_BASS_DLL_resource.cpp" />
     <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">
