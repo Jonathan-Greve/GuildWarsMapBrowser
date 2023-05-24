@@ -230,6 +230,7 @@
     <ClInclude Include="SourceFiles\draw_right_panel.h" />
     <ClInclude Include="SourceFiles\draw_terrain_chunk.h" />
     <ClInclude Include="SourceFiles\draw_texture_panel.h" />
+    <ClInclude Include="SourceFiles\draw_text_panel.h" />
     <ClInclude Include="SourceFiles\draw_ui.h" />
     <ClInclude Include="SourceFiles\DXMathHelpers.h" />
     <ClInclude Include="SourceFiles\FFNAType.h" />
@@ -336,6 +337,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DirectXTex\DirectXTexWIC.cpp" />
+    <ClCompile Include="draw_text_panel.cpp" />
     <ClCompile Include="Extract_BASS_DLL_resource.cpp" />
     <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
