@@ -962,6 +962,19 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                         }
                     }
 
+                    if (item.type == FileType::SOUND || item.type == FileType::AMP)
+                    {
+                        if (ImGui::MenuItem("Save to mp3"))
+                        {
+                            std::wstring savePath =
+                              OpenFileDialog(std::format(L"0x{:X}", item.hash), L"mp3");
+                            if (! savePath.empty())
+                            {
+                                dat_manager.save_raw_decompressed_data_to_file(item.id, savePath);
+                            }
+                        }
+                    }
+
                     if (item.type == FileType::FFNA_Type2)
                     {
                         if (ImGui::MenuItem("Export Mesh"))
