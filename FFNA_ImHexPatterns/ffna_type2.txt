@@ -197,7 +197,8 @@ struct Chunk1_sub1 {
   u32 magic_num0;
   u32 magic_num;
   u8 num_some_struct; // the structs have size 0x1c
-  u8 f0x31[7];
+  u8 f0x31[3];
+  u32 f0x34;
   u32 f0x38;
   u32 f0x3C;
   u32 f0x40;
@@ -387,7 +388,7 @@ struct GeometryChunk {
   // Data start
   Chunk1_sub1 sub_1; sub_1_address=addressof(sub_1); sub_1_f0x8=sub_1.f0x8;
 
-  u8 unknown0[sub_1.num_some_struct];
+  u8 unknown0[sub_1.num_some_struct * 0x1C];
   SomeStruct2 some_struct_2s[sub_1.num_some_struct2];
 
   TextureAndVertexShader<sub_1.some_num0, sub_1.some_num1, sub_1.f0x20 > TaVS;
@@ -449,24 +450,18 @@ struct GeometryChunk {
   }
   
   
-  u32 extra = 0;
-  if (sub_1.num_some_struct2 > 0){
-    u8 some_array[sub_1.num_some_struct2*0x30];
-    u8 some_data0[some_array[0x28]*0x18+some_array[0x2c]*0x10];
-    extra += sizeof(some_array) + sizeof(some_data0);
-  }
-  
-
   geometry_sub_chunk geometry[sub_1.num_models];
+  
 
-  
-  
   InteractiveModelMaybe interactive_models_maybe[sub_1.collision_count];
   f0x48_data t[sub_1.f0x48];
-  u8 chunk_data[chunk_size-sizeof(sub_1)-sizeof(TaVS)-extra
+  
+  u8 unknown_data[sub_1.f0x34];
+  
+  u8 chunk_data[chunk_size-sizeof(sub_1)-sizeof(some_struct_2s)-sizeof(unknown0)-sizeof(TaVS)
      -sizeof(geometry)-extra_bytes
      -sizeof(interactive_models_maybe)
-     -sizeof(t)];
+     -sizeof(t)-sizeof(unknown_data)];
 };
 
 
