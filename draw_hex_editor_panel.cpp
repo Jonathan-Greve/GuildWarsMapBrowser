@@ -5,5 +5,6 @@
 void draw_hex_editor_panel(unsigned char* data, int data_size)
 {
     static MemoryEditor mem_edit;
+    mem_edit.ReadOnly = true;
     mem_edit.DrawWindow("Memory Editor", data, data_size);
 }
