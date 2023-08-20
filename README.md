@@ -15,6 +15,9 @@ Browse the Guild Wars .dat file. Included features:
 And here is an example of rendering a model:
 ![Model with file hash 0x2E100](images/preview4.png)
 
+## Building
+To build just clone the repository and open the .Sln in Visual Studio. Build in x86 mode (release or debug). Cannot build 64-bit.
+
 Credits:
 Decompressing the .dat file uses the source code from:
  - [GWDatBrowser]https://github.com/kytulendu/GWDatBrowser
