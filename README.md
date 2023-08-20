@@ -5,6 +5,10 @@ Browse the Guild Wars .dat file. Included features:
 - Searching and filtering the internal files in the dat.
 - Rendering 3D terrains for all maps.
 - Fly around in and explore the maps in first person.
+- Hex editor viewer of files.
+- Playback of audio files.
+- Extract 3D models and textures.
+- And more
  
  Here is an preview of Monastery Overlook as seen rendered in GuildWarsMapBrowser:
 ![Monastery Overlook](images/preview3.png)
