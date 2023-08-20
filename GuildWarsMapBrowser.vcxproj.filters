@@ -41,51 +41,6 @@
     <Filter Include="GUI\Draw model info">
       <UniqueIdentifier>{0e70a3a4-b3b5-40ac-af1f-a6b3fd7237e8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Input\Render">
-      <UniqueIdentifier>{63f4bdcd-7104-45e6-b225-dce245392bda}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Shaders">
-      <UniqueIdentifier>{225caeae-25de-421d-8366-50c2e0f93d13}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Shaders\Pixel shaders">
-      <UniqueIdentifier>{6508be56-aa10-4fb3-bddd-2f5e78dbb4c2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Shaders\Pixel shaders\Terrain">
-      <UniqueIdentifier>{708c2a12-6b7a-4aae-aa68-13473e0f6724}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Shaders\Pixel shaders\Default">
-      <UniqueIdentifier>{324dac91-05ad-494d-b16b-dd777c02705a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Constant buffers">
-      <UniqueIdentifier>{5f85670d-2780-4536-aca3-cb44b059264a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Render constants">
-      <UniqueIdentifier>{58da3290-5890-4187-a825-10265d9a4b6d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Camera">
-      <UniqueIdentifier>{e3a0949c-9bcd-47c4-924b-29280e2d6ea5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Basic shapes">
-      <UniqueIdentifier>{a0ff3d44-5316-46df-8ed5-b6c0db385dd7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Renderer">
-      <UniqueIdentifier>{eeef9eef-ab2e-4957-b093-0e82fd7ad737}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Renderer\Map renderer">
-      <UniqueIdentifier>{449a272d-07f5-43c1-a994-bb0e36e6fced}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Structs">
-      <UniqueIdentifier>{a12abb2f-d2f6-42d1-9c3e-f4bd797227db}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Math helpers">
-      <UniqueIdentifier>{b2f31f3a-3b65-4570-9606-5e263b7131ca}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Textures">
-      <UniqueIdentifier>{0404d6fd-01a9-4053-8cbd-fac666d86b7a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Input\Render\Terrain">
-      <UniqueIdentifier>{f9aafacb-1ef7-42b2-af72-0f5f02ae2798}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Dat reader\Dat file parsers\Texture">
       <UniqueIdentifier>{f0c6d069-cc47-4e64-a8ef-5c794dfdc661}</UniqueIdentifier>
     </Filter>
@@ -95,11 +50,56 @@
     <Filter Include="Dat reader\DDS DirectXTex">
       <UniqueIdentifier>{346dff3f-4c3a-4b52-bc34-06161203469e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Input\Render\Blend">
-      <UniqueIdentifier>{cc7be27a-d599-44cf-a57b-14e0e22d12f7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Dear ImGui\Hex Editor">
       <UniqueIdentifier>{2b2ff04b-f5a3-4611-b69f-9bf81e9ec091}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render">
+      <UniqueIdentifier>{63f4bdcd-7104-45e6-b225-dce245392bda}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders">
+      <UniqueIdentifier>{225caeae-25de-421d-8366-50c2e0f93d13}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\Pixel shaders">
+      <UniqueIdentifier>{6508be56-aa10-4fb3-bddd-2f5e78dbb4c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\Pixel shaders\Terrain">
+      <UniqueIdentifier>{708c2a12-6b7a-4aae-aa68-13473e0f6724}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\Pixel shaders\Default">
+      <UniqueIdentifier>{324dac91-05ad-494d-b16b-dd777c02705a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Constant buffers">
+      <UniqueIdentifier>{5f85670d-2780-4536-aca3-cb44b059264a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Render constants">
+      <UniqueIdentifier>{58da3290-5890-4187-a825-10265d9a4b6d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Camera">
+      <UniqueIdentifier>{e3a0949c-9bcd-47c4-924b-29280e2d6ea5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Basic shapes">
+      <UniqueIdentifier>{a0ff3d44-5316-46df-8ed5-b6c0db385dd7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Renderer">
+      <UniqueIdentifier>{eeef9eef-ab2e-4957-b093-0e82fd7ad737}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Renderer\Map renderer">
+      <UniqueIdentifier>{449a272d-07f5-43c1-a994-bb0e36e6fced}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Structs">
+      <UniqueIdentifier>{a12abb2f-d2f6-42d1-9c3e-f4bd797227db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Math helpers">
+      <UniqueIdentifier>{b2f31f3a-3b65-4570-9606-5e263b7131ca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Textures">
+      <UniqueIdentifier>{0404d6fd-01a9-4053-8cbd-fac666d86b7a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Terrain">
+      <UniqueIdentifier>{f9aafacb-1ef7-42b2-af72-0f5f02ae2798}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Blend">
+      <UniqueIdentifier>{cc7be27a-d599-44cf-a57b-14e0e22d12f7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -148,64 +148,64 @@
       <Filter>Input</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\Box.h">
-      <Filter>Input\Render\Basic shapes</Filter>
+      <Filter>Render\Basic shapes</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\Line.h">
-      <Filter>Input\Render\Basic shapes</Filter>
+      <Filter>Render\Basic shapes</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\Sphere.h">
-      <Filter>Input\Render\Basic shapes</Filter>
+      <Filter>Render\Basic shapes</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\Camera.h">
-      <Filter>Input\Render\Camera</Filter>
+      <Filter>Render\Camera</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\ConstantBufferManager.h">
-      <Filter>Input\Render\Constant buffers</Filter>
+      <Filter>Render\Constant buffers</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\PerCameraCB.h">
-      <Filter>Input\Render\Constant buffers</Filter>
+      <Filter>Render\Constant buffers</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\PerFrameCB.h">
-      <Filter>Input\Render\Constant buffers</Filter>
+      <Filter>Render\Constant buffers</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\PerObjectCB.h">
-      <Filter>Input\Render\Constant buffers</Filter>
+      <Filter>Render\Constant buffers</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\RenderConstants.h">
-      <Filter>Input\Render\Render constants</Filter>
+      <Filter>Render\Render constants</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\MeshInstance.h">
-      <Filter>Input\Render\Renderer</Filter>
+      <Filter>Render\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\MeshManager.h">
-      <Filter>Input\Render\Renderer</Filter>
+      <Filter>Render\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\RenderCommand.h">
-      <Filter>Input\Render\Renderer</Filter>
+      <Filter>Render\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\RenderBatch.h">
-      <Filter>Input\Render\Renderer</Filter>
+      <Filter>Render\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\VertexShader.h">
-      <Filter>Input\Render\Shaders</Filter>
+      <Filter>Render\Shaders</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\PixelShader.h">
-      <Filter>Input\Render\Shaders</Filter>
+      <Filter>Render\Shaders</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\DirectionalLight.h">
-      <Filter>Input\Render\Structs</Filter>
+      <Filter>Render\Structs</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\Mesh.h">
-      <Filter>Input\Render\Structs</Filter>
+      <Filter>Render\Structs</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\Vertex.h">
-      <Filter>Input\Render\Structs</Filter>
+      <Filter>Render\Structs</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\Terrain.h">
-      <Filter>Input\Render\Terrain</Filter>
+      <Filter>Render\Terrain</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\CheckerboardTexture.h">
-      <Filter>Input\Render\Textures</Filter>
+      <Filter>Render\Textures</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\draw_dat_browser.h">
       <Filter>GUI</Filter>
@@ -232,13 +232,13 @@
       <Filter>Common</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\TextureManager.h">
-      <Filter>Input\Render\Textures</Filter>
+      <Filter>Render\Textures</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\DeviceResources.h">
       <Filter>Common</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\MapRenderer.h">
-      <Filter>Input\Render</Filter>
+      <Filter>Render</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\draw_dat_load_progress_bar.h">
       <Filter>GUI</Filter>
@@ -250,7 +250,7 @@
       <Filter>GUI</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\DXMathHelpers.h">
-      <Filter>Input\Render\Math helpers</Filter>
+      <Filter>Render\Math helpers</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\FFNA_MapFile.h">
       <Filter>Dat reader\Dat file parsers\Map</Filter>
@@ -316,28 +316,28 @@
       <Filter>GUI</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\DepthStencilStateManager.h">
-      <Filter>Input\Render\Renderer</Filter>
+      <Filter>Render\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\PerTerrainCB.h">
-      <Filter>Input\Render\Constant buffers</Filter>
+      <Filter>Render\Constant buffers</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\BlendStateManager.h">
-      <Filter>Input\Render\Blend</Filter>
+      <Filter>Render\Blend</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\RasterizerStateManager.h">
-      <Filter>Input\Render\Renderer</Filter>
+      <Filter>Render\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\DefaultPixelShader.h">
-      <Filter>Input\Render\Shaders\Pixel shaders\Default</Filter>
+      <Filter>Render\Shaders\Pixel shaders\Default</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\TerrainCheckeredPixelShader.h">
-      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\TerrainDefaultPixelShader.h">
-      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\TerrainTexturedPixelShader.h">
-      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\FFNAType.h">
       <Filter>Dat reader\Dat file parsers\Texture</Filter>
@@ -396,64 +396,64 @@
       <Filter>Input</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\Box.cpp">
-      <Filter>Input\Render\Basic shapes</Filter>
+      <Filter>Render\Basic shapes</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\Line.cpp">
-      <Filter>Input\Render\Basic shapes</Filter>
+      <Filter>Render\Basic shapes</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\Sphere.cpp">
-      <Filter>Input\Render\Basic shapes</Filter>
+      <Filter>Render\Basic shapes</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\Camera.cpp">
-      <Filter>Input\Render\Camera</Filter>
+      <Filter>Render\Camera</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\ConstantBufferManager.cpp">
-      <Filter>Input\Render\Constant buffers</Filter>
+      <Filter>Render\Constant buffers</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\PerCameraCB.cpp">
-      <Filter>Input\Render\Constant buffers</Filter>
+      <Filter>Render\Constant buffers</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\PerFrameCB.cpp">
-      <Filter>Input\Render\Constant buffers</Filter>
+      <Filter>Render\Constant buffers</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\PerObjectCB.cpp">
-      <Filter>Input\Render\Constant buffers</Filter>
+      <Filter>Render\Constant buffers</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\RenderConstants.cpp">
-      <Filter>Input\Render\Render constants</Filter>
+      <Filter>Render\Render constants</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\MeshInstance.cpp">
-      <Filter>Input\Render\Renderer</Filter>
+      <Filter>Render\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\MeshManager.cpp">
-      <Filter>Input\Render\Renderer</Filter>
+      <Filter>Render\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\RenderBatch.cpp">
-      <Filter>Input\Render\Renderer</Filter>
+      <Filter>Render\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\RenderCommand.cpp">
-      <Filter>Input\Render\Renderer</Filter>
+      <Filter>Render\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\VertexShader.cpp">
-      <Filter>Input\Render\Shaders</Filter>
+      <Filter>Render\Shaders</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\PixelShader.cpp">
-      <Filter>Input\Render\Shaders</Filter>
+      <Filter>Render\Shaders</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\DirectionalLight.cpp">
-      <Filter>Input\Render\Structs</Filter>
+      <Filter>Render\Structs</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\Mesh.cpp">
-      <Filter>Input\Render\Structs</Filter>
+      <Filter>Render\Structs</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\Vertex.cpp">
-      <Filter>Input\Render\Structs</Filter>
+      <Filter>Render\Structs</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\Terrain.cpp">
-      <Filter>Input\Render\Terrain</Filter>
+      <Filter>Render\Terrain</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\CheckerboardTexture.cpp">
-      <Filter>Input\Render\Textures</Filter>
+      <Filter>Render\Textures</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\draw_dat_browser.cpp">
       <Filter>GUI</Filter>
@@ -480,10 +480,10 @@
       <Filter>Common</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\TextureManager.cpp">
-      <Filter>Input\Render\Textures</Filter>
+      <Filter>Render\Textures</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\MapRenderer.cpp">
-      <Filter>Input\Render</Filter>
+      <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\draw_dat_load_progress_bar.cpp">
       <Filter>GUI</Filter>
@@ -495,7 +495,7 @@
       <Filter>GUI</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\DXMathHelpers.cpp">
-      <Filter>Input\Render\Math helpers</Filter>
+      <Filter>Render\Math helpers</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\FFNA_MapFile.cpp">
       <Filter>Dat reader\Dat file parsers\Map</Filter>
@@ -570,16 +570,16 @@
       <Filter>GUI</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\DepthStencilStateManager.cpp">
-      <Filter>Input\Render\Renderer</Filter>
+      <Filter>Render\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\PerTerrainCB.cpp">
-      <Filter>Input\Render\Constant buffers</Filter>
+      <Filter>Render\Constant buffers</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\BlendStateManager.cpp">
-      <Filter>Input\Render\Blend</Filter>
+      <Filter>Render\Blend</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\RasterizerStateManager.cpp">
-      <Filter>Input\Render\Renderer</Filter>
+      <Filter>Render\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\FFNA_ModelFile.cpp">
       <Filter>Dat reader\Dat file parsers\Model</Filter>
@@ -648,19 +648,19 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="SourceFiles\VertexShader.hlsl">
-      <Filter>Input\Render\Shaders</Filter>
+      <Filter>Render\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="SourceFiles\DefaultPixelShader.hlsl">
-      <Filter>Input\Render\Shaders\Pixel shaders\Default</Filter>
+      <Filter>Render\Shaders\Pixel shaders\Default</Filter>
     </FxCompile>
     <FxCompile Include="SourceFiles\TerrainCheckeredPixelShader.hlsl">
-      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
     <FxCompile Include="SourceFiles\TerrainDefaultPixelShader.hlsl">
-      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
     <FxCompile Include="SourceFiles\TerrainTexturedPixelShader.hlsl">
-      <Filter>Input\Render\Shaders\Pixel shaders\Terrain</Filter>
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
