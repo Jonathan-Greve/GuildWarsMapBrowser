@@ -76,4 +76,31 @@ bool write_heightmap_tiff(const std::vector<std::vector<float>>& heightmap, cons
 	return true;
 }
 
+bool write_terrain_ints_tiff(const std::vector<std::vector<uint32_t>>& terrain_indices, const char* filename) {
+	int width = terrain_indices[0].size();
+	int height = terrain_indices.size();
+
+	// Create a TIFF file with 8-bit depth, 1 sample per pixel (grayscale), and unsigned int format
+	TinyTIFFWriterFile* tif = TinyTIFFWriter_open(filename, 8, TinyTIFFWriter_UInt, 1, width, height,
+		TinyTIFFWriter_Greyscale);
+	if (!tif) {
+		return false; // Error opening TIFF file
+	}
+
+	std::vector<uint8_t> imageData(width * height);
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			imageData[y * width + x] = static_cast<uint8_t>(terrain_indices[y][x]); // Copy value as 8-bit and flip y-axis
+		}
+	}
+
+	// Write the entire image to TIFF
+	TinyTIFFWriter_writeImage(tif, imageData.data());
+
+	// Close the TIFF file
+	TinyTIFFWriter_close(tif);
+
+	return true;
+}
+
 

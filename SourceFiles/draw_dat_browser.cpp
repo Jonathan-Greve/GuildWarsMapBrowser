@@ -1084,7 +1084,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                         }
                         else if (ImGui::MenuItem("Export heightmap as .tiff"))
                         {
-                            std::wstring savePath = OpenFileDialog(std::format(L"height_map_0x{:X}", item.hash), L"tiff");
+                            std::wstring savePath = OpenFileDialog(std::format(L"terrain_height_map_0x{:X}", item.hash), L"tiff");
                             if (!savePath.empty())
                             {
                                 parse_file(dat_manager, item.id, map_renderer, hash_index, items);
@@ -1095,6 +1095,40 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 
                                 // Write the BMP file
                                 if (!write_heightmap_tiff(terrain_mesh, save_path_str.c_str())) {
+                                    // Error handling
+                                }
+                            }
+                        }
+                        else if (ImGui::MenuItem("Export terrain texture indices as .tiff"))
+                        {
+                            std::wstring savePath = OpenFileDialog(std::format(L"terrain_tex_indices_0x{:X}", item.hash), L"tiff");
+                            if (!savePath.empty())
+                            {
+                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                const auto& terrain_texture_indices= terrain.get()->get_texture_index_grid(); // Assuming the accessor function is available.
+
+                                // Convert the savePath to a string
+                                std::string save_path_str(savePath.begin(), savePath.end());
+
+                                // Write the BMP file
+                                if (!write_terrain_ints_tiff(terrain_texture_indices, save_path_str.c_str())) {
+                                    // Error handling
+                                }
+                            }
+                        }
+                        else if (ImGui::MenuItem("Export terrain unknown per tile data as .tiff"))
+                        {
+                            std::wstring savePath = OpenFileDialog(std::format(L"terrain_unknown_data_0x{:X}", item.hash), L"tiff");
+                            if (!savePath.empty())
+                            {
+                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                const auto& terrain_unknown = terrain.get()->get_texture_blend_weights_grid(); // Assuming the accessor function is available.
+
+                                // Convert the savePath to a string
+                                std::string save_path_str(savePath.begin(), savePath.end());
+
+                                // Write the BMP file
+                                if (!write_terrain_ints_tiff(terrain_unknown, save_path_str.c_str())) {
                                     // Error handling
                                 }
                             }
