@@ -18,13 +18,18 @@ public:
         , m_height_map(height_map)
         , m_terrain_texture_indices(terrain_texture_indices)
         , m_terrain_texture_blend_weights(terrain_texture_blend_weights)
-        , m_bounds(bounds)
+        , m_bounds(bounds),
+        grid(m_grid_dim_z + 1, std::vector<float>(m_grid_dim_x + 1, 0.0f))
     {
         // Generate terrain mesh
         mesh = std::make_unique<Mesh>(GenerateTerrainMesh());
     }
 
     Mesh* get_mesh() { return mesh.get(); }
+
+    const std::vector<std::vector<float>>& get_heightmap_grid() const {
+        return grid;
+    }
 
     uint32_t m_grid_dim_x;
     uint32_t m_grid_dim_z;
@@ -50,8 +55,6 @@ private:
         uint32_t grid_dims = 32;
         uint32_t sub_grid_rows = m_grid_dim_z / grid_dims;
         uint32_t sub_grid_cols = m_grid_dim_x / grid_dims;
-
-        std::vector<std::vector<float>> grid(m_grid_dim_z + 1, std::vector<float>(m_grid_dim_x + 1, 0.0f));
 
         // Each element is the index into the texture atlas representing which texture to use on that tile.
         m_texture_index_grid.resize(m_grid_dim_z + 1, std::vector<uint32_t>(m_grid_dim_x + 1, 0.0f));
@@ -158,6 +161,7 @@ private:
     }
 
     std::vector<float> m_height_map;
+    std::vector<std::vector<float>> grid;
     std::vector<uint8_t> m_terrain_texture_indices;
     std::vector<uint8_t> m_terrain_texture_blend_weights;
     std::unique_ptr<Mesh> mesh;

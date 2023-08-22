@@ -132,7 +132,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir)\DirectXTex;$(ProjectDir)\SourceFiles;$(ProjectDir)\ImGuiFileDialog-Lib_Only;$(ProjectDir)\DearImGui;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)\tinytiff;$(ProjectDir)\DirectXTex;$(ProjectDir)\SourceFiles;$(ProjectDir)\ImGuiFileDialog-Lib_Only;$(ProjectDir)\DearImGui;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
@@ -151,7 +151,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>d3d11.lib;dxgi.lib;dxguid.lib;uuid.lib;kernel32.lib;user32.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;gdi32.lib;gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d11.lib;dxgi.lib;dxguid.lib;uuid.lib;kernel32.lib;user32.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;gdi32.lib;gdiplus.lib;TinyTIFF_Release.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
@@ -261,6 +261,7 @@
     <ClInclude Include="SourceFiles\RenderConstants.h" />
     <ClInclude Include="SourceFiles\resource.h" />
     <ClInclude Include="SourceFiles\Sphere.h" />
+    <ClInclude Include="SourceFiles\stb_image_write.h" />
     <ClInclude Include="SourceFiles\StepTimer.h" />
     <ClInclude Include="SourceFiles\Terrain.h" />
     <ClInclude Include="SourceFiles\TerrainCheckeredPixelShader.h" />
@@ -269,8 +270,14 @@
     <ClInclude Include="SourceFiles\TextureManager.h" />
     <ClInclude Include="SourceFiles\Vertex.h" />
     <ClInclude Include="SourceFiles\VertexShader.h" />
+    <ClInclude Include="SourceFiles\writeHeighMapBMP.h" />
     <ClInclude Include="SourceFiles\writeOBJ.h" />
     <ClInclude Include="SourceFiles\xentax.h" />
+    <ClInclude Include="tinytiff\tinytiffreader.h" />
+    <ClInclude Include="tinytiff\tinytiffwriter.h" />
+    <ClInclude Include="tinytiff\tinytiff_defs.h" />
+    <ClInclude Include="tinytiff\tinytiff_export.h" />
+    <ClInclude Include="tinytiff\tinytiff_version.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -407,6 +414,7 @@
     <ClCompile Include="SourceFiles\TextureManager.cpp" />
     <ClCompile Include="SourceFiles\Vertex.cpp" />
     <ClCompile Include="SourceFiles\VertexShader.cpp" />
+    <ClCompile Include="SourceFiles\writeHeighMapBMP.cpp" />
     <ClCompile Include="SourceFiles\writeOBJ.cpp" />
     <ClCompile Include="SourceFiles\xentax.cpp" />
     <FxCompile Include="SourceFiles\TerrainCheckeredPixelShader.hlsl">
