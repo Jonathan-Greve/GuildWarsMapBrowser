@@ -79,6 +79,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <LibraryPath>$(ProjectDir)\tinytiff;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -200,8 +201,6 @@
     <ClInclude Include="DirectXTex\filters.h" />
     <ClInclude Include="DirectXTex\FlexibleVertexFormat.h" />
     <ClInclude Include="DirectXTex\scoped.h" />
-    <ClInclude Include="draw_hex_editor_panel.h" />
-    <ClInclude Include="Extract_BASS_DLL_resource.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
@@ -223,6 +222,7 @@
     <ClInclude Include="SourceFiles\draw_dat_browser.h" />
     <ClInclude Include="SourceFiles\draw_dat_load_progress_bar.h" />
     <ClInclude Include="SourceFiles\draw_gui_for_open_dat_file.h" />
+    <ClInclude Include="SourceFiles\draw_hex_editor_panel.h" />
     <ClInclude Include="SourceFiles\draw_left_panel.h" />
     <ClInclude Include="SourceFiles\draw_map_info_chunk.h" />
     <ClInclude Include="SourceFiles\draw_props_filenames_panel.h" />
@@ -234,6 +234,7 @@
     <ClInclude Include="SourceFiles\draw_text_panel.h" />
     <ClInclude Include="SourceFiles\draw_ui.h" />
     <ClInclude Include="SourceFiles\DXMathHelpers.h" />
+    <ClInclude Include="SourceFiles\Extract_BASS_DLL_resource.h" />
     <ClInclude Include="SourceFiles\FFNAType.h" />
     <ClInclude Include="SourceFiles\FFNA_MapFile.h" />
     <ClInclude Include="SourceFiles\FFNA_ModelFile.h" />
@@ -346,9 +347,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="DirectXTex\DirectXTexWIC.cpp" />
-    <ClCompile Include="draw_hex_editor_panel.cpp" />
-    <ClCompile Include="draw_text_panel.cpp" />
-    <ClCompile Include="Extract_BASS_DLL_resource.cpp" />
     <ClCompile Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
@@ -372,6 +370,7 @@
     <ClCompile Include="SourceFiles\draw_dat_browser.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_load_progress_bar.cpp" />
     <ClCompile Include="SourceFiles\draw_gui_for_open_dat_file.cpp" />
+    <ClCompile Include="SourceFiles\draw_hex_editor_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_left_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_map_info_chunk.cpp" />
     <ClCompile Include="SourceFiles\draw_props_filenames_panel.cpp" />
@@ -380,8 +379,10 @@
     <ClCompile Include="SourceFiles\draw_right_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_terrain_chunk.cpp" />
     <ClCompile Include="SourceFiles\draw_texture_panel.cpp" />
+    <ClCompile Include="SourceFiles\draw_text_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_ui.cpp" />
     <ClCompile Include="SourceFiles\DXMathHelpers.cpp" />
+    <ClCompile Include="SourceFiles\Extract_BASS_DLL_resource.cpp" />
     <ClCompile Include="SourceFiles\FFNA_MapFile.cpp" />
     <ClCompile Include="SourceFiles\FFNA_ModelFile.cpp" />
     <ClCompile Include="SourceFiles\GuiGlobalConstants.cpp" />
