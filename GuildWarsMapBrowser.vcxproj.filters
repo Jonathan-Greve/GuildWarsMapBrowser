@@ -348,18 +348,13 @@
     <ClInclude Include="SourceFiles\FFNA_ModelFile.h">
       <Filter>Dat reader\Dat file parsers\Model</Filter>
     </ClInclude>
-    <ClInclude Include="Extract_BASS_DLL_resource.h">
-      <Filter>Common</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\resource.h" />
     <ClInclude Include="SourceFiles\draw_audio_controller_panel.h">
       <Filter>GUI</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\draw_text_panel.h" />
     <ClInclude Include="SourceFiles\imgui_memory_editor.h">
       <Filter>Dear ImGui\Hex Editor</Filter>
     </ClInclude>
-    <ClInclude Include="draw_hex_editor_panel.h" />
     <ClInclude Include="SourceFiles\writeHeighMapBMP.h">
       <Filter>Common</Filter>
     </ClInclude>
@@ -380,6 +375,15 @@
     </ClInclude>
     <ClInclude Include="tinytiff\tinytiff_version.h">
       <Filter>tinytiff</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_text_panel.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_hex_editor_panel.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\Extract_BASS_DLL_resource.h">
+      <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -608,17 +612,19 @@
     <ClCompile Include="SourceFiles\FFNA_ModelFile.cpp">
       <Filter>Dat reader\Dat file parsers\Model</Filter>
     </ClCompile>
-    <ClCompile Include="Extract_BASS_DLL_resource.cpp">
-      <Filter>Common</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\draw_audio_controller_panel.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
-    <ClCompile Include="draw_text_panel.cpp">
+    <ClCompile Include="SourceFiles\writeHeighMapBMP.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_hex_editor_panel.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
-    <ClCompile Include="draw_hex_editor_panel.cpp" />
-    <ClCompile Include="SourceFiles\writeHeighMapBMP.cpp">
+    <ClCompile Include="SourceFiles\draw_text_panel.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\Extract_BASS_DLL_resource.cpp">
       <Filter>Common</Filter>
     </ClCompile>
   </ItemGroup>
