@@ -335,6 +335,14 @@ public:
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
+            else
+            {
+                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, PixelShaderType::TerrainDefault);
+                m_mesh_manager->SetTexturesForMesh(
+                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 0);
+
+                m_terrain_current_pixel_shader_type = PixelShaderType::TerrainDefault;
+            }
         }
     }
 
