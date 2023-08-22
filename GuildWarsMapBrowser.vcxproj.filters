@@ -101,6 +101,9 @@
     <Filter Include="Render\Blend">
       <UniqueIdentifier>{cc7be27a-d599-44cf-a57b-14e0e22d12f7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="tinytiff">
+      <UniqueIdentifier>{7db9026f-1026-424a-8b86-07828bf8abf4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -357,6 +360,27 @@
       <Filter>Dear ImGui\Hex Editor</Filter>
     </ClInclude>
     <ClInclude Include="draw_hex_editor_panel.h" />
+    <ClInclude Include="SourceFiles\writeHeighMapBMP.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\stb_image_write.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="tinytiff\tinytiff_defs.h">
+      <Filter>tinytiff</Filter>
+    </ClInclude>
+    <ClInclude Include="tinytiff\tinytiffreader.h">
+      <Filter>tinytiff</Filter>
+    </ClInclude>
+    <ClInclude Include="tinytiff\tinytiffwriter.h">
+      <Filter>tinytiff</Filter>
+    </ClInclude>
+    <ClInclude Include="tinytiff\tinytiff_export.h">
+      <Filter>tinytiff</Filter>
+    </ClInclude>
+    <ClInclude Include="tinytiff\tinytiff_version.h">
+      <Filter>tinytiff</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -594,6 +618,9 @@
       <Filter>GUI</Filter>
     </ClCompile>
     <ClCompile Include="draw_hex_editor_panel.cpp" />
+    <ClCompile Include="SourceFiles\writeHeighMapBMP.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SourceFiles\resource.rc" />
