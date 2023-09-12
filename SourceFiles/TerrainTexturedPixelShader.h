@@ -93,7 +93,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
     // ------------ TEXTURE START ----------------
-    float2 texelSize = float2(1.0 / (grid_dim_x ), 1.0 / (grid_dim_y ));
+    float2 texelSize = float2(1.0 / (grid_dim_x - 3), 1.0 / (grid_dim_y - 3));
 
     // Calculate the tile index
     float2 tileIndex = floor(input.tex_coords0 / texelSize);
@@ -256,14 +256,28 @@ float4 main(PixelInputType input) : SV_TARGET
     }
 
     // Load texture
-    float weight = terrain_texture_weights.Load(int3(topLeftCoord, 0)).r;
-    
+    float weight_tl = terrain_texture_weights.Load(int3(topLeftCoord, 0)).r;
+    float weight_tr = terrain_texture_weights.Load(int3(topRightCoord, 0)).r;
+    float weight_bl = terrain_texture_weights.Load(int3(bottomLeftCoord, 0)).r;
+    float weight_br = terrain_texture_weights.Load(int3(bottomRightCoord, 0)).r;
+
+    // Calculate u and v
+    float u = frac(input.tex_coords0.x / texelSize.x); // Fractional part of the tile index in x
+    float v = frac(input.tex_coords0.y / texelSize.y); // Fractional part of the tile index in y
+
+    // Apply bilinear interpolation
+    float blendedWeight = (1 - u) * (1 - v) * weight_tl +
+                          u * (1 - v) * weight_tr +
+                          (1 - u) * v * weight_bl +
+                          u * v * weight_br;
+
+
     // Perform texture splatting using the normalized weights
     float4 splattedTextureColor = float4(0.0, 0.0, 0.0, 1.0);
     for (int i = 0; i < 8; ++i) {
         if (i == atlasCoordCount) break;
         if (sampledColors[i].a == 0) continue;
-        splattedTextureColor.rgb += sampledColors[i].rgb * sampledColors[i].a * weight / total_alpha;
+        splattedTextureColor.rgb += sampledColors[i].rgb * sampledColors[i].a / total_alpha;
     }
     // ------------ TEXTURE END ----------------
 
@@ -276,6 +290,12 @@ float4 main(PixelInputType input) : SV_TARGET
     else {
         outputColor = finalColor * splattedTextureColor;
     }
+
+    // Calculate luminance
+    float luminance = dot(outputColor.rgb, float3(0.299, 0.587, 0.114));
+    // Modulate shadow
+    float modulatedShadow = max(0.1, lerp(blendedWeight, 1.0, luminance * 0.5)); // You can adjust the 0.5 factor for different results
+	outputColor.rgb = outputColor.rgb * modulatedShadow;
 
     // Return the result
     return outputColor;
