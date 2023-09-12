@@ -2,8 +2,6 @@
 struct TerrainTexturedPixelShader
 {
     static constexpr char shader_ps[] = R"(
-
-
 sampler ss: register(s0);
 Texture2D textureAtlas : register(t0);
 Texture2D terrain_texture_indices: register(t1);
@@ -95,7 +93,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
     // ------------ TEXTURE START ----------------
-    float2 texelSize = float2(1.0 / (grid_dim_x - 3), 1.0 / (grid_dim_y - 3));
+    float2 texelSize = float2(1.0 / (grid_dim_x ), 1.0 / (grid_dim_y ));
 
     // Calculate the tile index
     float2 tileIndex = floor(input.tex_coords0 / texelSize);
@@ -257,12 +255,15 @@ float4 main(PixelInputType input) : SV_TARGET
         }
     }
 
+    // Load texture
+    float weight = terrain_texture_weights.Load(int3(topLeftCoord, 0)).r;
+    
     // Perform texture splatting using the normalized weights
     float4 splattedTextureColor = float4(0.0, 0.0, 0.0, 1.0);
     for (int i = 0; i < 8; ++i) {
         if (i == atlasCoordCount) break;
         if (sampledColors[i].a == 0) continue;
-        splattedTextureColor.rgb += sampledColors[i].rgb * sampledColors[i].a / total_alpha;
+        splattedTextureColor.rgb += sampledColors[i].rgb * sampledColors[i].a * weight / total_alpha;
     }
     // ------------ TEXTURE END ----------------
 
