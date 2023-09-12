@@ -385,6 +385,9 @@
     <ClInclude Include="SourceFiles\Extract_BASS_DLL_resource.h">
       <Filter>Common</Filter>
     </ClInclude>
+    <ClInclude Include="TerrainTexturedWithShadowsPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -693,6 +696,9 @@
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
     <FxCompile Include="SourceFiles\TerrainTexturedPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
+    </FxCompile>
+    <FxCompile Include="TerrainTexturedWithShadowsPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
   </ItemGroup>
