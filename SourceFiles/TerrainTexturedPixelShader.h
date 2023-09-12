@@ -5,7 +5,7 @@ struct TerrainTexturedPixelShader
 sampler ss : register(s0);
 Texture2D textureAtlas : register(t0);
 Texture2D terrain_texture_indices : register(t1);
-Texture2D terrain_texture_weights : register(t2);
+Texture2D terrain_shadow_map : register(t2);
 
 struct DirectionalLight
 {

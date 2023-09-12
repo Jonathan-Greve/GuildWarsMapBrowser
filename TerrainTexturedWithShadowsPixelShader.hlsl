@@ -1,7 +1,7 @@
 sampler ss : register(s0);
 Texture2D textureAtlas : register(t0);
 Texture2D terrain_texture_indices : register(t1);
-Texture2D terrain_texture_weights : register(t2);
+Texture2D terrain_shadow_map : register(t2);
 
 struct DirectionalLight
 {
@@ -264,10 +264,10 @@ float4 main(PixelInputType input) : SV_TARGET
     }
 
     // Load texture
-    float weight_tl = terrain_texture_weights.Load(int3(topLeftCoord, 0)).r;
-    float weight_tr = terrain_texture_weights.Load(int3(topRightCoord, 0)).r;
-    float weight_bl = terrain_texture_weights.Load(int3(bottomLeftCoord, 0)).r;
-    float weight_br = terrain_texture_weights.Load(int3(bottomRightCoord, 0)).r;
+    float weight_tl = terrain_shadow_map.Load(int3(topLeftCoord, 0)).r;
+    float weight_tr = terrain_shadow_map.Load(int3(topRightCoord, 0)).r;
+    float weight_bl = terrain_shadow_map.Load(int3(bottomLeftCoord, 0)).r;
+    float weight_br = terrain_shadow_map.Load(int3(bottomRightCoord, 0)).r;
 
     // Calculate u and v
     float u = frac(input.tex_coords0.x / texelSize.x); // Fractional part of the tile index in x

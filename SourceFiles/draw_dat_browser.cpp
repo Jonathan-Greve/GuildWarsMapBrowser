@@ -395,14 +395,14 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
             auto& terrain_texture_indices =
               selected_ffna_map_file.terrain_chunk.terrain_texture_indices_maybe;
 
-            auto& terrain_texture_blend_weights =
-              selected_ffna_map_file.terrain_chunk.terrain_texture_blend_weights_maybe;
+            auto& terrain_shadow_map =
+              selected_ffna_map_file.terrain_chunk.terrain_shadow_map;
 
             // Create terrain
             terrain = std::make_unique<Terrain>(selected_ffna_map_file.terrain_chunk.terrain_x_dims,
                                                 selected_ffna_map_file.terrain_chunk.terrain_y_dims,
                                                 selected_ffna_map_file.terrain_chunk.terrain_heightmap,
-                                                terrain_texture_indices, terrain_texture_blend_weights,
+                                                terrain_texture_indices, terrain_shadow_map,
                                                 selected_ffna_map_file.map_info_chunk.map_bounds);
             map_renderer->SetTerrain(terrain.get(), selected_dat_texture.texture_id);
         }
@@ -1116,13 +1116,13 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                                 }
                             }
                         }
-                        else if (ImGui::MenuItem("Export terrain unknown per tile data as .tiff"))
+                        else if (ImGui::MenuItem("Export terrain shadow map as .tiff"))
                         {
-                            std::wstring savePath = OpenFileDialog(std::format(L"terrain_unknown_data_0x{:X}", item.hash), L"tiff");
+                            std::wstring savePath = OpenFileDialog(std::format(L"terrain_shadow_map_0x{:X}", item.hash), L"tiff");
                             if (!savePath.empty())
                             {
                                 parse_file(dat_manager, item.id, map_renderer, hash_index, items);
-                                const auto& terrain_unknown = terrain.get()->get_texture_blend_weights_grid(); // Assuming the accessor function is available.
+                                const auto& terrain_unknown = terrain.get()->get_terrain_shadow_map_grid(); // Assuming the accessor function is available.
 
                                 // Convert the savePath to a string
                                 std::string save_path_str(savePath.begin(), savePath.end());
