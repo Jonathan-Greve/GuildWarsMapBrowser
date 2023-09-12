@@ -12,12 +12,12 @@ class Terrain
 public:
     Terrain(int32_t grid_dim_x, uint32_t grid_dim_y, const std::vector<float>& height_map,
             const std::vector<uint8_t>& terrain_texture_indices,
-            const std::vector<uint8_t>& terrain_texture_blend_weights, const MapBounds& bounds)
+            const std::vector<uint8_t>& terrain_shadow_map, const MapBounds& bounds)
         : m_grid_dim_x(grid_dim_x)
         , m_grid_dim_z(grid_dim_y)
         , m_height_map(height_map)
         , m_terrain_texture_indices(terrain_texture_indices)
-        , m_terrain_texture_blend_weights(terrain_texture_blend_weights)
+        , m_terrain_shadow_map(terrain_shadow_map)
         , m_bounds(bounds),
         grid(m_grid_dim_z + 1, std::vector<float>(m_grid_dim_x + 1, 0.0f))
     {
@@ -36,13 +36,13 @@ public:
     MapBounds m_bounds;
     PerTerrainCB m_per_terrain_cb;
     std::vector<std::vector<uint32_t>> m_texture_index_grid;
-    std::vector<std::vector<uint32_t>> m_texture_blend_weights_grid;
+    std::vector<std::vector<uint32_t>> m_terrain_shadow_map_grid;
 
     void update_per_terrain_CB(PerTerrainCB& new_cb) { m_per_terrain_cb = new_cb; }
     const std::vector<std::vector<uint32_t>>& get_texture_index_grid() const { return m_texture_index_grid; }
-    const std::vector<std::vector<uint32_t>>& get_texture_blend_weights_grid() const
+    const std::vector<std::vector<uint32_t>>& get_terrain_shadow_map_grid() const
     {
-        return m_texture_blend_weights_grid;
+        return m_terrain_shadow_map_grid;
     }
 
 private:
@@ -59,7 +59,7 @@ private:
         // Each element is the index into the texture atlas representing which texture to use on that tile.
         m_texture_index_grid.resize(m_grid_dim_z + 1, std::vector<uint32_t>(m_grid_dim_x + 1, 0.0f));
 
-        m_texture_blend_weights_grid.resize(m_grid_dim_z + 1, std::vector<uint32_t>(m_grid_dim_x + 1, 0.0f));
+        m_terrain_shadow_map_grid.resize(m_grid_dim_z + 1, std::vector<uint32_t>(m_grid_dim_x + 1, 0.0f));
 
         float min = FLT_MAX;
         float max = FLT_MIN;
@@ -81,8 +81,8 @@ private:
                     {
                         grid[m_grid_dim_z - k][l] = -m_height_map[count];
                         m_texture_index_grid[k > 0 ? k - 1 : 0][l] = m_terrain_texture_indices[count];
-                        m_texture_blend_weights_grid[k > 0 ? k - 1 : 0][l] =
-                          m_terrain_texture_blend_weights[count];
+                        m_terrain_shadow_map_grid[k > 0 ? k - 1 : 0][l] =
+                          m_terrain_shadow_map[count];
                         count++;
 
                         if (grid[m_grid_dim_z - k][l] < min)
@@ -163,6 +163,6 @@ private:
     std::vector<float> m_height_map;
     std::vector<std::vector<float>> grid;
     std::vector<uint8_t> m_terrain_texture_indices;
-    std::vector<uint8_t> m_terrain_texture_blend_weights;
+    std::vector<uint8_t> m_terrain_shadow_map;
     std::unique_ptr<Mesh> mesh;
 };
