@@ -19,10 +19,10 @@ inline std::string write_obj_str(const Mesh* mesh)
     for (size_t i = 0; i < mesh->indices.size(); i += 3)
     {
         objStream << "f " << (mesh->indices[i] + 1) << "/" << (mesh->indices[i] + 1) << "/"
-                  << (mesh->indices[i] + 1) << " " << (mesh->indices[i + 1] + 1) << "/"
-                  << (mesh->indices[i + 1] + 1) << "/" << (mesh->indices[i + 1] + 1) << " "
-                  << (mesh->indices[i + 2] + 1) << "/" << (mesh->indices[i + 2] + 1) << "/"
-                  << (mesh->indices[i + 2] + 1) << "\n";
+                  << (mesh->indices[i] + 1) << " " << (mesh->indices[i + 2] + 1) << "/"
+                  << (mesh->indices[i + 2] + 1) << "/" << (mesh->indices[i + 2] + 1) << " "
+                  << (mesh->indices[i + 1] + 1) << "/" << (mesh->indices[i + 1] + 1) << "/"
+                  << (mesh->indices[i + 1] + 1) << "\n";
     }
 
     return objStream.str();
@@ -54,12 +54,12 @@ inline std::string write_obj_str(const std::vector<Mesh>& meshes)
             objStream << "f " << (mesh.indices[i] + 1 + vertex_offset) << "/"
                       << (mesh.indices[i] + 1 + texture_offset) << "/"
                       << (mesh.indices[i] + 1 + normal_offset) << " "
-                      << (mesh.indices[i + 1] + 1 + vertex_offset) << "/"
-                      << (mesh.indices[i + 1] + 1 + texture_offset) << "/"
-                      << (mesh.indices[i + 1] + 1 + normal_offset) << " "
                       << (mesh.indices[i + 2] + 1 + vertex_offset) << "/"
                       << (mesh.indices[i + 2] + 1 + texture_offset) << "/"
-                      << (mesh.indices[i + 2] + 1 + normal_offset) << "\n";
+                      << (mesh.indices[i + 2] + 1 + normal_offset) << " "
+                      << (mesh.indices[i + 1] + 1 + vertex_offset) << "/"
+                      << (mesh.indices[i + 1] + 1 + texture_offset) << "/"
+                      << (mesh.indices[i + 1] + 1 + normal_offset) << "\n";
         }
 
         // Update the offsets for the next mesh
