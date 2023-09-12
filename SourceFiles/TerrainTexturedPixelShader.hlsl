@@ -1,7 +1,7 @@
-sampler ss: register(s0);
+sampler ss : register(s0);
 Texture2D textureAtlas : register(t0);
-Texture2D terrain_texture_indices: register(t1);
-Texture2D terrain_texture_weights: register(t2);
+Texture2D terrain_texture_indices : register(t1);
+Texture2D terrain_texture_weights : register(t2);
 
 struct DirectionalLight
 {
@@ -12,7 +12,7 @@ struct DirectionalLight
     float pad;
 };
 
-cbuffer PerFrameCB: register(b0)
+cbuffer PerFrameCB : register(b0)
 {
     DirectionalLight directionalLight;
 };
@@ -89,7 +89,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
     // ------------ TEXTURE START ----------------
-    float2 texelSize = float2(1.0 / (grid_dim_x ), 1.0 / (grid_dim_y ));
+    float2 texelSize = float2(1.0 / (grid_dim_x - 3), 1.0 / (grid_dim_y - 3));
 
     // Calculate the tile index
     float2 tileIndex = floor(input.tex_coords0 / texelSize);
@@ -127,7 +127,8 @@ float4 main(PixelInputType input) : SV_TARGET
     float scale_factor_y = 1 - offset_factor_y;
 
 
-    float2 cornerOffsets[4] = {
+    float2 cornerOffsets[4] =
+    {
         float2(0.0, 0.0), // TL
         float2(atlasTileSize - atlasTileSize * innerRegionScale, 0.0), // TR
         float2(0.0, atlasTileSize - atlasTileSize * innerRegionScale), // BL
@@ -137,7 +138,8 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Case 1: top edge shares vertices
     float2 relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-    if (topLeftTexIdx == topRightTexIdx) {
+    if (topLeftTexIdx == topRightTexIdx)
+    {
         uint index = topLeftTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
@@ -151,7 +153,8 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Case 2: bottom edge shares vertices
     relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-    if (bottomLeftTexIdx == bottomRightTexIdx) {
+    if (bottomLeftTexIdx == bottomRightTexIdx)
+    {
         uint index = bottomLeftTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
@@ -163,7 +166,8 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Case 3: left edge shares vertices
     relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-    if (topLeftTexIdx == bottomLeftTexIdx) {
+    if (topLeftTexIdx == bottomLeftTexIdx)
+    {
         uint index = topLeftTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
@@ -175,7 +179,8 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Case 4: right edge shares vertices
     relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-    if (topRightTexIdx == bottomRightTexIdx) {
+    if (topRightTexIdx == bottomRightTexIdx)
+    {
         uint index = topRightTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
@@ -188,7 +193,8 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Case 5: top left corner
     relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-    if (topLeftTexIdx != topRightTexIdx && topLeftTexIdx != bottomLeftTexIdx) {
+    if (topLeftTexIdx != topRightTexIdx && topLeftTexIdx != bottomLeftTexIdx)
+    {
         uint index = topLeftTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
@@ -202,7 +208,8 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Case 6: top right corner
     relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-    if (topRightTexIdx != topLeftTexIdx && topRightTexIdx != bottomRightTexIdx) {
+    if (topRightTexIdx != topLeftTexIdx && topRightTexIdx != bottomRightTexIdx)
+    {
         uint index = topRightTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
@@ -214,7 +221,8 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Case 7: bottom left corner
     relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-    if (bottomLeftTexIdx != topLeftTexIdx && bottomLeftTexIdx != bottomRightTexIdx) {
+    if (bottomLeftTexIdx != topLeftTexIdx && bottomLeftTexIdx != bottomRightTexIdx)
+    {
         uint index = bottomLeftTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
@@ -228,7 +236,8 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Case 8: bottom right corner
     relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
-    if (bottomRightTexIdx != topRightTexIdx && bottomRightTexIdx != bottomLeftTexIdx) {
+    if (bottomRightTexIdx != topRightTexIdx && bottomRightTexIdx != bottomLeftTexIdx)
+    {
         uint index = bottomRightTexIdx;
         float x = (index % 8) * atlasTileSize;
         float y = (index / 8) * atlasTileSize;
@@ -242,38 +251,65 @@ float4 main(PixelInputType input) : SV_TARGET
     int non_zero_alphas_count = 0;
     float total_alpha = 0.0;
     float4 sampledColors[8];
-    for (int i = 0; i < 8; ++i) {
-        if (i == atlasCoordCount) break;
+    for (int i = 0; i < 8; ++i)
+    {
+        if (i == atlasCoordCount)
+            break;
         sampledColors[i] = textureAtlas.Sample(ss, atlasCoords[i]);
-        if (sampledColors[i].a > 0) {
+        if (sampledColors[i].a > 0)
+        {
             non_zero_alphas_count += 1;
             total_alpha += sampledColors[i].a;
         }
     }
 
     // Load texture
-    float weight = terrain_texture_weights.Load(int3(topLeftCoord, 0)).r;
-    
+    float weight_tl = terrain_texture_weights.Load(int3(topLeftCoord, 0)).r;
+    float weight_tr = terrain_texture_weights.Load(int3(topRightCoord, 0)).r;
+    float weight_bl = terrain_texture_weights.Load(int3(bottomLeftCoord, 0)).r;
+    float weight_br = terrain_texture_weights.Load(int3(bottomRightCoord, 0)).r;
+
+    // Calculate u and v
+    float u = frac(input.tex_coords0.x / texelSize.x); // Fractional part of the tile index in x
+    float v = frac(input.tex_coords0.y / texelSize.y); // Fractional part of the tile index in y
+
+    // Apply bilinear interpolation
+    float blendedWeight = (1 - u) * (1 - v) * weight_tl +
+                          u * (1 - v) * weight_tr +
+                          (1 - u) * v * weight_bl +
+                          u * v * weight_br;
+
+
     // Perform texture splatting using the normalized weights
     float4 splattedTextureColor = float4(0.0, 0.0, 0.0, 1.0);
-    for (int i = 0; i < 8; ++i) {
-        if (i == atlasCoordCount) break;
-        if (sampledColors[i].a == 0) continue;
-        splattedTextureColor.rgb += sampledColors[i].rgb * sampledColors[i].a * weight / total_alpha;
+    for (int i = 0; i < 8; ++i)
+    {
+        if (i == atlasCoordCount)
+            break;
+        if (sampledColors[i].a == 0)
+            continue;
+        splattedTextureColor.rgb += sampledColors[i].rgb * sampledColors[i].a / total_alpha;
     }
     // ------------ TEXTURE END ----------------
 
     float4 outputColor;
     // Multiply the sampled color with the finalColor
-    if (input.terrain_height <= water_level) {
+    if (input.terrain_height <= water_level)
+    {
         float4 blue_color = float4(0.11, 0.65, 0.81, 1.0); // Water color
         outputColor = finalColor * splattedTextureColor * blue_color;
     }
-    else {
+    else
+    {
         outputColor = finalColor * splattedTextureColor;
     }
+
+    // Calculate luminance
+    float luminance = dot(outputColor.rgb, float3(0.299, 0.587, 0.114));
+    // Modulate shadow
+    float modulatedShadow = max(0.1, lerp(blendedWeight, 1.0, luminance * 0.5)); // You can adjust the 0.5 factor for different results
+    outputColor.rgb = outputColor.rgb * modulatedShadow;
 
     // Return the result
     return outputColor;
 }
-
