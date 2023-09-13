@@ -1,6 +1,7 @@
 #pragma once
 #include <d3dcompiler.h>
 #include "DefaultPixelShader.h"
+#include "PickingPixelShader.h"
 #include "TerrainCheckeredPixelShader.h"
 #include "TerrainDefaultPixelShader.h"
 #include "TerrainTexturedPixelShader.h"
@@ -66,8 +67,8 @@ public:
                             "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         case PixelShaderType::PickingShader:
-            hr = D3DCompile(TerrainTexturedWithShadowsPixelShader::shader_ps,
-                            strlen(TerrainTexturedWithShadowsPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+            hr = D3DCompile(PickingPixelShader::shader_ps,
+                            strlen(PickingPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
                             "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         default:

@@ -35,6 +35,8 @@ inline extern FFNA_MapFile selected_ffna_map_file{};
 inline extern SelectedDatTexture selected_dat_texture{};
 inline extern std::vector<uint8_t> selected_raw_data{};
 
+inline extern std::unordered_map<uint32_t, uint32_t> object_id_to_prop_index{};
+
 inline extern HSTREAM selected_audio_stream_handle{};
 inline extern std::string audio_info = "";
 
@@ -357,6 +359,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
         break;
     case FFNA_Type3:
+        object_id_to_prop_index.clear();
         selected_map_files.clear();
         selected_ffna_map_file = dat_manager.parse_ffna_map_file(index);
 
@@ -584,6 +587,15 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                                   mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids),
                                   0);
                             }
+                        }
+
+                        // Add prop index to map for later picking
+                        for (int l = 0; l < prop_meshes.size(); l++)
+                        {
+                            int object_id = per_object_cbs[l].object_id;
+							int prop_index = i;
+
+                            object_id_to_prop_index.insert({object_id, prop_index});
                         }
                     }
                 }
