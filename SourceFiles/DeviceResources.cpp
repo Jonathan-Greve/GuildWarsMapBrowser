@@ -245,8 +245,10 @@ void DeviceResources::CreateWindowSizeDependentResources()
     // Clear the previous window size specific context.
     m_d3dContext->OMSetRenderTargets(0, nullptr, nullptr);
     m_d3dRenderTargetView.Reset();
+    m_d3dPickingRenderTargetView.Reset();
     m_d3dDepthStencilView.Reset();
     m_renderTarget.Reset();
+    m_pickingRenderTarget.Reset();
     m_depthStencil.Reset();
     m_d3dContext->Flush();
 
@@ -327,6 +329,15 @@ void DeviceResources::CreateWindowSizeDependentResources()
     ThrowIfFailed(m_d3dDevice->CreateRenderTargetView(m_renderTarget.Get(), &renderTargetViewDesc,
                                                       m_d3dRenderTargetView.ReleaseAndGetAddressOf()));
 
+    CD3D11_TEXTURE2D_DESC pickingTextureDesc(DXGI_FORMAT_R8G8B8A8_UNORM, backBufferWidth, backBufferHeight,
+                                             1, 1, D3D11_BIND_RENDER_TARGET);
+    ThrowIfFailed(
+        m_d3dDevice->CreateTexture2D(&pickingTextureDesc, nullptr, m_pickingRenderTarget.ReleaseAndGetAddressOf())
+    );
+    CD3D11_RENDER_TARGET_VIEW_DESC pickingTargetViewDesc(D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM);
+    ThrowIfFailed(m_d3dDevice->CreateRenderTargetView(m_pickingRenderTarget.Get(), &pickingTargetViewDesc,
+                                                      m_d3dPickingRenderTargetView.ReleaseAndGetAddressOf()));
+
     if (m_depthBufferFormat != DXGI_FORMAT_UNKNOWN)
     {
         // Create a depth stencil view for use with 3D rendering if needed.
@@ -387,7 +398,9 @@ void DeviceResources::HandleDeviceLost()
 
     m_d3dDepthStencilView.Reset();
     m_d3dRenderTargetView.Reset();
+    m_d3dPickingRenderTargetView.Reset();
     m_renderTarget.Reset();
+    m_pickingRenderTarget.Reset();
     m_depthStencil.Reset();
     m_swapChain.Reset();
     m_d3dContext.Reset();
@@ -436,6 +449,7 @@ void DeviceResources::Present()
     // This is a valid operation only when the existing contents will be entirely
     // overwritten. If dirty or scroll rects are used, this call should be removed.
     m_d3dContext->DiscardView(m_d3dRenderTargetView.Get());
+    m_d3dContext->DiscardView(m_d3dPickingRenderTargetView.Get());
 
     if (m_d3dDepthStencilView)
     {
