@@ -256,6 +256,7 @@
     <ClInclude Include="SourceFiles\PerFrameCB.h" />
     <ClInclude Include="SourceFiles\PerObjectCB.h" />
     <ClInclude Include="SourceFiles\PerTerrainCB.h" />
+    <ClInclude Include="SourceFiles\PickingPixelShader.h" />
     <ClInclude Include="SourceFiles\PixelShader.h" />
     <ClInclude Include="SourceFiles\RasterizerStateManager.h" />
     <ClInclude Include="SourceFiles\RenderBatch.h" />
@@ -269,13 +270,13 @@
     <ClInclude Include="SourceFiles\TerrainCheckeredPixelShader.h" />
     <ClInclude Include="SourceFiles\TerrainDefaultPixelShader.h" />
     <ClInclude Include="SourceFiles\TerrainTexturedPixelShader.h" />
+    <ClInclude Include="SourceFiles\TerrainTexturedWithShadowsPixelShader.h" />
     <ClInclude Include="SourceFiles\TextureManager.h" />
     <ClInclude Include="SourceFiles\Vertex.h" />
     <ClInclude Include="SourceFiles\VertexShader.h" />
     <ClInclude Include="SourceFiles\writeHeighMapBMP.h" />
     <ClInclude Include="SourceFiles\writeOBJ.h" />
     <ClInclude Include="SourceFiles\xentax.h" />
-    <ClInclude Include="TerrainTexturedWithShadowsPixelShader.h" />
     <ClInclude Include="tinytiff\tinytiffreader.h" />
     <ClInclude Include="tinytiff\tinytiffwriter.h" />
     <ClInclude Include="tinytiff\tinytiff_defs.h" />
@@ -420,6 +421,12 @@
     <ClCompile Include="SourceFiles\writeHeighMapBMP.cpp" />
     <ClCompile Include="SourceFiles\writeOBJ.cpp" />
     <ClCompile Include="SourceFiles\xentax.cpp" />
+    <FxCompile Include="SourceFiles\PickingPixelShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="SourceFiles\TerrainCheckeredPixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
@@ -444,7 +451,7 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
     </FxCompile>
-    <FxCompile Include="TerrainTexturedWithShadowsPixelShader.hlsl">
+    <FxCompile Include="SourceFiles\TerrainTexturedWithShadowsPixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
