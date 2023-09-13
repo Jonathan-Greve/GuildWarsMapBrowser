@@ -91,6 +91,13 @@ public:
         m_pixel_shaders[PixelShaderType::Default] = std::make_unique<PixelShader>(m_device, m_deviceContext);
         m_pixel_shaders[PixelShaderType::Default]->Initialize(PixelShaderType::Default);
 
+        if (! m_pixel_shaders.contains(PixelShaderType::PickingShader))
+        {
+            m_pixel_shaders[PixelShaderType::PickingShader] =
+              std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::PickingShader]->Initialize(PixelShaderType::PickingShader);
+        }
+
         if (! m_pixel_shaders.contains(PixelShaderType::TerrainTexturedWithShadows))
         {
             m_pixel_shaders[PixelShaderType::TerrainTexturedWithShadows] =
@@ -300,16 +307,17 @@ public:
     }
 
     // A prop consists of 1+ sub models/meshes.
-    std::vector<int> AddProp(std::vector<Mesh> meshes, std::vector<PerObjectCB> per_object_cbs,
+    std::vector<int> AddProp(std::vector<Mesh> meshes, std::vector<PerObjectCB>& per_object_cbs,
                              uint32_t model_id)
     {
         std::vector<int> mesh_ids;
         for (int i = 0; i < meshes.size(); i++)
         {
             const auto& mesh = meshes[i];
-            const auto& per_object_cb = per_object_cbs[i];
+            auto& per_object_cb = per_object_cbs[i];
 
             int mesh_id = m_mesh_manager->AddCustomMesh(mesh);
+            per_object_cb.object_id = mesh_id;
             m_mesh_manager->UpdateMeshPerObjectData(mesh_id, per_object_cb);
             mesh_ids.push_back(mesh_id);
         }
@@ -343,6 +351,14 @@ public:
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
             else if (pixel_shader_type == PixelShaderType::TerrainTexturedWithShadows && m_terrain_texture_atlas_id >= 0)
+            {
+                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
+                m_mesh_manager->SetTexturesForMesh(
+                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 0);
+
+                m_terrain_current_pixel_shader_type = pixel_shader_type;
+            }
+            else if (pixel_shader_type == PixelShaderType::PickingShader && m_terrain_texture_atlas_id >= 0)
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
                 m_mesh_manager->SetTexturesForMesh(

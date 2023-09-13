@@ -149,11 +149,14 @@ void MapBrowser::Clear()
     // Clear the views.
     auto context = m_deviceResources->GetD3DDeviceContext();
     auto renderTarget = m_deviceResources->GetRenderTargetView();
+    auto pickingRenderTarget = m_deviceResources->GetPickingRenderTargetView();
     auto depthStencil = m_deviceResources->GetDepthStencilView();
 
     context->ClearRenderTargetView(renderTarget, Colors::CornflowerBlue);
     context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-    context->OMSetRenderTargets(1, &renderTarget, depthStencil);
+
+    ID3D11RenderTargetView* multipleRenderTargets[] = { renderTarget, pickingRenderTarget };
+    context->OMSetRenderTargets(2, multipleRenderTargets, depthStencil);
 
     // Set the viewport.
     auto const viewport = m_deviceResources->GetScreenViewport();
