@@ -26,7 +26,8 @@ cbuffer PerObjectCB : register(b1)
     uint4 texture_indices[8];
     uint4 blend_flags[8];
     uint num_uv_texture_pairs;
-    float pad1[3];
+    uint4 object_id;
+	float pad1[2];
 };
 
 cbuffer PerCameraCB : register(b2)

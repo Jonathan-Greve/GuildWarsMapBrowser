@@ -24,7 +24,8 @@ cbuffer PerObjectCB : register(b1)
     uint num_uv_texture_pairs;
     uint uv_indices[32];
     uint texture_indices[32];
-    float pad1[3];
+    uint4 object_id;
+	float pad1[2];
 };
 
 

@@ -104,6 +104,9 @@
     <Filter Include="tinytiff">
       <UniqueIdentifier>{7db9026f-1026-424a-8b86-07828bf8abf4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Render\Shaders\Pixel shaders\Picking">
+      <UniqueIdentifier>{862a4721-2f95-457f-ae98-69033b9e74ee}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -239,9 +242,6 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\DeviceResources.h">
       <Filter>Common</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\MapRenderer.h">
-      <Filter>Render</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\draw_dat_load_progress_bar.h">
       <Filter>GUI</Filter>
@@ -385,8 +385,14 @@
     <ClInclude Include="SourceFiles\Extract_BASS_DLL_resource.h">
       <Filter>Common</Filter>
     </ClInclude>
-    <ClInclude Include="TerrainTexturedWithShadowsPixelShader.h">
+    <ClInclude Include="SourceFiles\MapRenderer.h">
+      <Filter>Render\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\TerrainTexturedWithShadowsPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\PickingPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Picking</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -513,9 +519,6 @@
     <ClCompile Include="SourceFiles\TextureManager.cpp">
       <Filter>Render\Textures</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\MapRenderer.cpp">
-      <Filter>Render</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\draw_dat_load_progress_bar.cpp">
       <Filter>GUI</Filter>
     </ClCompile>
@@ -630,6 +633,9 @@
     <ClCompile Include="SourceFiles\Extract_BASS_DLL_resource.cpp">
       <Filter>Common</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\MapRenderer.cpp">
+      <Filter>Render\Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SourceFiles\resource.rc" />
@@ -698,8 +704,11 @@
     <FxCompile Include="SourceFiles\TerrainTexturedPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
-    <FxCompile Include="TerrainTexturedWithShadowsPixelShader.hlsl">
+    <FxCompile Include="SourceFiles\TerrainTexturedWithShadowsPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\PickingPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Picking</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
