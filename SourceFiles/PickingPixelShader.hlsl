@@ -1,7 +1,3 @@
-#pragma once
-struct TerrainTexturedWithShadowsPixelShader
-{
-    static constexpr char shader_ps[] = R"(
 sampler ss : register(s0);
 Texture2D textureAtlas : register(t0);
 Texture2D terrain_texture_indices : register(t1);
@@ -28,7 +24,8 @@ cbuffer PerObjectCB : register(b1)
     uint4 texture_indices[8];
     uint4 blend_flags[8];
     uint num_uv_texture_pairs;
-    float pad1[3];
+    uint4 object_id;
+    float pad1[2];
 };
 
 cbuffer PerCameraCB : register(b2)
@@ -267,23 +264,6 @@ float4 main(PixelInputType input) : SV_TARGET
         }
     }
 
-    // Load texture
-    float weight_tl = terrain_shadow_map.Load(int3(topLeftCoord, 0)).r;
-    float weight_tr = terrain_shadow_map.Load(int3(topRightCoord, 0)).r;
-    float weight_bl = terrain_shadow_map.Load(int3(bottomLeftCoord, 0)).r;
-    float weight_br = terrain_shadow_map.Load(int3(bottomRightCoord, 0)).r;
-
-    // Calculate u and v
-    float u = frac(input.tex_coords0.x / texelSize.x); // Fractional part of the tile index in x
-    float v = frac(input.tex_coords0.y / texelSize.y); // Fractional part of the tile index in y
-
-    // Apply bilinear interpolation
-    float blendedWeight = (1 - u) * (1 - v) * weight_tl +
-                          u * (1 - v) * weight_tr +
-                          (1 - u) * v * weight_bl +
-                          u * v * weight_br;
-
-
     // Perform texture splatting using the normalized weights
     float4 splattedTextureColor = float4(0.0, 0.0, 0.0, 1.0);
     for (int i = 0; i < 8; ++i)
@@ -308,14 +288,6 @@ float4 main(PixelInputType input) : SV_TARGET
         outputColor = finalColor * splattedTextureColor;
     }
 
-    // Calculate luminance
-    float luminance = dot(outputColor.rgb, float3(0.299, 0.587, 0.114));
-    // Modulate shadow
-    float modulatedShadow = max(0.4, lerp(blendedWeight, 1.0, luminance * 0.1)); // You can adjust the 0.5 factor for different results
-    outputColor.rgb = outputColor.rgb * modulatedShadow;
-
     // Return the result
     return outputColor;
 }
-)";
-};
