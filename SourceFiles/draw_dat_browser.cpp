@@ -1032,6 +1032,43 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 								}
 							}
 						}
+
+						if (ImGui::MenuItem("Export model textures"))
+						{
+							std::wstring saveDir = OpenDirectoryDialog();
+							if (!saveDir.empty())
+							{
+								parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+
+								for (int tex_index = 0; tex_index < selected_ffna_model_file.texture_filenames_chunk.texture_filenames.
+								     size(); tex_index++)
+								{
+									const auto& texture_filename = selected_ffna_model_file.texture_filenames_chunk.texture_filenames[tex_index];
+
+									auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
+									int texture_id = map_renderer->GetTextureManager()->
+									GetTextureIdByHash(decoded_filename);
+
+									std::string filename = std::format("model_0x{:X}_tex_index{}_texture_0x{:X}.png",
+									                                   item.hash, tex_index, decoded_filename);
+
+									// Append the filename to the saveDir
+									std::wstring savePath =
+									saveDir + L"\\" + std::wstring(filename.begin(), filename.end());
+
+									ID3D11ShaderResourceView* texture =
+									map_renderer->GetTextureManager()->GetTexture(texture_id);
+									if (SaveTextureToPng(texture, savePath, map_renderer->GetTextureManager()))
+									{
+										// Success
+									}
+									else
+									{
+										// Error handling }
+									}
+								}
+							}
+						}
 					}
 
 					if (item.type == FFNA_Type3)
