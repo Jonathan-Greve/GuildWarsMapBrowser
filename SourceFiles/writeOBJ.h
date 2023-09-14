@@ -45,7 +45,7 @@ inline std::string write_obj_str(const std::vector<Mesh>& meshes)
                       << "\n";
             objStream << "vn " << vertex.normal.x << " " << vertex.normal.y << " " << -vertex.normal.z
                       << "\n";
-            objStream << "vt " << vertex.tex_coord0.x << " " << vertex.tex_coord0.y << "\n";
+            objStream << "vt " << vertex.tex_coord0.x << " " << 1-vertex.tex_coord0.y << "\n";
         }
 
         // Write faces (triangles) to the string stream, offsetting the indices
