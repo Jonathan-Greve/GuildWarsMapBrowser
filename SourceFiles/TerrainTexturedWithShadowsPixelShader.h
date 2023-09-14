@@ -29,7 +29,7 @@ cbuffer PerObjectCB : register(b1)
     uint4 blend_flags[8];
     uint num_uv_texture_pairs;
     uint object_id;
-	float pad1[2];
+    float pad1[2];
 };
 
 cbuffer PerCameraCB : register(b2)
@@ -67,7 +67,13 @@ struct PixelInputType
     float terrain_height : TEXCOORD8;
 };
 
-float4 main(PixelInputType input) : SV_TARGET
+struct PSOutput
+{
+    float4 rt_0_output: SV_TARGET0; // Goes to first render target (usually the screen)
+    float4 rt_1_output : SV_TARGET1; // Goes to second render target
+};
+
+PSOutput main(PixelInputType input) 
 {
     // Normalize the input normal
     float3 normal = normalize(input.normal);
@@ -312,11 +318,24 @@ float4 main(PixelInputType input) : SV_TARGET
     // Calculate luminance
     float luminance = dot(outputColor.rgb, float3(0.299, 0.587, 0.114));
     // Modulate shadow
-    float modulatedShadow = max(0.4, lerp(blendedWeight, 1.0, luminance * 0.1)); // You can adjust the 0.5 factor for different results
+    float modulatedShadow = max(0.1, lerp(blendedWeight, 1.0, luminance * 0.5)); // You can adjust the 0.5 factor for different results
     outputColor.rgb = outputColor.rgb * modulatedShadow;
 
     // Return the result
-    return outputColor;
+    PSOutput output;
+
+    // The main render target showing the rendered world
+    output.rt_0_output = outputColor;
+
+    float4 colorId = float4(0, 0, 0, 1);
+    colorId.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
+    colorId.g = (float) ((object_id & 0x0000FF00) >> 8) / 255.0f;
+    colorId.b = (float) ((object_id & 0x000000FF)) / 255.0f;
+
+    // Render target for picking
+    output.rt_1_output = colorId;
+
+    return output;
 }
 )";
 };

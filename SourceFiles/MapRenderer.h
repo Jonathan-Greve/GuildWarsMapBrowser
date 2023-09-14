@@ -327,6 +327,11 @@ public:
         return mesh_ids;
     }
 
+    int GetObjectId(ID3D11Texture2D* picking_target, const int x, const int y) const
+    {
+        return m_mesh_manager->GetPickedObjectId(m_deviceContext, picking_target, x, y);
+    }
+
     std::vector<std::pair<uint32_t, std::vector<int>>>& GetPropsMeshIds() { return m_prop_mesh_ids; }
 
     PixelShaderType GetTerrainPixelShaderType() { return m_terrain_current_pixel_shader_type; }

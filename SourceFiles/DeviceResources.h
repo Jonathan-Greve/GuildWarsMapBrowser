@@ -58,6 +58,7 @@ namespace DX
         D3D_FEATURE_LEVEL       GetDeviceFeatureLevel() const noexcept  { return m_d3dFeatureLevel; }
         ID3D11Texture2D*        GetRenderTarget() const noexcept        { return m_renderTarget.Get(); }
         ID3D11Texture2D*        GetPickingRenderTarget() const noexcept        { return m_pickingRenderTarget.Get(); }
+        ID3D11Texture2D*        GetPickingStagingTexture() const noexcept        { return m_pickingStagingTexture.Get(); }
         ID3D11Texture2D*        GetDepthStencil() const noexcept        { return m_depthStencil.Get(); }
         ID3D11RenderTargetView*	GetRenderTargetView() const noexcept    { return m_d3dRenderTargetView.Get(); }
         ID3D11RenderTargetView*	GetPickingRenderTargetView() const noexcept    { return m_d3dPickingRenderTargetView.Get(); }
@@ -99,6 +100,7 @@ namespace DX
         // Direct3D rendering objects. Required for 3D.
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_renderTarget;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_pickingRenderTarget;
+        Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_pickingStagingTexture;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_depthStencil;
         Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_d3dRenderTargetView;
         Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_d3dPickingRenderTargetView;

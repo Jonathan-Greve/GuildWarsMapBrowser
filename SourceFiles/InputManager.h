@@ -22,6 +22,8 @@ public:
 
     bool IsKeyDown(UINT key) const;
 
+    POINT GetClientCoords(HWND hWnd);
+
 private:
     POINT m_mouse_pos;
     POINT m_right_mouse_button_down_pos;
