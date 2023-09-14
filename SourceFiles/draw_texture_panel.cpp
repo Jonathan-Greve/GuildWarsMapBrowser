@@ -5,8 +5,6 @@
 
 extern SelectedDatTexture selected_dat_texture;
 
-bool SaveTextureToPng(ID3D11ShaderResourceView* texture, std::wstring& filename,
-                      TextureManager* texture_manager);
 std::wstring OpenPngFileDialog();
 
 void draw_texture_panel(MapRenderer* map_renderer)
@@ -58,19 +56,6 @@ void draw_texture_panel(MapRenderer* map_renderer)
 
         ImGui::End();
     }
-}
-
-bool SaveTextureToPng(ID3D11ShaderResourceView* texture, std::wstring& filename,
-                      TextureManager* texture_manager)
-{
-    HRESULT hr = texture_manager->SaveTextureToFile(texture, filename.c_str());
-    if (FAILED(hr))
-    {
-        // Handle the error
-        return false;
-    }
-
-    return true;
 }
 
 std::wstring OpenPngFileDialog()

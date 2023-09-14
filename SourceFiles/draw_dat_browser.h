@@ -42,3 +42,17 @@ struct DatBrowserItem
 void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer);
 
 void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer);
+
+inline bool SaveTextureToPng(ID3D11ShaderResourceView* texture, std::wstring& filename,
+                      TextureManager* texture_manager)
+{
+    HRESULT hr = texture_manager->SaveTextureToFile(texture, filename.c_str());
+    if (FAILED(hr))
+    {
+        // Handle the error
+        return false;
+    }
+
+    return true;
+}
+
