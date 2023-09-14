@@ -976,4 +976,8 @@ std::unordered_map<int, std::vector<MapConstantInfo>> constant_maps_info = {
     {693, 0x47566, "Caverns Below Kamadan", false}}},
   {0x475df,
    {{704, 0x475df, "Fronis Irontoe`s Lair", false}}},
+  {0xf653,
+   {{72, 0xf653, "The Underworld", false}}},
+  {0xf652,
+   {{34, 0xf652, "The Fissure of Woe", false}}},
 };
