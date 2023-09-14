@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "draw_props_filenames_panel.h"
-#include "FFNA_ModelFile.h"
+
 
 void draw_props_filenames_panel(const Chunk4& chunk)
 {
@@ -25,17 +25,7 @@ void draw_props_filenames_panel(const Chunk4& chunk)
             {
                 const Chunk4DataElement& element = chunk.array[i];
 
-                if (ImGui::TreeNode((std::string("Element #") + std::to_string(i)).c_str()))
-                {
-                    ImGui::Text("f1: %hu", element.f1);
-                    ImGui::Text("File Name ID0: %hu", element.filename.id0);
-                    ImGui::Text("File Name ID1: %hu", element.filename.id1);
-
-                    int decoded_hash = decode_filename(element.filename.id0, element.filename.id1);
-                    const auto file_hash_text = std::format("0x{:X} ({})", decoded_hash, decoded_hash);
-                    ImGui::Text("File hash: %s", file_hash_text.c_str());
-                    ImGui::TreePop();
-                }
+                draw_prop_filename_element(i, element);
             }
             ImGui::TreePop();
         }
