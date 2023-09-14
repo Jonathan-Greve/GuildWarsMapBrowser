@@ -119,6 +119,15 @@ void MapBrowser::Render()
 
     m_map_renderer->Render();
 
+    // Copy picking texture to staging texture for CPU access
+    m_deviceResources->GetD3DDeviceContext()->CopyResource(
+        m_deviceResources->GetPickingStagingTexture(), 
+        m_deviceResources->GetPickingRenderTarget());
+
+	auto mouse_coords = m_input_manager->GetClientCoords(m_deviceResources->GetWindow());
+	int hovered_object_id = m_map_renderer->GetObjectId(m_deviceResources->GetPickingStagingTexture(), mouse_coords.x,mouse_coords.y);
+
+
     // Start the Dear ImGui frame
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();

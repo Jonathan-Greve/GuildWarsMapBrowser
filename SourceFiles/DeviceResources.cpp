@@ -249,6 +249,7 @@ void DeviceResources::CreateWindowSizeDependentResources()
     m_d3dDepthStencilView.Reset();
     m_renderTarget.Reset();
     m_pickingRenderTarget.Reset();
+    m_pickingStagingTexture.Reset();
     m_depthStencil.Reset();
     m_d3dContext->Flush();
 
@@ -338,6 +339,16 @@ void DeviceResources::CreateWindowSizeDependentResources()
     ThrowIfFailed(m_d3dDevice->CreateRenderTargetView(m_pickingRenderTarget.Get(), &pickingTargetViewDesc,
                                                       m_d3dPickingRenderTargetView.ReleaseAndGetAddressOf()));
 
+    // Staging texture to copy data from pickingRenderTarget to the staging texture on the GPU.
+    // Then I can access the data on the CPU through the staging texture. I must do this because the CPU cannot access a render targets data.
+    CD3D11_TEXTURE2D_DESC stagingTextureDesc(
+    DXGI_FORMAT_R8G8B8A8_UNORM, backBufferWidth, backBufferHeight, 1, 1, 0,
+    D3D11_USAGE_STAGING, D3D11_CPU_ACCESS_READ);
+
+	  // Use Microsoft::WRL::ComPtr or your own ComPtr implementation
+	ThrowIfFailed(m_d3dDevice->CreateTexture2D(&stagingTextureDesc, nullptr, &m_pickingStagingTexture));
+
+
     if (m_depthBufferFormat != DXGI_FORMAT_UNKNOWN)
     {
         // Create a depth stencil view for use with 3D rendering if needed.
@@ -401,6 +412,7 @@ void DeviceResources::HandleDeviceLost()
     m_d3dPickingRenderTargetView.Reset();
     m_renderTarget.Reset();
     m_pickingRenderTarget.Reset();
+    m_pickingStagingTexture.Reset();
     m_depthStencil.Reset();
     m_swapChain.Reset();
     m_d3dContext.Reset();
