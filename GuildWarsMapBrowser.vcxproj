@@ -226,6 +226,7 @@
     <ClInclude Include="SourceFiles\draw_hex_editor_panel.h" />
     <ClInclude Include="SourceFiles\draw_left_panel.h" />
     <ClInclude Include="SourceFiles\draw_map_info_chunk.h" />
+    <ClInclude Include="SourceFiles\draw_picking_info.h" />
     <ClInclude Include="SourceFiles\draw_props_filenames_panel.h" />
     <ClInclude Include="SourceFiles\draw_props_info_panel.h" />
     <ClInclude Include="SourceFiles\draw_prop_model_info.h" />
@@ -376,6 +377,7 @@
     <ClCompile Include="SourceFiles\draw_hex_editor_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_left_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_map_info_chunk.cpp" />
+    <ClCompile Include="SourceFiles\draw_picking_info.cpp" />
     <ClCompile Include="SourceFiles\draw_props_filenames_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_props_info_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_prop_model_info.cpp" />

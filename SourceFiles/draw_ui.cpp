@@ -9,6 +9,7 @@
 #include "draw_audio_controller_panel.h"
 #include "draw_text_panel.h"
 #include "draw_hex_editor_panel.h"
+#include "draw_picking_info.h"
 
 extern FileType selected_file_type;
 extern HSTREAM selected_audio_stream_handle;
@@ -16,7 +17,7 @@ extern std::string selected_text_file_str;
 extern std::vector<uint8_t> selected_raw_data;
 
 void draw_ui(InitializationState initialization_state, int dat_files_to_read, int dat_total_files,
-             DATManager& dat_manager, MapRenderer* map_renderer)
+             DATManager& dat_manager, MapRenderer* map_renderer, PickingInfo picking_info)
 {
 
     if (! gw_dat_path_set)
@@ -34,6 +35,8 @@ void draw_ui(InitializationState initialization_state, int dat_files_to_read, in
             draw_data_browser(dat_manager, map_renderer);
             draw_left_panel(map_renderer);
             draw_right_panel(map_renderer);
+
+            draw_picking_info(picking_info);
 
             if (selected_file_type >= ATEXDXT1 && selected_file_type <= ATTXDXTL &&
                   selected_file_type != ATEXDXTA && selected_file_type != ATTXDXTA ||

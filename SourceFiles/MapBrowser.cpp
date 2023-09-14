@@ -8,6 +8,7 @@
 #include "GuiGlobalConstants.h"
 #include "draw_gui_for_open_dat_file.h"
 #include "draw_dat_load_progress_bar.h"
+#include "draw_picking_info.h"
 #include "draw_ui.h"
 
 extern void ExitMapBrowser() noexcept;
@@ -15,6 +16,8 @@ extern void ExitMapBrowser() noexcept;
 using namespace DirectX;
 
 using Microsoft::WRL::ComPtr;
+
+extern std::unordered_map<uint32_t, uint32_t> object_id_to_prop_index;
 
 MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
     : m_input_manager(input_manager)
@@ -124,9 +127,21 @@ void MapBrowser::Render()
         m_deviceResources->GetPickingStagingTexture(), 
         m_deviceResources->GetPickingRenderTarget());
 
-	auto mouse_coords = m_input_manager->GetClientCoords(m_deviceResources->GetWindow());
-	int hovered_object_id = m_map_renderer->GetObjectId(m_deviceResources->GetPickingStagingTexture(), mouse_coords.x,mouse_coords.y);
+	auto mouse_client_coords = m_input_manager->GetClientCoords(m_deviceResources->GetWindow());
+	int hovered_object_id = m_map_renderer->GetObjectId(m_deviceResources->GetPickingStagingTexture(), mouse_client_coords.x,mouse_client_coords.y);
 
+    // Get prop_index id
+    int prop_index = -1;
+    if (const auto it = object_id_to_prop_index.find(hovered_object_id); it != object_id_to_prop_index.end())
+    {
+	    prop_index = it->second;
+    }
+
+    PickingInfo picking_info;
+    picking_info.client_x = mouse_client_coords.x;
+    picking_info.client_y = mouse_client_coords.y;
+    picking_info.object_id = hovered_object_id;
+    picking_info.prop_index = prop_index;
 
     // Start the Dear ImGui frame
     ImGui_ImplDX11_NewFrame();
@@ -134,7 +149,7 @@ void MapBrowser::Render()
     ImGui::NewFrame();
 
     draw_ui(m_dat_manager.m_initialization_state, m_dat_manager.get_num_files_type_read(),
-            m_dat_manager.get_num_files(), m_dat_manager, m_map_renderer.get());
+            m_dat_manager.get_num_files(), m_dat_manager, m_map_renderer.get(), picking_info);
 
     static bool show_demo_window = false;
     if (show_demo_window)
