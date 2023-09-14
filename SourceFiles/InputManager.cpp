@@ -101,3 +101,17 @@ void InputManager::OnMouseWheel(short wheel_delta, HWND hWnd)
 }
 
 bool InputManager::IsKeyDown(UINT key) const { return (GetAsyncKeyState(key) & 0x8000); }
+
+POINT InputManager::GetClientCoords(HWND hWnd)
+{
+    POINT screenPoint;
+    screenPoint.x = m_mouse_pos.x;
+    screenPoint.y = m_mouse_pos.y;
+
+    if (!ScreenToClient(hWnd, &screenPoint))
+    {
+        // Handle error
+    }
+    
+    return screenPoint;
+}
