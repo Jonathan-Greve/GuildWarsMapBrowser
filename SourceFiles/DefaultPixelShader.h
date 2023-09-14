@@ -27,7 +27,8 @@ cbuffer PerObjectCB : register(b1)
     uint4 texture_indices[8];
     uint4 blend_flags[8];
     uint num_uv_texture_pairs;
-    float pad1[3];
+    uint object_id;
+    float pad1[2];
 };
 
 cbuffer PerCameraCB : register(b2)
@@ -63,7 +64,13 @@ struct PixelInputType
     float terrain_height : TEXCOORD8;
 };
 
-float4 main(PixelInputType input) : SV_TARGET
+struct PSOutput
+{
+    float4 rt_0_output : SV_TARGET0; // Goes to first render target (usually the screen)
+    float4 rt_1_output : SV_TARGET1; // Goes to second render target
+};
+
+PSOutput main(PixelInputType input)
 {
     // Normalize the input normal
     float3 normal = normalize(input.normal);
@@ -133,9 +140,18 @@ float4 main(PixelInputType input) : SV_TARGET
         finalColor = finalColor * sampledTextureColor;
     }
 
-    // Return the result
-    return finalColor;
-}
+    PSOutput output;
+    output.rt_0_output = finalColor;
 
+    float4 colorId = float4(0, 0, 0, 1);
+    colorId.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
+    colorId.g = (float) ((object_id & 0x0000FF00) >> 8) / 255.0f;
+    colorId.b = (float) ((object_id & 0x000000FF)) / 255.0f;
+
+    // Render target for picking
+    output.rt_1_output = colorId;
+
+    return output;
+}
 )";
 };

@@ -107,6 +107,9 @@
     <Filter Include="Render\Shaders\Pixel shaders\Picking">
       <UniqueIdentifier>{862a4721-2f95-457f-ae98-69033b9e74ee}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GUI\Picking">
+      <UniqueIdentifier>{3657fc6d-a1b7-4650-b065-ecfab84efde6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -394,6 +397,9 @@
     <ClInclude Include="SourceFiles\PickingPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Picking</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\draw_picking_info.h">
+      <Filter>GUI\Picking</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -635,6 +641,9 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\MapRenderer.cpp">
       <Filter>Render\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_picking_info.cpp">
+      <Filter>GUI\Picking</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
