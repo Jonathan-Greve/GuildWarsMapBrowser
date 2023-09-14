@@ -35,12 +35,60 @@ void draw_picking_info(const PickingInfo& info)
 
 		if (prop_info.filename_index < selected_ffna_map_file.prop_filenames_chunk.array.size())
 		{
+			ImGui::Separator();
 			draw_prop_filename_element(prop_info.filename_index,
-			                           selected_ffna_map_file.prop_filenames_chunk.array[prop_info.filename_index], true);
+			                           selected_ffna_map_file.prop_filenames_chunk.array[prop_info.filename_index],
+			                           true);
 		}
 
+
 		if (auto ffna_model_file_ptr =
-			std::get_if<FFNA_ModelFile>(&selected_map_files[prop_info.filename_index])) { }
+			std::get_if<FFNA_ModelFile>(&selected_map_files[prop_info.filename_index]))
+		{
+			ImGui::Separator();
+			const std::vector<GeometryModel> models = ffna_model_file_ptr->geometry_chunk.models;
+			ImGui::Text("Num models: %d", models.size());
+
+			// Show info per sub-model:
+			for (size_t i = 0; i < models.size(); ++i)
+			{
+				const auto& model = models[i];
+
+				if (ImGui::TreeNodeEx(("Model " + std::to_string(i)).c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+				{
+					ImGui::Text("Num vertices: %u", model.num_vertices);
+					ImGui::Text("Num indices: %u", model.total_num_indices);
+					ImGui::Text("Min X: %f, Max X: %f", model.minX, model.maxX);
+					ImGui::Text("Min Y: %f, Max Y: %f", model.minY, model.maxY);
+					ImGui::Text("Min Z: %f, Max Z: %f", model.minZ, model.maxZ);
+
+					if (model.vertices.size() > 0)
+					{
+						const auto& first_vertex = model.vertices[0];
+
+						if (ImGui::TreeNodeEx("First Vertex Info", ImGuiTreeNodeFlags_DefaultOpen))
+						{
+							ImGui::Text("Has Position: %s", first_vertex.has_position ? "True" : "False");
+							ImGui::Text("Has Group: %s", first_vertex.has_group ? "True" : "False");
+							ImGui::Text("Has Normal: %s", first_vertex.has_normal ? "True" : "False");
+							ImGui::Text("Has Diffuse: %s", first_vertex.has_diffuse ? "True" : "False");
+							ImGui::Text("Has Specular: %s", first_vertex.has_specular ? "True" : "False");
+							ImGui::Text("Has Tangent: %s", first_vertex.has_tangent ? "True" : "False");
+							ImGui::Text("Has Bitangent: %s", first_vertex.has_bitangent ? "True" : "False");
+
+							for (int j = 0; j < 8; ++j)
+							{
+								ImGui::Text("Has Tex Coord %d: %s", j, first_vertex.has_tex_coord[j] ? "True" : "False");
+							}
+
+							ImGui::TreePop();
+						}
+					}
+
+					ImGui::TreePop();
+				}
+			}
+		}
 	}
 
 	// End the ImGui window
