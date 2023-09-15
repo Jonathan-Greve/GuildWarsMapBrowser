@@ -458,7 +458,7 @@ struct GeometryModel
 
         if (curr_offset + total_num_indices * 2 < data_size_bytes && total_num_indices < 1000000)
         {
-            indices.resize(total_num_indices * 2);
+            indices.resize(total_num_indices);
             std::memcpy(indices.data(), &data[curr_offset], total_num_indices * 2);
             curr_offset += total_num_indices * 2;
         }
