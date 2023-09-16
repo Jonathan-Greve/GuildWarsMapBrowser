@@ -11,7 +11,7 @@ constexpr uint32_t GR_FVF_GROUP = 2; // uint32?
 constexpr uint32_t GR_FVF_NORMAL = 4; // 3 floats
 constexpr uint32_t GR_FVF_DIFFUSE = 8;
 constexpr uint32_t GR_FVF_BITANGENT = 0x30;
-constexpr uint32_t GR_FVF_TANGENT = 0x40;
+constexpr uint32_t GR_FVF_TANGENT_AND_BITANGENT = 0x40;
 
 inline int decode_filename(int id0, int id1) { return (id0 - 0xff00ff) + (id1 * 0xff00); }
 
@@ -162,11 +162,11 @@ struct ModelVertex
         }
         has_position = (actual_FVF & D3DFVF_POSITION_MASK) != 0;
         has_group = FVF & GR_FVF_GROUP; // GW specific?, so use GW FVF
-        has_normal = actual_FVF & D3DFVF_NORMAL;
+        has_normal = actual_FVF & D3DFVF_NORMAL; // Has normal map (texture)?
         has_diffuse = actual_FVF & D3DFVF_DIFFUSE;
-        has_specular = actual_FVF & D3DFVF_SPECULAR;
-        has_tangent = FVF & GR_FVF_TANGENT; // No tangent flag in D3DFVF, so use GW_FVF
-        has_bitangent = FVF & GR_FVF_BITANGENT; // No bitangent flag in D3DFVF, so use GW_FVF
+        has_specular = actual_FVF & D3DFVF_SPECULAR; 
+        has_tangent = FVF & GR_FVF_TANGENT_AND_BITANGENT; // No tangent flag in D3DFVF, so use GW_FVF
+        has_bitangent = has_tangent; // No bitangent flag I think. the tangent and bitangent always come together? so if the flag is set they are both set in the vertex format.
 
         num_texcoords = (actual_FVF & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
         for (int i = 0; i < 8; ++i)
