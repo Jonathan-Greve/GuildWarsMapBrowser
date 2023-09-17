@@ -42,6 +42,8 @@ struct VertexInputType
     float2 tex_coords5 : TEXCOORD5;
     float2 tex_coords6 : TEXCOORD6;
     float2 tex_coords7 : TEXCOORD7;
+    float3 tangent: TANGENT;
+    float3 bitangent: TANGENT;
 };
 
 struct PixelInputType
