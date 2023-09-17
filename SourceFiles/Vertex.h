@@ -14,6 +14,8 @@ struct GWVertex
     XMFLOAT2 tex_coord5; // Sixth texture coordinate
     XMFLOAT2 tex_coord6; // Seventh texture coordinate
     XMFLOAT2 tex_coord7; // Eighth texture coordinate
+    XMFLOAT3 tangent; // The tangent of the vertex
+    XMFLOAT3 bitangent; // The tangent of the vertex
 };
 
 // Define the input layout
@@ -37,7 +39,10 @@ inline extern D3D11_INPUT_ELEMENT_DESC inputLayoutDesc[] = {
   {"TEXCOORD", 6, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(GWVertex, tex_coord6), D3D11_INPUT_PER_VERTEX_DATA,
    0},
   {"TEXCOORD", 7, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(GWVertex, tex_coord7), D3D11_INPUT_PER_VERTEX_DATA,
-   0}};
+   0},
+  {"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(GWVertex, tangent), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"TANGENT", 1, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(GWVertex, bitangent), D3D11_INPUT_PER_VERTEX_DATA, 0}
+};
 
 inline int get_most_significant_bit_pos(uint32_t value)
 {
