@@ -237,17 +237,39 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 					auto mft_entry_it = hash_index.find(decoded_filename);
 					if (mft_entry_it != hash_index.end())
 					{
-						auto dat_texture = dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
-						model_dat_textures.push_back(dat_texture);
+						auto file_index = mft_entry_it->second.at(0);
+						const auto* entry = &MFT[file_index];
+
+						if (!entry)
+							return;
+
+						DatTexture dat_texture;
+						std::vector<uint8_t> ddsData;
+
+						if (entry->type == DDS) { ddsData = dat_manager.parse_dds_file(file_index); }
+						else { dat_texture = dat_manager.parse_ffna_texture_file(file_index); }
 
 						// Create texture if it wasn't cached.
 						if (texture_id < 0)
 						{
-							auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
-							 dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
-							 &texture_id, decoded_filename);
+							if (entry->type == DDS)
+							{
+								size_t ddsDataSize = ddsData.size();
+								HRESULT hr = map_renderer->GetTextureManager()->CreateTextureFromDDSInMemory(
+								 ddsData.data(), ddsDataSize, &texture_id,
+								 &dat_texture.width, &dat_texture.height,
+								 dat_texture.rgba_data, entry->Hash);
+							}
+							else
+							{
+								auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+								 dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
+								 &texture_id, decoded_filename);
+							}
 							texture_ids.push_back(texture_id);
 						}
+
+						model_dat_textures.push_back(dat_texture);
 					}
 				}
 
@@ -1040,10 +1062,12 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 							{
 								parse_file(dat_manager, item.id, map_renderer, hash_index, items);
 
-								for (int tex_index = 0; tex_index < selected_ffna_model_file.texture_filenames_chunk.texture_filenames.
+								for (int tex_index = 0; tex_index < selected_ffna_model_file.texture_filenames_chunk.
+								     texture_filenames.
 								     size(); tex_index++)
 								{
-									const auto& texture_filename = selected_ffna_model_file.texture_filenames_chunk.texture_filenames[tex_index];
+									const auto& texture_filename = selected_ffna_model_file.texture_filenames_chunk.
+									texture_filenames[tex_index];
 
 									auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
 									int texture_id = map_renderer->GetTextureManager()->
