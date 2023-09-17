@@ -232,7 +232,6 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 					auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
 
 					int texture_id = map_renderer->GetTextureManager()->GetTextureIdByHash(decoded_filename);
-					if (texture_id >= 0) { texture_ids.push_back(texture_id); }
 
 					auto mft_entry_it = hash_index.find(decoded_filename);
 					if (mft_entry_it != hash_index.end())
@@ -244,31 +243,28 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 							return;
 
 						DatTexture dat_texture;
-						std::vector<uint8_t> ddsData;
-
-						if (entry->type == DDS) { ddsData = dat_manager.parse_dds_file(file_index); }
-						else { dat_texture = dat_manager.parse_ffna_texture_file(file_index); }
-
-						// Create texture if it wasn't cached.
-						if (texture_id < 0)
+						if (entry->type == DDS)
 						{
-							if (entry->type == DDS)
+							const auto ddsData = dat_manager.parse_dds_file(file_index);
+							size_t ddsDataSize = ddsData.size();
+							const auto hr = map_renderer->GetTextureManager()->
+							CreateTextureFromDDSInMemory(ddsData.data(), ddsDataSize, &texture_id, &dat_texture.width,
+							                             &dat_texture.height, dat_texture.rgba_data, entry->Hash);
+						}
+						else
+						{
+							dat_texture = dat_manager.parse_ffna_texture_file(file_index);
+							// Create texture if it wasn't cached.
+							if (texture_id < 0)
 							{
-								size_t ddsDataSize = ddsData.size();
-								HRESULT hr = map_renderer->GetTextureManager()->CreateTextureFromDDSInMemory(
-								 ddsData.data(), ddsDataSize, &texture_id,
-								 &dat_texture.width, &dat_texture.height,
-								 dat_texture.rgba_data, entry->Hash);
+								auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(dat_texture.width,
+									dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
+									decoded_filename);
 							}
-							else
-							{
-								auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
-								 dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
-								 &texture_id, decoded_filename);
-							}
-							texture_ids.push_back(texture_id);
 						}
 
+						assert(texture_id >= 0);
+						if (texture_id >= 0) { texture_ids.push_back(texture_id); }
 						model_dat_textures.push_back(dat_texture);
 					}
 				}
