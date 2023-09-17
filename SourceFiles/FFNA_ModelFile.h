@@ -10,8 +10,7 @@ constexpr uint32_t GR_FVF_POSITION = 1; // 3 floats
 constexpr uint32_t GR_FVF_GROUP = 2; // uint32?
 constexpr uint32_t GR_FVF_NORMAL = 4; // 3 floats
 constexpr uint32_t GR_FVF_DIFFUSE = 8;
-constexpr uint32_t GR_FVF_BITANGENT = 0x30;
-constexpr uint32_t GR_FVF_TANGENT_AND_BITANGENT = 0x40;
+constexpr uint32_t GR_FVF_TANGENT_AND_BITANGENT = 0x30;
 
 inline int decode_filename(int id0, int id1) { return (id0 - 0xff00ff) + (id1 * 0xff00); }
 
@@ -1226,7 +1225,7 @@ struct FFNA_ModelFile
         {
             ModelVertex model_vertex = sub_model.vertices[i];
             GWVertex vertex;
-            if (! model_vertex.has_position || ! model_vertex.has_normal)
+            if (! model_vertex.has_position)
                 return Mesh();
 
             if (max_num_tex_coords < model_vertex.num_texcoords)
@@ -1235,7 +1234,18 @@ struct FFNA_ModelFile
             }
 
             vertex.position = XMFLOAT3(model_vertex.x, model_vertex.y, model_vertex.z);
-            vertex.normal = XMFLOAT3(model_vertex.normal_x, model_vertex.normal_y, model_vertex.normal_z);
+
+            if (model_vertex.has_normal){
+				vertex.normal = XMFLOAT3(model_vertex.normal_x, model_vertex.normal_y, model_vertex.normal_z);
+            }
+
+            if (model_vertex.has_tangent){
+				vertex.normal = XMFLOAT3(model_vertex.tangent_x, model_vertex.tangent_y, model_vertex.tangent_z);
+            }
+
+            if (model_vertex.has_bitangent){
+				vertex.normal = XMFLOAT3(model_vertex.bitangent_x, model_vertex.bitangent_y, model_vertex.bitangent_z);
+            }
 
             if (model_vertex.has_tex_coord[0])
             {
@@ -1292,6 +1302,7 @@ struct FFNA_ModelFile
         std::vector<uint8_t> uv_coords_indices;
         std::vector<uint8_t> tex_indices;
         std::vector<uint8_t> blend_flags;
+        // Old model format (mostly Prophecies and Factions)
         if (parsed_texture_with_UTS)
         {
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
@@ -1333,14 +1344,40 @@ struct FFNA_ModelFile
             }
         }
 
+        // Modern model format (Primarily Nightfall and EoTN)
         if (textures_parsed_correctly && geometry_chunk.unknown_tex_stuff1.size() > 0)
         {
-            for (int i = 0; i < geometry_chunk.unknown_tex_stuff1.size(); i++)
+            int tex_index_start = 0;
+			for (int i = 0; i < sub_model_index; i++)
+			{
+			    auto uts = geometry_chunk.uts1[i % geometry_chunk.uts1.size()];
+			    tex_index_start += uts.f0x6;
+			}
+
+            for (int i = 0; i < geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6; i++)
             {
-                tex_indices.push_back(geometry_chunk.unknown_tex_stuff1[i]);
-                uv_coords_indices.push_back(i);
-                blend_flags.push_back(0);
-                break;
+                uint8_t texture_index = geometry_chunk.unknown_tex_stuff1[(tex_index_start + i) % geometry_chunk.unknown_tex_stuff1.size()];
+                if (texture_filenames_chunk.num_texture_filenames < texture_index &&
+                    texture_filenames_chunk.num_texture_filenames > 0)
+                {
+                    continue;
+                }
+
+                tex_indices.push_back(texture_index);
+                uv_coords_indices.push_back(i % sub_model.vertices[0].num_texcoords);
+                if (i == 0)
+                {
+					blend_flags.push_back(0);
+                }
+                else
+                {
+					blend_flags.push_back(6);
+                }
+
+                if (i >= 0)
+                {
+	                break;
+                }
             }
         }
 
