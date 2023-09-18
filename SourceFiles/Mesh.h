@@ -16,5 +16,8 @@ struct Mesh
     bool should_cull = true;
     BlendState blend_state = BlendState::Opaque;
 
+
     int num_textures;
+
+    XMFLOAT3 center;
 };
