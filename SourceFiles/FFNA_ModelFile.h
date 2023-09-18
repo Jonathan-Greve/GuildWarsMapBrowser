@@ -1370,7 +1370,7 @@ struct FFNA_ModelFile
                     if (geometry_chunk.uts1[sub_model_index % geometry_chunk.uts1.size()].some_flags0 != 0x100)
                     {
 						blend_state = BlendState::AlphaBlend;
-						blend_flags.push_back(1);
+						blend_flags.push_back(8);
                     }
                     else
                     {
@@ -1380,7 +1380,8 @@ struct FFNA_ModelFile
                 }
                 else
                 {
-					blend_flags.push_back(6);
+                	blend_state = BlendState::AlphaBlend;
+					blend_flags.push_back(8);
                 }
 
                 if (i >= 0)
