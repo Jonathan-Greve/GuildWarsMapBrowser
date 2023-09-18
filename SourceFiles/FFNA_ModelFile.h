@@ -1354,41 +1354,57 @@ struct FFNA_ModelFile
 			    tex_index_start += uts.f0x6;
 			}
 
+            uint8_t blend_flag = 0;
             for (int i = 0; i < geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6; i++)
             {
                 uint8_t texture_index = geometry_chunk.unknown_tex_stuff1[(tex_index_start + i) % geometry_chunk.unknown_tex_stuff1.size()];
+
+                if (geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 < 4)
+                {
+	                blend_flag = 8;
+                    blend_state  = BlendState::AlphaBlend;
+                }
+
                 if (texture_filenames_chunk.num_texture_filenames < texture_index &&
                     texture_filenames_chunk.num_texture_filenames > 0)
                 {
-                    continue;
+                    break;
                 }
 
-                tex_indices.push_back(texture_index);
-                uv_coords_indices.push_back(i % sub_model.vertices[0].num_texcoords);
                 if (i == 0)
                 {
-                    if (geometry_chunk.uts1[sub_model_index % geometry_chunk.uts1.size()].some_flags0 != 0x100)
-                    {
-						blend_state = BlendState::AlphaBlend;
-						blend_flags.push_back(8);
-                    }
-                    else
-                    {
-						blend_state = BlendState::Opaque;
-						blend_flags.push_back(1);
-                    }
-                }
-                else
-                {
-                	blend_state = BlendState::AlphaBlend;
-					blend_flags.push_back(8);
+					tex_indices.push_back(texture_index);
+					uv_coords_indices.push_back(i % sub_model.vertices[0].num_texcoords);
                 }
 
-                if (i >= 0)
-                {
-	                break;
-                }
+                //tex_indices.push_back(texture_index);
+                //uv_coords_indices.push_back(i % sub_model.vertices[0].num_texcoords);
+     //           if (i == 0)
+     //           {
+     //               if (geometry_chunk.uts1[sub_model_index % geometry_chunk.uts1.size()].some_flags0 != 0x100)
+     //               {
+					//	blend_state = BlendState::AlphaBlend;
+					//	blend_flags.push_back(8);
+     //               }
+     //               else
+     //               {
+					//	blend_state = BlendState::Opaque;
+					//	blend_flags.push_back(1);
+     //               }
+     //           }
+     //           else
+     //           {
+     //           	blend_state = BlendState::AlphaBlend;
+					//blend_flags.push_back(8);
+     //           }
+
+     //           if (i >= 0)
+     //           {
+	    //            break;
+     //           }
             }
+
+            blend_flags.push_back(blend_flag);
         }
 
         return Mesh(vertices, indices, uv_coords_indices, tex_indices, blend_flags, should_cull, blend_state,
