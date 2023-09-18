@@ -142,6 +142,7 @@ void MapBrowser::Render()
     picking_info.client_y = mouse_client_coords.y;
     picking_info.object_id = hovered_object_id;
     picking_info.prop_index = prop_index;
+    picking_info.camera_pos = m_map_renderer->GetCamera()->GetPosition3f();
 
     // Start the Dear ImGui frame
     ImGui_ImplDX11_NewFrame();
