@@ -206,6 +206,10 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 			for (int i = 0; i < models.size(); i++)
 			{
 				Mesh prop_mesh = selected_ffna_model_file.GetMesh(i);
+				prop_mesh.center = {
+					(models[i].maxX - models[i].minX) / 2.0f, (models[i].maxY - models[i].minY) / 2.0f,
+					(models[i].maxZ - models[i].minZ) / 2.0f
+				};
 
 				overallMinX = std::min(overallMinX, models[i].minX);
 				overallMinY = std::min(overallMinY, models[i].minY);
@@ -475,7 +479,12 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 						prop_meshes.clear();
 						for (int j = 0; j < ffna_model_file_ptr->geometry_chunk.models.size(); j++)
 						{
+							const auto& models = ffna_model_file_ptr->geometry_chunk.models;
 							Mesh prop_mesh = ffna_model_file_ptr->GetMesh(j);
+							prop_mesh.center = {
+								(models[j].maxX - models[j].minX) / 2.0f, (models[j].maxY - models[j].minY) / 2.0f,
+								(models[j].maxZ - models[j].minZ) / 2.0f
+							};
 							if ((prop_mesh.indices.size() % 3) == 0) { prop_meshes.push_back(prop_mesh); }
 						}
 
