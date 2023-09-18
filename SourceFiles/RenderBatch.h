@@ -1,102 +1,129 @@
 #pragma once
 #include "RenderCommand.h"
+#include "DXMathHelpers.h"
 
 class RenderBatch
 {
 public:
-    void AddCommand(const RenderCommand& command)
-    {
-        int mesh_id = command.meshInstance->GetMeshID();
-        m_commands[mesh_id] = command;
-        m_needsSorting = true;
-    }
+	void AddCommand(const RenderCommand& command)
+	{
+		int mesh_id = command.meshInstance->GetMeshID();
+		m_commands[mesh_id] = command;
+		m_needsSorting = true;
+	}
 
-    void RemoveCommand(const int mesh_id)
-    {
-        m_commands.erase(mesh_id);
-        m_needsSorting = true;
-    }
+	void RemoveCommand(const int mesh_id)
+	{
+		m_commands.erase(mesh_id);
+		m_needsSorting = true;
+	}
 
-    void SortCommands()
-    {
-        if (! m_needsSorting)
-        {
-            return;
-        }
+	void SortCommandsByDistance(XMFLOAT3& camera_pos)
+	{
+		//if (!m_needsSorting) { return; }
 
-        m_sortedCommands.clear();
-        m_sortedCommands.reserve(m_commands.size());
+		m_sortedCommands.clear();
+		m_sortedCommands.reserve(m_commands.size());
 
-        for (const auto& entry : m_commands)
-        {
-            m_sortedCommands.push_back(entry.second);
-        }
+		for (const auto& entry : m_commands) { m_sortedCommands.push_back(entry.second); }
 
-        auto comparator = [](const RenderCommand& a, const RenderCommand& b) -> bool
-        {
-            ;
-            if (a.blend_state != BlendState::AlphaBlend && b.blend_state != BlendState::AlphaBlend)
-            {
-                return a.should_cull > b.should_cull;
-            }
+		auto comparator = [&camera_pos](const RenderCommand& a, const RenderCommand& b) -> bool
+		{
+			const auto a_pos = GetPositionFromMatrix(a.meshInstance->GetPerObjectData().world);
+			const auto b_pos = GetPositionFromMatrix(b.meshInstance->GetPerObjectData().world);
 
-            return a.blend_state < b.blend_state;
-        };
+			const auto a_distance = XMVectorGetX(XMVector3Length(XMVectorSubtract(XMLoadFloat3(&a_pos),
+				                                                     XMLoadFloat3(&camera_pos))));
+			const auto b_distance = XMVectorGetX(XMVector3Length(XMVectorSubtract(XMLoadFloat3(&b_pos),
+				                                                     XMLoadFloat3(&camera_pos))));
 
-        std::sort(m_sortedCommands.begin(), m_sortedCommands.end(), comparator);
-    }
+			return a_distance > b_distance;
+		};
 
-    void SetShouldRender(int mesh_id, bool should_render)
-    {
-        auto it = m_commands.find(mesh_id);
-        if (it != m_commands.end())
-        {
-            it->second.should_render = should_render;
-            m_needsSorting = true;
-        }
-    }
+		std::sort(m_sortedCommands.begin(), m_sortedCommands.end(), comparator);
+	}
 
-    void Clear()
-    {
-        m_commands.clear();
-        m_sortedCommands.clear();
-    }
+	void SortCommands(XMFLOAT3& camera_pos)
+	{
+		if (!m_needsSorting) { return; }
 
-    std::vector<RenderCommand> GetCommands()
-    {
-        if (m_needsSorting)
-        {
-            SortCommands();
-        }
-        return m_sortedCommands;
-    }
+		m_sortedCommands.clear();
+		m_sortedCommands.reserve(m_commands.size());
 
-    const RenderCommand* const GetCommand(int mesh_id)
-    {
-        auto it = m_commands.find(mesh_id);
-        if (it != m_commands.end())
-        {
-            return &it->second;
-        }
-        return nullptr;
-    }
+		for (const auto& entry : m_commands) { m_sortedCommands.push_back(entry.second); }
 
-    bool SetPixelShader(int mesh_id, PixelShaderType pixel_shader_type)
-    {
-        auto it = m_commands.find(mesh_id);
-        if (it != m_commands.end())
-        {
-            it->second.pixelShaderType = pixel_shader_type;
-            m_needsSorting = true;
+		auto comparator = [&camera_pos](const RenderCommand& a, const RenderCommand& b) -> bool
+		{
+			const auto a_pos = GetPositionFromMatrix(a.meshInstance->GetPerObjectData().world);
+			const auto b_pos = GetPositionFromMatrix(b.meshInstance->GetPerObjectData().world);
 
-            return true;
-        }
+			const auto a_distance = XMVectorGetX(XMVector3Length(XMVectorSubtract(XMLoadFloat3(&a_pos),
+				                                                     XMLoadFloat3(&camera_pos))));
+			const auto b_distance = XMVectorGetX(XMVector3Length(XMVectorSubtract(XMLoadFloat3(&b_pos),
+				                                                     XMLoadFloat3(&camera_pos))));
 
-        return false;
-    }
+			if (a.blend_state != BlendState::AlphaBlend)
+			{
+				return false;
+			}
+
+			if (b.blend_state != BlendState::AlphaBlend)
+			{
+				return true;
+			}
+
+			if (a.blend_state == BlendState::AlphaBlend && b.blend_state == BlendState::AlphaBlend)
+			{
+				return a_distance < b_distance;
+			}
+
+			throw "test";
+		};
+
+		std::sort(m_sortedCommands.rbegin(), m_sortedCommands.rend(), comparator);
+	}
+
+	void SetShouldRender(int mesh_id, bool should_render)
+	{
+		auto it = m_commands.find(mesh_id);
+		if (it != m_commands.end())
+		{
+			it->second.should_render = should_render;
+			m_needsSorting = true;
+		}
+	}
+
+	void Clear()
+	{
+		m_commands.clear();
+		m_sortedCommands.clear();
+	}
+
+	std::vector<RenderCommand> GetCommands() { return m_sortedCommands; }
+
+	const RenderCommand* const GetCommand(int mesh_id)
+	{
+		auto it = m_commands.find(mesh_id);
+		if (it != m_commands.end()) { return &it->second; }
+		return nullptr;
+	}
+
+	bool SetPixelShader(int mesh_id, PixelShaderType pixel_shader_type)
+	{
+		auto it = m_commands.find(mesh_id);
+		if (it != m_commands.end())
+		{
+			it->second.pixelShaderType = pixel_shader_type;
+			m_needsSorting = true;
+
+			return true;
+		}
+
+		return false;
+	}
 
 private:
-    std::unordered_map<int, RenderCommand> m_commands;
-    std::vector<RenderCommand> m_sortedCommands;
-    bool m_needsSorting = false;
+	std::unordered_map<int, RenderCommand> m_commands;
+	std::vector<RenderCommand> m_sortedCommands;
+	bool m_needsSorting = false;
 };

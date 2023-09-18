@@ -20,9 +20,6 @@ void draw_picking_info(const PickingInfo& info)
 	// Display mouse coordinates
 	ImGui::Text("Mouse Coordinates: (%d, %d)", info.client_x, info.client_y);
 
-	// Display the object ID under the cursor
-	if (info.object_id >= 0) { ImGui::Text("Picked Object ID: %d", info.object_id); }
-	else { ImGui::Text("Picked Object ID: None"); }
 
 	if (last_hovered_prop_index >= 0) { ImGui::Text("Picked Prop Index: %d", last_hovered_prop_index); }
 	else { ImGui::Text("Picked Object ID: None"); }
@@ -32,6 +29,12 @@ void draw_picking_info(const PickingInfo& info)
 		const PropInfo prop_info = selected_ffna_map_file.props_info_chunk.prop_array.props_info[
 			last_hovered_prop_index];
 		draw_prop_info(prop_info, true);
+
+
+		XMFLOAT3 prop_pos(prop_info.x, prop_info.y, prop_info.z);
+		const auto distance = XMVectorGetX(XMVector3Length(XMVectorSubtract(XMLoadFloat3(&prop_pos),
+				                                                     XMLoadFloat3(&info.camera_pos))));
+		ImGui::Text("Distance to prop: %f", distance);
 
 		if (prop_info.filename_index < selected_ffna_map_file.prop_filenames_chunk.array.size())
 		{

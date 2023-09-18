@@ -10,3 +10,7 @@ static inline XMFLOAT3 compute_normal(const XMFLOAT3& v0, const XMFLOAT3& v1, co
     XMStoreFloat3(&normal, XMVector3Normalize(vNormal));
     return normal;
 }
+
+static inline DirectX::XMFLOAT3 GetPositionFromMatrix(const DirectX::XMFLOAT4X4& worldMatrix) {
+    return DirectX::XMFLOAT3(worldMatrix._41, worldMatrix._42, worldMatrix._43);
+}

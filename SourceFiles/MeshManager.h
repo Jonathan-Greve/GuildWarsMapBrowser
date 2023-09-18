@@ -243,19 +243,17 @@ public:
 	void Update(float dt)
 	{
 		if (m_needsUpdate) { m_needsUpdate = false; }
-
-		m_renderBatch.SortCommands();
 	}
 
 	void Render(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
 	            BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
-	            DepthStencilStateManager* depth_stencil_state_manager)
+	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position)
 	{
 		static D3D11_PRIMITIVE_TOPOLOGY currentTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
 		static auto current_ps_shader_type = PixelShaderType::Default;
 		bool current_should_cull = true;
 		auto current_blend_state = BlendState::Opaque;
-		m_renderBatch.SortCommands();
+		m_renderBatch.SortCommands(camera_position);
 
 		for (const RenderCommand& command : m_renderBatch.GetCommands())
 		{

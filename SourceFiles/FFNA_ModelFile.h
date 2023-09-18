@@ -1367,7 +1367,16 @@ struct FFNA_ModelFile
                 uv_coords_indices.push_back(i % sub_model.vertices[0].num_texcoords);
                 if (i == 0)
                 {
-					blend_flags.push_back(0);
+                    if (geometry_chunk.uts1[sub_model_index % geometry_chunk.uts1.size()].some_flags0 != 0x100)
+                    {
+						blend_state = BlendState::AlphaBlend;
+						blend_flags.push_back(1);
+                    }
+                    else
+                    {
+						blend_state = BlendState::Opaque;
+						blend_flags.push_back(1);
+                    }
                 }
                 else
                 {

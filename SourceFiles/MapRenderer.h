@@ -452,7 +452,7 @@ public:
     void Render()
     {
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-                               m_stencil_state_manager.get());
+                               m_stencil_state_manager.get(), m_user_camera->GetPosition3f());
     }
 
 private:
