@@ -33,7 +33,7 @@ void draw_picking_info(const PickingInfo& info)
 
 		XMFLOAT3 prop_pos(prop_info.x, prop_info.y, prop_info.z);
 		const auto distance = XMVectorGetX(XMVector3Length(XMVectorSubtract(XMLoadFloat3(&prop_pos),
-				                                                     XMLoadFloat3(&info.camera_pos))));
+		                                                                    XMLoadFloat3(&info.camera_pos))));
 		ImGui::Text("Distance to prop: %f", distance);
 
 		if (prop_info.filename_index < selected_ffna_map_file.prop_filenames_chunk.array.size())
@@ -59,6 +59,14 @@ void draw_picking_info(const PickingInfo& info)
 
 				if (ImGui::TreeNodeEx(("Model " + std::to_string(i)).c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 				{
+					const auto uts1 = ffna_model_file_ptr->geometry_chunk.uts1;
+					if (uts1.size() > 0)
+					{
+						ImGui::Text("some_flags0: %u", uts1[i % uts1.size()].some_flags0);
+						ImGui::Text("f0x6: %u", uts1[i % uts1.size()].f0x6);
+						ImGui::Text("f0x8: %u", uts1[i % uts1.size()].f0x8);
+					}
+
 					ImGui::Text("Num vertices: %u", model.num_vertices);
 					ImGui::Text("Num indices: %u", model.total_num_indices);
 					ImGui::Text("Min X: %f, Max X: %f", model.minX, model.maxX);
