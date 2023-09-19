@@ -557,19 +557,28 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 								float rotation_angle = std::atan2(
 								                                  sin_angle,
 								                                  cos_angle);
+
+								float sin_angle_y = prop_info.f5;
+								float cos_angle_y = prop_info.f6;
+								float rotation_angle_y = std::atan2(
+								                                  sin_angle_y,
+								                                  cos_angle_y);
 								// Calculate the rotation angle from the sine and cosine values
 
 								float scale = prop_info.scaling_factor;
-
 								XMMATRIX scaling_matrix = XMMatrixScaling(scale, scale, scale);
-								XMMATRIX rotation_matrix = XMMatrixRotationY(rotation_angle);
+
+								XMMATRIX rotation_matrix_x = XMMatrixRotationX(prop_info.f9 * XM_PIDIV2);
+								XMMATRIX rotation_matrix_y = XMMatrixRotationY(rotation_angle);
+
 								XMMATRIX translation_matrix =
 								XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
 
 								XMMATRIX transform_matrix = XMMatrixMultiply(
 								                                             scaling_matrix,
-								                                             XMMatrixMultiply(rotation_matrix,
-									                                             translation_matrix));
+								                                             XMMatrixMultiply(rotation_matrix_y,
+																				XMMatrixMultiply(rotation_matrix_x,
+									                                             translation_matrix)));
 
 								XMStoreFloat4x4(&per_object_cbs[j].world, transform_matrix);
 
