@@ -557,8 +557,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
 								XMFLOAT3 translation(prop_info.x, prop_info.y, prop_info.z);
 
-								XMFLOAT3 model_look{prop_info.sin_angle, prop_info.cos_angle, prop_info.f9};
-								XMFLOAT3 model_up{prop_info.f4, prop_info.f5, prop_info.f6};
+								XMFLOAT3 model_look{prop_info.sin_angle, -prop_info.f9, prop_info.cos_angle};
+								XMFLOAT3 model_up{prop_info.f4, -prop_info.f6, prop_info.f5};
 
 								XMFLOAT3 normalized_model_look, normalized_model_up;
 								XMVECTOR model_look_vec = XMVector3Normalize(XMLoadFloat3(&model_look));
@@ -573,21 +573,24 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 								XMStoreFloat3(&model_right, model_right_vec);
 
 								// Create the rotation matrix to align the model with the world
+								// Not sure why the first matrix doesn't work for all cases but
+								// the check: `prop_info.f6 < prop_info.f4` seem to fix it with the addition
+								// of the second rotation matrix in the case the predicate is false.
 								XMMATRIX rotation_matrix;
-								if (prop_info.f6 == -1.0f || prop_info.f12 != 1)
+								if (prop_info.f6 < prop_info.f4)
 								{
 									rotation_matrix = XMMatrixSet(
-										model_right.x, model_right.z, model_right.y, 0,
-										normalized_model_up.x, -normalized_model_up.z,normalized_model_up.y, 0,
-										normalized_model_look.x, normalized_model_look.z,normalized_model_look.y, 0,
+										model_right.x, model_right.y, model_right.z, 0,
+										normalized_model_up.x, normalized_model_up.y, normalized_model_up.z, 0,
+										normalized_model_look.x, normalized_model_look.y, normalized_model_look.z, 0,
 										0, 0, 0, 1
 									);
 								}
 								else
 								{
 									rotation_matrix = XMMatrixSet(
+										normalized_model_look.x, normalized_model_look.y,normalized_model_look.z, 0,
 										model_right.x, model_right.y, model_right.z, 0,
-										normalized_model_look.x, -normalized_model_look.y,normalized_model_look.z, 0,
 										normalized_model_up.x, normalized_model_up.y,normalized_model_up.z, 0,
 										0, 0, 0, 1
 									);
@@ -599,7 +602,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 								XMMATRIX translation_matrix = XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
 
 								// Final transformation matrix
-								XMMATRIX transform_matrix = scaling_matrix * rotation_matrix * translation_matrix;
+								XMMATRIX transform_matrix = scaling_matrix * XMMatrixTranspose(rotation_matrix) * translation_matrix;
 
 								// Store the transform matrix into the constant buffer
 								XMStoreFloat4x4(&per_object_cbs[j].world, transform_matrix);
