@@ -551,35 +551,57 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 							per_object_cbs.resize(prop_meshes.size());
 							for (int j = 0; j < per_object_cbs.size(); j++)
 							{
+								XMFLOAT3 world_right{1, 0, 0};
+								XMFLOAT3 world_look{0, 0, 1};
+								XMFLOAT3 world_up{0, -1, 0};
+
 								XMFLOAT3 translation(prop_info.x, prop_info.y, prop_info.z);
-								float sin_angle = prop_info.sin_angle;
-								float cos_angle = prop_info.cos_angle;
-								float rotation_angle = std::atan2(
-								                                  sin_angle,
-								                                  cos_angle);
 
-								float sin_angle_y = prop_info.f5;
-								float cos_angle_y = prop_info.f6;
-								float rotation_angle_y = std::atan2(
-								                                  sin_angle_y,
-								                                  cos_angle_y);
-								// Calculate the rotation angle from the sine and cosine values
+								XMFLOAT3 model_look{prop_info.sin_angle, prop_info.cos_angle, prop_info.f9};
+								XMFLOAT3 model_up{prop_info.f4, prop_info.f5, prop_info.f6};
 
-								float scale = prop_info.scaling_factor;
+								XMFLOAT3 normalized_model_look, normalized_model_up;
+								XMVECTOR model_look_vec = XMVector3Normalize(XMLoadFloat3(&model_look));
+								XMVECTOR model_up_vec = XMVector3Normalize(XMLoadFloat3(&model_up));
+
+								XMStoreFloat3(&normalized_model_look, model_look_vec);
+								XMStoreFloat3(&normalized_model_up, model_up_vec);
+
+								// Calculate the model's "right" vector through cross product of "up" and "look" vectors
+								XMFLOAT3 model_right;
+								XMVECTOR model_right_vec = XMVector3Cross(model_up_vec, model_look_vec);
+								XMStoreFloat3(&model_right, model_right_vec);
+
+								// Create the rotation matrix to align the model with the world
+								XMMATRIX rotation_matrix;
+								if (prop_info.f6 == -1.0f || prop_info.f12 != 1)
+								{
+									rotation_matrix = XMMatrixSet(
+										model_right.x, model_right.z, model_right.y, 0,
+										normalized_model_up.x, -normalized_model_up.z,normalized_model_up.y, 0,
+										normalized_model_look.x, normalized_model_look.z,normalized_model_look.y, 0,
+										0, 0, 0, 1
+									);
+								}
+								else
+								{
+									rotation_matrix = XMMatrixSet(
+										model_right.x, model_right.y, model_right.z, 0,
+										normalized_model_look.x, -normalized_model_look.y,normalized_model_look.z, 0,
+										normalized_model_up.x, normalized_model_up.y,normalized_model_up.z, 0,
+										0, 0, 0, 1
+									);
+								}
+
+								// Create the scaling and translation matrices
+								const auto scale = prop_info.scaling_factor;
 								XMMATRIX scaling_matrix = XMMatrixScaling(scale, scale, scale);
+								XMMATRIX translation_matrix = XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
 
-								XMMATRIX rotation_matrix_x = XMMatrixRotationX(prop_info.f9 * XM_PIDIV2);
-								XMMATRIX rotation_matrix_y = XMMatrixRotationY(rotation_angle);
+								// Final transformation matrix
+								XMMATRIX transform_matrix = scaling_matrix * rotation_matrix * translation_matrix;
 
-								XMMATRIX translation_matrix =
-								XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
-
-								XMMATRIX transform_matrix = XMMatrixMultiply(
-								                                             scaling_matrix,
-								                                             XMMatrixMultiply(rotation_matrix_y,
-																				XMMatrixMultiply(rotation_matrix_x,
-									                                             translation_matrix)));
-
+								// Store the transform matrix into the constant buffer
 								XMStoreFloat4x4(&per_object_cbs[j].world, transform_matrix);
 
 								auto& prop_mesh = prop_meshes[j];
