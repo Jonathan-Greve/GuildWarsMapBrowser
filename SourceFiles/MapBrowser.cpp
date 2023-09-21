@@ -22,10 +22,14 @@ extern std::unordered_map<uint32_t, uint32_t> object_id_to_prop_index;
 MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
     : m_input_manager(input_manager)
 {
-    m_deviceResources = std::make_unique<DX::DeviceResources>();
-    // TODO: Provide parameters for swapchain format, depth/stencil format, and backbuffer count.
-    //   Add DX::DeviceResources::c_AllowTearing to opt-in to variable rate displays.
-    //   Add DX::DeviceResources::c_EnableHDR for HDR10 display.
+    m_deviceResources = std::make_unique<DX::DeviceResources>(
+        DXGI_FORMAT_R8G8B8A8_UNORM, 
+        DXGI_FORMAT_D32_FLOAT, 
+        2, 
+        D3D_FEATURE_LEVEL_11_1,
+        0
+    );
+
     m_deviceResources->RegisterDeviceNotify(this);
 }
 
