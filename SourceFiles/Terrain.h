@@ -80,8 +80,8 @@ private:
                     for (int l = col_start; l < col_end; l++)
                     {
                         grid[m_grid_dim_z - k][l] = -m_height_map[count];
-                        m_texture_index_grid[k > 0 ? k - 1 : 0][l] = m_terrain_texture_indices[count];
-                        m_terrain_shadow_map_grid[k > 0 ? k - 1 : 0][l] =
+                        m_texture_index_grid[k][l] = m_terrain_texture_indices[count];
+                        m_terrain_shadow_map_grid[k][l] =
                           m_terrain_shadow_map[count];
                         count++;
 
@@ -118,7 +118,7 @@ private:
 
                 vertices.push_back({{xPos, yPos, zPos},
                                     {0.0f, 0.0f, 0.0f},
-                                    {(float)x / (m_grid_dim_x - 1), 1.0f - (float)z / (m_grid_dim_z - 1)},
+                                    {(float)x / (m_grid_dim_x ), 1.0f - (float)z / (m_grid_dim_z )},
                                     {0.0f, 0.0f},
                                     {0.0f, 0.0f},
                                     {0.0f, 0.0f},
