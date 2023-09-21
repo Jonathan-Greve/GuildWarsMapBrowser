@@ -96,7 +96,7 @@ PSOutput main(PixelInputType input)
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
     // ------------ TEXTURE START ----------------
-    float2 texelSize = float2(1.0 / (grid_dim_x - 3), 1.0 / (grid_dim_y - 3));
+    float2 texelSize = float2(1.0 / (grid_dim_x - 0), 1.0 / (grid_dim_y - 0));
 
     // Calculate the tile index
     float2 tileIndex = floor(input.tex_coords0 / texelSize);
@@ -291,6 +291,24 @@ PSOutput main(PixelInputType input)
     float4 splattedTextureColor = float4(0.0, 0.0, 0.0, 1.0);
     for (int i = 0; i < 8; ++i)
     {
+        if (atlasCoordCount == 0)
+        {
+            float2 relativeUV = (input.tex_coords0 - topLeftTexCoord) / texelSize;
+            uint index = topLeftTexIdx;
+            float x = (index % 8) * atlasTileSize;
+            float y = (index / 8) * atlasTileSize;
+
+            relativeUV.y = 1.0 - relativeUV.y;
+            float2 offset_relativeUV = float2(relativeUV.x * scale_factor_x + offset_factor_x, relativeUV.y * scale_factor_y);
+
+            atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[0] + offset_relativeUV * (atlasTileSize * innerRegionScale);
+        }
+
+        if(total_alpha == 0.0f)
+        {
+            splattedTextureColor.rgb = textureAtlas.Sample(ss, atlasCoords[0]).rgb;
+        }
+
         if (i == atlasCoordCount)
             break;
         if (sampledColors[i].a == 0)
@@ -316,6 +334,8 @@ PSOutput main(PixelInputType input)
     // Modulate shadow
     float modulatedShadow = max(0.1, lerp(blendedWeight, 1.0, luminance * 0.5)); // You can adjust the 0.5 factor for different results
     outputColor.rgb = outputColor.rgb * modulatedShadow;
+
+    outputColor.a = 1.0f;
 
     // Return the result
     PSOutput output;
