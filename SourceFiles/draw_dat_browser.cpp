@@ -602,7 +602,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 								XMMATRIX translation_matrix = XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
 
 								// Final transformation matrix
-								XMMATRIX transform_matrix = scaling_matrix * XMMatrixTranspose(rotation_matrix) * translation_matrix;
+								XMMATRIX transform_matrix = scaling_matrix * rotation_matrix * translation_matrix;
 
 								// Store the transform matrix into the constant buffer
 								XMStoreFloat4x4(&per_object_cbs[j].world, transform_matrix);
