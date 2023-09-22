@@ -3,7 +3,7 @@ struct TerrainTexturedPixelShader
 {
     static constexpr char shader_ps[] = R"(
 sampler ss : register(s0);
-Texture2D textureAtlas : register(t0);
+Texture2DArray terrain_texture_array : register(t3);
 Texture2D terrain_texture_indices : register(t1);
 Texture2D terrain_shadow_map : register(t2);
 
@@ -29,7 +29,7 @@ cbuffer PerObjectCB : register(b1)
     uint4 blend_flags[8];
     uint num_uv_texture_pairs;
     uint object_id;
-	float pad1[2];
+    float pad1[2];
 };
 
 cbuffer PerCameraCB : register(b2)
@@ -252,32 +252,31 @@ float4 main(PixelInputType input) : SV_TARGET
         atlasCoords[atlasCoordCount++] = float2(x, y) + cornerOffsets[3] + offset_relativeUV * (atlasTileSize * innerRegionScale);
     }
 
-    // Sample the textureAtlas using the calculated UV coordinates
-    int non_zero_alphas_count = 0;
-    float total_alpha = 0.0;
-    float4 sampledColors[8];
-    for (int i = 0; i < 8; ++i)
-    {
-        if (i == atlasCoordCount)
-            break;
-        sampledColors[i] = textureAtlas.Sample(ss, atlasCoords[i]);
-        if (sampledColors[i].a > 0)
-        {
-            non_zero_alphas_count += 1;
-            total_alpha += sampledColors[i].a;
-        }
-    }
+    //// Sample the textureAtlas using the calculated UV coordinates
+    //int non_zero_alphas_count = 0;
+    //float total_alpha = 0.0;
+    //float4 sampledColors[8];
+    //for (int i = 0; i < 8; ++i)
+    //{
+    //    if (i == atlasCoordCount)
+    //        break;
+    //    if (sampledColors[i].a > 0)
+    //    {
+    //        non_zero_alphas_count += 1;
+    //        total_alpha += sampledColors[i].a;
+    //    }
+    //}
 
     // Perform texture splatting using the normalized weights
     float4 splattedTextureColor = float4(0.0, 0.0, 0.0, 1.0);
-    for (int i = 0; i < 8; ++i)
-    {
-        if (i == atlasCoordCount)
-            break;
-        if (sampledColors[i].a == 0)
-            continue;
-        splattedTextureColor.rgb += sampledColors[i].rgb * sampledColors[i].a / total_alpha;
-    }
+    //for (int i = 0; i < 8; ++i)
+    //{
+    //    if (i == atlasCoordCount)
+    //        break;
+    //    if (sampledColors[i].a == 0)
+    //        continue;
+    //    splattedTextureColor.rgb += sampledColors[i].rgb * sampledColors[i].a / total_alpha;
+    //}
     // ------------ TEXTURE END ----------------
 
     float4 outputColor;

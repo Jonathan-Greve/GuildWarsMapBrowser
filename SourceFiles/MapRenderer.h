@@ -249,7 +249,7 @@ public:
         else
         {
             m_mesh_manager->SetTexturesForMesh(
-              m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 0);
+              m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 3);
         }
 
         // Now we create a texture used for splatting (blending terrain textures)
@@ -343,7 +343,7 @@ public:
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
                 m_mesh_manager->SetTexturesForMesh(
-                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_checkered_texture_id)}, 0);
+                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_checkered_texture_id)}, 3);
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
@@ -351,7 +351,7 @@ public:
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
                 m_mesh_manager->SetTexturesForMesh(
-                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 0);
+                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 3);
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
@@ -359,23 +359,21 @@ public:
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
                 m_mesh_manager->SetTexturesForMesh(
-                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 0);
+                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 3);
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
-            else if (pixel_shader_type == PixelShaderType::PickingShader && m_terrain_texture_atlas_id >= 0)
+            else if (pixel_shader_type == PixelShaderType::PickingShader && m_terrain_texture_atlas_id >= 3)
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
                 m_mesh_manager->SetTexturesForMesh(
-                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 0);
+                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 3);
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
             else
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, PixelShaderType::TerrainDefault);
-                m_mesh_manager->SetTexturesForMesh(
-                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 0);
 
                 m_terrain_current_pixel_shader_type = PixelShaderType::TerrainDefault;
             }

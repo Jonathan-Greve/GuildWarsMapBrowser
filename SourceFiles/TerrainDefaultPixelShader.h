@@ -3,7 +3,6 @@ struct TerrainDefaultPixelShader
 {
     static constexpr char shader_ps[] = R"(
 sampler ss: register(s0);
-Texture2D shaderTextures[8] : register(t0);
 
 struct DirectionalLight
 {
@@ -27,7 +26,7 @@ cbuffer PerObjectCB : register(b1)
     uint4 blend_flags[8];
     uint num_uv_texture_pairs;
     uint object_id;
-	float pad1[2];
+    float pad1[2];
 };
 
 cbuffer PerCameraCB : register(b2)

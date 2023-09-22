@@ -400,6 +400,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 					}
 				}
 
+				// For displaying the texture atlas. Not used in rendering.
 				selected_dat_texture.dat_texture =
 				map_renderer->GetTextureManager()->BuildTextureAtlas(terrain_dat_textures, 8, 8);
 
@@ -413,6 +414,16 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 					                                                         entry->Hash);
 				}
 
+				std::vector<void*> raw_data_ptrs;
+				for (int i = 0; i < terrain_dat_textures.size(); i++)
+				{
+					raw_data_ptrs.push_back(terrain_dat_textures[i].rgba_data.data());
+				}
+
+				const auto terrain_texture_id = map_renderer->GetTextureManager()->AddTextureArray(raw_data_ptrs,
+					terrain_dat_textures[0].width, terrain_dat_textures[0].height, DXGI_FORMAT_B8G8R8A8_UNORM,
+					entry->Hash);
+
 				auto& terrain_texture_indices =
 				selected_ffna_map_file.terrain_chunk.terrain_texture_indices_maybe;
 
@@ -425,7 +436,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 				                                    selected_ffna_map_file.terrain_chunk.terrain_heightmap,
 				                                    terrain_texture_indices, terrain_shadow_map,
 				                                    selected_ffna_map_file.map_info_chunk.map_bounds);
-				map_renderer->SetTerrain(terrain.get(), selected_dat_texture.texture_id);
+				map_renderer->SetTerrain(terrain.get(), terrain_texture_id);
 			}
 
 			// Load models
@@ -580,20 +591,24 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 								if (prop_info.f6 < prop_info.f4)
 								{
 									rotation_matrix = XMMatrixSet(
-										model_right.x, model_right.y, model_right.z, 0,
-										normalized_model_up.x, normalized_model_up.y, normalized_model_up.z, 0,
-										normalized_model_look.x, normalized_model_look.y, normalized_model_look.z, 0,
-										0, 0, 0, 1
-									);
+									                              model_right.x, model_right.y, model_right.z, 0,
+									                              normalized_model_up.x, normalized_model_up.y,
+									                              normalized_model_up.z, 0,
+									                              normalized_model_look.x, normalized_model_look.y,
+									                              normalized_model_look.z, 0,
+									                              0, 0, 0, 1
+									                             );
 								}
 								else
 								{
 									rotation_matrix = XMMatrixSet(
-										normalized_model_look.x, normalized_model_look.y,normalized_model_look.z, 0,
-										model_right.x, model_right.y, model_right.z, 0,
-										normalized_model_up.x, normalized_model_up.y,normalized_model_up.z, 0,
-										0, 0, 0, 1
-									);
+									                              normalized_model_look.x, normalized_model_look.y,
+									                              normalized_model_look.z, 0,
+									                              model_right.x, model_right.y, model_right.z, 0,
+									                              normalized_model_up.x, normalized_model_up.y,
+									                              normalized_model_up.z, 0,
+									                              0, 0, 0, 1
+									                             );
 								}
 
 								// Create the scaling and translation matrices

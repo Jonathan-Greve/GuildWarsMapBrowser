@@ -41,7 +41,7 @@ public:
 
     void SetTextures(const std::vector<ID3D11ShaderResourceView*>& textures, int slot)
     {
-        assert(slot < 3); // Ensure slot is 2 at most (increase if neccessary)
+        assert(slot < 4); // Ensure slot is 2 at most (increase if neccessary)
 
         if (textures.size() >= MAX_NUM_TEX_INDICES)
         {
@@ -65,10 +65,19 @@ public:
         context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
         context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
-        for (int slot = 0; slot < 3; ++slot)
+        ID3D11ShaderResourceView* nullSRV[1] = {nullptr};
+		context->PSSetShaderResources(0, 1, nullSRV);
+		context->PSSetShaderResources(1, 1, nullSRV);
+		context->PSSetShaderResources(2, 1, nullSRV);
+		context->PSSetShaderResources(3, 1, nullSRV);
+
+        for (int slot = 0; slot < 4; ++slot)
         {
-            context->PSSetShaderResources(slot, m_textures[slot].size(),
+            if (m_textures[slot].size() > 0)
+            {
+				context->PSSetShaderResources(slot, m_textures[slot].size(),
                                           m_textures[slot].data()->GetAddressOf());
+            }
         }
 
         context->DrawIndexed(m_mesh.indices.size(), 0, 0);
@@ -81,5 +90,5 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
-    std::array<std::vector<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>, 3> m_textures;
+    std::array<std::vector<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>, 4> m_textures;
 };
