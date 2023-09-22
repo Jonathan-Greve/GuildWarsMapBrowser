@@ -32,14 +32,12 @@ class TextureManager
 public:
 	TextureManager(ID3D11Device* device, ID3D11DeviceContext* device_context)
 		: m_device(device)
-		  , m_deviceContext(device_context)
-	{
-	}
+		  , m_deviceContext(device_context) { }
 
 	~TextureManager() { Clear(); }
 
 	int AddTexture(const void* data, UINT width, UINT height, DXGI_FORMAT format, int file_hash,
-	               bool autoGenerateMipMaps=false)
+	               bool autoGenerateMipMaps = true)
 	{
 		if (cached_textures.contains(file_hash))
 			return cached_textures[file_hash].textureID;
@@ -107,6 +105,119 @@ public:
 		return textureID;
 	}
 
+	int AddTextureArray(const std::vector<void*>& dataArray, UINT width, UINT height, DXGI_FORMAT format, int file_hash,
+	                    bool autoGenerateMipMaps = true)
+	{
+		if (!dataArray.size() || width <= 0 || height <= 0) { return -1; }
+
+		D3D11_TEXTURE2D_DESC texDesc = {};
+		texDesc.Width = width;
+		texDesc.Height = height;
+		texDesc.MipLevels = autoGenerateMipMaps ? std::_Floor_of_log_2(std::max(width, height)) + 1 : 1;
+		texDesc.ArraySize = dataArray.size();
+		texDesc.Format = format;
+		texDesc.SampleDesc.Count = 1;
+		texDesc.SampleDesc.Quality = 0;
+		texDesc.Usage = D3D11_USAGE_DEFAULT;
+		texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | (autoGenerateMipMaps ? D3D11_BIND_RENDER_TARGET : 0);
+		texDesc.CPUAccessFlags = 0;
+		texDesc.MiscFlags = autoGenerateMipMaps ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0;
+
+		Microsoft::WRL::ComPtr<ID3D11Texture2D> texture2D;
+		HRESULT hr = m_device->CreateTexture2D(&texDesc, nullptr, texture2D.GetAddressOf());
+		if (FAILED(hr)) { return -1; }
+
+		UINT bytesPerPixel = BytesPerPixel(format); // Assuming you have this function
+
+		// 1. Upload the original (mip level 0) texture data
+		for (size_t i = 0; i < dataArray.size(); ++i)
+		{
+			m_deviceContext->UpdateSubresource(
+			                                   texture2D.Get(),
+			                                   D3D11CalcSubresource(0, i, texDesc.MipLevels),
+			                                   nullptr,
+			                                   dataArray[i],
+			                                   width * bytesPerPixel,
+			                                   0
+			                                  );
+		}
+
+		// 2. Generate and upload the mipmap levels if required
+		if (autoGenerateMipMaps)
+		{
+			// For each texture
+			for (size_t i = 0; i < dataArray.size(); ++i)
+			{
+				std::vector<uint8_t> higherLevelData(width * height * bytesPerPixel);
+				std::vector<uint8_t> lowerLevelData;
+
+				UINT mipWidth = width;
+				UINT mipHeight = height;
+
+				// Generate each mipmap level
+				for (UINT mipLevel = 1; mipWidth > 1 && mipHeight > 1; ++mipLevel)
+				{
+					// Halve dimensions
+					mipWidth /= 2;
+					mipHeight /= 2;
+
+					// Resize the lower level mipmap buffer
+					lowerLevelData.resize(mipWidth * mipHeight * bytesPerPixel);
+					// Copy data from original texture to higherLevelData (if mipLevel is 1)
+					if (mipLevel == 1)
+					{
+						std::copy(static_cast<uint8_t*>(dataArray[i]),
+						          static_cast<uint8_t*>(dataArray[i]) + higherLevelData.size(),
+						          higherLevelData.begin());
+					}
+
+					// Generate lower level mipmaps from higher level
+					GenerateMipmapLevel(higherLevelData, lowerLevelData,
+					                    mipWidth * 2, mipHeight * 2, bytesPerPixel);
+
+					// Upload the lower mipmap level for this array slice
+					m_deviceContext->UpdateSubresource(
+					                                   texture2D.Get(),
+					                                   D3D11CalcSubresource(mipLevel, i, texDesc.MipLevels),
+					                                   nullptr,
+					                                   lowerLevelData.data(),
+					                                   mipWidth * bytesPerPixel,
+					                                   0
+					                                  );
+
+					// Swap pointers for the next iteration, so the lower becomes the higher
+					std::swap(higherLevelData, lowerLevelData);
+				}
+			}
+		}
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = texDesc.Format;
+		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+		srvDesc.Texture2DArray.ArraySize = dataArray.size();
+		srvDesc.Texture2DArray.MipLevels = autoGenerateMipMaps ? texDesc.MipLevels : 1;
+		srvDesc.Texture2DArray.MostDetailedMip = 0;
+
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
+		hr = m_device->CreateShaderResourceView(texture2D.Get(), &srvDesc, shaderResourceView.GetAddressOf());
+		if (FAILED(hr)) { return -1; }
+
+		int textureID = m_nextTextureID++;
+		m_textures[textureID] = shaderResourceView;
+
+		if (file_hash >= 0)
+		{
+			TextureData textureData;
+			textureData.textureID = textureID;
+			textureData.width = width;
+			textureData.height = height;
+			cached_textures[file_hash] = textureData;
+		}
+
+		return textureID;
+	}
+
+
 	bool RemoveTexture(int textureID)
 	{
 		auto it = m_textures.find(textureID);
@@ -122,10 +233,7 @@ public:
 	{
 		auto it = m_textures.find(textureID);
 
-		if (it != m_textures.end())
-		{
-			return it->second.Get();
-		}
+		if (it != m_textures.end()) { return it->second.Get(); }
 		return nullptr;
 	}
 
@@ -133,10 +241,7 @@ public:
 	{
 		auto it = cached_textures.find(file_hash);
 
-		if (it != cached_textures.end())
-		{
-			return it->second.textureID;
-		}
+		if (it != cached_textures.end()) { return it->second.textureID; }
 		return -1;
 	}
 
@@ -148,10 +253,7 @@ public:
 		for (const int textureID : textureIDs)
 		{
 			ID3D11ShaderResourceView* texture = GetTexture(textureID);
-			if (texture)
-			{
-				textures.push_back(texture);
-			}
+			if (texture) { textures.push_back(texture); }
 			else
 			{
 				// Handle the case when a texture is not found, if necessary
@@ -166,7 +268,7 @@ public:
 		if (width >= 0 && height >= 0)
 		{
 			DXGI_FORMAT format = DXGI_FORMAT_B8G8R8A8_UNORM;
-			*textureID = AddTexture((void*)data, width, height, format, file_hash);
+			*textureID = AddTexture(data, width, height, format, file_hash);
 			return (*textureID >= 0) ? S_OK : E_FAIL;
 		}
 		return E_FAIL;
@@ -189,4 +291,46 @@ private:
 	std::unordered_map<int, TextureData> cached_textures;
 
 	std::unordered_map<int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> m_textures;
+
+	void GenerateMipmapLevel(const std::vector<uint8_t>& higherLevelData,
+	                         std::vector<uint8_t>& lowerLevelData,
+	                         UINT higherWidth, UINT higherHeight, UINT bytesPerPixel)
+	{
+		if (bytesPerPixel != 4)
+		{
+			return; // Unsupported format
+		}
+
+		UINT lowerWidth = higherWidth / 2;
+		UINT lowerHeight = higherHeight / 2;
+		lowerLevelData.resize(lowerWidth * lowerHeight * bytesPerPixel);
+
+		const uint8_t* src = higherLevelData.data();
+		uint8_t* dst = lowerLevelData.data();
+
+		for (UINT y = 0; y < lowerHeight; ++y)
+		{
+			for (UINT x = 0; x < lowerWidth; ++x)
+			{
+				// Calculate the indices for a 2x2 block in the higher-level mipmap
+				UINT srcIdx[4];
+				srcIdx[0] = 4 * ((2 * y) * higherWidth + (2 * x));
+				srcIdx[1] = 4 * ((2 * y) * higherWidth + (2 * x + 1));
+				srcIdx[2] = 4 * ((2 * y + 1) * higherWidth + (2 * x));
+				srcIdx[3] = 4 * ((2 * y + 1) * higherWidth + (2 * x + 1));
+
+				// Calculate the index for the destination pixel in the lower-level mipmap
+				UINT dstIdx = 4 * (y * lowerWidth + x);
+
+				for (UINT channel = 0; channel < 4; ++channel)
+				{
+					// Average the 2x2 block of pixels for each channel (R, G, B, A)
+					dst[dstIdx + channel] = static_cast<uint8_t>(
+						(src[srcIdx[0] + channel] + src[srcIdx[1] + channel] +
+							src[srcIdx[2] + channel] + src[srcIdx[3] + channel]) / 4
+					);
+				}
+			}
+		}
+	}
 };
