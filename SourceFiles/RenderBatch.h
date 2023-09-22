@@ -45,8 +45,7 @@ public:
 
 			if (a.blend_state != BlendState::AlphaBlend && b.blend_state != BlendState::AlphaBlend)
 			{
-				return a_distance < b_distance;
-				return false;
+				return a.meshInstance->GetMeshID() > b.meshInstance->GetMeshID();
 			}
 
 			if (a.blend_state != BlendState::AlphaBlend)
@@ -61,6 +60,11 @@ public:
 
 			if (a.blend_state == BlendState::AlphaBlend && b.blend_state == BlendState::AlphaBlend)
 			{
+				if (a_distance == b_distance)
+				{
+					return a.meshInstance->GetMeshID() < b.meshInstance->GetMeshID();
+				}
+
 				return a_distance < b_distance;
 			}
 
