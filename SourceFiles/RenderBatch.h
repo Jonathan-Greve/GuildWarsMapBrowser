@@ -67,8 +67,6 @@ public:
 
 				return a_distance < b_distance;
 			}
-
-			throw "test";
 		};
 
 		std::sort(m_sortedCommands.rbegin(), m_sortedCommands.rend(), comparator);
