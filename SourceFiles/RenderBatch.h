@@ -18,31 +18,6 @@ public:
 		m_needsSorting = true;
 	}
 
-	void SortCommandsByDistance(XMFLOAT3& camera_pos)
-	{
-		//if (!m_needsSorting) { return; }
-
-		m_sortedCommands.clear();
-		m_sortedCommands.reserve(m_commands.size());
-
-		for (const auto& entry : m_commands) { m_sortedCommands.push_back(entry.second); }
-
-		auto comparator = [&camera_pos](const RenderCommand& a, const RenderCommand& b) -> bool
-		{
-			const auto a_pos = GetPositionFromMatrix(a.meshInstance->GetPerObjectData().world);
-			const auto b_pos = GetPositionFromMatrix(b.meshInstance->GetPerObjectData().world);
-
-			const auto a_distance = XMVectorGetX(XMVector3Length(XMVectorSubtract(XMLoadFloat3(&a_pos),
-				                                                     XMLoadFloat3(&camera_pos))));
-			const auto b_distance = XMVectorGetX(XMVector3Length(XMVectorSubtract(XMLoadFloat3(&b_pos),
-				                                                     XMLoadFloat3(&camera_pos))));
-
-			return a_distance > b_distance;
-		};
-
-		std::sort(m_sortedCommands.begin(), m_sortedCommands.end(), comparator);
-	}
-
 	void SortCommands(XMFLOAT3& camera_pos)
 	{
 		if (!m_needsSorting) { return; }
