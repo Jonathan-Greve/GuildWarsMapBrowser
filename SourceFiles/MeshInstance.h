@@ -65,12 +65,6 @@ public:
         context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
         context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
-        ID3D11ShaderResourceView* nullSRV[1] = {nullptr};
-		context->PSSetShaderResources(0, 1, nullSRV);
-		context->PSSetShaderResources(1, 1, nullSRV);
-		context->PSSetShaderResources(2, 1, nullSRV);
-		context->PSSetShaderResources(3, 1, nullSRV);
-
         for (int slot = 0; slot < 4; ++slot)
         {
             if (m_textures[slot].size() > 0)

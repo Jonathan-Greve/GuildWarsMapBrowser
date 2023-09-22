@@ -3,7 +3,7 @@ struct TerrainTexturedPixelShader
 {
     static constexpr char shader_ps[] = R"(
 sampler ss : register(s0);
-Texture2DArray terrain_texture_array : register(t3);
+Texture2DArray terrain_texture_array : register(t0);
 Texture2D terrain_texture_indices : register(t1);
 Texture2D terrain_shadow_map : register(t2);
 

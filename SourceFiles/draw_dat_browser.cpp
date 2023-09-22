@@ -367,7 +367,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 					map_renderer->GetMeshManager()->SetTexturesForMesh(
 					                                                   mesh_id,
 					                                                   map_renderer->GetTextureManager()->
-					                                                   GetTextures(mesh_texture_ids), 0);
+					                                                   GetTextures(mesh_texture_ids), 3);
 				}
 			}
 		}
@@ -657,7 +657,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
 									map_renderer->GetMeshManager()->SetTexturesForMesh(
 									 mesh_id, map_renderer->GetTextureManager()->GetTextures(mesh_texture_ids),
-									 0);
+									 3);
 								}
 							}
 
