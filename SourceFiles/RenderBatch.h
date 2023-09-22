@@ -29,43 +29,37 @@ public:
 
 		auto comparator = [&camera_pos](const RenderCommand& a, const RenderCommand& b) -> bool
 		{
-			const auto a_local_pos = a.meshInstance->GetMesh().center;
-			const auto b_local_pos = b.meshInstance->GetMesh().center;
-
-			const auto a_world_pos = GetPositionFromMatrix(a.meshInstance->GetPerObjectData().world);
-			const auto b_world_pos = GetPositionFromMatrix(b.meshInstance->GetPerObjectData().world);
-
-			const auto a_pos = XMFLOAT3(a_local_pos.x + a_world_pos.x, a_local_pos.y + a_world_pos.y, a_local_pos.z + a_world_pos.z);
-			const auto b_pos = XMFLOAT3(b_local_pos.x + b_world_pos.x, b_local_pos.y + b_world_pos.y, b_local_pos.z + b_world_pos.z);
-
-			const auto a_distance = XMVectorGetX(XMVector3Length(XMVectorSubtract(XMLoadFloat3(&a_pos),
-				                                                     XMLoadFloat3(&camera_pos))));
-			const auto b_distance = XMVectorGetX(XMVector3Length(XMVectorSubtract(XMLoadFloat3(&b_pos),
-				                                                     XMLoadFloat3(&camera_pos))));
-
 			if (a.blend_state != BlendState::AlphaBlend && b.blend_state != BlendState::AlphaBlend)
 			{
 				return a.meshInstance->GetMeshID() > b.meshInstance->GetMeshID();
 			}
 
-			if (a.blend_state != BlendState::AlphaBlend)
-			{
-				return false;
-			}
+			if (a.blend_state != BlendState::AlphaBlend) { return false; }
 
-			if (b.blend_state != BlendState::AlphaBlend)
-			{
-				return true;
-			}
+			if (b.blend_state != BlendState::AlphaBlend) { return true; }
 
 			if (a.blend_state == BlendState::AlphaBlend && b.blend_state == BlendState::AlphaBlend)
 			{
-				if (a_distance == b_distance)
-				{
-					return a.meshInstance->GetMeshID() < b.meshInstance->GetMeshID();
-				}
+				const auto a_local_pos = a.meshInstance->GetMesh().center;
+				const auto b_local_pos = b.meshInstance->GetMesh().center;
 
-				return a_distance < b_distance;
+				const auto a_world_pos = GetPositionFromMatrix(a.meshInstance->GetPerObjectData().world);
+				const auto b_world_pos = GetPositionFromMatrix(b.meshInstance->GetPerObjectData().world);
+
+				const auto a_pos = XMFLOAT3(a_local_pos.x + a_world_pos.x, a_local_pos.y + a_world_pos.y,
+				                            a_local_pos.z + a_world_pos.z);
+				const auto b_pos = XMFLOAT3(b_local_pos.x + b_world_pos.x, b_local_pos.y + b_world_pos.y,
+				                            b_local_pos.z + b_world_pos.z);
+
+				XMVECTOR a_diff = XMVectorSubtract(XMLoadFloat3(&a_pos), XMLoadFloat3(&camera_pos));
+				XMVECTOR b_diff = XMVectorSubtract(XMLoadFloat3(&b_pos), XMLoadFloat3(&camera_pos));
+
+				const auto a_distance_sq = XMVectorGetX(XMVector3Dot(a_diff, a_diff));
+				const auto b_distance_sq = XMVectorGetX(XMVector3Dot(b_diff, b_diff));
+
+				if (a_distance_sq == b_distance_sq) { return a.meshInstance->GetMeshID() < b.meshInstance->GetMeshID(); }
+
+				return a_distance_sq < b_distance_sq;
 			}
 		};
 
