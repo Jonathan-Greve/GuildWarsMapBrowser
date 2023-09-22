@@ -103,6 +103,7 @@ public:
         samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
         samplerDesc.MinLOD = 0;
         samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+        samplerDesc.MipLODBias = -2; // Less aggresive mip mapping
 
         hr = m_device->CreateSamplerState(&samplerDesc, m_samplerState.GetAddressOf());
         if (FAILED(hr))
