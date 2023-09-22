@@ -4,7 +4,7 @@ struct DefaultPixelShader
 {
     static constexpr char shader_ps[] = R"(
 sampler ss: register(s0);
-Texture2D shaderTextures[8] : register(t0);
+Texture2D shaderTextures[8] : register(t3);
 
 struct DirectionalLight
 {
