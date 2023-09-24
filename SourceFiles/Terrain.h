@@ -47,8 +47,6 @@ public:
 
 private:
     // Generates a terrain mesh based on the height map data
-#include <DirectXMath.h>
-
     Mesh GenerateTerrainMesh()
     {
 
