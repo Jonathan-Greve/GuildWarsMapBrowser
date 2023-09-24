@@ -562,62 +562,39 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 							per_object_cbs.resize(prop_meshes.size());
 							for (int j = 0; j < per_object_cbs.size(); j++)
 							{
-								XMFLOAT3 world_right{1, 0, 0};
-								XMFLOAT3 world_look{0, 0, 1};
-								XMFLOAT3 world_up{0, -1, 0};
-
 								XMFLOAT3 translation(prop_info.x, prop_info.y, prop_info.z);
 
-								XMFLOAT3 model_look{prop_info.sin_angle, -prop_info.f9, prop_info.cos_angle};
-								XMFLOAT3 model_up{prop_info.f4, -prop_info.f6, prop_info.f5};
+								XMFLOAT3 vec1{prop_info.f4, -prop_info.f6, prop_info.f5};
+								XMFLOAT3 vec2{prop_info.sin_angle, -prop_info.f9, prop_info.cos_angle};
 
-								XMFLOAT3 normalized_model_look, normalized_model_up;
-								XMVECTOR model_look_vec = XMVector3Normalize(XMLoadFloat3(&model_look));
-								XMVECTOR model_up_vec = XMVector3Normalize(XMLoadFloat3(&model_up));
+								// Load vectors into XMVECTORs
+								XMVECTOR v2 = XMLoadFloat3(&vec1);
+								XMVECTOR v3 = XMLoadFloat3(&vec2);
 
-								XMStoreFloat3(&normalized_model_look, model_look_vec);
-								XMStoreFloat3(&normalized_model_up, model_up_vec);
+								// Compute the third orthogonal vector with cross product
+								// Note: This is for left-handed coordinate systems
+								XMVECTOR v1 = XMVector3Cross(v3, v2);
 
-								// Calculate the model's "right" vector through cross product of "up" and "look" vectors
-								XMFLOAT3 model_right;
-								XMVECTOR model_right_vec = XMVector3Cross(model_up_vec, model_look_vec);
-								XMStoreFloat3(&model_right, model_right_vec);
+								// Ensure all vectors are normalized
+								v1 = XMVector3Normalize(v1);
+								v2 = XMVector3Normalize(v2);
+								v3 = XMVector3Normalize(v3);
 
-								// Create the rotation matrix to align the model with the world
-								// Not sure why the first matrix doesn't work for all cases but
-								// the check: `prop_info.f6 < prop_info.f4` seem to fix it with the addition
-								// of the second rotation matrix in the case the predicate is false.
-								XMMATRIX rotation_matrix;
-								if (prop_info.f6 < prop_info.f4)
-								{
-									rotation_matrix = XMMatrixSet(
-									                              model_right.x, model_right.y, model_right.z, 0,
-									                              normalized_model_up.x, normalized_model_up.y,
-									                              normalized_model_up.z, 0,
-									                              normalized_model_look.x, normalized_model_look.y,
-									                              normalized_model_look.z, 0,
-									                              0, 0, 0, 1
-									                             );
-								}
-								else
-								{
-									rotation_matrix = XMMatrixSet(
-									                              normalized_model_look.x, normalized_model_look.y,
-									                              normalized_model_look.z, 0,
-									                              model_right.x, model_right.y, model_right.z, 0,
-									                              normalized_model_up.x, normalized_model_up.y,
-									                              normalized_model_up.z, 0,
-									                              0, 0, 0, 1
-									                             );
-								}
+								// Fill the rotation matrix
+								auto rotation_matrix = XMMATRIX(
+								                                -v1.m128_f32[0], -v1.m128_f32[1], v1.m128_f32[2], 0.0f,
+								                                v2.m128_f32[0], v2.m128_f32[1], v2.m128_f32[2], 0.0f,
+								                                -v3.m128_f32[0], -v3.m128_f32[1], v3.m128_f32[2], 0.0f,
+								                                0.0f, 0.0f, 0.0f, 1.0f
+								                               );
 
 								// Create the scaling and translation matrices
 								const auto scale = prop_info.scaling_factor;
 								XMMATRIX scaling_matrix = XMMatrixScaling(scale, scale, scale);
 								XMMATRIX translation_matrix = XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
 
-								// Final transformation matrix
-								XMMATRIX transform_matrix = scaling_matrix * rotation_matrix * translation_matrix;
+								// Compute the final transformation matrix
+								XMMATRIX transform_matrix = scaling_matrix * XMMatrixTranspose(rotation_matrix) * translation_matrix;
 
 								// Store the transform matrix into the constant buffer
 								XMStoreFloat4x4(&per_object_cbs[j].world, transform_matrix);
