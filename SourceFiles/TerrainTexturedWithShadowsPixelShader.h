@@ -2,8 +2,9 @@
 struct TerrainTexturedWithShadowsPixelShader
 {
     static constexpr char shader_ps[] = R"(
+
 sampler ss : register(s0);
-Texture2DArray terrain_texture_array: register(t0);
+Texture2DArray terrain_texture_array : register(t0);
 Texture2D terrain_texture_indices : register(t1);
 Texture2D terrain_shadow_map : register(t2);
 
@@ -69,11 +70,39 @@ struct PixelInputType
 
 struct PSOutput
 {
-    float4 rt_0_output: SV_TARGET0; // Goes to first render target (usually the screen)
+    float4 rt_0_output : SV_TARGET0; // Goes to first render target (usually the screen)
     float4 rt_1_output : SV_TARGET1; // Goes to second render target
 };
 
-PSOutput main(PixelInputType input) 
+// Function to adjust UV coordinates based on quadrant and border
+float2 AdjustUVForQuadrant(float2 uv, int quadrant)
+{
+    // Assuming quadrants are ordered in a 2x2 grid:
+    // 0 1
+    // 2 3
+
+    float halfU = 0.5;
+    float halfV = 0.5;
+
+    float border_out = 0.04;
+    float border_in = 0.04;
+
+    switch (quadrant)
+    {
+        case 0:
+            return lerp(float2(border_out, border_out), float2(halfU - border_in, halfV - border_in), uv);
+        case 1:
+            return lerp(float2(1.0 - border_out, border_out), float2(halfU + border_in, halfV - border_in), uv);
+        case 2:
+            return lerp(float2(border_out, 1.0 - border_out), float2(halfU - border_in, halfV + border_in), uv);
+        case 3:
+            return lerp(float2(1.0 - border_out, 1.0 - border_out), float2(halfU + border_in, halfV + border_in), uv);
+    }
+
+    return uv; // default, should not be reached
+}
+
+PSOutput main(PixelInputType input)
 {
     // Normalize the input normal
     float3 normal = normalize(input.normal);
@@ -100,7 +129,7 @@ PSOutput main(PixelInputType input)
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
     // ------------ TEXTURE START ----------------
-    float2 texelSize = float2(1.0 / (grid_dim_x - 0), 1.0 / (grid_dim_y - 0));
+    float2 texelSize = float2(1.0 / grid_dim_x, 1.0 / grid_dim_y);
 
     // Calculate the tile index
     float2 tileIndex = floor(input.tex_coords0 / texelSize);
@@ -144,8 +173,12 @@ PSOutput main(PixelInputType input)
 
 
     // Perform texture splatting using the normalized weights
-    float4 splattedTextureColor = float4(0.6, 0.2, 0.0, 1.0);
-    splattedTextureColor.rgb = terrain_texture_array.Sample(ss, float4(u, v, bottomRightTexIdx, 0)).rgb;
+    float4 splattedTextureColor = float4(0.0, 0.0, 0.0, 1.0);
+
+    // If all indices are the same, select quadrant pseudo-randomly
+    int randomQuadrant = int((bottomLeftTexIdx + int(u * 255.0) + int(v * 255.0)) % 4); // Some pseudo-random logic
+    float2 adjustedUV = AdjustUVForQuadrant(float2(u, v), 0);
+    splattedTextureColor.rgb = terrain_texture_array.Sample(ss, float4(adjustedUV.x, adjustedUV.y, bottomLeftTexIdx, 0)).rgb;
 
     // ------------ TEXTURE END ----------------
 
@@ -184,6 +217,5 @@ PSOutput main(PixelInputType input)
     output.rt_1_output = colorId;
 
     return output;
-}
-)";
+})";
 };
