@@ -113,7 +113,7 @@ public:
 		D3D11_TEXTURE2D_DESC texDesc = {};
 		texDesc.Width = width;
 		texDesc.Height = height;
-		texDesc.MipLevels = autoGenerateMipMaps ? std::_Floor_of_log_2(std::max(width, height)) + 1 : 1;
+		texDesc.MipLevels = autoGenerateMipMaps ? std::floor(std::log2(std::max(width, height))) + 1 : 1;
 		texDesc.ArraySize = dataArray.size();
 		texDesc.Format = format;
 		texDesc.SampleDesc.Count = 1;
@@ -130,77 +130,36 @@ public:
 		UINT bytesPerPixel = BytesPerPixel(format); // Assuming you have this function
 
 		// 1. Upload the original (mip level 0) texture data
-		for (size_t i = 0; i < dataArray.size(); ++i)
-		{
-			m_deviceContext->UpdateSubresource(
-			                                   texture2D.Get(),
-			                                   D3D11CalcSubresource(0, i, texDesc.MipLevels),
-			                                   nullptr,
-			                                   dataArray[i],
-			                                   width * bytesPerPixel,
-			                                   0
-			                                  );
-		}
+    for (size_t i = 0; i < dataArray.size(); ++i)
+    {
+        m_deviceContext->UpdateSubresource(
+            texture2D.Get(),
+            D3D11CalcSubresource(0, i, texDesc.MipLevels),
+            nullptr,
+            dataArray[i],
+            width * bytesPerPixel,
+            0
+        );
+    }
 
-		// 2. Generate and upload the mipmap levels if required
-		if (autoGenerateMipMaps)
-		{
-			// For each texture
-			for (size_t i = 0; i < dataArray.size(); ++i)
-			{
-				std::vector<uint8_t> higherLevelData(width * height * bytesPerPixel);
-				std::vector<uint8_t> lowerLevelData;
-
-				UINT mipWidth = width;
-				UINT mipHeight = height;
-
-				// Generate each mipmap level
-				for (UINT mipLevel = 1; mipWidth > 1 && mipHeight > 1; ++mipLevel)
-				{
-					// Halve dimensions
-					mipWidth /= 2;
-					mipHeight /= 2;
-
-					// Resize the lower level mipmap buffer
-					lowerLevelData.resize(mipWidth * mipHeight * bytesPerPixel);
-					// Copy data from original texture to higherLevelData (if mipLevel is 1)
-					if (mipLevel == 1)
-					{
-						std::copy(static_cast<uint8_t*>(dataArray[i]),
-						          static_cast<uint8_t*>(dataArray[i]) + higherLevelData.size(),
-						          higherLevelData.begin());
-					}
-
-					// Generate lower level mipmaps from higher level
-					GenerateMipmapLevel(higherLevelData, lowerLevelData,
-					                    mipWidth * 2, mipHeight * 2, bytesPerPixel);
-
-					// Upload the lower mipmap level for this array slice
-					m_deviceContext->UpdateSubresource(
-					                                   texture2D.Get(),
-					                                   D3D11CalcSubresource(mipLevel, i, texDesc.MipLevels),
-					                                   nullptr,
-					                                   lowerLevelData.data(),
-					                                   mipWidth * bytesPerPixel,
-					                                   0
-					                                  );
-
-					// Swap pointers for the next iteration, so the lower becomes the higher
-					std::swap(higherLevelData, lowerLevelData);
-				}
-			}
-		}
 
 		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 		srvDesc.Format = texDesc.Format;
 		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
 		srvDesc.Texture2DArray.ArraySize = dataArray.size();
-		srvDesc.Texture2DArray.MipLevels = autoGenerateMipMaps ? texDesc.MipLevels : 1;
+		srvDesc.Texture2DArray.MipLevels = autoGenerateMipMaps ? -1 : 1;
 		srvDesc.Texture2DArray.MostDetailedMip = 0;
 
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
 		hr = m_device->CreateShaderResourceView(texture2D.Get(), &srvDesc, shaderResourceView.GetAddressOf());
 		if (FAILED(hr)) { return -1; }
+
+		    // 2. If auto-generation of mipmaps is enabled, use the hardware-accelerated GenerateMips method
+    if (autoGenerateMipMaps)
+    {
+        // Ensure we have a valid shader resource view
+        m_deviceContext->GenerateMips(shaderResourceView.Get());
+    }
 
 		int textureID = m_nextTextureID++;
 		m_textures[textureID] = shaderResourceView;
@@ -293,44 +252,51 @@ private:
 	std::unordered_map<int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> m_textures;
 
 	void GenerateMipmapLevel(const std::vector<uint8_t>& higherLevelData,
-	                         std::vector<uint8_t>& lowerLevelData,
-	                         UINT higherWidth, UINT higherHeight, UINT bytesPerPixel)
-	{
-		if (bytesPerPixel != 4)
-		{
-			return; // Unsupported format
-		}
+                         std::vector<uint8_t>& lowerLevelData,
+                         UINT higherWidth, UINT higherHeight, UINT bytesPerPixel)
+{
+    if (bytesPerPixel != 4)
+    {
+        return; // Unsupported format
+    }
 
-		UINT lowerWidth = higherWidth / 2;
-		UINT lowerHeight = higherHeight / 2;
-		lowerLevelData.resize(lowerWidth * lowerHeight * bytesPerPixel);
+    UINT lowerWidth = higherWidth / 2;
+    UINT lowerHeight = higherHeight / 2;
+    lowerLevelData.resize(lowerWidth * lowerHeight * bytesPerPixel);
 
-		const uint8_t* src = higherLevelData.data();
-		uint8_t* dst = lowerLevelData.data();
+    const uint8_t* src = higherLevelData.data();
+    uint8_t* dst = lowerLevelData.data();
 
-		for (UINT y = 0; y < lowerHeight; ++y)
-		{
-			for (UINT x = 0; x < lowerWidth; ++x)
-			{
-				// Calculate the indices for a 2x2 block in the higher-level mipmap
-				UINT srcIdx[4];
-				srcIdx[0] = 4 * ((2 * y) * higherWidth + (2 * x));
-				srcIdx[1] = 4 * ((2 * y) * higherWidth + (2 * x + 1));
-				srcIdx[2] = 4 * ((2 * y + 1) * higherWidth + (2 * x));
-				srcIdx[3] = 4 * ((2 * y + 1) * higherWidth + (2 * x + 1));
+    for (UINT y = 0; y < lowerHeight; ++y)
+    {
+        for (UINT x = 0; x < lowerWidth; ++x)
+        {
+            UINT dstIdx = 4 * (y * lowerWidth + x);
 
-				// Calculate the index for the destination pixel in the lower-level mipmap
-				UINT dstIdx = 4 * (y * lowerWidth + x);
+            for (UINT channel = 0; channel < 4; ++channel)
+            {
+                std::vector<uint8_t> values;
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int nx = 2 * x + dx;
+                        int ny = 2 * y + dy;
 
-				for (UINT channel = 0; channel < 4; ++channel)
-				{
-					// Average the 2x2 block of pixels for each channel (R, G, B, A)
-					dst[dstIdx + channel] = static_cast<uint8_t>(
-						(src[srcIdx[0] + channel] + src[srcIdx[1] + channel] +
-							src[srcIdx[2] + channel] + src[srcIdx[3] + channel]) / 4
-					);
-				}
-			}
-		}
-	}
+                        if (nx < 0 || ny < 0 || nx >= higherWidth || ny >= higherHeight)
+                            continue;
+
+                        UINT srcIdx = 4 * (ny * higherWidth + nx);
+                        values.push_back(src[srcIdx + channel]);
+                    }
+                }
+
+                // Sort and find the median
+                std::sort(values.begin(), values.end());
+                dst[dstIdx + channel] = values[values.size() / 2];
+            }
+        }
+    }
+}
+
 };

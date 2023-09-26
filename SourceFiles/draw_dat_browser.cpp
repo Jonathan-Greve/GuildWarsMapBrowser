@@ -422,7 +422,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
 				const auto terrain_texture_id = map_renderer->GetTextureManager()->AddTextureArray(raw_data_ptrs,
 					terrain_dat_textures[0].width, terrain_dat_textures[0].height, DXGI_FORMAT_B8G8R8A8_UNORM,
-					entry->Hash);
+					entry->Hash, true);
 
 				auto& terrain_texture_indices =
 				selected_ffna_map_file.terrain_chunk.terrain_texture_indices_maybe;
