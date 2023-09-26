@@ -4,6 +4,14 @@ Texture2DArray terrain_texture_array : register(t0);
 Texture2D terrain_texture_indices : register(t1);
 Texture2D terrain_shadow_map : register(t2);
 
+#define MAX_SAMPLES 8
+#define ADD_SAMPLE(adjustedUV, texIdx) \
+{ \
+    float4 s = terrain_texture_array.Sample(ss, float3(adjustedUV.x, adjustedUV.y, texIdx)); \
+    samples[sampleCount++] = s; \
+    totalAlpha += s.a; \
+}
+
 struct DirectionalLight
 {
     float4 ambient;
@@ -70,50 +78,98 @@ struct PSOutput
     float4 rt_1_output : SV_TARGET1; // Goes to second render target
 };
 
-// Function to adjust UV coordinates based on quadrant and border
-float2 AdjustUVForQuadrant(float2 uv, int quadrant)
-{
-    // Assuming quadrants are ordered in a 2x2 grid:
-    // 0 1
-    // 2 3
+// Assuming quadrants are ordered in a 2x2 grid:
+// 0 1
+// 2 3
 
+// When top or bottom edges both use the same texture
+float2 AdjustUVForQuadrant0(float2 uv, bool isBottomEdge)
+{
     float halfU = 0.5;
     float halfV = 0.5;
 
-    float border_out = 0.04;
-    float border_in = 0.04;
+    float border_u = 0.04;
+    float border_v = 0.04;
 
-    switch (quadrant)
+    if (isBottomEdge)
     {
-        case 0:
-            return lerp(float2(border_out, border_out), float2(halfU - border_in, halfV - border_in), uv);
-        case 1:
-            return lerp(float2(1.0 - border_out, border_out), float2(halfU + border_in, halfV - border_in), uv);
-        case 2:
-            return lerp(float2(border_out, 1.0 - border_out), float2(halfU - border_in, halfV + border_in), uv);
-        case 3:
-            return lerp(float2(1.0 - border_out, 1.0 - border_out), float2(halfU + border_in, halfV + border_in), uv);
+        return lerp(float2(border_u, border_v), float2(halfU - border_u, halfV - border_v), uv);
     }
 
-    return uv; // default, should not be reached
+	// Top edge
+    return lerp(float2(border_u, border_v), float2(halfU - border_u, halfV - border_v), float2(1 - uv.x, 1 - uv.y));
+}
+
+float2 AdjustUVForQuadrant2(float2 uv, bool isLeftEdge)
+{
+    float halfU = 0.5;
+    float halfV = 0.5;
+
+    float border_u = 0.04;
+    float border_v = 0.04;
+
+    if (isLeftEdge)
+    {
+        return lerp(float2(border_u, halfV + border_v), float2(halfU - border_u, 1.0 - border_v), uv);
+    }
+
+	// Right edge
+    return lerp(float2(border_u, halfV + border_v), float2(halfU - border_u, 1.0 - border_v),
+	            float2(1.0 - uv.x, 1 - uv.y));
+}
+
+float2 AdjustUVForQuadrant3(float2 uv, bool isBottomRight)
+{
+    float halfU = 0.5;
+    float halfV = 0.5;
+
+    float border_u = 0.04;
+    float border_v = 0.04;
+
+    if (isBottomRight)
+    {
+        return lerp(float2(halfU + border_u, halfV + border_v), float2(1.0 - border_u, 1.0 - border_v), uv);
+    }
+
+	// Right edge
+    return lerp(float2(halfU + border_u, halfV + border_v), float2(1.0 - border_u, 1.0 - border_v),
+	            float2(1.0 - uv.x, 1 - uv.y));
+}
+
+float2 AdjustUVForQuadrant1(float2 uv, bool isTopRight)
+{
+    float halfU = 0.5;
+    float halfV = 0.5;
+
+    float border_u = 0.04;
+    float border_v = 0.04;
+
+    if (isTopRight)
+    {
+        return lerp(float2(halfU + border_u, border_v), float2(1.0 - border_u, halfV - border_v), uv);
+    }
+
+	// Right edge
+    return lerp(float2(halfU + border_u, border_v), float2(1.0 - border_u, halfV - border_v),
+	            float2(1.0 - uv.x, 1 - uv.y));
 }
 
 PSOutput main(PixelInputType input)
 {
-    // Normalize the input normal
+	// Normalize the input normal
     float3 normal = normalize(input.normal);
 
-    // Calculate the dot product of the normal and light direction
+	// Calculate the dot product of the normal and light direction
     float NdotL = max(dot(normal, -directionalLight.direction), 0.0);
 
-    // Calculate the ambient and diffuse components
+	// Calculate the ambient and diffuse components
     float4 ambientComponent = directionalLight.ambient;
     float4 diffuseComponent = directionalLight.diffuse * NdotL;
 
-    // Extract the camera position from the view matrix
+	// Extract the camera position from the view matrix
     float3 cameraPosition = float3(View._41, View._42, View._43);
 
-    // Calculate the specular component using the Blinn-Phong model
+	// Calculate the specular component using the Blinn-Phong model
     float3 viewDirection = normalize(cameraPosition - input.position.xyz);
     float3 halfVector = normalize(-directionalLight.direction + viewDirection);
     float NdotH = max(dot(normal, halfVector), 0.0);
@@ -121,65 +177,129 @@ PSOutput main(PixelInputType input)
     float specularIntensity = pow(NdotH, shininess);
     float4 specularComponent = directionalLight.specular * specularIntensity;
 
-    // Combine the ambient, diffuse, and specular components to get the final color
+	// Combine the ambient, diffuse, and specular components to get the final color
     float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
 
-    // ------------ TEXTURE START ----------------
+	// ------------ TEXTURE START ----------------
     float2 texelSize = float2(1.0 / grid_dim_x, 1.0 / grid_dim_y);
 
-    // Calculate the tile index
+	// Calculate the tile index
     float2 tileIndex = floor(input.tex_coords0 / texelSize);
 
-    // Compute the corner coordinates based on the tile index
+	// Compute the corner coordinates based on the tile index
     float2 topLeftTexCoord = tileIndex * texelSize;
     float2 topRightTexCoord = topLeftTexCoord + float2(texelSize.x, 0);
     float2 bottomLeftTexCoord = topLeftTexCoord + float2(0, texelSize.y);
     float2 bottomRightTexCoord = topLeftTexCoord + texelSize;
 
-    // Calculate the texture size
+	// Calculate the texture size
     float2 textureSize = float2(grid_dim_x, grid_dim_y);
 
-    // Convert normalized texture coordinates to integer pixel coordinates
+	// Convert normalized texture coordinates to integer pixel coordinates
     int2 topLeftCoord = int2(topLeftTexCoord * textureSize);
     int2 topRightCoord = int2(topRightTexCoord * textureSize);
     int2 bottomLeftCoord = int2(bottomLeftTexCoord * textureSize);
     int2 bottomRightCoord = int2(bottomRightTexCoord * textureSize);
 
-    // Load the terrain_texture_indices without interpolation
+	// Load the terrain_texture_indices without interpolation
     int topLeftTexIdx = int(terrain_texture_indices.Load(int3(topLeftCoord, 0)).r * 255.0);
     int topRightTexIdx = int(terrain_texture_indices.Load(int3(topRightCoord, 0)).r * 255.0);
     int bottomLeftTexIdx = int(terrain_texture_indices.Load(int3(bottomLeftCoord, 0)).r * 255.0);
     int bottomRightTexIdx = int(terrain_texture_indices.Load(int3(bottomRightCoord, 0)).r * 255.0);
 
-    // Load texture
+	// Load texture
     float weight_tl = terrain_shadow_map.Load(int3(topLeftCoord, 0)).r;
     float weight_tr = terrain_shadow_map.Load(int3(topRightCoord, 0)).r;
     float weight_bl = terrain_shadow_map.Load(int3(bottomLeftCoord, 0)).r;
     float weight_br = terrain_shadow_map.Load(int3(bottomRightCoord, 0)).r;
 
-    // Calculate u and v
+	// Calculate u and v
     float u = frac(input.tex_coords0.x / texelSize.x); // Fractional part of the tile index in x
     float v = frac(input.tex_coords0.y / texelSize.y); // Fractional part of the tile index in y
 
-    // Apply bilinear interpolation
+	// Apply bilinear interpolation
     float blendedWeight = (1 - u) * (1 - v) * weight_tl +
-                          u * (1 - v) * weight_tr +
-                          (1 - u) * v * weight_bl +
-                          u * v * weight_br;
+	u * (1 - v) * weight_tr +
+	(1 - u) * v * weight_bl +
+	u * v * weight_br;
 
 
-    // Perform texture splatting using the normalized weights
+    float4 samples[MAX_SAMPLES];
+    int sampleCount = 0;
+
+    float totalAlpha = 0.0;
+
+    if (topLeftTexIdx == bottomLeftTexIdx)
+    {
+        float2 adjustedUV = AdjustUVForQuadrant2(float2(u, v), true);
+		ADD_SAMPLE(adjustedUV, topLeftTexIdx);
+    }
+
+    if (topRightTexIdx == bottomRightTexIdx)
+    {
+        float2 adjustedUV = AdjustUVForQuadrant2(float2(u, v), false);
+		ADD_SAMPLE(adjustedUV, topRightTexIdx);
+    }
+
+    if (topLeftTexIdx == topRightTexIdx && (topLeftTexIdx != bottomLeftTexIdx || totalAlpha == 0))
+    {
+        float2 adjustedUV = AdjustUVForQuadrant0(float2(u, v), false);
+		ADD_SAMPLE(adjustedUV, topLeftTexIdx);
+    }
+
+    if (bottomLeftTexIdx == bottomRightTexIdx && (topRightTexIdx != bottomRightTexIdx || totalAlpha == 0))
+    {
+        float2 adjustedUV = AdjustUVForQuadrant0(float2(u, v), true);
+		ADD_SAMPLE(adjustedUV, bottomLeftTexIdx);
+    }
+
+	// TL corner
+    if (topLeftTexIdx != topRightTexIdx && topLeftTexIdx != bottomLeftTexIdx)
+    {
+        float2 adjustedUV = AdjustUVForQuadrant3(float2(u, v), false);
+		ADD_SAMPLE(adjustedUV, topLeftTexIdx);
+    }
+
+	// BR corner
+    if (bottomLeftTexIdx != bottomRightTexIdx && topRightTexIdx != bottomRightTexIdx)
+    {
+        float2 adjustedUV = AdjustUVForQuadrant3(float2(u, v), true);
+		ADD_SAMPLE(adjustedUV, bottomRightTexIdx);
+    }
+
+	// TR corner
+    if (topLeftTexIdx != topRightTexIdx && topRightTexIdx != bottomRightTexIdx)
+    {
+        float2 adjustedUV = AdjustUVForQuadrant1(float2(u, v), true);
+		ADD_SAMPLE(adjustedUV, topRightTexIdx);
+    }
+
+	// BL corner
+    if (topLeftTexIdx != bottomLeftTexIdx && bottomLeftTexIdx != bottomRightTexIdx)
+    {
+        float2 adjustedUV = AdjustUVForQuadrant1(float2(u, v), false);
+		ADD_SAMPLE(adjustedUV, bottomLeftTexIdx);
+    }
+
     float4 splattedTextureColor = float4(0.0, 0.0, 0.0, 1.0);
+    if (totalAlpha > 0.0)
+    {
+        for (int i = 0; i < sampleCount; ++i)
+        {
+            splattedTextureColor.rgb += (samples[i].rgb * samples[i].a) / totalAlpha;
+        }
+    }
+    else
+    {
+        for (int i = 0; i < sampleCount; ++i)
+        {
+            splattedTextureColor.rgb += samples[i].rgb / sampleCount;
+        }
+    }
 
-    // If all indices are the same, select quadrant pseudo-randomly
-    int randomQuadrant = int((bottomLeftTexIdx + int(u * 255.0) + int(v * 255.0)) % 4); // Some pseudo-random logic
-    float2 adjustedUV = AdjustUVForQuadrant(float2(u, v), 0);
-    splattedTextureColor.rgb = terrain_texture_array.Sample(ss, float4(adjustedUV.x, adjustedUV.y, bottomLeftTexIdx, 0)).rgb;
-
-    // ------------ TEXTURE END ----------------
+	// ------------ TEXTURE END ----------------
 
     float4 outputColor;
-    // Multiply the sampled color with the finalColor
     if (input.terrain_height <= water_level)
     {
         float4 blue_color = float4(0.11, 0.65, 0.81, 1.0); // Water color
@@ -190,18 +310,17 @@ PSOutput main(PixelInputType input)
         outputColor = finalColor * splattedTextureColor;
     }
 
-    // Calculate luminance
     float luminance = dot(outputColor.rgb, float3(0.299, 0.587, 0.114));
-    // Modulate shadow
-    float modulatedShadow = max(0.1, lerp(blendedWeight, 1.0, luminance * 0.5)); // You can adjust the 0.5 factor for different results
+
+    float modulatedShadow = max(0.1, lerp(blendedWeight, 1.0, luminance * 0.5));
+
     outputColor.rgb = outputColor.rgb * modulatedShadow;
 
     outputColor.a = 1.0f;
 
-    // Return the result
     PSOutput output;
 
-    // The main render target showing the rendered world
+	// The main render target showing the rendered world
     output.rt_0_output = outputColor;
 
     float4 colorId = float4(0, 0, 0, 1);
@@ -209,7 +328,7 @@ PSOutput main(PixelInputType input)
     colorId.g = (float) ((object_id & 0x0000FF00) >> 8) / 255.0f;
     colorId.b = (float) ((object_id & 0x000000FF)) / 255.0f;
 
-    // Render target for picking
+	// Render target for picking
     output.rt_1_output = colorId;
 
     return output;
