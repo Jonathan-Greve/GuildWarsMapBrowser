@@ -104,7 +104,7 @@ public:
         samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
         samplerDesc.MinLOD = 0;
         samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-        samplerDesc.MipLODBias = -3;
+        samplerDesc.MipLODBias = 0;
 
         hr = m_device->CreateSamplerState(&samplerDesc, m_samplerState.GetAddressOf());
         if (FAILED(hr))
