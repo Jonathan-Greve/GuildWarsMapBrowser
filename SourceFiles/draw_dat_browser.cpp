@@ -29,6 +29,8 @@ extern float volume_level;
 
 extern std::string selected_text_file_str = "";
 
+inline int selected_map_file_index = -1;
+
 inline extern FileType selected_file_type = NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
 inline extern FFNA_MapFile selected_ffna_map_file{};
@@ -375,6 +377,12 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 		break;
 	case FFNA_Type3:
 		{
+			if (selected_map_file_index == index)
+			{
+				break;
+			}
+			selected_map_file_index = index;
+
 			object_id_to_prop_index.clear();
 			selected_map_files.clear();
 			selected_ffna_map_file = dat_manager.parse_ffna_map_file(index);
@@ -401,17 +409,24 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 				}
 
 				// For displaying the texture atlas. Not used in rendering.
-				selected_dat_texture.dat_texture =
-				map_renderer->GetTextureManager()->BuildTextureAtlas(terrain_dat_textures, 8, 8);
-
-				if (selected_dat_texture.dat_texture.width > 0 && selected_dat_texture.dat_texture.height > 0)
+				if (terrain_dat_textures.size() > 0)
 				{
-					map_renderer->GetTextureManager()->CreateTextureFromRGBA(
-					                                                         selected_dat_texture.dat_texture.width,
-					                                                         selected_dat_texture.dat_texture.height,
-					                                                         selected_dat_texture.dat_texture.rgba_data.
-					                                                         data(), &selected_dat_texture.texture_id,
-					                                                         entry->Hash);
+					selected_dat_texture.dat_texture =
+					map_renderer->GetTextureManager()->BuildTextureAtlas(terrain_dat_textures, -1, -1);
+
+					if (selected_dat_texture.dat_texture.width > 0 && selected_dat_texture.dat_texture.height > 0)
+					{
+						map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+						 selected_dat_texture.dat_texture.width,
+						 selected_dat_texture.dat_texture.height,
+						 selected_dat_texture.dat_texture.rgba_data.
+						 data(), &selected_dat_texture.texture_id,
+						 entry->Hash);
+					}
+				}
+				else
+				{
+					selected_dat_texture.texture_id = -1;
 				}
 
 				std::vector<void*> raw_data_ptrs;
@@ -594,7 +609,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 								XMMATRIX translation_matrix = XMMatrixTranslationFromVector(XMLoadFloat3(&translation));
 
 								// Compute the final transformation matrix
-								XMMATRIX transform_matrix = scaling_matrix * XMMatrixTranspose(rotation_matrix) * translation_matrix;
+								XMMATRIX transform_matrix = scaling_matrix * XMMatrixTranspose(rotation_matrix) *
+								translation_matrix;
 
 								// Store the transform matrix into the constant buffer
 								XMStoreFloat4x4(&per_object_cbs[j].world, transform_matrix);
@@ -993,15 +1009,15 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 					if (ImGui::GetIO().KeyCtrl) { }
 					else
 					{
-						selected_item_id = item.id;
 						parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+						selected_item_id = item.id;
 					}
 				}
 				// If the item is focused (highlighted by navigation), select it immediately
-				else if (ImGui::IsItemFocused() && selected_item_id != row_n)
+				else if (ImGui::IsItemFocused() && selected_item_id != item.id)
 				{
-					selected_item_id = row_n;
 					parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+					selected_item_id = item.id;
 				}
 
 				//Add context menu on right clicking item in table

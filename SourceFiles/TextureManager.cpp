@@ -129,8 +129,11 @@ HRESULT TextureManager::SaveTextureToFile(ID3D11ShaderResourceView* srv, const w
 
     D3D11_TEXTURE2D_DESC stagingDesc = desc;
     stagingDesc.BindFlags = 0;
+    stagingDesc.MipLevels = 1;
+    stagingDesc.ArraySize = 1;
     stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
     stagingDesc.Usage = D3D11_USAGE_STAGING;
+    stagingDesc.MiscFlags = 0;
 
     ID3D11Texture2D* stagingTexture;
     hr = m_device->CreateTexture2D(&stagingDesc, nullptr, &stagingTexture);
@@ -139,8 +142,8 @@ HRESULT TextureManager::SaveTextureToFile(ID3D11ShaderResourceView* srv, const w
         return hr;
     }
 
-    // Copy the data to the staging texture
-    m_deviceContext->CopyResource(stagingTexture, texture);
+    // Copy the data to the staging texture (copy only the top level mipmap)
+    m_deviceContext->CopySubresourceRegion(stagingTexture, 0, 0, 0, 0, texture, 0, nullptr);
 
     // Map the staging texture and read the pixel data
     D3D11_MAPPED_SUBRESOURCE mappedResource;
