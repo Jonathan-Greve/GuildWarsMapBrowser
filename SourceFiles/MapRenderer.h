@@ -87,9 +87,20 @@ public:
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
         m_vertex_shader->Initialize(L"VertexShader.hlsl");
 
-        // Create and initialize the Default PixelShader
-        m_pixel_shaders[PixelShaderType::Default] = std::make_unique<PixelShader>(m_device, m_deviceContext);
-        m_pixel_shaders[PixelShaderType::Default]->Initialize(PixelShaderType::Default);
+        // Create and initialize the Pixel Shaders
+        if (! m_pixel_shaders.contains(PixelShaderType::OldModel))
+        {
+            m_pixel_shaders[PixelShaderType::OldModel] =
+              std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::OldModel]->Initialize(PixelShaderType::OldModel);
+        }
+
+        if (! m_pixel_shaders.contains(PixelShaderType::NewModel))
+        {
+            m_pixel_shaders[PixelShaderType::NewModel] =
+              std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::NewModel]->Initialize(PixelShaderType::NewModel);
+        }
 
         if (! m_pixel_shaders.contains(PixelShaderType::PickingShader))
         {
@@ -153,8 +164,8 @@ public:
         m_deviceContext->PSSetConstantBuffers(PER_TERRAIN_CB_SLOT, 1, m_per_terrain_cb.GetAddressOf());
 
         // Set the pixel shader and sampler state
-        m_deviceContext->PSSetSamplers(0, 1, m_pixel_shaders[PixelShaderType::Default]->GetSamplerState());
-        m_deviceContext->PSSetShader(m_pixel_shaders[PixelShaderType::Default]->GetShader(), nullptr, 0);
+        m_deviceContext->PSSetSamplers(0, 1, m_pixel_shaders[PixelShaderType::OldModel]->GetSamplerState());
+        m_deviceContext->PSSetShader(m_pixel_shaders[PixelShaderType::OldModel]->GetShader(), nullptr, 0);
     }
 
     Camera* GetCamera() { return m_user_camera.get(); }
@@ -212,6 +223,7 @@ public:
             terrainPerObjectData.uv_indices[index0][index1] = (uint32_t)mesh->uv_coord_indices[i];
             terrainPerObjectData.texture_indices[index0][index1] = (uint32_t)mesh->tex_indices[i];
             terrainPerObjectData.blend_flags[index0][index1] = (uint32_t)mesh->blend_flags[i];
+            terrainPerObjectData.texture_types[index0][index1] = (uint32_t)mesh->texture_types[i];
         }
         m_mesh_manager->UpdateMeshPerObjectData(m_terrain_mesh_id, terrainPerObjectData);
 
@@ -308,7 +320,7 @@ public:
 
     // A prop consists of 1+ sub models/meshes.
     std::vector<int> AddProp(std::vector<Mesh> meshes, std::vector<PerObjectCB>& per_object_cbs,
-                             uint32_t model_id)
+                             uint32_t model_id, PixelShaderType pixel_shader_type)
     {
         std::vector<int> mesh_ids;
         for (int i = 0; i < meshes.size(); i++)
@@ -316,7 +328,7 @@ public:
             const auto& mesh = meshes[i];
             auto& per_object_cb = per_object_cbs[i];
 
-            int mesh_id = m_mesh_manager->AddCustomMesh(mesh);
+            int mesh_id = m_mesh_manager->AddCustomMesh(mesh, pixel_shader_type);
             per_object_cb.object_id = mesh_id;
             m_mesh_manager->UpdateMeshPerObjectData(mesh_id, per_object_cb);
             mesh_ids.push_back(mesh_id);

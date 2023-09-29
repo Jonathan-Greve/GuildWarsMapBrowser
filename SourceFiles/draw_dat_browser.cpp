@@ -354,11 +354,18 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 						per_object_cbs[i].texture_indices[index0][index1] =
 						static_cast<uint32_t>(prop_mesh.tex_indices[j]);
 						per_object_cbs[i].blend_flags[index0][index1] = static_cast<uint32_t>(prop_mesh.blend_flags[j]);
+						per_object_cbs[i].texture_types[index0][index1] = static_cast<uint32_t>(prop_mesh.texture_types[j]);
 					}
 				}
 			}
 
-			auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, index);
+			auto pixel_shader_type = PixelShaderType::NewModel;
+			if (selected_ffna_model_file.geometry_chunk.tex_and_vertex_shader_struct.flags0.size() > 0)
+			{
+				pixel_shader_type = PixelShaderType::OldModel;
+			}
+
+			auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, index, pixel_shader_type);
 			if (selected_ffna_model_file.textures_parsed_correctly)
 			{
 				for (int i = 0; i < mesh_ids.size(); i++)
@@ -637,10 +644,18 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 									static_cast<uint32_t>(prop_mesh.tex_indices[k]);
 									per_object_cbs[j].blend_flags[index0][index1] =
 									static_cast<uint32_t>(prop_mesh.blend_flags[k]);
+									per_object_cbs[j].texture_types[index0][index1] =
+									static_cast<uint32_t>(prop_mesh.texture_types[k]);
 								}
 							}
 
-							auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, i);
+							auto pixel_shader_type = PixelShaderType::NewModel;
+							if (ffna_model_file_ptr->geometry_chunk.tex_and_vertex_shader_struct.flags0.size() > 0)
+							{
+								pixel_shader_type = PixelShaderType::OldModel;
+							}
+
+							auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, i, pixel_shader_type);
 							if (ffna_model_file_ptr->textures_parsed_correctly)
 							{
 								for (int l = 0; l < mesh_ids.size(); l++)

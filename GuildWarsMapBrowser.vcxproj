@@ -213,7 +213,8 @@
     <ClInclude Include="SourceFiles\CheckerboardTexture.h" />
     <ClInclude Include="SourceFiles\ConstantBufferManager.h" />
     <ClInclude Include="SourceFiles\DATManager.h" />
-    <ClInclude Include="SourceFiles\DefaultPixelShader.h" />
+    <ClInclude Include="SourceFiles\NewModelPixelShader.h" />
+    <ClInclude Include="SourceFiles\OldModelPixelShader.h" />
     <ClInclude Include="SourceFiles\DepthStencilStateManager.h" />
     <ClInclude Include="SourceFiles\DeviceResources.h" />
     <ClInclude Include="SourceFiles\DirectionalLight.h" />
@@ -401,6 +402,13 @@
     <ClCompile Include="SourceFiles\MeshInstance.cpp" />
     <ClCompile Include="SourceFiles\MeshManager.cpp" />
     <ClCompile Include="SourceFiles\MouseMoveListener.cpp" />
+    <FxCompile Include="SourceFiles\NewModelPixelShader.hlsl">
+      <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
     <ClCompile Include="SourceFiles\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -488,7 +496,7 @@
     <None Include="SourceFiles\imgui.ini" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="SourceFiles\DefaultPixelShader.hlsl">
+    <FxCompile Include="SourceFiles\OldModelPixelShader.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>

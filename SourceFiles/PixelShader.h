@@ -1,6 +1,7 @@
 #pragma once
 #include <d3dcompiler.h>
-#include "DefaultPixelShader.h"
+#include "OldModelPixelShader.h"
+#include "NewModelPixelShader.h"
 #include "PickingPixelShader.h"
 #include "TerrainCheckeredPixelShader.h"
 #include "TerrainDefaultPixelShader.h"
@@ -9,12 +10,13 @@
 
 enum class PixelShaderType
 {
-    Default,
     TerrainDefault,
     TerrainCheckered,
     TerrainTextured,
     TerrainTexturedWithShadows,
-    PickingShader
+    PickingShader,
+    OldModel, // Primarily Prophecies and Factions
+    NewModel // Primarily Nightfall and EotN
 };
 
 class PixelShader
@@ -41,8 +43,13 @@ public:
         HRESULT hr;
         switch (pixel_shader_type)
         {
-        case PixelShaderType::Default:
-            hr = D3DCompile(DefaultPixelShader::shader_ps, strlen(DefaultPixelShader::shader_ps), nullptr,
+        case PixelShaderType::OldModel:
+            hr = D3DCompile(OldModelPixelShader::shader_ps, strlen(OldModelPixelShader::shader_ps), nullptr,
+                            nullptr, nullptr, "main", "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(),
+                            error_blob.GetAddressOf());
+            break;
+        case PixelShaderType::NewModel:
+            hr = D3DCompile(NewModelPixelShader::shader_ps, strlen(NewModelPixelShader::shader_ps), nullptr,
                             nullptr, nullptr, "main", "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(),
                             error_blob.GetAddressOf());
             break;
@@ -72,9 +79,10 @@ public:
                             "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         default:
-            hr = D3DCompile(DefaultPixelShader::shader_ps, strlen(DefaultPixelShader::shader_ps), nullptr,
-                            nullptr, nullptr, "main", "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(),
-                            error_blob.GetAddressOf());
+            hr = D3DCompile(PickingPixelShader::shader_ps,
+                            strlen(PickingPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                            "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
+            break;
         }
         if (FAILED(hr))
         {

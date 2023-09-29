@@ -65,9 +65,6 @@
     <Filter Include="Render\Shaders\Pixel shaders\Terrain">
       <UniqueIdentifier>{708c2a12-6b7a-4aae-aa68-13473e0f6724}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Render\Shaders\Pixel shaders\Default">
-      <UniqueIdentifier>{324dac91-05ad-494d-b16b-dd777c02705a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Render\Constant buffers">
       <UniqueIdentifier>{5f85670d-2780-4536-aca3-cb44b059264a}</UniqueIdentifier>
     </Filter>
@@ -109,6 +106,9 @@
     </Filter>
     <Filter Include="GUI\Picking">
       <UniqueIdentifier>{3657fc6d-a1b7-4650-b065-ecfab84efde6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\Pixel shaders\Model">
+      <UniqueIdentifier>{324dac91-05ad-494d-b16b-dd777c02705a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -333,8 +333,8 @@
     <ClInclude Include="SourceFiles\RasterizerStateManager.h">
       <Filter>Render\Renderer</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\DefaultPixelShader.h">
-      <Filter>Render\Shaders\Pixel shaders\Default</Filter>
+    <ClInclude Include="SourceFiles\OldModelPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Model</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\TerrainCheckeredPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
@@ -399,6 +399,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\draw_picking_info.h">
       <Filter>GUI\Picking</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\NewModelPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Model</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -701,8 +704,8 @@
     <FxCompile Include="SourceFiles\VertexShader.hlsl">
       <Filter>Render\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="SourceFiles\DefaultPixelShader.hlsl">
-      <Filter>Render\Shaders\Pixel shaders\Default</Filter>
+    <FxCompile Include="SourceFiles\OldModelPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Model</Filter>
     </FxCompile>
     <FxCompile Include="SourceFiles\TerrainCheckeredPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
@@ -718,6 +721,9 @@
     </FxCompile>
     <FxCompile Include="SourceFiles\PickingPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Picking</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\NewModelPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Model</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
