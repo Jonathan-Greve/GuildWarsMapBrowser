@@ -36,7 +36,7 @@ public:
 		m_deviceContext->PSSetConstantBuffers(PER_OBJECT_CB_SLOT, 1, constantBuffers);
 	}
 
-	int AddBox(const XMFLOAT3& size, PixelShaderType pixel_shader_type = PixelShaderType::Default)
+	int AddBox(const XMFLOAT3& size, PixelShaderType pixel_shader_type = PixelShaderType::OldModel)
 	{
 		int meshID = m_nextMeshID++;
 		auto mesh_instance = std::make_shared<Box>(m_device, size, meshID);
@@ -46,7 +46,7 @@ public:
 	}
 
 	int AddSphere(float radius, uint32_t numSlices, uint32_t numStacks,
-	              PixelShaderType pixel_shader_type = PixelShaderType::Default)
+	              PixelShaderType pixel_shader_type = PixelShaderType::OldModel)
 	{
 		int meshID = m_nextMeshID++;
 		auto mesh_instance = std::make_shared<Sphere>(m_device, radius, numSlices, numStacks, meshID);
@@ -56,7 +56,7 @@ public:
 	}
 
 	int AddLine(const XMFLOAT3& start, const XMFLOAT3& end,
-	            PixelShaderType pixel_shader_type = PixelShaderType::Default)
+	            PixelShaderType pixel_shader_type = PixelShaderType::OldModel)
 	{
 		int meshID = m_nextMeshID++;
 		m_lineMeshes[meshID] = std::make_shared<Line>(m_device, start, end, meshID);
@@ -68,7 +68,7 @@ public:
 		return meshID;
 	}
 
-	int AddCustomMesh(const Mesh& mesh, PixelShaderType pixel_shader_type = PixelShaderType::Default)
+	int AddCustomMesh(const Mesh& mesh, PixelShaderType pixel_shader_type = PixelShaderType::OldModel)
 	{
 		int meshID = m_nextMeshID++;
 		auto mesh_instance = std::make_shared<MeshInstance>(m_device, mesh, meshID);
@@ -77,7 +77,7 @@ public:
 		return meshID;
 	}
 
-	int AddCustomMesh(const Mesh* mesh, PixelShaderType pixel_shader_type = PixelShaderType::Default)
+	int AddCustomMesh(const Mesh* mesh, PixelShaderType pixel_shader_type = PixelShaderType::OldModel)
 	{
 		int meshID = m_nextMeshID++;
 		auto mesh_instance = std::make_shared<MeshInstance>(m_device, *mesh, meshID);
@@ -250,7 +250,7 @@ public:
 	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position)
 	{
 		static D3D11_PRIMITIVE_TOPOLOGY currentTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
-		static auto current_ps_shader_type = PixelShaderType::Default;
+		static auto current_ps_shader_type = PixelShaderType::OldModel;
 		bool current_should_cull = true;
 		auto current_blend_state = BlendState::Opaque;
 		m_renderBatch.SortCommands(camera_position);

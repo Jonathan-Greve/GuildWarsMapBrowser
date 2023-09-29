@@ -4,6 +4,7 @@ struct PerObjectCB
     uint32_t uv_indices[8][4];
     uint32_t texture_indices[8][4];
     uint32_t blend_flags[8][4];
+    uint32_t texture_types[8][4];
     uint32_t num_uv_texture_pairs;
     uint32_t object_id;
     float pad[2];
@@ -20,6 +21,7 @@ struct PerObjectCB
                 uv_indices[i][j] = 0;
                 texture_indices[i][j] = 0;
                 blend_flags[i][j] = 0;
+                texture_types[i][j] = 0;
             }
         }
     }

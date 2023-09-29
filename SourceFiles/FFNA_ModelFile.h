@@ -1302,6 +1302,8 @@ struct FFNA_ModelFile
         std::vector<uint8_t> uv_coords_indices;
         std::vector<uint8_t> tex_indices;
         std::vector<uint8_t> blend_flags;
+        std::vector<uint16_t> texture_types;
+
         // Old model format (mostly Prophecies and Factions)
         if (parsed_texture_with_UTS)
         {
@@ -1333,6 +1335,12 @@ struct FFNA_ModelFile
                 blend_flags.push_back(blend_flag);
             }
 
+            for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
+            {
+                uint16_t texture_type = geometry_chunk.tex_and_vertex_shader_struct.flags0[i];
+                texture_types.push_back(texture_type);
+            }
+
             // Blend state (Wrong not how the game does it, just for testing)
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
@@ -1359,11 +1367,30 @@ struct FFNA_ModelFile
             {
                 uint8_t texture_index = geometry_chunk.unknown_tex_stuff1[(tex_index_start + i) % geometry_chunk.unknown_tex_stuff1.size()];
 
-                if (geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 < 4)
+				//blend_flag = 8;
+    //            blend_state  = BlendState::AlphaBlend;
+
+                if (geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 < 4 && !(
+						geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 == 3 && 
+						(geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].some_flags0 == 0x100
+                      || geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].some_flags0 == 0x000)
+				    )
+                   )
                 {
 	                blend_flag = 8;
                     blend_state  = BlendState::AlphaBlend;
                 }
+
+      //          if ((geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 < 4 && (!sub_model.vertices[0].has_tangent || geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].some_flags0 == 1)) /*!(
+						//geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 == 3 && 
+						//(geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].some_flags0 == 0x100 
+      //                || geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].some_flags0 == 0x000 )
+				  //  )*/
+      //             || (geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 == 4 && geometry_chunk.models.size() == 1))
+      //          {
+	     //           blend_flag = 8;
+      //              blend_state  = BlendState::AlphaBlend;
+      //          }
 
                 if (texture_filenames_chunk.num_texture_filenames < texture_index &&
                     texture_filenames_chunk.num_texture_filenames > 0)
@@ -1405,9 +1432,10 @@ struct FFNA_ModelFile
             }
 
             blend_flags.push_back(blend_flag);
+            texture_types.push_back(1546);
         }
 
-        return Mesh(vertices, indices, uv_coords_indices, tex_indices, blend_flags, should_cull, blend_state,
+        return Mesh(vertices, indices, uv_coords_indices, tex_indices, blend_flags, texture_types, should_cull, blend_state,
                     tex_indices.size());
     }
 };
