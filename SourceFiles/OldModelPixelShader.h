@@ -3,8 +3,9 @@
 struct OldModelPixelShader
 {
     static constexpr char shader_ps[] = R"(
-#define SET_TEXTURE(TYPE) if(texture_type == TYPE) sampledTexture_Type##TYPE += currentSampledTextureColor;
-#define CHECK_TEXTURE_SET(TYPE) bool textureType##TYPE##Set = all(sampledTexture_Type##TYPE.rgb != 0);
+
+#define SET_TEXTURE(TYPE) if(texture_type == TYPE) sampledTexture_Type##TYPE = currentSampledTextureColor;
+#define CHECK_TEXTURE_SET(TYPE) all(sampledTexture_Type##TYPE.rgb != 0)
 
 sampler ss : register(s0);
 Texture2D shaderTextures[8] : register(t3);
@@ -98,7 +99,8 @@ PSOutput main(PixelInputType input)
     float4 specularComponent = directionalLight.specular * specularIntensity;
 
     // Combine the ambient, diffuse, and specular components to get the final color
-    float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
+    float4 finalColor = (ambientComponent + diffuseComponent + specularComponent);
+
 
     // Apply textures
     float4 sampledTexture_Type0 = float4(0, 0, 0, 0);
@@ -120,6 +122,8 @@ PSOutput main(PixelInputType input)
                                  input.tex_coords4, input.tex_coords5, input.tex_coords6, input.tex_coords7
     };
     float a = 0;
+
+    float mult_val = 1;
 
     for (int j = 0; j < (num_uv_texture_pairs + 3) / 4; ++j)
     {
@@ -151,17 +155,89 @@ PSOutput main(PixelInputType input)
                     }
 
 					SET_TEXTURE(0);
+                    if (CHECK_TEXTURE_SET(0))
+                    {
+                        finalColor = saturate(finalColor * sampledTexture_Type0 * mult_val);
+                        mult_val = 2.0;
+                    }
+
 					SET_TEXTURE(10);
+                    if (CHECK_TEXTURE_SET(10))
+                    {
+                        finalColor = saturate(finalColor * sampledTexture_Type10 * 1);
+                    }
+
 					SET_TEXTURE(512);
+                    if (CHECK_TEXTURE_SET(512))
+                    {
+                        finalColor = saturate(finalColor * sampledTexture_Type512 * mult_val);
+                        mult_val = 2.0;
+                    }
+
 					SET_TEXTURE(1024);
+                    if (CHECK_TEXTURE_SET(1024))
+                    {
+                        finalColor = saturate(finalColor * sampledTexture_Type1024 * 1);
+                    }
+
 					SET_TEXTURE(1536);
+                    if (CHECK_TEXTURE_SET(1536))
+                    {
+                        if (blend_flag == 6)
+                            finalColor = saturate(finalColor * sampledTexture_Type1536 * 1);
+                        else
+                            finalColor = saturate(finalColor * sampledTexture_Type1536 * 2);
+                    }
+
 					SET_TEXTURE(1546);
+                    if (CHECK_TEXTURE_SET(1546))
+                    {
+                        finalColor = saturate(finalColor * sampledTexture_Type1546 * mult_val);
+                        mult_val = 2.0;
+                    }
+
                     SET_TEXTURE(2050);
+                    if (CHECK_TEXTURE_SET(2050))
+                    {
+                        finalColor = saturate(finalColor * sampledTexture_Type2050 * mult_val);
+                        mult_val = 2.0;
+                    }
+
 					SET_TEXTURE(2434);
+                    if (CHECK_TEXTURE_SET(2434))
+                    {
+                        finalColor = saturate(finalColor * sampledTexture_Type2434 * mult_val);
+                        mult_val = 2.0;
+                    }
+
 					SET_TEXTURE(4482);
+                    if (CHECK_TEXTURE_SET(4482))
+                    {
+                        finalColor = saturate(finalColor * sampledTexture_Type4482 * mult_val);
+                        mult_val = 2.0;
+                    }
+
 					SET_TEXTURE(4490);
+                    if (CHECK_TEXTURE_SET(4490))
+                    {
+                        finalColor = saturate(finalColor * sampledTexture_Type4490 * mult_val);
+                        mult_val = 2.0;
+                    }
+
 					SET_TEXTURE(17920);
+                    if (CHECK_TEXTURE_SET(17920))
+                    {
+                        finalColor = saturate(finalColor * sampledTexture_Type17920 * 1);
+                        mult_val = 2.0;
+                    }
+
 					SET_TEXTURE(17930);
+                    if (CHECK_TEXTURE_SET(17930))
+                    {
+                        finalColor = saturate(finalColor * sampledTexture_Type17930 * 1);
+                        mult_val = 2.0;
+                    }
+
                         
                     a += alpha * (1.0 - a);
                     break;
@@ -169,94 +245,9 @@ PSOutput main(PixelInputType input)
             }
         }
     }
-
-    // Check if the textures are non-zero.
-    CHECK_TEXTURE_SET(0);
-	CHECK_TEXTURE_SET(10);
-	CHECK_TEXTURE_SET(512);
-	CHECK_TEXTURE_SET(1024);
-	CHECK_TEXTURE_SET(1536);
-	CHECK_TEXTURE_SET(1546);
-    CHECK_TEXTURE_SET(2050);
-	CHECK_TEXTURE_SET(2434);
-	CHECK_TEXTURE_SET(4482);
-	CHECK_TEXTURE_SET(4490);
-	CHECK_TEXTURE_SET(17920);
-	CHECK_TEXTURE_SET(17930);
-
-    if (num_uv_texture_pairs > 0)
+    if (a == 0)
     {
-        // Start with the finalColor
-        int num_textures_applied = 0;
-        float4 textureBlend = float4(0, 0, 0, 0);
-
-        if (textureType0Set)
-        {
-            textureBlend += sampledTexture_Type0;
-            num_textures_applied += 1;
-        }
-
-        // Apply diffuse extra texture if it's non-zero
-        float delta = 0.01;
-        if (textureType512Set && !(abs(sampledTexture_Type512.r - 0.471) < delta && abs(sampledTexture_Type512.g - 0.502) < delta && abs(sampledTexture_Type512.b - 0.471) < delta))
-        {
-            textureBlend += sampledTexture_Type512;
-            num_textures_applied += 1;
-        }
-
-        if (textureType1536Set)
-        {
-            textureBlend += sampledTexture_Type1536;
-            num_textures_applied += 1;
-        }
-
-        if (textureType1546Set)
-        {
-            textureBlend += sampledTexture_Type1546;
-            num_textures_applied += 1;
-        }
-
-        // God rays
-        if (textureType2434Set)
-        {
-            textureBlend += sampledTexture_Type2434;
-            num_textures_applied += 1;
-        }
-        if (textureType2050Set)
-        {
-            textureBlend += sampledTexture_Type2050;
-            num_textures_applied += 1;
-        }
-
-        if (textureType17920Set)
-        {
-            textureBlend += sampledTexture_Type17920;
-            num_textures_applied += 1;
-        }
-
-        if (textureType17930Set)
-        {
-            textureBlend += sampledTexture_Type17920;
-            num_textures_applied += 1;
-        }
-
-        // Apply shadow texture
-        if (textureType10Set)
-        {
-            textureBlend *= sampledTexture_Type10;
-        }
-        if (textureType1024Set)
-        {
-            textureBlend *= sampledTexture_Type1024;
-        }
-
-        float maxComponent = max(max(max(textureBlend.r, textureBlend.g), textureBlend.b), textureBlend.a);
-        if (maxComponent > 0)  // To avoid division by zero
-        {
-            textureBlend /= maxComponent;
-        }
-
-        finalColor *= (textureBlend / num_textures_applied);
+        discard;
     }
 
     finalColor.a = a;
