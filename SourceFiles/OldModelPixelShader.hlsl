@@ -1,6 +1,4 @@
-
-#define SET_TEXTURE(TYPE) if(texture_type == TYPE) sampledTexture_Type##TYPE = currentSampledTextureColor;
-#define CHECK_TEXTURE_SET(TYPE) all(sampledTexture_Type##TYPE.rgb != 0)
+#define CHECK_TEXTURE_SET(TYPE) TYPE == texture_type
 
 sampler ss : register(s0);
 Texture2D shaderTextures[8] : register(t3);
@@ -96,21 +94,6 @@ PSOutput main(PixelInputType input)
     // Combine the ambient, diffuse, and specular components to get the final color
     float4 finalColor = (ambientComponent + diffuseComponent + specularComponent);
 
-
-    // Apply textures
-    float4 sampledTexture_Type0 = float4(0, 0, 0, 0);
-    float4 sampledTexture_Type10 = float4(0, 0, 0, 0);
-    float4 sampledTexture_Type512 = float4(0, 0, 0, 0);
-    float4 sampledTexture_Type1024 = float4(0, 0, 0, 0);
-    float4 sampledTexture_Type1536 = float4(0, 0, 0, 0);
-    float4 sampledTexture_Type1546 = float4(0, 0, 0, 0);
-    float4 sampledTexture_Type2050 = float4(0, 0, 0, 0);
-    float4 sampledTexture_Type2434 = float4(0, 0, 0, 0);
-    float4 sampledTexture_Type4482 = float4(0, 0, 0, 0);
-    float4 sampledTexture_Type4490 = float4(0, 0, 0, 0);
-    float4 sampledTexture_Type17920 = float4(0, 0, 0, 0);
-    float4 sampledTexture_Type17930 = float4(0, 0, 0, 0);
-
     float2 texCoordsArray[8] =
     {
         input.tex_coords0, input.tex_coords1, input.tex_coords2, input.tex_coords3,
@@ -148,99 +131,24 @@ PSOutput main(PixelInputType input)
                     {
                         alpha = 1;
                     }
-
-					SET_TEXTURE(0);
-                    if (CHECK_TEXTURE_SET(0))
-                    {
-                        finalColor = saturate(finalColor * sampledTexture_Type0 * mult_val);
-                        mult_val = 2.0;
-                    }
-
-					SET_TEXTURE(10);
-                    if (CHECK_TEXTURE_SET(10))
-                    {
-                        finalColor = saturate(finalColor * sampledTexture_Type10 * 1);
-                    }
-
-					SET_TEXTURE(512);
-                    if (CHECK_TEXTURE_SET(512))
-                    {
-                        finalColor = saturate(finalColor * sampledTexture_Type512 * mult_val);
-                        mult_val = 2.0;
-                    }
-
-					SET_TEXTURE(1024);
-                    if (CHECK_TEXTURE_SET(1024))
-                    {
-                        finalColor = saturate(finalColor * sampledTexture_Type1024 * 1);
-                    }
-
-					SET_TEXTURE(1536);
-                    if (CHECK_TEXTURE_SET(1536))
-                    {
-                        if (blend_flag == 6)
-                            finalColor = saturate(finalColor * sampledTexture_Type1536 * 1);
-                        else
-                            finalColor = saturate(finalColor * sampledTexture_Type1536 * 2);
-                    }
-
-					SET_TEXTURE(1546);
-                    if (CHECK_TEXTURE_SET(1546))
-                    {
-                        finalColor = saturate(finalColor * sampledTexture_Type1546 * mult_val);
-                        mult_val = 2.0;
-                    }
-
-                    SET_TEXTURE(2050);
-                    if (CHECK_TEXTURE_SET(2050))
-                    {
-                        finalColor = saturate(finalColor * sampledTexture_Type2050 * mult_val);
-                        mult_val = 2.0;
-                    }
-
-					SET_TEXTURE(2434);
-                    if (CHECK_TEXTURE_SET(2434))
-                    {
-                        finalColor = saturate(finalColor * sampledTexture_Type2434 * mult_val);
-                        mult_val = 2.0;
-                    }
-
-					SET_TEXTURE(4482);
-                    if (CHECK_TEXTURE_SET(4482))
-                    {
-                        finalColor = saturate(finalColor * sampledTexture_Type4482 * mult_val);
-                        mult_val = 2.0;
-                    }
-
-					SET_TEXTURE(4490);
-                    if (CHECK_TEXTURE_SET(4490))
-                    {
-                        finalColor = saturate(finalColor * sampledTexture_Type4490 * mult_val);
-                        mult_val = 2.0;
-                    }
-
-					SET_TEXTURE(17920);
-                    if (CHECK_TEXTURE_SET(17920))
-                    {
-                        finalColor = saturate(finalColor * sampledTexture_Type17920 * 1);
-                        mult_val = 2.0;
-                    }
-
-					SET_TEXTURE(17930);
-                    if (CHECK_TEXTURE_SET(17930))
-                    {
-                        finalColor = saturate(finalColor * sampledTexture_Type17930 * 1);
-                        mult_val = 2.0;
-                    }
-
-                        
                     a += alpha * (1.0 - a);
+
+                    if (blend_flag == 6 || blend_flag == 0)
+                    {
+                        mult_val = 1;
+                    }
+                    else
+                    {
+                        mult_val = 2;
+                    }
+
+                    finalColor = saturate(finalColor * currentSampledTextureColor * mult_val);
                     break;
                 }
             }
         }
     }
-    if (a == 0)
+    if (a <= 0.0f)
     {
         discard;
     }
