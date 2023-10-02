@@ -95,6 +95,12 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 	selected_raw_data = std::vector<uint8_t>(raw_data, raw_data + entry->uncompressedSize);
 	delete raw_data;
 
+	if (entry->type != FFNA_Type3)
+	{
+		// If we select a map with index 123. Then select a model we would not be able to go back to map 123 unless we did this.
+		selected_map_file_index = -1;
+	}
+
 	switch (entry->type)
 	{
 	case TEXT:
