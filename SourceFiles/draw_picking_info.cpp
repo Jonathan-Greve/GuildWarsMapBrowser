@@ -5,6 +5,8 @@
 #include "draw_props_filenames_panel.h"
 #include "draw_props_info_panel.h"
 #include "FFNA_MapFile.h"
+#include <algorithm>
+
 
 extern FFNA_MapFile selected_ffna_map_file;
 extern std::vector<FileData> selected_map_files;
@@ -53,6 +55,7 @@ void draw_picking_info(const PickingInfo& info)
 			ImGui::Text("Num models: %d", models.size());
 
 			// Show info per sub-model:
+			int tex_index = 0;
 			for (size_t i = 0; i < models.size(); ++i)
 			{
 				const auto& model = models[i];
@@ -69,6 +72,7 @@ void draw_picking_info(const PickingInfo& info)
 
 					ImGui::Text("Num vertices: %u", model.num_vertices);
 					ImGui::Text("Num indices: %u", model.total_num_indices);
+					ImGui::Text(".dat-FVF: %u", model.dat_fvf);
 					ImGui::Text("Min X: %f, Max X: %f", model.minX, model.maxX);
 					ImGui::Text("Min Y: %f, Max Y: %f", model.minY, model.maxY);
 					ImGui::Text("Min Z: %f, Max Z: %f", model.minZ, model.maxZ);
@@ -91,6 +95,41 @@ void draw_picking_info(const PickingInfo& info)
 							{
 								ImGui::Text("Has Tex Coord %d: %s", j, first_vertex.has_tex_coord[j] ? "True" : "False");
 							}
+
+							const auto& uts0 = ffna_model_file_ptr->geometry_chunk.tex_and_vertex_shader_struct.uts0;
+							if (model.unknown >= uts0.size()) { ImGui::Text("model index: %d (%d) >= uts0.size(): %d", i, model.unknown, uts0.size()); }
+
+							if (uts0.size() > 0)
+							{
+								const auto uts0_j = uts0[model.unknown % uts0.size()];
+
+								ImGui::Text("uts0.f0: %d", uts0_j.using_no_cull);
+								ImGui::Text("uts0.f1: %d", uts0_j.f0x1);
+								ImGui::Text("uts0.f2: %d", uts0_j.f0x2);
+								ImGui::Text("uts0.f6: %d", uts0_j.pixel_shader_id);
+								ImGui::Text("uts0.f7 (num textures): %d", uts0_j.f0x7);
+
+								const auto& blend_states = ffna_model_file_ptr->geometry_chunk.
+								tex_and_vertex_shader_struct.blend_state;
+								for (int j = tex_index; j < std::min(tex_index + (int)uts0_j.f0x7, (int)blend_states.size()); ++j)
+								{
+									ImGui::Text("Blend flag %d: %d", j, blend_states[j]);
+								}
+
+								const auto& texture_flags = ffna_model_file_ptr->geometry_chunk.
+								tex_and_vertex_shader_struct.flags0;
+								for (int j = tex_index; j < std::min(tex_index + (int)uts0_j.f0x7,(int)texture_flags.size()); ++j)
+								{
+									ImGui::Text("Tex flag %d: %d", j, texture_flags[j]);
+								}
+
+								tex_index += uts0_j.f0x7;
+							}
+							else
+							{
+								ImGui::Text("uts0.size() == 0");
+							}
+
 
 							ImGui::TreePop();
 						}
