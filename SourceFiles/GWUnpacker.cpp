@@ -7,6 +7,28 @@
 
 using namespace std;
 
+#include <iostream>
+#include <fstream>
+#include <filesystem> // For std::filesystem::path
+void saveToFile(const std::string &type_string, int hash, int n, const unsigned char *data, int dataSize) {
+    // Construct the filename
+    std::filesystem::path filePath = "C:\\Users\\Jonathan Greve\\Downloads\\all_gw_files";
+    filePath /= std::to_string(hash) + "_" + type_string + "_" + std::to_string(n);
+
+    // Open the file for binary writing
+    std::ofstream file(filePath, std::ios::binary);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " << filePath << std::endl;
+        return;
+    }
+
+    // Write data to the file
+    file.write(reinterpret_cast<const char *>(data), dataSize);
+
+    // Close the file
+    file.close();
+}
+
 std::string typeToString(int type)
 {
     switch (type)
@@ -270,6 +292,8 @@ unsigned char* GWDat::readFile(HANDLE file_handle, unsigned int n, bool translat
 
             m.type = type;
             m.uncompressedSize = OutSize;
+
+			//saveToFile(typeToString(m.type), m.Hash, n, Output, OutSize);
         }
     }
     return Output;
