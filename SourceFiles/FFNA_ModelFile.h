@@ -1101,6 +1101,9 @@ struct TextureFileNamesChunk
         std::memcpy(&chunk_size, &data[offset + 4], sizeof(chunk_size));
         std::memcpy(&num_texture_filenames, &data[offset + 8], sizeof(num_texture_filenames));
 
+        uint32_t actual_num_texture_filenames = std::min(num_texture_filenames, (chunk_size - 4) / sizeof(TextureFileName));
+        num_texture_filenames = actual_num_texture_filenames;
+
         uint32_t curr_offset = offset + 12;
         texture_filenames.resize(num_texture_filenames);
 
@@ -1307,39 +1310,83 @@ struct FFNA_ModelFile
         // Old model format (mostly Prophecies and Factions)
         if (parsed_texture_with_UTS)
         {
-            for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
-            {
-                uint8_t uv_set_index = geometry_chunk.tex_and_vertex_shader_struct.tex_array[i];
-                if (max_num_tex_coords < uv_set_index && max_num_tex_coords > 0)
-                {
-                    uv_set_index = max_num_tex_coords - 1;
-                }
-                uv_coords_indices.push_back(uv_set_index);
-            }
 
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
-                uint8_t texture_index =
-                  geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe[i];
+				bool textures_swapped = false;
+
+                uint8_t uv_set_index = geometry_chunk.tex_and_vertex_shader_struct.tex_array[i];
+
+                if (uv_set_index == 253 && geometry_chunk.tex_and_vertex_shader_struct.tex_array.size() > i + 1 && i + 1 < num_uv_coords_start_index + num_uv_coords_to_use)
+                {
+					uint8_t next_uv_set_index = geometry_chunk.tex_and_vertex_shader_struct.tex_array[i + 1];
+                    uv_coords_indices.push_back(next_uv_set_index);
+
+                	textures_swapped = true;
+                }
+
+                if (max_num_tex_coords < uv_set_index && max_num_tex_coords > 0)
+                {
+                    uv_set_index = 0;
+                }
+
+                uv_coords_indices.push_back(uv_set_index);
+
+                uint8_t texture_index = geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe[i];
                 if (texture_filenames_chunk.num_texture_filenames < texture_index &&
                     texture_filenames_chunk.num_texture_filenames > 0)
                 {
                     texture_index = texture_filenames_chunk.num_texture_filenames - 1;
                 }
+
+                // Swap this and the next texture
+                if (textures_swapped && geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe.size() > i + 1 && i + 1 < num_uv_coords_start_index + num_uv_coords_to_use)
+                {
+					uint8_t next_texture_index = geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe[i+1];
+					if (texture_filenames_chunk.num_texture_filenames > next_texture_index)
+					{
+						tex_indices.push_back(next_texture_index);
+						// Skip the next texture since we inserted it here
+					}
+                }
+
+                if (textures_swapped)
+                {
+	                i++;
+                }
+
                 tex_indices.push_back(texture_index);
             }
+
 
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
                 uint8_t blend_flag = geometry_chunk.tex_and_vertex_shader_struct.blend_state[i];
+
+                //if (textures_swapped && geometry_chunk.tex_and_vertex_shader_struct.blend_state.size() > i + 1)
+                //{
+					//uint8_t next_blend_flag = geometry_chunk.tex_and_vertex_shader_struct.blend_state[i+1];
+     //               blend_flags.push_back(next_blend_flag);
+     //               i++;
+                //}
+
                 blend_flags.push_back(blend_flag);
             }
 
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
                 uint16_t texture_type = geometry_chunk.tex_and_vertex_shader_struct.flags0[i];
+
+                //if (textures_swapped && geometry_chunk.tex_and_vertex_shader_struct.flags0.size() > i + 1)
+                //{
+					//uint16_t next_texture_type = geometry_chunk.tex_and_vertex_shader_struct.flags0[i+1];
+     //               texture_types.push_back(next_texture_type);
+     //               i++;
+                //}
+
                 texture_types.push_back(texture_type);
             }
+            
 
             // Blend state (Wrong not how the game does it, just for testing)
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
@@ -1367,10 +1414,7 @@ struct FFNA_ModelFile
             {
                 uint8_t texture_index = geometry_chunk.unknown_tex_stuff1[(tex_index_start + i) % geometry_chunk.unknown_tex_stuff1.size()];
 
-				//blend_flag = 8;
-    //            blend_state  = BlendState::AlphaBlend;
-
-                if (geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 < 4 && !(
+                if (geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 < 4 && sub_model.dat_fvf != 23 && !(
 						geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 == 3 && 
 						(geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].some_flags0 == 0x100
                       || geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].some_flags0 == 0x000)
