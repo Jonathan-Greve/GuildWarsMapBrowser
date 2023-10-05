@@ -142,7 +142,15 @@ PSOutput main(PixelInputType input)
                         mult_val = 2;
                     }
 
-                    finalColor = saturate(finalColor * currentSampledTextureColor * mult_val);
+                    if (blend_flag != 3)
+                    {
+						finalColor = saturate(finalColor * currentSampledTextureColor * mult_val);
+                    }
+                    else
+                    {
+                        finalColor = saturate(finalColor * currentSampledTextureColor + finalColor);
+                    }
+
                     break;
                 }
             }
