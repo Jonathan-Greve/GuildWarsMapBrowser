@@ -1,4 +1,5 @@
 #include <std/mem.pat>
+#include <std/math.pat>
 #include <std/io.pat>
 #pragma pattern_limit 500000
 std::mem::Section provider = std::mem::create_section("Memory provider");
@@ -470,7 +471,8 @@ struct FileNamesChunk {
   u32 chunk_id;
   u32 chunk_size;
   u32 num_filenames;
-  FileName filenames[num_filenames];
+    u32 actual_num_filenames = std::math::min(num_filenames, (chunk_size-4) / sizeof(FileName));
+  FileName filenames[actual_num_filenames];
   u8 chunk_data[chunk_size-4-sizeof(filenames)];
 };
 
@@ -506,7 +508,7 @@ struct Chunk {
  else if (chunk_id == 0xFA1){
    ChunkFA1 fa1_chunk;
  }
- else if (chunk_id == 0xFA5 || chunk_id == 0xfa6){
+ else if (chunk_id == 0xFA5 || chunk_id == 0xfa6 || chunk_id == 0xfad){
    FileNamesChunk filenames_chunk;
  }
  else{
