@@ -263,22 +263,27 @@ DatTexture ProcessImageFile(unsigned char* img, int size)
 
     std::vector<RGBA> image;
 
+    TextureType tex_type = TextureType::BC1;
+
     switch (cmptype)
     {
     case '1':
         AtexDecompress((unsigned int*)img, size, 0xf, r, (unsigned int*)output.data());
         image = ProcessDXT1((unsigned char*)output.data(), r.xres, r.yres);
+        tex_type = TextureType::BC1;
         break;
     case '2':
     case '3':
     case 'N':
         AtexDecompress((unsigned int*)img, size, 0x11, r, (unsigned int*)output.data());
         image = ProcessDXT3((unsigned char*)output.data(), r.xres, r.yres);
+        tex_type = TextureType::BC3;
         break;
     case '4':
     case '5':
         AtexDecompress((unsigned int*)img, size, 0x13, r, (unsigned int*)output.data());
         image = ProcessDXT5((unsigned char*)output.data(), r.xres, r.yres);
+        tex_type = TextureType::BC5;
         break;
     case 'L':
         AtexDecompress((unsigned int*)img, size, 0x12, r, (unsigned int*)output.data());
@@ -289,10 +294,11 @@ DatTexture ProcessImageFile(unsigned char* img, int size)
             image[x].g = (image[x].g * image[x].a) / 255;
             image[x].b = (image[x].b * image[x].a) / 255;
         }
+        tex_type = TextureType::BC5;
         break;
     default:
         return DatTexture();
     }
 
-    return DatTexture(r.xres, r.yres, image);
+    return DatTexture(r.xres, r.yres, image, tex_type);
 }

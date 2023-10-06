@@ -105,6 +105,8 @@ PSOutput main(PixelInputType input)
 
     for (int j = 0; j < (num_uv_texture_pairs + 3) / 4; ++j)
     {
+
+    	uint prev_texture_type = -1;
         for (int k = 0; k < 4; ++k)
         {
             uint uv_set_index = uv_indices[j][k];
@@ -148,9 +150,17 @@ PSOutput main(PixelInputType input)
                     }
                     else
                     {
-                        finalColor = saturate(finalColor * currentSampledTextureColor + finalColor);
+                        if (prev_texture_type == 1)
+                        {
+                            finalColor = saturate(currentSampledTextureColor.a * finalColor + currentSampledTextureColor);
+                        }
+                        else
+                        {
+                            finalColor = saturate(finalColor.a * currentSampledTextureColor + finalColor);
+                        }
                     }
 
+					prev_texture_type = texture_type;
                     break;
                 }
             }
