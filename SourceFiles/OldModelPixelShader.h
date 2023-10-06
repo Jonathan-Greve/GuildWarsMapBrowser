@@ -149,11 +149,7 @@ PSOutput main(PixelInputType input)
                         mult_val = 2;
                     }
 
-                    if (blend_flag != 3)
-                    {
-						finalColor = saturate(finalColor * currentSampledTextureColor * mult_val);
-                    }
-                    else
+                    if (blend_flag == 3)
                     {
                         if (prev_texture_type == 1)
                         {
@@ -163,6 +159,14 @@ PSOutput main(PixelInputType input)
                         {
                             finalColor = saturate(finalColor.a * currentSampledTextureColor + finalColor);
                         }
+                    }
+                    else if (blend_flag == 4)
+                    {
+                        finalColor = saturate(lerp(finalColor, currentSampledTextureColor, currentSampledTextureColor.a));
+                    }
+                    else
+                    {
+						finalColor = saturate(finalColor * currentSampledTextureColor * mult_val);
                     }
 
 					prev_texture_type = texture_type;
@@ -191,6 +195,5 @@ PSOutput main(PixelInputType input)
 
     return output;
 }
-
 )";
 };
