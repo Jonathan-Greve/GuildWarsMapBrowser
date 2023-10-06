@@ -1310,12 +1310,19 @@ struct FFNA_ModelFile
         // Old model format (mostly Prophecies and Factions)
         if (parsed_texture_with_UTS)
         {
+            std::vector<int> indices_to_skip;
 
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
 				bool textures_swapped = false;
 
                 uint8_t uv_set_index = geometry_chunk.tex_and_vertex_shader_struct.tex_array[i];
+
+                if (uv_set_index == 255)
+                {
+	                indices_to_skip.push_back(i);
+                    continue;
+                }
 
                 if (uv_set_index == 253 && geometry_chunk.tex_and_vertex_shader_struct.tex_array.size() > i + 1 && i + 1 < num_uv_coords_start_index + num_uv_coords_to_use)
                 {
@@ -1374,6 +1381,12 @@ struct FFNA_ModelFile
      //               i++;
                 //}
 
+				if (std::find(indices_to_skip.begin(), indices_to_skip.end(), i) != indices_to_skip.end())
+				{
+				    continue;
+				}
+
+
                 blend_flags.push_back(blend_flag);
             }
 
@@ -1387,6 +1400,11 @@ struct FFNA_ModelFile
      //               texture_types.push_back(next_texture_type);
      //               i++;
                 //}
+				if (std::find(indices_to_skip.begin(), indices_to_skip.end(), i) != indices_to_skip.end())
+				{
+				    continue;
+				}
+
 
                 texture_types.push_back(texture_type);
             }
