@@ -1319,10 +1319,14 @@ struct FFNA_ModelFile
 
                 if (uv_set_index == 253 && geometry_chunk.tex_and_vertex_shader_struct.tex_array.size() > i + 1 && i + 1 < num_uv_coords_start_index + num_uv_coords_to_use)
                 {
-					uint8_t next_uv_set_index = geometry_chunk.tex_and_vertex_shader_struct.tex_array[i + 1];
-                    uv_coords_indices.push_back(next_uv_set_index);
+					const auto flag0 = geometry_chunk.tex_and_vertex_shader_struct.flags0[i];
+					const auto next_flag0 = geometry_chunk.tex_and_vertex_shader_struct.flags0[i+1];
+                    if (flag0 != next_flag0){
+						uint8_t next_uv_set_index = geometry_chunk.tex_and_vertex_shader_struct.tex_array[i + 1];
+	                    uv_coords_indices.push_back(next_uv_set_index);
 
-                	textures_swapped = true;
+                		textures_swapped = true;
+					}
                 }
 
                 if (max_num_tex_coords < uv_set_index && max_num_tex_coords > 0)

@@ -49,6 +49,8 @@ inline bool is_parsing_data = false;
 inline bool items_to_parse = false;
 inline bool items_parsed = false;
 
+inline std::unordered_map<int, TextureType> model_texture_types;
+
 std::unique_ptr<Terrain> terrain;
 std::vector<Mesh> prop_meshes;
 
@@ -234,6 +236,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 			std::vector<int> texture_ids;
 			std::vector<DatTexture> model_dat_textures;
 			std::vector<std::vector<int>> per_mesh_tex_ids(prop_meshes.size());
+			std::vector<int> curr_model_texture_types;
 			if (selected_ffna_model_file.textures_parsed_correctly)
 			{
 				for (int j = 0; j < selected_ffna_model_file.texture_filenames_chunk.texture_filenames.size();
@@ -262,6 +265,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 							const auto hr = map_renderer->GetTextureManager()->
 							CreateTextureFromDDSInMemory(ddsData.data(), ddsDataSize, &texture_id, &dat_texture.width,
 							                             &dat_texture.height, dat_texture.rgba_data, entry->Hash);
+							model_texture_types.insert({texture_id, DDSt});
+							dat_texture.texture_type = DDSt;
 						}
 						else
 						{
@@ -272,12 +277,14 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 								auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(dat_texture.width,
 									dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
 									decoded_filename);
+
+								model_texture_types.insert({texture_id, dat_texture.texture_type});
 							}
 						}
 
 						assert(texture_id >= 0);
 						if (texture_id >= 0) { texture_ids.push_back(texture_id); }
-						model_dat_textures.push_back(dat_texture);
+						curr_model_texture_types.push_back(dat_texture.texture_type);
 					}
 				}
 
@@ -292,6 +299,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 					                                                         selected_dat_texture.dat_texture.rgba_data.
 					                                                         data(), &selected_dat_texture.texture_id,
 					                                                         entry->Hash);
+
 				}
 
 				// The number of textures might exceed 8 for a model since each submodel might use up to 8 separate textures.
@@ -360,7 +368,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 						per_object_cbs[i].texture_indices[index0][index1] =
 						static_cast<uint32_t>(prop_mesh.tex_indices[j]);
 						per_object_cbs[i].blend_flags[index0][index1] = static_cast<uint32_t>(prop_mesh.blend_flags[j]);
-						per_object_cbs[i].texture_types[index0][index1] = static_cast<uint32_t>(prop_mesh.texture_types[j]);
+						per_object_cbs[i].texture_types[index0][index1] = static_cast<uint32_t>(curr_model_texture_types[j]);
 					}
 				}
 			}
@@ -531,6 +539,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 						{
 							// Load textures
 							std::vector<int> texture_ids;
+							std::vector<int> curr_model_texture_types;
 							if (ffna_model_file_ptr->textures_parsed_correctly)
 							{
 								for (int j = 0;
@@ -547,6 +556,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 									if (texture_id >= 0)
 									{
 										texture_ids.push_back(texture_id);
+										curr_model_texture_types.push_back(model_texture_types.at(texture_id));
 										continue;
 									}
 
@@ -561,7 +571,11 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 										auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
 										 dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
 										 &texture_id, decoded_filename);
+
+										model_texture_types.insert({texture_id, dat_texture.texture_type});
+
 										texture_ids.push_back(texture_id);
+										curr_model_texture_types.push_back(model_texture_types.at(texture_id));
 									}
 								}
 
@@ -651,7 +665,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 									per_object_cbs[j].blend_flags[index0][index1] =
 									static_cast<uint32_t>(prop_mesh.blend_flags[k]);
 									per_object_cbs[j].texture_types[index0][index1] =
-									static_cast<uint32_t>(prop_mesh.texture_types[k]);
+									static_cast<uint32_t>(model_texture_types[per_mesh_tex_ids[j][k]]);
 								}
 							}
 
