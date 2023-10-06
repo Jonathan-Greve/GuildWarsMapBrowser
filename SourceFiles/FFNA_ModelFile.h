@@ -1217,9 +1217,9 @@ struct FFNA_ModelFile
         }
 
         int num_uv_coords_to_use = 0;
+    	auto uts = geometry_chunk.tex_and_vertex_shader_struct.uts0[sub_model_index];
         if (parsed_texture_with_UTS)
         {
-            auto uts = geometry_chunk.tex_and_vertex_shader_struct.uts0[sub_model_index];
             num_uv_coords_to_use = uts.f0x7;
             should_cull = uts.using_no_cull == 0;
         }
@@ -1385,6 +1385,12 @@ struct FFNA_ModelFile
 				{
 				    continue;
 				}
+
+                if (uts.using_no_cull && blend_flag == 6)
+                {
+                    // Don't use inverse alpha
+	                blend_flag |= 0x10;
+                }
 
 
                 blend_flags.push_back(blend_flag);
