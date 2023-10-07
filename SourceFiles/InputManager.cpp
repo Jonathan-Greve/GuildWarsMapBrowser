@@ -71,9 +71,6 @@ void InputManager::OnMouseDown(int x, int y, WPARAM wParam, HWND hWnd, UINT mess
 
 		// Get the current cursor position
 		GetCursorPos(&m_right_mouse_button_down_pos);
-
-		POINT center = GetWindowCenter(hWnd);
-        SetCursorPos(center.x, center.y);
 	}
 
 	SetCapture(hWnd);
