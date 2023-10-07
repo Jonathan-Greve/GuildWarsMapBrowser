@@ -162,7 +162,7 @@ PSOutput main(PixelInputType input)
                             finalColor = saturate(finalColor.a * currentSampledTextureColor + finalColor);
                         }
                     }
-                    else if (blend_flag == 4)
+                    else if (blend_flag == 4 && t < 0)
                     {
                         finalColor = saturate(lerp(finalColor, currentSampledTextureColor, currentSampledTextureColor.a));
                     }
