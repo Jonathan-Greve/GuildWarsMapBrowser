@@ -660,7 +660,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 									per_object_cbs[j].blend_flags[index0][index1] =
 									static_cast<uint32_t>(prop_mesh.blend_flags[k]);
 									per_object_cbs[j].texture_types[index0][index1] =
-									static_cast<uint32_t>(model_texture_types[per_mesh_tex_ids[j][k]]);
+									static_cast<uint32_t>(model_texture_types[per_mesh_tex_ids[j][k]]) | (prop_mesh.texture_types[k] << 8);
 								}
 							}
 
