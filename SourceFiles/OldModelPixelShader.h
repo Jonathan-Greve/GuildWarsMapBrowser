@@ -140,6 +140,11 @@ PSOutput main(PixelInputType input)
                     {
                         alpha = 1;
                     }
+                    if (blend_flag == 8 && alpha == 0)
+                    {
+                        continue;
+                    }
+
                     a += alpha * (1.0 - a);
 
                     if (blend_flag == 6 || blend_flag == 0)
