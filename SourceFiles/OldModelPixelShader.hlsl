@@ -107,12 +107,14 @@ PSOutput main(PixelInputType input)
     {
 
     	uint prev_texture_type = -1;
+    	uint prev_blend_flag = -1;
         for (int k = 0; k < 4; ++k)
         {
             uint uv_set_index = uv_indices[j][k];
             uint texture_index = texture_indices[j][k];
             uint blend_flag = blend_flags[j][k];
-            uint texture_type = texture_types[j][k];
+            uint texture_type = texture_types[j][k] & 0xFF;
+            uint texture_flag0 = texture_types[j][k] >> 8;
 
             if (j * 4 + k >= num_uv_texture_pairs)
             {
@@ -165,11 +167,13 @@ PSOutput main(PixelInputType input)
                     }
 
 					prev_texture_type = texture_type;
+                    prev_blend_flag = prev_blend_flag;
                     break;
                 }
             }
         }
     }
+
     if (a <= 0.0f)
     {
         discard;
