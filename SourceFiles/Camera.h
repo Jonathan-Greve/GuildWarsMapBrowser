@@ -87,7 +87,7 @@ private:
     float m_viewHeight = 100000;
 
     // Set for both projection types
-    float m_nearZ = 100;
+    float m_nearZ = 10;
     float m_farZ = 200000;
 
     XMFLOAT3 m_position;

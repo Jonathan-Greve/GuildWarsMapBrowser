@@ -35,10 +35,10 @@ public:
     void Initialize(const float viewport_width, const float viewport_height)
     {
         // Initialize cameras
-        float fov_degrees = 70.0f;
+        float fov_degrees = 60.0f;
         float aspect_ratio = viewport_width / viewport_height;
         m_user_camera->SetFrustumAsPerspective(static_cast<float>(fov_degrees * XM_PI / 180.0), aspect_ratio,
-                                               100.0f, 200000);
+                                               10.0f, 200000);
         const auto pos = FXMVECTOR{0, 8500, 0, 0};
         const auto target = FXMVECTOR{1000, 6000, 1000, 0};
         const auto world_up = FXMVECTOR{0, 1, 0, 0};
@@ -50,7 +50,7 @@ public:
         m_directionalLight.ambient = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
         m_directionalLight.diffuse = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
         m_directionalLight.specular = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
-        m_directionalLight.direction = XMFLOAT3(0.0f, -1.0f, 0.0f);
+        m_directionalLight.direction = XMFLOAT3(-1.0f, -1.0f, 0.0f);
         m_directionalLight.pad = 0.0f;
 
         // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
