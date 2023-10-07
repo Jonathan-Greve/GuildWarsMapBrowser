@@ -1386,12 +1386,23 @@ struct FFNA_ModelFile
 				    continue;
 				}
 
-                if (uts.using_no_cull && blend_flag == 6)
-                {
-                    // Don't use inverse alpha
-	                blend_flag |= 0x10;
-                }
+      //          if (uts.f0x7 == 2 && blend_flag == 6 && blend_flags.size() > 0 && blend_flags[blend_flags.size()-1] == 8)
+      //          {
+      //              if (tex_indices.size() > 0)
+      //              {
+      //                  const auto tex_index0 = tex_indices[blend_flags.size()];
+      //                  const auto tex_index1 = tex_indices[blend_flags.size()-1];
+      //                  if (tex_index0 < texture_filenames_chunk.num_texture_filenames && tex_index1 < texture_filenames_chunk.num_texture_filenames){
+						//	const auto fname0 = texture_filenames_chunk.texture_filenames[tex_index0];
+						//	const auto fname1 = texture_filenames_chunk.texture_filenames[tex_index1];
 
+      //                      if (decode_filename(fname0.id0, fname0.id1) == decode_filename(fname1.id0, fname1.id1)){
+			   //                 // Don't use inverse alpha
+				  //              blend_flag |= 0x10;
+      //                      }
+						//}
+      //              }
+      //          }
 
                 blend_flags.push_back(blend_flag);
             }
