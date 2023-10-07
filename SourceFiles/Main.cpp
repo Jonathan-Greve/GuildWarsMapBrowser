@@ -71,8 +71,6 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     if (FAILED(hr))
         return 1;
 
-    g_input_manager = std::make_unique<InputManager>();
-    g_map_browser = std::make_unique<MapBrowser>(g_input_manager.get());
 
     // Register class and create window
     {
@@ -103,6 +101,9 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
                                     nullptr, nullptr, hInstance, nullptr);
         // TODO: Change to CreateWindowExW(WS_EX_TOPMOST, L"GuildWarsMapBrowserWindowClass", g_szAppName, WS_POPUP,
         // to default to fullscreen.
+
+		g_input_manager = std::make_unique<InputManager>(hwnd);
+		g_map_browser = std::make_unique<MapBrowser>(g_input_manager.get());
 
         if (! hwnd)
             return 1;
@@ -223,10 +224,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_input_manager->OnKeyUp(static_cast<UINT>(wParam), hWnd);
         break;
 
-    case WM_MOUSEMOVE:
-        g_input_manager->OnMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd);
+    //case WM_MOUSEMOVE:
+    //    g_input_manager->OnMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd);
+    //    break;
+    case WM_INPUT:
+    {
+        g_input_manager->ProcessRawInput(lParam);
         break;
-
+    }
     case WM_LBUTTONDOWN:
     case WM_MBUTTONDOWN:
     case WM_RBUTTONDOWN:
@@ -241,6 +246,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_MOUSEWHEEL:
         g_input_manager->OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam), hWnd);
         break;
+    case WM_MOUSELEAVE:
+		g_input_manager->OnMouseLeave(hWnd);
+		break;
     case WM_PAINT:
         if (s_in_sizemove && map_browser)
         {
