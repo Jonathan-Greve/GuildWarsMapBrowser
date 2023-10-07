@@ -1427,7 +1427,7 @@ struct FFNA_ModelFile
             // Blend state (Wrong not how the game does it, just for testing)
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
-                if (geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 8 || ! should_cull)
+                if (geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 8 || ! should_cull || geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 4)
                 {
                     blend_state = BlendState::AlphaBlend;
                     break;
