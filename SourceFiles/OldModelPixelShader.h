@@ -111,8 +111,8 @@ PSOutput main(PixelInputType input)
     for (int j = 0; j < (num_uv_texture_pairs + 3) / 4; ++j)
     {
 
-    	uint prev_texture_type = -1;
-    	uint prev_blend_flag = -1;
+        uint prev_texture_type = -1;
+        uint prev_blend_flag = -1;
         for (int k = 0; k < 4; ++k)
         {
             uint uv_set_index = uv_indices[j][k];
@@ -147,7 +147,7 @@ PSOutput main(PixelInputType input)
 
                     a += alpha * (1.0 - a);
 
-                    if (blend_flag == 6 || blend_flag == 0)
+                    if ((blend_flag == 7 && prev_blend_flag == 8) || blend_flag == 6 || blend_flag == 0)
                     {
                         mult_val = 1;
                     }
@@ -167,17 +167,17 @@ PSOutput main(PixelInputType input)
                             finalColor = saturate(finalColor.a * currentSampledTextureColor + finalColor);
                         }
                     }
-                    else if (blend_flag == 4 && t < 0)
+                    else if (blend_flag == 4 && t > 0)
                     {
                         finalColor = saturate(lerp(finalColor, currentSampledTextureColor, currentSampledTextureColor.a));
                     }
                     else
                     {
-						finalColor = saturate(finalColor * currentSampledTextureColor * mult_val);
+                        finalColor = saturate(finalColor * currentSampledTextureColor * mult_val);
                     }
 
-					prev_texture_type = texture_type;
-                    prev_blend_flag = prev_blend_flag;
+                    prev_texture_type = texture_type;
+                    prev_blend_flag = blend_flag;
                     break;
                 }
             }
@@ -203,7 +203,5 @@ PSOutput main(PixelInputType input)
     output.rt_1_output = colorId;
 
     return output;
-}
-
-)";
+})";
 };
