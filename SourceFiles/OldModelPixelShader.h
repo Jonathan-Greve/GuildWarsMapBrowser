@@ -140,7 +140,7 @@ PSOutput main(PixelInputType input)
                     {
                         alpha = 1;
                     }
-                    if (blend_flag == 8 && alpha == 0)
+                    if (blend_flag == 8 && alpha == 0 || (blend_flag == 7 && a == 0))
                     {
                         continue;
                     }
@@ -156,7 +156,7 @@ PSOutput main(PixelInputType input)
                         mult_val = 2;
                     }
 
-                    if (blend_flag == 3)
+                    if (blend_flag == 3 || blend_flag == 5)
                     {
                         if (prev_texture_type == 1)
                         {
