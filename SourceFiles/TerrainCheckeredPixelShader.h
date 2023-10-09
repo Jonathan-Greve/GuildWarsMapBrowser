@@ -25,6 +25,7 @@ cbuffer PerObjectCB : register(b1)
     uint4 uv_indices[8];
     uint4 texture_indices[8];
     uint4 blend_flags[8];
+    uint4 texture_types[8];
     uint num_uv_texture_pairs;
     uint object_id;
     float pad1[2];
@@ -54,6 +55,7 @@ struct PixelInputType
 {
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
+    float4 lightingColor : COLOR0;
     float2 tex_coords0 : TEXCOORD0;
     float2 tex_coords1 : TEXCOORD1;
     float2 tex_coords2 : TEXCOORD2;
@@ -67,29 +69,7 @@ struct PixelInputType
 
 float4 main(PixelInputType input) : SV_TARGET
 {
-    // Normalize the input normal
-    float3 normal = normalize(input.normal);
-
-    // Calculate the dot product of the normal and light direction
-    float NdotL = max(dot(normal, -directionalLight.direction), 0.0);
-
-    // Calculate the ambient and diffuse components
-    float4 ambientComponent = directionalLight.ambient;
-    float4 diffuseComponent = directionalLight.diffuse * NdotL;
-
-    // Extract the camera position from the view matrix
-    float3 cameraPosition = float3(View._41, View._42, View._43);
-
-    // Calculate the specular component using the Blinn-Phong model
-    float3 viewDirection = normalize(cameraPosition - input.position.xyz);
-    float3 halfVector = normalize(-directionalLight.direction + viewDirection);
-    float NdotH = max(dot(normal, halfVector), 0.0);
-    float shininess = 80.0; // You can adjust this value for shininess
-    float specularIntensity = pow(NdotH, shininess);
-    float4 specularComponent = directionalLight.specular * specularIntensity;
-
-    // Combine the ambient, diffuse, and specular components to get the final color
-    float4 finalColor = ambientComponent + diffuseComponent + specularComponent;
+    float4 finalColor = input.lightingColor;
 
     // Calculate new texture coordinates by repeating the texture over the terrain
     float2 repeatedTexCoords = input.tex_coords0 * float2(grid_dim_x, grid_dim_y);
@@ -111,6 +91,5 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Return the result
     return outputColor;
-}
-)";
+})";
 };

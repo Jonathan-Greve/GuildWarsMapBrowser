@@ -10,6 +10,7 @@
 
 enum class PixelShaderType
 {
+    Default,
     TerrainDefault,
     TerrainCheckered,
     TerrainTextured,
