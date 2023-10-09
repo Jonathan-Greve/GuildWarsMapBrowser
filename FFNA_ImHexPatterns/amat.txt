@@ -1,0 +1,105 @@
+#include <std/mem.pat>
+
+fn compute_str_len_plus_one(u32 address){
+  u32 counter = 0;
+  bool found = false;
+  while (!found){
+    u8 curr_char @ address + counter;
+    if (curr_char == 0){
+      found = true;
+    }
+    
+    counter += 1;
+  }
+  
+  return counter;
+};
+
+struct UnknownChunk {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct GRMT {
+  u32 signature;      // Expected to be 0x47524D54 ("GRMT" in ASCII)
+  u32 chunk_size;
+  u8 tex_array_range;
+  u8 num_textures;
+  u8 chunk_data[chunk_size - 2];
+};
+
+struct GRSN {
+  u32 signature;      // Expected to be 0x4752534E ("GRSN" in ASCII)
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct DX9S_0 {
+  u32 f0;
+  u32 f1;
+  u32 f2;
+  u32 size;
+  u32 f4;
+  u32 data[size / 4];
+};
+
+struct SHAD {
+  u32 signature;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct TECH {
+  char signature[4];
+  u32 data0[6];
+  char tech_type_signature[compute_str_len_plus_one($)];
+  u32 u0;
+  char pass_signature[4];
+  u32 data_size;
+  u8 data1[data_size];
+};
+
+struct DX9S {
+  u32 signature;
+  u32 chunk_size;
+  DX9S_0 sub_chunk_0;
+  SHAD SHAD_chunk_0;
+  SHAD SHAD_chunk_1;
+  
+  u32 data0[3];
+  
+  TECH tech_high;
+  TECH tech_medium;
+  TECH tech_low;
+  
+  u8 chunk_data[chunk_size-sizeof(sub_chunk_0) - 
+    sizeof(SHAD_chunk_0) - 
+    sizeof(SHAD_chunk_1) - 
+    sizeof(data0) -
+    sizeof(tech_high) -
+    sizeof(tech_medium) -
+    sizeof(tech_low)];
+};
+
+struct Chunk {
+    u32 chunk_id = std::mem::read_unsigned($, 4, std::mem::Endian::Big);
+    if (chunk_id == 0x47524D54) {  // "GRMT" in ASCII
+        GRMT GRMT_chunk;
+    } else if (chunk_id == 0x4752534E) {  // "GRSN" in ASCII
+        GRSN GRSN_chunk;
+    } else if (chunk_id == 0x44583953) {  // "DX9S" in ASCII
+        DX9S DX9S_chunk;
+    } else {
+        UnknownChunk unknown_chunk;
+    }
+};
+
+
+struct AMAT_file {
+  char signature_0[4];
+  u32  signature_1;
+  Chunk chunks[while($ < sizeof($))];
+};
+
+AMAT_file file @ 0;
