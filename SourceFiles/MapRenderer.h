@@ -74,14 +74,16 @@ public:
         spherePerObjectData.world = sphereWorldMatrix;
         m_mesh_manager->UpdateMeshPerObjectData(sphere_id, spherePerObjectData);
 
-        int texture_width = 192;
-        int texture_height = 192;
-        int tile_size = 96;
-        CheckerboardTexture checkerboard_texture(texture_width, texture_height, tile_size);
-        auto texture_id =
+        // Create and set texture. Just make it 2x2 checkered tiles. It will be repeated in the pixel shader.
+        int texture_tile_size = 96;
+        int texture_width = texture_tile_size * 2;
+        int texture_height = texture_tile_size * 2;
+        CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size);
+        m_terrain_checkered_texture_id =
           m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
                                         texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 3214972);
-        m_mesh_manager->SetTexturesForMesh(box_id, {m_texture_manager->GetTexture(texture_id)}, 3);
+
+        m_mesh_manager->SetTexturesForMesh(box_id, {m_texture_manager->GetTexture(m_terrain_checkered_texture_id)}, 3);
 
         // Create and initialize the VertexShader
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
@@ -238,19 +240,6 @@ public:
         m_deviceContext->Map(m_per_terrain_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
         memcpy(mappedResourceFrame.pData, &terrain->m_per_terrain_cb, sizeof(PerTerrainCB));
         m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
-
-        int texture_id = 0;
-        if (! m_terrain)
-        {
-            // Create and set texture. Just make it 2x2 checkered tiles. It will be repeated in the pixel shader.
-            int texture_tile_size = 96;
-            int texture_width = texture_tile_size * 2;
-            int texture_height = texture_tile_size * 2;
-            CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size);
-            m_terrain_checkered_texture_id =
-              m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
-                                            texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, -1);
-        }
 
         if (m_terrain_current_pixel_shader_type == PixelShaderType::TerrainCheckered ||
             m_terrain_texture_atlas_id < 0)
