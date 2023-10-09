@@ -18,11 +18,11 @@ cbuffer PerObjectCB : register(b1)
     uint4 uv_indices[8];
     uint4 texture_indices[8];
     uint4 blend_flags[8];
+    uint4 texture_types[8];
     uint num_uv_texture_pairs;
     uint object_id;
     float pad1[2];
 };
-
 
 cbuffer PerCameraCB : register(b2)
 {
@@ -50,6 +50,7 @@ struct PixelInputType
 {
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
+    float4 lightingColor : COLOR0;
     float2 tex_coords0 : TEXCOORD0;
     float2 tex_coords1 : TEXCOORD1;
     float2 tex_coords2 : TEXCOORD2;
@@ -84,6 +85,23 @@ PixelInputType main(VertexInputType input)
     output.tex_coords6 = input.tex_coords6;
     output.tex_coords7 = input.tex_coords7;
     output.terrain_height = worldPosition.y;
+
+    // Lighting computation
+    float3 normal = normalize(mul(input.normal, (float3x3) World)); // Assuming world matrix doesn't have scaling
+    float NdotL = max(dot(normal, -directionalLight.direction), 0.0);
+    float4 ambientComponent = directionalLight.ambient;
+    float4 diffuseComponent = directionalLight.diffuse * NdotL;
+
+    // Calculate the specular component using the Blinn-Phong model
+    float3 cameraPosition = float3(View._41, View._42, View._43);
+    float3 viewDirection = normalize(cameraPosition - worldPosition.xyz);
+    float3 halfVector = normalize(-directionalLight.direction + viewDirection);
+    float NdotH = max(dot(normal, halfVector), 0.0);
+    float shininess = 80.0; // You can adjust this value for shininess
+    float specularIntensity = pow(NdotH, shininess);
+    float4 specularComponent = directionalLight.specular * specularIntensity;
+
+    output.lightingColor = ambientComponent + diffuseComponent + specularComponent; // Store the result for the pixel shader
 
     return output;
 }

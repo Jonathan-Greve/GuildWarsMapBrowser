@@ -22,6 +22,7 @@ cbuffer PerObjectCB : register(b1)
     uint4 uv_indices[8];
     uint4 texture_indices[8];
     uint4 blend_flags[8];
+    uint4 texture_types[8];
     uint num_uv_texture_pairs;
     uint object_id;
     float pad1[2];
@@ -51,6 +52,7 @@ struct PixelInputType
 {
     float4 position : SV_POSITION;
     float3 normal : NORMAL;
+    float4 lightingColor : COLOR0;
     float2 tex_coords0 : TEXCOORD0;
     float2 tex_coords1 : TEXCOORD1;
     float2 tex_coords2 : TEXCOORD2;
@@ -70,6 +72,5 @@ float4 main(PixelInputType input) : SV_TARGET
     colorId.b = (float) ((object_id & 0x000000FF)) / 255.0f;
 
     return colorId;
-}
-)";
+})";
 };
