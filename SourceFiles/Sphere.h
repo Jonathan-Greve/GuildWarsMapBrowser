@@ -19,7 +19,7 @@ private:
         vertices.emplace_back(DirectX::XMFLOAT3(0.0f, radius, 0.0f), DirectX::XMFLOAT3(0.0f, 1.0f, 0.0f),
                               XMFLOAT2(0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f),
                               XMFLOAT2(0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f),
-                              XMFLOAT2(0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f));
+                              XMFLOAT2(0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(0,0,0), XMFLOAT3(0,0,0));
 
         float phiStep = DirectX::XM_PI / numStacks;
         float thetaStep = 2.0f * DirectX::XM_PI / numSlices;
@@ -48,7 +48,7 @@ private:
         vertices.emplace_back(DirectX::XMFLOAT3(0.0f, -radius, 0.0f), DirectX::XMFLOAT3(0.0f, -1.0f, 0.0f),
                               DirectX::XMFLOAT2(0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f),
                               XMFLOAT2(0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f),
-                              XMFLOAT2(0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f));
+                              XMFLOAT2(0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3(0,0,0), XMFLOAT3(0,0,0));
 
         // Generate indices
         for (uint32_t i = 1; i <= numSlices; ++i)

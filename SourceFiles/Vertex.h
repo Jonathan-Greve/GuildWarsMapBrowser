@@ -4,18 +4,40 @@ using namespace DirectX;
 
 struct GWVertex
 {
-    XMFLOAT3 position; // The position of the vertex
-    XMFLOAT3 normal; // The normal of the vertex
-    XMFLOAT2 tex_coord0; // First texture coordinate
-    XMFLOAT2 tex_coord1; // Second texture coordinate
-    XMFLOAT2 tex_coord2; // Third texture coordinate
-    XMFLOAT2 tex_coord3; // Fourth texture coordinate
-    XMFLOAT2 tex_coord4; // Fifth texture coordinate
-    XMFLOAT2 tex_coord5; // Sixth texture coordinate
-    XMFLOAT2 tex_coord6; // Seventh texture coordinate
-    XMFLOAT2 tex_coord7; // Eighth texture coordinate
-    XMFLOAT3 tangent; // The tangent of the vertex
-    XMFLOAT3 bitangent; // The tangent of the vertex
+    XMFLOAT3 position;     // The position of the vertex
+    XMFLOAT3 normal;       // The normal of the vertex
+    XMFLOAT2 tex_coord0;   // First texture coordinate
+    XMFLOAT2 tex_coord1;   // Second texture coordinate
+    XMFLOAT2 tex_coord2;   // Third texture coordinate
+    XMFLOAT2 tex_coord3;   // Fourth texture coordinate
+    XMFLOAT2 tex_coord4;   // Fifth texture coordinate
+    XMFLOAT2 tex_coord5;   // Sixth texture coordinate
+    XMFLOAT2 tex_coord6;   // Seventh texture coordinate
+    XMFLOAT2 tex_coord7;   // Eighth texture coordinate
+    XMFLOAT3 tangent;      // The tangent of the vertex
+    XMFLOAT3 bitangent;    // The tangent of the vertex
+
+	GWVertex()
+		: position(XMFLOAT3(0.0f, 0.0f, 0.0f)),
+		  normal(XMFLOAT3(0.0f, 0.0f, 0.0f)),
+		  tex_coord0(XMFLOAT2(0.0f, 0.0f)),
+		  tex_coord1(XMFLOAT2(0.0f, 0.0f)),
+		  tex_coord2(XMFLOAT2(0.0f, 0.0f)),
+		  tex_coord3(XMFLOAT2(0.0f, 0.0f)),
+		  tex_coord4(XMFLOAT2(0.0f, 0.0f)),
+		  tex_coord5(XMFLOAT2(0.0f, 0.0f)),
+		  tex_coord6(XMFLOAT2(0.0f, 0.0f)),
+		  tex_coord7(XMFLOAT2(0.0f, 0.0f)),
+		  tangent(XMFLOAT3(0.0f, 0.0f, 0.0f)),
+		  bitangent(XMFLOAT3(0.0f, 0.0f, 0.0f)) { }
+
+	GWVertex(XMFLOAT3 p, XMFLOAT3 n, XMFLOAT2 tc0)
+		: position(p), normal(n), tex_coord0(tc0) {}
+
+	GWVertex(XMFLOAT3 p, XMFLOAT3 n, XMFLOAT2 tc0, XMFLOAT2 tc1, XMFLOAT2 tc2, XMFLOAT2 tc3, XMFLOAT2 tc4, XMFLOAT2 tc5,
+	         XMFLOAT2 tc6, XMFLOAT2 tc7, XMFLOAT3 tan, XMFLOAT3 bitan)
+		: position(p), normal(n), tex_coord0(tc0), tex_coord1(tc1), tex_coord2(tc2), tex_coord3(tc3), tex_coord4(tc4),
+		  tex_coord5(tc5), tex_coord6(tc6), tex_coord7(tc7), tangent(tan), bitangent(bitan) {}
 };
 
 // Define the input layout
