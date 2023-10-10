@@ -24,9 +24,17 @@ struct UnknownChunk {
 struct GRMT {
   u32 signature;      // Expected to be 0x47524D54 ("GRMT" in ASCII)
   u32 chunk_size;
-  u8 tex_array_range;
-  u8 num_textures;
-  u8 chunk_data[chunk_size - 2];
+  u8 tex_array_range; // checked that it is less than 9 in the .exe
+  u8 tex_transform_range; // checked that it is less than 9 in the .exe
+  u8 unknown0;
+  u8 unknown1;
+  u16 texs_bits;
+  u16 unknown2;
+  u32 unknown3;
+  u32 unknown4;
+  u32 unknown5;
+  u32 unknown6;
+  u8 chunk_data[chunk_size - 24];
 };
 
 struct GRSN {
@@ -98,7 +106,7 @@ struct Chunk {
 
 struct AMAT_file {
   char signature_0[4];
-  u32  signature_1;
+  u32  version;
   Chunk chunks[while($ < sizeof($))];
 };
 
