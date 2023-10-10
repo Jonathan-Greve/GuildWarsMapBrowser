@@ -59,6 +59,7 @@ struct PixelInputType
     float2 tex_coords6 : TEXCOORD6;
     float2 tex_coords7 : TEXCOORD7;
     float terrain_height : TEXCOORD8;
+    float3x3 TBN : TEXCOORD9;
 };
 
 struct PSOutput
@@ -69,7 +70,29 @@ struct PSOutput
 
 PSOutput main(PixelInputType input)
 {
-    float4 finalColor = input.lightingColor;
+    float3 normalFromMap = shaderTextures[1].Sample(ss, input.tex_coords2).rgb * 2.0 - 1.0;
+
+    // Transform the normal from tangent space to world space
+    float3 normal = normalize(mul(normalFromMap, input.TBN));
+
+	// Extract the camera position from the view matrix
+    float3 cameraPosition = float3(View._41, View._42, View._43);
+
+    // Compute lighting with the Phong reflection model for a directional light
+    float3 lightDir = -directionalLight.direction; // The light direction points towards the light source
+    float3 viewDir = normalize(cameraPosition - input.position.xyz);
+    float3 reflectDir = reflect(-lightDir, normal);
+
+    float shininess = 2;
+
+    float diff = max(dot(normal, lightDir), 0.0);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+    
+    float3 diffuse = diff * directionalLight.ambient.rbg;
+    float3 specular = spec * directionalLight.specular.rgb;
+
+    // Use lightingColor for precomputed or ambient lighting
+    float3 finalColor = input.lightingColor.rgb + diffuse + specular;
 
     // Apply textures
 	float4 sampledTextureColor = float4(0, 0, 0, 0);
@@ -86,6 +109,11 @@ PSOutput main(PixelInputType input)
 			uint uv_set_index = uv_indices[j][k];
 			uint texture_index = texture_indices[j][k];
 			uint blend_flag = blend_flags[j][k];
+
+			if (texture_index == 1)
+			{
+                continue;
+            }
 
 			if (j * 4 + k >= num_uv_texture_pairs)
 			{
@@ -122,7 +150,7 @@ PSOutput main(PixelInputType input)
 	}
 
 	PSOutput output;
-	output.rt_0_output = finalColor;
+    output.rt_0_output = float4(finalColor.rgb, sampledTextureColor.a);
 
 	float4 colorId = float4(0, 0, 0, 1);
 	colorId.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;

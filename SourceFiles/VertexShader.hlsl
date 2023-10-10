@@ -1,3 +1,4 @@
+
 struct DirectionalLight
 {
     float4 ambient;
@@ -7,7 +8,7 @@ struct DirectionalLight
     float pad;
 };
 
-cbuffer PerFrameCB: register(b0)
+cbuffer PerFrameCB : register(b0)
 {
     DirectionalLight directionalLight;
 };
@@ -42,8 +43,8 @@ struct VertexInputType
     float2 tex_coords5 : TEXCOORD5;
     float2 tex_coords6 : TEXCOORD6;
     float2 tex_coords7 : TEXCOORD7;
-    float3 tangent: TANGENT;
-    float3 bitangent: TANGENT;
+    float3 tangent : TANGENT;
+    float3 bitangent : TANGENT;
 };
 
 struct PixelInputType
@@ -60,6 +61,7 @@ struct PixelInputType
     float2 tex_coords6 : TEXCOORD6;
     float2 tex_coords7 : TEXCOORD7;
     float terrain_height : TEXCOORD8;
+    float3x3 TBN : TEXCOORD9;
 };
 
 
@@ -87,21 +89,37 @@ PixelInputType main(VertexInputType input)
     output.terrain_height = worldPosition.y;
 
     // Lighting computation
-    float3 normal = normalize(mul(input.normal, (float3x3) World)); // Assuming world matrix doesn't have scaling
-    float NdotL = max(dot(normal, -directionalLight.direction), 0.0);
-    float4 ambientComponent = directionalLight.ambient;
-    float4 diffuseComponent = directionalLight.diffuse * NdotL;
+    if (input.tangent.x == 0.0f && input.tangent.y == 0.0f && input.tangent.z == 0.0f ||
+		input.bitangent.x == 0.0f && input.bitangent.y == 0.0f && input.bitangent.z == 0.0f)
+    {
+        float3 normal = normalize(mul(input.normal, (float3x3) World)); // Assuming world matrix doesn't have scaling
+        float NdotL = max(dot(normal, -directionalLight.direction), 0.0);
+        float4 ambientComponent = directionalLight.ambient;
+        float4 diffuseComponent = directionalLight.diffuse * NdotL;
 
-    // Calculate the specular component using the Blinn-Phong model
-    float3 cameraPosition = float3(View._41, View._42, View._43);
-    float3 viewDirection = normalize(cameraPosition - worldPosition.xyz);
-    float3 halfVector = normalize(-directionalLight.direction + viewDirection);
-    float NdotH = max(dot(normal, halfVector), 0.0);
-    float shininess = 80.0; // You can adjust this value for shininess
-    float specularIntensity = pow(NdotH, shininess);
-    float4 specularComponent = directionalLight.specular * specularIntensity;
+	    // Calculate the specular component using the Blinn-Phong model
+        float3 cameraPosition = float3(View._41, View._42, View._43);
+        float3 viewDirection = normalize(cameraPosition - worldPosition.xyz);
+        float3 halfVector = normalize(-directionalLight.direction + viewDirection);
+        float NdotH = max(dot(normal, halfVector), 0.0);
+        float shininess = 80.0; // You can adjust this value for shininess
+        float specularIntensity = pow(NdotH, shininess);
+        float4 specularComponent = directionalLight.specular * specularIntensity;
 
-    output.lightingColor = ambientComponent + diffuseComponent + specularComponent; // Store the result for the pixel shader
+        output.lightingColor = ambientComponent + diffuseComponent + specularComponent; // Store the result for the pixel shader
+    }
+    else
+    {
+		// Calculate the TBN matrix using direct tangent and bitangent
+        float3 T = normalize(mul(input.tangent, (float3x3) World)); // Transform tangent
+        float3 B = normalize(mul(input.bitangent, (float3x3) World)); // Transform bitangent
+        float3 N = normalize(mul(input.normal, (float3x3) World)); // Transform normal
+
+		// Set the TBN matrix
+        output.TBN = float3x3(T, B, N);
+
+        output.lightingColor = float4(1, 1, 1, 1);
+    }
 
     return output;
 }

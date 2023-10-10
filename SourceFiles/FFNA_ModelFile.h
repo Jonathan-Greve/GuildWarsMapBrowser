@@ -518,11 +518,12 @@ struct GeometryModel
                     std::memcpy(&vertex.tangent_x, &data[curr_offset], sizeof(vertex.tangent_x));
                     curr_offset += sizeof(vertex.tangent_x);
 
-                    std::memcpy(&vertex.tangent_y, &data[curr_offset], sizeof(vertex.tangent_y));
-                    curr_offset += sizeof(vertex.tangent_y);
-
                     std::memcpy(&vertex.tangent_z, &data[curr_offset], sizeof(vertex.tangent_z));
                     curr_offset += sizeof(vertex.tangent_z);
+
+                    std::memcpy(&vertex.tangent_y, &data[curr_offset], sizeof(vertex.tangent_y));
+                    vertex.tangent_y = -vertex.tangent_y;
+                    curr_offset += sizeof(vertex.tangent_y);
                 }
 
                 if (vertex.has_bitangent)
@@ -530,11 +531,12 @@ struct GeometryModel
                     std::memcpy(&vertex.bitangent_x, &data[curr_offset], sizeof(vertex.bitangent_x));
                     curr_offset += sizeof(vertex.bitangent_x);
 
-                    std::memcpy(&vertex.bitangent_y, &data[curr_offset], sizeof(vertex.bitangent_y));
-                    curr_offset += sizeof(vertex.bitangent_y);
-
                     std::memcpy(&vertex.bitangent_z, &data[curr_offset], sizeof(vertex.bitangent_z));
                     curr_offset += sizeof(vertex.bitangent_z);
+
+                    std::memcpy(&vertex.bitangent_y, &data[curr_offset], sizeof(vertex.bitangent_y));
+                    vertex.bitangent_y = -vertex.bitangent_y;
+                    curr_offset += sizeof(vertex.bitangent_y);
                 }
 
                 if (vertex.has_diffuse)
@@ -1236,11 +1238,11 @@ struct FFNA_ModelFile
             }
 
             if (model_vertex.has_tangent){
-				vertex.normal = XMFLOAT3(model_vertex.tangent_x, model_vertex.tangent_y, model_vertex.tangent_z);
+				vertex.tangent = XMFLOAT3(model_vertex.tangent_x, model_vertex.tangent_y, model_vertex.tangent_z);
             }
 
             if (model_vertex.has_bitangent){
-				vertex.normal = XMFLOAT3(model_vertex.bitangent_x, model_vertex.bitangent_y, model_vertex.bitangent_z);
+				vertex.bitangent = XMFLOAT3(model_vertex.bitangent_x, model_vertex.bitangent_y, model_vertex.bitangent_z);
             }
 
             if (model_vertex.has_tex_coord[0])
@@ -1478,7 +1480,7 @@ struct FFNA_ModelFile
                     break;
                 }
 
-                if (i == 0)
+                if (i == 0 || i == 1)
                 {
 					tex_indices.push_back(texture_index);
 					uv_coords_indices.push_back(i % sub_model.vertices[0].num_texcoords);
@@ -1511,8 +1513,11 @@ struct FFNA_ModelFile
      //           }
             }
 
-            blend_flags.push_back(blend_flag);
-            texture_types.push_back(1546);
+            for (int i = 0; i < tex_indices.size(); i++)
+            {
+	            blend_flags.push_back(blend_flag);
+	            texture_types.push_back(1546);
+            }
         }
 
         return Mesh(vertices, indices, uv_coords_indices, tex_indices, blend_flags, texture_types, should_cull, blend_state,

@@ -40,36 +40,38 @@ private:
         DirectX::XMFLOAT2 tex10(1.0f, 0.0f);
         DirectX::XMFLOAT2 tex11(1.0f, 1.0f);
 
+        DirectX::XMFLOAT3 zero_vec3(0,0,0);
+
         std::vector<GWVertex> vertices = {
           // Front face
-          {topLeftFront, frontNormal, tex11, tex11, tex11, tex11, tex11, tex11, tex11, tex11},
-          {bottomLeftFront, frontNormal, tex01, tex01, tex01, tex01, tex01, tex01, tex01, tex01},
-          {bottomRightFront, frontNormal, tex00, tex00, tex00, tex00, tex00, tex00, tex00, tex00},
-          {topRightFront, frontNormal, tex10, tex10, tex10, tex10, tex10, tex10, tex10, tex10},
+          {topLeftFront, frontNormal, tex11, tex11, tex11, tex11, tex11, tex11, tex11, tex11, zero_vec3, zero_vec3},
+          {bottomLeftFront, frontNormal, tex01, tex01, tex01, tex01, tex01, tex01, tex01, tex01, zero_vec3, zero_vec3},
+          {bottomRightFront, frontNormal, tex00, tex00, tex00, tex00, tex00, tex00, tex00, tex00, zero_vec3, zero_vec3},
+          {topRightFront, frontNormal, tex10, tex10, tex10, tex10, tex10, tex10, tex10, tex10, zero_vec3, zero_vec3},
           // Back face
-          {topRightBack, backNormal, tex11, tex11, tex11, tex11, tex11, tex11, tex11, tex11},
-          {bottomRightBack, backNormal, tex01, tex01, tex01, tex01, tex01, tex01, tex01, tex01},
-          {bottomLeftBack, backNormal, tex00, tex00, tex00, tex00, tex00, tex00, tex00, tex00},
-          {topLeftBack, backNormal, tex10, tex10, tex10, tex10, tex10, tex10, tex10, tex10},
+          {topRightBack, backNormal, tex11, tex11, tex11, tex11, tex11, tex11, tex11, tex11, zero_vec3, zero_vec3},
+          {bottomRightBack, backNormal, tex01, tex01, tex01, tex01, tex01, tex01, tex01, tex01, zero_vec3, zero_vec3},
+          {bottomLeftBack, backNormal, tex00, tex00, tex00, tex00, tex00, tex00, tex00, tex00, zero_vec3, zero_vec3},
+          {topLeftBack, backNormal, tex10, tex10, tex10, tex10, tex10, tex10, tex10, tex10, zero_vec3, zero_vec3},
           // Left face
-          {topLeftBack, leftNormal, tex11, tex11, tex11, tex11, tex11, tex11, tex11, tex11},
-          {bottomLeftBack, leftNormal, tex01, tex01, tex01, tex01, tex01, tex01, tex01, tex01},
-          {bottomLeftFront, leftNormal, tex00, tex00, tex00, tex00, tex00, tex00, tex00, tex00},
-          {topLeftFront, leftNormal, tex10, tex10, tex10, tex10, tex10, tex10, tex10, tex10},
+          {topLeftBack, leftNormal, tex11, tex11, tex11, tex11, tex11, tex11, tex11, tex11, zero_vec3, zero_vec3},
+          {bottomLeftBack, leftNormal, tex01, tex01, tex01, tex01, tex01, tex01, tex01, tex01, zero_vec3, zero_vec3},
+          {bottomLeftFront, leftNormal, tex00, tex00, tex00, tex00, tex00, tex00, tex00, tex00, zero_vec3, zero_vec3},
+          {topLeftFront, leftNormal, tex10, tex10, tex10, tex10, tex10, tex10, tex10, tex10, zero_vec3, zero_vec3},
           // Right face
-          {topRightFront, rightNormal, tex11, tex11, tex11, tex11, tex11, tex11, tex11, tex11},
-          {bottomRightFront, rightNormal, tex01, tex01, tex01, tex01, tex01, tex01, tex01, tex01},
-          {bottomRightBack, rightNormal, tex00, tex00, tex00, tex00, tex00, tex00, tex00, tex00},
-          {topRightBack, rightNormal, tex10, tex10, tex10, tex10, tex10, tex10, tex10, tex10},
+          {topRightFront, rightNormal, tex11, tex11, tex11, tex11, tex11, tex11, tex11, tex11, zero_vec3, zero_vec3},
+          {bottomRightFront, rightNormal, tex01, tex01, tex01, tex01, tex01, tex01, tex01, tex01, zero_vec3, zero_vec3},
+          {bottomRightBack, rightNormal, tex00, tex00, tex00, tex00, tex00, tex00, tex00, tex00, zero_vec3, zero_vec3},
+          {topRightBack, rightNormal, tex10, tex10, tex10, tex10, tex10, tex10, tex10, tex10, zero_vec3, zero_vec3},
           // Top face
-          {topLeftBack, topNormal, tex11, tex11, tex11, tex11, tex11, tex11, tex11, tex11},
-          {topLeftFront, topNormal, tex01, tex01, tex01, tex01, tex01, tex01, tex01, tex01},
-          {topRightFront, topNormal, tex00, tex00, tex00, tex00, tex00, tex00, tex00, tex00},
-          {topRightBack, topNormal, tex10, tex10, tex10, tex10, tex10, tex10, tex10, tex10},
-          {bottomLeftFront, bottomNormal, tex11, tex11, tex11, tex11, tex11, tex11, tex11, tex11},
-          {bottomLeftBack, bottomNormal, tex01, tex01, tex01, tex01, tex01, tex01, tex01, tex01},
-          {bottomRightBack, bottomNormal, tex00, tex00, tex00, tex00, tex00, tex00, tex00, tex00},
-          {bottomRightFront, bottomNormal, tex10, tex10, tex10, tex10, tex10, tex10, tex10, tex10},
+          {topLeftBack, topNormal, tex11, tex11, tex11, tex11, tex11, tex11, tex11, tex11, zero_vec3, zero_vec3},
+          {topLeftFront, topNormal, tex01, tex01, tex01, tex01, tex01, tex01, tex01, tex01, zero_vec3, zero_vec3},
+          {topRightFront, topNormal, tex00, tex00, tex00, tex00, tex00, tex00, tex00, tex00, zero_vec3, zero_vec3},
+          {topRightBack, topNormal, tex10, tex10, tex10, tex10, tex10, tex10, tex10, tex10, zero_vec3, zero_vec3},
+          {bottomLeftFront, bottomNormal, tex11, tex11, tex11, tex11, tex11, tex11, tex11, tex11, zero_vec3, zero_vec3},
+          {bottomLeftBack, bottomNormal, tex01, tex01, tex01, tex01, tex01, tex01, tex01, tex01, zero_vec3, zero_vec3},
+          {bottomRightBack, bottomNormal, tex00, tex00, tex00, tex00, tex00, tex00, tex00, tex00, zero_vec3, zero_vec3},
+          {bottomRightFront, bottomNormal, tex10, tex10, tex10, tex10, tex10, tex10, tex10, tex10, zero_vec3, zero_vec3},
         };
 
         std::vector<uint32_t> indices = {// Front face
