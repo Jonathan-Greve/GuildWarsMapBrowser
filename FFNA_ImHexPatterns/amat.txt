@@ -1,34 +1,38 @@
 #include <std/mem.pat>
-
-fn compute_str_len_plus_one(u32 address){
-  u32 counter = 0;
-  bool found = false;
-  while (!found){
-    u8 curr_char @ address + counter;
-    if (curr_char == 0){
-      found = true;
-    }
-    
-    counter += 1;
-  }
-  
-  return counter;
-};
-
 struct UnknownChunk {
   u32 chunk_id;
   u32 chunk_size;
   u8 chunk_data[chunk_size];
+  
+};
+
+bitfield Bits16 {
+  b0 : 1;
+  b1 : 1;
+  b2 : 1;
+  b3 : 1;
+  b4 : 1;
+  b5 : 1;
+  b6 : 1;
+  b7 : 1;
+  b8 : 1;
+  b9 : 1;
+  b10 : 1;
+  b11 : 1;
+  b12 : 1;
+  b13 : 1;
+  b14 : 1;
+  b15 : 1;
 };
 
 struct GRMT {
   u32 signature;      // Expected to be 0x47524D54 ("GRMT" in ASCII)
   u32 chunk_size;
   u8 tex_array_range; // checked that it is less than 9 in the .exe
-  u8 tex_transform_range; // checked that it is less than 9 in the .exe
-  u8 unknown0;
+  u8 unknown0; // checked that it is less than 9 in the .exe
+  u8 tex_transform_range;
   u8 unknown1;
-  u16 texs_bits;
+  Bits16 texs_bits;
   u16 unknown2;
   u32 unknown3;
   u32 unknown4;
@@ -61,7 +65,7 @@ struct SHAD {
 struct TECH {
   char signature[4];
   u32 data0[6];
-  char tech_type_signature[compute_str_len_plus_one($)];
+  char tech_type_signature[];
   u32 u0;
   char pass_signature[4];
   u32 data_size;
