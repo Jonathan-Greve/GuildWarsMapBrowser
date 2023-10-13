@@ -1131,6 +1131,7 @@ struct TextureFileNamesChunk
 
 constexpr uint32_t CHUNK_ID_GEOMETRY = 0x00000FA0;
 constexpr uint32_t CHUNK_ID_TEXTURE_FILENAMES = 0x00000FA5;
+constexpr uint32_t CHUNK_ID_AMAT_FILENAMES = 0x00000FAD;
 
 struct FFNA_ModelFile
 {
@@ -1138,9 +1139,11 @@ struct FFNA_ModelFile
     FFNAType ffna_type;
     GeometryChunk geometry_chunk;
     TextureFileNamesChunk texture_filenames_chunk;
+    TextureFileNamesChunk AMAT_filenames_chunk;
 
     bool parsed_correctly = true;
     bool textures_parsed_correctly = true;
+    bool AMATs_parsed_correctly = true;
 
     std::unordered_map<uint32_t, int> riff_chunks;
 
@@ -1183,6 +1186,15 @@ struct FFNA_ModelFile
             int offset = it->second;
             texture_filenames_chunk =
               TextureFileNamesChunk(offset, data.data(), data.size_bytes(), textures_parsed_correctly);
+        }
+
+        // Check if the CHUNK_ID_AMAT_FILENAMES is in the riff_chunks map
+        it = riff_chunks.find(CHUNK_ID_AMAT_FILENAMES);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            AMAT_filenames_chunk =
+              TextureFileNamesChunk(offset, data.data(), data.size_bytes(), AMATs_parsed_correctly);
         }
     }
 
