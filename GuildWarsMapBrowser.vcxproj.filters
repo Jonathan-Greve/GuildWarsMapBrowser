@@ -110,6 +110,9 @@
     <Filter Include="Render\Shaders\Pixel shaders\Model">
       <UniqueIdentifier>{324dac91-05ad-494d-b16b-dd777c02705a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dat reader\Dat file parsers\AMAT">
+      <UniqueIdentifier>{35770df5-0b96-42a1-bdda-d2176cbcc134}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -403,6 +406,9 @@
     <ClInclude Include="SourceFiles\NewModelPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Model</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\AMAT_file.h">
+      <Filter>Dat reader\Dat file parsers\AMAT</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -647,6 +653,9 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\draw_picking_info.cpp">
       <Filter>GUI\Picking</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\AMAT_file.cpp">
+      <Filter>Dat reader\Dat file parsers\AMAT</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
