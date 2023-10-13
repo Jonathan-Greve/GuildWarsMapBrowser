@@ -348,7 +348,7 @@ public:
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
-            else if (pixel_shader_type == PixelShaderType::TerrainTextured && m_terrain_texture_atlas_id >= 0)
+            else if (pixel_shader_type == PixelShaderType::TerrainTextured)
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
                 m_mesh_manager->SetTexturesForMesh(
@@ -356,7 +356,7 @@ public:
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
-            else if (pixel_shader_type == PixelShaderType::TerrainTexturedWithShadows && m_terrain_texture_atlas_id >= 0)
+            else if (pixel_shader_type == PixelShaderType::TerrainTexturedWithShadows)
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
                 m_mesh_manager->SetTexturesForMesh(
