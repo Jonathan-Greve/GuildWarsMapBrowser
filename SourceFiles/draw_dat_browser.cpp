@@ -371,10 +371,10 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 				}
 			}
 
-			auto pixel_shader_type = PixelShaderType::NewModel;
-			if (selected_ffna_model_file.geometry_chunk.tex_and_vertex_shader_struct.flags0.size() > 0)
+			auto pixel_shader_type = PixelShaderType::OldModel;
+			if (selected_ffna_model_file.geometry_chunk.unknown_tex_stuff1.size() > 0)
 			{
-				pixel_shader_type = PixelShaderType::OldModel;
+				pixel_shader_type = PixelShaderType::NewModel;
 			}
 
 			auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, index, pixel_shader_type);
@@ -664,10 +664,10 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 								}
 							}
 
-							auto pixel_shader_type = PixelShaderType::NewModel;
-							if (ffna_model_file_ptr->geometry_chunk.tex_and_vertex_shader_struct.flags0.size() > 0)
+							auto pixel_shader_type = PixelShaderType::OldModel;
+							if (ffna_model_file_ptr->geometry_chunk.unknown_tex_stuff1.size() > 0)
 							{
-								pixel_shader_type = PixelShaderType::OldModel;
+								pixel_shader_type = PixelShaderType::NewModel;
 							}
 
 							auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, i, pixel_shader_type);
