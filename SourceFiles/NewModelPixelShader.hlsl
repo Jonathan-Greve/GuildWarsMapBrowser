@@ -95,7 +95,7 @@ PSOutput main(PixelInputType input)
     float3 finalColor = input.lightingColor.rgb + diffuse + specular;
 
     // Apply textures
-	float4 sampledTextureColor = float4(0, 0, 0, 0);
+	float4 sampledTextureColor = float4(1, 1, 1, 1);
 	float2 texCoordsArray[8] =
 	{
 		input.tex_coords0, input.tex_coords1, input.tex_coords2, input.tex_coords3,
@@ -126,28 +126,24 @@ PSOutput main(PixelInputType input)
 				{
 					float4 currentSampledTextureColor = shaderTextures[t].Sample(ss, texCoordsArray[uv_set_index]);
                     // Use lerp for blending textures
-					sampledTextureColor.rgb = lerp(sampledTextureColor.rgb, currentSampledTextureColor.rgb, 1.0 / ((float) num_uv_texture_pairs));
-					float alpha = currentSampledTextureColor.a;
-					if (blend_flag == 3 || blend_flag == 6 || blend_flag == 7)
-					{
-						alpha = 1 - alpha;
-					}
-					else if (blend_flag == 0)
-					{
-						alpha = 1;
-					}
-					sampledTextureColor.a += alpha * (1.0 - sampledTextureColor.a);
+                    sampledTextureColor = saturate(sampledTextureColor * currentSampledTextureColor);
 					break;
 				}
 			}
 		}
 	}
 
+    if (sampledTextureColor.a <= 0.0f)
+    {
+        discard;
+    }
+
     // Multiply the blended color with the finalColor
 	if (num_uv_texture_pairs > 0)
 	{
 		finalColor = finalColor * sampledTextureColor;
 	}
+
 
 	PSOutput output;
     output.rt_0_output = float4(finalColor.rgb, sampledTextureColor.a);

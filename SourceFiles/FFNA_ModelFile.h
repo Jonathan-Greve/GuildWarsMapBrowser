@@ -1303,7 +1303,7 @@ struct FFNA_ModelFile
         std::vector<uint16_t> texture_types;
 
         // Old model format (mostly Prophecies and Factions)
-        if (parsed_texture_with_UTS)
+        if (parsed_texture_with_UTS && textures_parsed_correctly && geometry_chunk.unknown_tex_stuff1.size() == 0)
         {
     		auto uts = geometry_chunk.tex_and_vertex_shader_struct.uts0[sub_model_index];
             int num_uv_coords_to_use = uts.f0x7;
@@ -1440,6 +1440,11 @@ struct FFNA_ModelFile
         // Modern model format (Primarily Nightfall and EoTN)
         if (textures_parsed_correctly && geometry_chunk.unknown_tex_stuff1.size() > 0)
         {
+            tex_indices.clear();
+            uv_coords_indices.clear();
+            blend_flags.clear();
+            texture_types.clear();
+
             int tex_index_start = 0;
 			for (int i = 0; i < sub_model_index; i++)
 			{
