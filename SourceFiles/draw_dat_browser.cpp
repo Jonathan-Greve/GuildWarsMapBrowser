@@ -418,12 +418,21 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 					auto decoded_filename =
 					decode_filename(selected_ffna_map_file.terrain_texture_filenames.array[i].filename.id0,
 					                selected_ffna_map_file.terrain_texture_filenames.array[i].filename.id1);
+
+					// Jade Quarry, Island of Jade. Each on them uses a normal map as their first texture.
+					if (decoded_filename == 0x25e09 || decoded_filename == 0x00028615)
+					{
+						continue;
+					}
+
 					auto mft_entry_it = hash_index.find(decoded_filename);
 					if (mft_entry_it != hash_index.end())
 					{
 						const DatTexture dat_texture =
 						dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
-						terrain_dat_textures.push_back(dat_texture);
+						if (dat_texture.width > 0 && dat_texture.height > 0){
+							terrain_dat_textures.push_back(dat_texture);
+						}
 					}
 				}
 
