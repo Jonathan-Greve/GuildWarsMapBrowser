@@ -4,6 +4,7 @@
 #include "maps_constant_data.h"
 #include <commdlg.h>
 #include <shobjidl.h>
+#include <numeric>
 
 #include "writeHeighMapBMP.h"
 #include "writeOBJ.h"
@@ -214,6 +215,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
 			const auto& geometry_chunk = selected_ffna_model_file.geometry_chunk;
 			auto& models = selected_ffna_model_file.geometry_chunk.models;
+
+			std::vector<int> sort_orders;
 			for (int i = 0; i < models.size(); i++)
 			{
 				AMAT_file amat_file;
@@ -252,8 +255,30 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 				overallMaxY = std::max(overallMaxY, models[i].maxY);
 				overallMaxZ = std::max(overallMaxZ, models[i].maxZ);
 
+				uint32_t sort_order = amat_file.GRMT_chunk.sort_order;
+				sort_orders.push_back(sort_order);
+
 				if ((prop_mesh.indices.size() % 3) == 0) { prop_meshes.push_back(prop_mesh); }
 			}
+
+			std::vector<size_t> indices(sort_orders.size());
+			std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
+
+			std::sort(indices.begin(), indices.end(),
+			          [&sort_orders](size_t i1, size_t i2) { return sort_orders[i1] < sort_orders[i2]; });
+
+			// Create new vectors with sorted elements
+			std::vector<Mesh> sorted_prop_meshes(prop_meshes.size());
+			std::vector<int> sorted_sort_orders(sort_orders.size());
+
+			for (size_t i = 0; i < indices.size(); ++i) {
+			    sorted_prop_meshes[i] = prop_meshes[indices[i]];
+			    sorted_sort_orders[i] = sort_orders[indices[i]];
+			}
+
+			// If you want, you can now swap the sorted vectors with the original ones
+			prop_meshes.swap(sorted_prop_meshes);
+			sort_orders.swap(sorted_sort_orders);
 
 			// Load textures
 			std::vector<int> texture_ids;
@@ -556,6 +581,8 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 						// Load geometry
 						const auto& geometry_chunk = ffna_model_file_ptr->geometry_chunk;
 						prop_meshes.clear();
+
+						std::vector<int> sort_orders;
 						for (int j = 0; j < geometry_chunk.models.size(); j++)
 						{
 							const auto& models = geometry_chunk.models;
@@ -589,8 +616,31 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 								(models[j].maxX - models[j].minX) / 2.0f, (models[j].maxY - models[j].minY) / 2.0f,
 								(models[j].maxZ - models[j].minZ) / 2.0f
 							};
+
+							uint32_t sort_order = amat_file.GRMT_chunk.sort_order;
+							sort_orders.push_back(sort_order);
+
 							if ((prop_mesh.indices.size() % 3) == 0) { prop_meshes.push_back(prop_mesh); }
 						}
+
+						std::vector<size_t> indices(sort_orders.size());
+						std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
+
+						std::sort(indices.begin(), indices.end(),
+						          [&sort_orders](size_t i1, size_t i2) { return sort_orders[i1] < sort_orders[i2]; });
+
+						// Create new vectors with sorted elements
+						std::vector<Mesh> sorted_prop_meshes(prop_meshes.size());
+						std::vector<int> sorted_sort_orders(sort_orders.size());
+
+						for (size_t i = 0; i < indices.size(); ++i) {
+						    sorted_prop_meshes[i] = prop_meshes[indices[i]];
+						    sorted_sort_orders[i] = sort_orders[indices[i]];
+						}
+
+						// If you want, you can now swap the sorted vectors with the original ones
+						prop_meshes.swap(sorted_prop_meshes);
+						sort_orders.swap(sorted_sort_orders);
 
 						if (ffna_model_file_ptr->parsed_correctly)
 						{

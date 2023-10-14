@@ -1465,13 +1465,13 @@ struct FFNA_ModelFile
 			    tex_index_start += uts.f0x6;
 			}
 
-                const auto uts1 = geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()];
+            const auto uts1 = geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()];
             uint8_t blend_flag = 0;
             for (int i = 0; i < uts1.f0x6; i++)
             {
                 uint8_t texture_index = geometry_chunk.unknown_tex_stuff1[(tex_index_start + i) % geometry_chunk.unknown_tex_stuff1.size()];
 
-                if (AMATs_parsed_correctly && amat_file.GRMT_chunk.sort_order > 0)
+                if (AMATs_parsed_correctly && amat_file.GRSN_chunk.chunk_data[6*4] != 0)
                 {
 	                blend_flag = 8;
                     blend_state  = BlendState::AlphaBlend;
