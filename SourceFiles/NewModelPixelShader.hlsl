@@ -125,6 +125,11 @@ PSOutput main(PixelInputType input)
 				if (t == texture_index)
 				{
 					float4 currentSampledTextureColor = shaderTextures[t].Sample(ss, texCoordsArray[uv_set_index]);
+					if (blend_flag == 0)
+					{
+                        currentSampledTextureColor.a = 1;
+                    }
+
                     // Use lerp for blending textures
                     sampledTextureColor = saturate(sampledTextureColor * currentSampledTextureColor);
 					break;

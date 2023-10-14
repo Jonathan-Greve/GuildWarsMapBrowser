@@ -1,3 +1,5 @@
+#pragma once
+
 #include "FFNAType.h"
 
 struct GRMT
@@ -20,10 +22,7 @@ struct GRMT
 
 	GRMT(uint32_t& curr_offset, const unsigned char* data, uint32_t data_size_bytes, bool& parsed_correctly)
 	{
-		uint32_t staticSize = sizeof(signature) + sizeof(chunk_size) + sizeof(tex_array_range) +
-		sizeof(texture_count) + sizeof(tex_transform_range) + sizeof(sort_order) +
-		sizeof(texs_bits) + sizeof(unknown2) + sizeof(unknown3) + sizeof(unknown4) +
-		sizeof(unknown5) + sizeof(unknown6);
+		int initial_offset = curr_offset;
 
 		std::memcpy(&signature, &data[curr_offset], sizeof(signature));
 		curr_offset += sizeof(signature);
@@ -61,11 +60,13 @@ struct GRMT
 		std::memcpy(&unknown6, &data[curr_offset], sizeof(unknown6));
 		curr_offset += sizeof(unknown6);
 
-		uint32_t chunk_data_size = chunk_size - staticSize;
+		uint32_t remaining_bytes = chunk_size - (curr_offset - (initial_offset + 8));
 
-		chunk_data.resize(chunk_data_size);
-		std::memcpy(chunk_data.data(), &data[curr_offset], chunk_data_size);
-		curr_offset += chunk_data_size;
+		if (remaining_bytes > 0){
+			chunk_data.resize(remaining_bytes);
+			std::memcpy(chunk_data.data(), &data[curr_offset], remaining_bytes);
+			curr_offset += remaining_bytes;
+		}
 	}
 };
 
@@ -119,6 +120,12 @@ struct SHAD
 
 		std::memcpy(&chunk_size, &data_buffer[curr_offset], sizeof(chunk_size));
 		curr_offset += sizeof(chunk_size);
+
+		if (curr_offset + chunk_size >= data_size_bytes)
+		{
+			parsed_correctly = false;
+			return;
+		}
 
 		chunk_data.resize(chunk_size);
 		std::memcpy(chunk_data.data(), &data_buffer[curr_offset], chunk_size);
@@ -214,7 +221,9 @@ struct DX9S
 
 		sub_chunk_0 = DX9S_0(curr_offset, data_buffer, data_size_bytes, parsed_correctly);
 		SHAD_chunk_0 = SHAD(curr_offset, data_buffer, data_size_bytes, parsed_correctly);
+		if (!parsed_correctly) return;
 		SHAD_chunk_1 = SHAD(curr_offset, data_buffer, data_size_bytes, parsed_correctly);
+		if (!parsed_correctly) return;
 
 		std::memcpy(data0, &data_buffer[curr_offset], sizeof(data0));
 		curr_offset += sizeof(data0);
@@ -245,6 +254,7 @@ struct AMAT_file
 
 	bool parsed_correctly = false;
 
+	AMAT_file() = default;
 	AMAT_file(const unsigned char* data, uint32_t dataSize)
 	{
 		uint32_t position = 0;
