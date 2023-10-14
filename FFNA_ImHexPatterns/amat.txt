@@ -29,9 +29,9 @@ struct GRMT {
   u32 signature;      // Expected to be 0x47524D54 ("GRMT" in ASCII)
   u32 chunk_size;
   u8 tex_array_range; // checked that it is less than 9 in the .exe
-  u8 unknown0; // checked that it is less than 9 in the .exe
+  u8 num_textures; // checked that it is less than 9 in the .exe
   u8 tex_transform_range;
-  u8 unknown1;
+  u8 sort_order;
   Bits16 texs_bits;
   u16 unknown2;
   u32 unknown3;
@@ -69,7 +69,12 @@ struct TECH {
   u32 u0;
   char pass_signature[4];
   u32 data_size;
-  u8 data1[data_size];
+  u32 u1;
+  u32 u2;
+  u32 u3;
+  u32 some_size;
+  u8 some_data[some_size-4];
+  u32 tex_uv_indices_maybe[(data_size-some_size-12) / 4];
 };
 
 struct DX9S {
