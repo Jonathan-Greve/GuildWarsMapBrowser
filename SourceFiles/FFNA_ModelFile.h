@@ -1092,6 +1092,7 @@ struct TextureFileNamesChunk
     uint32_t chunk_id;
     uint32_t chunk_size;
     uint32_t num_texture_filenames;
+    uint32_t actual_num_texture_filenames;
     std::vector<TextureFileName> texture_filenames;
     std::vector<uint8_t> chunk_data;
 
@@ -1104,19 +1105,18 @@ struct TextureFileNamesChunk
         std::memcpy(&chunk_size, &data[offset + 4], sizeof(chunk_size));
         std::memcpy(&num_texture_filenames, &data[offset + 8], sizeof(num_texture_filenames));
 
-        uint32_t actual_num_texture_filenames = std::min(num_texture_filenames, (chunk_size - 4) / sizeof(TextureFileName));
-        num_texture_filenames = actual_num_texture_filenames;
+        actual_num_texture_filenames = std::min(num_texture_filenames, (chunk_size - 4) / sizeof(TextureFileName));
 
         uint32_t curr_offset = offset + 12;
-        texture_filenames.resize(num_texture_filenames);
+        texture_filenames.resize(actual_num_texture_filenames);
 
-        for (uint32_t i = 0; i < num_texture_filenames; ++i)
+        for (uint32_t i = 0; i < actual_num_texture_filenames; ++i)
         {
             texture_filenames[i] = TextureFileName(curr_offset, data);
             curr_offset += sizeof(TextureFileName);
         }
 
-        size_t remaining_bytes = chunk_size - 4 - (sizeof(TextureFileName) * num_texture_filenames);
+        size_t remaining_bytes = chunk_size - 4 - (sizeof(TextureFileName) * actual_num_texture_filenames);
         if (curr_offset + remaining_bytes <= offset + chunk_size + 8 && remaining_bytes < chunk_size)
         {
             chunk_data.resize(remaining_bytes);
@@ -1356,17 +1356,17 @@ struct FFNA_ModelFile
                 uv_coords_indices.push_back(uv_set_index);
 
                 uint8_t texture_index = geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe[i];
-                if (texture_filenames_chunk.num_texture_filenames < texture_index &&
-                    texture_filenames_chunk.num_texture_filenames > 0)
+                if (texture_filenames_chunk.actual_num_texture_filenames < texture_index &&
+                    texture_filenames_chunk.actual_num_texture_filenames > 0)
                 {
-                    texture_index = texture_filenames_chunk.num_texture_filenames - 1;
+                    texture_index = texture_filenames_chunk.actual_num_texture_filenames - 1;
                 }
 
                 // Swap this and the next texture
                 if (textures_swapped && geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe.size() > i + 1 && i + 1 < num_uv_coords_start_index + num_uv_coords_to_use)
                 {
 					uint8_t next_texture_index = geometry_chunk.tex_and_vertex_shader_struct.texture_index_UV_mapping_maybe[i+1];
-					if (texture_filenames_chunk.num_texture_filenames > next_texture_index)
+					if (texture_filenames_chunk.actual_num_texture_filenames > next_texture_index)
 					{
 						tex_indices.push_back(next_texture_index);
 						// Skip the next texture since we inserted it here
@@ -1404,7 +1404,7 @@ struct FFNA_ModelFile
                     {
                         const auto tex_index0 = tex_indices[blend_flags.size()];
                         const auto tex_index1 = tex_indices[blend_flags.size()-1];
-                        if (tex_index0 < texture_filenames_chunk.num_texture_filenames && tex_index1 < texture_filenames_chunk.num_texture_filenames){
+                        if (tex_index0 < texture_filenames_chunk.actual_num_texture_filenames && tex_index1 < texture_filenames_chunk.actual_num_texture_filenames){
 							const auto fname0 = texture_filenames_chunk.texture_filenames[tex_index0];
 							const auto fname1 = texture_filenames_chunk.texture_filenames[tex_index1];
 
@@ -1488,8 +1488,8 @@ struct FFNA_ModelFile
       //              blend_state  = BlendState::AlphaBlend;
       //          }
 
-                if (texture_filenames_chunk.num_texture_filenames < texture_index &&
-                    texture_filenames_chunk.num_texture_filenames > 0)
+                if (texture_filenames_chunk.actual_num_texture_filenames < texture_index &&
+                    texture_filenames_chunk.actual_num_texture_filenames > 0)
                 {
                     break;
                 }
