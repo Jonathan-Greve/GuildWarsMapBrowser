@@ -37,6 +37,24 @@ FFNA_ModelFile DATManager::parse_ffna_model_file(int index)
     return ffna_model_file;
 }
 
+AMAT_file DATManager::parse_amat_file(int index)
+{
+    MFTEntry* mft_entry = m_dat.get_MFT_entry_ptr(index);
+    if (! mft_entry)
+        throw "mft_entry not found.";
+
+    // Get decompressed file data
+    HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
+    auto data = m_dat.readFile(file_handle, index, true);
+    std::span<unsigned char> file_data(data, mft_entry->uncompressedSize);
+    CloseHandle(file_handle);
+
+    AMAT_file amat_file(file_data.data(), file_data.size());
+    delete[] data;
+
+    return amat_file;
+}
+
 DatTexture DATManager::parse_ffna_texture_file(int index)
 {
     MFTEntry* mft_entry = m_dat.get_MFT_entry_ptr(index);
