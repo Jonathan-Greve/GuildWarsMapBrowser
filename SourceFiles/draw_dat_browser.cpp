@@ -212,10 +212,33 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 			float overallMinX = FLT_MAX, overallMinY = FLT_MAX, overallMinZ = FLT_MAX;
 			float overallMaxX = FLT_MIN, overallMaxY = FLT_MIN, overallMaxZ = FLT_MIN;
 
+			const auto& geometry_chunk = selected_ffna_model_file.geometry_chunk;
 			auto& models = selected_ffna_model_file.geometry_chunk.models;
 			for (int i = 0; i < models.size(); i++)
 			{
-				Mesh prop_mesh = selected_ffna_model_file.GetMesh(i);
+				AMAT_file amat_file;
+				if (selected_ffna_model_file.AMAT_filenames_chunk.texture_filenames.size() > 0){
+					int sub_model_index = models[i].unknown;
+			        if (geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0)
+			        {
+			            sub_model_index %= geometry_chunk.tex_and_vertex_shader_struct.uts0.size();
+			        }
+		            const auto uts1 = geometry_chunk.uts1[sub_model_index % geometry_chunk.uts1.size()];
+
+        			const int amat_file_index = ((uts1.some_flags0 >> 8) & 0xFF) % selected_ffna_model_file.AMAT_filenames_chunk.texture_filenames.size();
+		            const auto amat_filename = selected_ffna_model_file.AMAT_filenames_chunk.texture_filenames[amat_file_index];
+
+        			const auto decoded_filename = decode_filename(amat_filename.id0, amat_filename.id1);
+
+
+					auto mft_entry_it = hash_index.find(decoded_filename);
+					if (mft_entry_it != hash_index.end())
+					{
+						auto file_index = mft_entry_it->second.at(0);
+						amat_file = dat_manager.parse_amat_file(file_index);
+					}
+				}
+				Mesh prop_mesh = selected_ffna_model_file.GetMesh(i, amat_file);
 				prop_mesh.center = {
 					(models[i].maxX - models[i].minX) / 2.0f, (models[i].maxY - models[i].minY) / 2.0f,
 					(models[i].maxZ - models[i].minZ) / 2.0f
@@ -528,13 +551,40 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 					if (auto ffna_model_file_ptr =
 						std::get_if<FFNA_ModelFile>(&selected_map_files[prop_info.filename_index]))
 					{
+
 						std::vector<std::vector<int>> per_mesh_tex_ids;
 						// Load geometry
+						const auto& geometry_chunk = ffna_model_file_ptr->geometry_chunk;
 						prop_meshes.clear();
-						for (int j = 0; j < ffna_model_file_ptr->geometry_chunk.models.size(); j++)
+						for (int j = 0; j < geometry_chunk.models.size(); j++)
 						{
-							const auto& models = ffna_model_file_ptr->geometry_chunk.models;
-							Mesh prop_mesh = ffna_model_file_ptr->GetMesh(j);
+							const auto& models = geometry_chunk.models;
+
+							// Get AMAT file if any
+							AMAT_file amat_file;
+							if (ffna_model_file_ptr->AMAT_filenames_chunk.texture_filenames.size() > 0){
+								int sub_model_index = models[j].unknown;
+						        if (geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0)
+						        {
+						            sub_model_index %= geometry_chunk.tex_and_vertex_shader_struct.uts0.size();
+						        }
+					            const auto uts1 = geometry_chunk.uts1[sub_model_index % geometry_chunk.uts1.size()];
+
+        						const int amat_file_index = ((uts1.some_flags0 >> 8) & 0xFF) % ffna_model_file_ptr->AMAT_filenames_chunk.texture_filenames.size();
+					            const auto amat_filename = ffna_model_file_ptr->AMAT_filenames_chunk.texture_filenames[amat_file_index];
+
+        						const auto decoded_filename = decode_filename(amat_filename.id0, amat_filename.id1);
+
+
+								auto mft_entry_it = hash_index.find(decoded_filename);
+								if (mft_entry_it != hash_index.end())
+								{
+									auto file_index = mft_entry_it->second.at(0);
+									amat_file = dat_manager.parse_amat_file(file_index);
+								}
+							}
+
+							Mesh prop_mesh = ffna_model_file_ptr->GetMesh(j, amat_file);
 							prop_mesh.center = {
 								(models[j].maxX - models[j].minX) / 2.0f, (models[j].maxY - models[j].minY) / 2.0f,
 								(models[j].maxZ - models[j].minZ) / 2.0f
