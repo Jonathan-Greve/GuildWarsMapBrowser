@@ -66,7 +66,7 @@ void draw_picking_info(const PickingInfo& info)
 					if (uts1.size() > 0)
 					{
 						ImGui::Text("some_flags0: %u", uts1[i % uts1.size()].some_flags0);
-						ImGui::Text("f0x6: %u", uts1[i % uts1.size()].f0x6);
+						ImGui::Text("num_textures_to_use: %u", uts1[i % uts1.size()].num_textures_to_use);
 						ImGui::Text("f0x8: %u", uts1[i % uts1.size()].f0x8);
 					}
 
