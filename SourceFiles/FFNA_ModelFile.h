@@ -681,7 +681,7 @@ struct UnknownTexStruct1
     uint16_t some_flags1;
     uint8_t f0x4;
     uint8_t f0x5;
-    uint8_t f0x6;
+    uint8_t num_textures_to_use;
     uint8_t f0x7;
     uint8_t f0x8;
 };
@@ -1462,12 +1462,12 @@ struct FFNA_ModelFile
 			for (int i = 0; i < sub_model_index; i++)
 			{
 			    auto uts = geometry_chunk.uts1[i % geometry_chunk.uts1.size()];
-			    tex_index_start += uts.f0x6;
+			    tex_index_start += uts.num_textures_to_use;
 			}
 
             const auto uts1 = geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()];
             uint8_t blend_flag = 0;
-            for (int i = 0; i < uts1.f0x6; i++)
+            for (int i = 0; i < uts1.num_textures_to_use; i++)
             {
                 uint8_t texture_index = geometry_chunk.unknown_tex_stuff1[(tex_index_start + i) % geometry_chunk.unknown_tex_stuff1.size()];
 
