@@ -1473,20 +1473,10 @@ struct FFNA_ModelFile
 
                 if (AMATs_parsed_correctly && amat_file.GRSN_chunk.chunk_data[6*4] != 0)
                 {
+                    // Tell the pixel shader to use alpha for this texture. (it sets alpha to 1 otherwise).
 	                blend_flag = 8;
                     blend_state  = BlendState::AlphaBlend;
                 }
-
-      //          if ((geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 < 4 && (!sub_model.vertices[0].has_tangent || geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].some_flags0 == 1)) /*!(
-						//geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 == 3 && 
-						//(geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].some_flags0 == 0x100 
-      //                || geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].some_flags0 == 0x000 )
-				  //  )*/
-      //             || (geometry_chunk.uts1[model_index % geometry_chunk.uts1.size()].f0x6 == 4 && geometry_chunk.models.size() == 1))
-      //          {
-	     //           blend_flag = 8;
-      //              blend_state  = BlendState::AlphaBlend;
-      //          }
 
                 if (texture_filenames_chunk.actual_num_texture_filenames < texture_index &&
                     texture_filenames_chunk.actual_num_texture_filenames > 0)
@@ -1494,37 +1484,8 @@ struct FFNA_ModelFile
                     break;
                 }
 
-                if (i == 0 || i == 1)
-                {
-					tex_indices.push_back(texture_index);
-					uv_coords_indices.push_back(i % sub_model.vertices[0].num_texcoords);
-                }
-
-                //tex_indices.push_back(texture_index);
-                //uv_coords_indices.push_back(i % sub_model.vertices[0].num_texcoords);
-     //           if (i == 0)
-     //           {
-     //               if (geometry_chunk.uts1[sub_model_index % geometry_chunk.uts1.size()].some_flags0 != 0x100)
-     //               {
-					//	blend_state = BlendState::AlphaBlend;
-					//	blend_flags.push_back(8);
-     //               }
-     //               else
-     //               {
-					//	blend_state = BlendState::Opaque;
-					//	blend_flags.push_back(1);
-     //               }
-     //           }
-     //           else
-     //           {
-     //           	blend_state = BlendState::AlphaBlend;
-					//blend_flags.push_back(8);
-     //           }
-
-     //           if (i >= 0)
-     //           {
-	    //            break;
-     //           }
+				tex_indices.push_back(texture_index);
+				uv_coords_indices.push_back(i % sub_model.vertices[0].num_texcoords);
             }
 
             for (int i = 0; i < tex_indices.size(); i++)
