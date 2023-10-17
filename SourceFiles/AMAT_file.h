@@ -7,7 +7,7 @@ struct GRMT
 	uint32_t signature;
 	uint32_t chunk_size;
 	uint8_t tex_array_range;
-	uint8_t texture_count;
+	uint8_t num_textures;
 	uint8_t tex_transform_range;
 	uint8_t sort_order;
 	uint16_t texs_bits;
@@ -33,8 +33,8 @@ struct GRMT
 		std::memcpy(&tex_array_range, &data[curr_offset], sizeof(tex_array_range));
 		curr_offset += sizeof(tex_array_range);
 
-		std::memcpy(&texture_count, &data[curr_offset], sizeof(texture_count));
-		curr_offset += sizeof(texture_count);
+		std::memcpy(&num_textures, &data[curr_offset], sizeof(num_textures));
+		curr_offset += sizeof(num_textures);
 
 		std::memcpy(&tex_transform_range, &data[curr_offset], sizeof(tex_transform_range));
 		curr_offset += sizeof(tex_transform_range);
@@ -70,39 +70,71 @@ struct GRMT
 	}
 };
 
+struct TextureInfo
+{
+	uint32_t tex_index;
+	uint32_t data[6];
+};
+
 struct DX9S_0
 {
-	uint32_t f0;
-	uint32_t f1;
-	uint32_t f2;
-	uint32_t size;
-	uint32_t f4;
-	std::vector<uint32_t> data;
+    uint32_t num_vals;
+    uint32_t f1;
+    uint32_t f2;
+    uint32_t size;
+    uint32_t f4;
+    uint32_t f5;
+    std::vector<uint32_t> vals;
+    std::vector<TextureInfo> tex_infos;
+    uint32_t u0;
+    uint32_t size_of_next_shad_chunk_plus_4;
+    std::vector<uint32_t> data;
 
-	DX9S_0() = default;
+    DX9S_0() = default;
 
-	DX9S_0(uint32_t& curr_offset, const unsigned char* data_buffer, int data_size_bytes, bool& parsed_correctly)
-	{
-		std::memcpy(&f0, &data_buffer[curr_offset], sizeof(f0));
-		curr_offset += sizeof(f0);
+    DX9S_0(uint32_t& curr_offset, const unsigned char* data_buffer, int data_size_bytes, bool& parsed_correctly, const GRMT& grmt_chunk)
+    {
+        std::memcpy(&num_vals, &data_buffer[curr_offset], sizeof(num_vals));
+        curr_offset += sizeof(num_vals);
 
-		std::memcpy(&f1, &data_buffer[curr_offset], sizeof(f1));
-		curr_offset += sizeof(f1);
+        std::memcpy(&f1, &data_buffer[curr_offset], sizeof(f1));
+        curr_offset += sizeof(f1);
 
-		std::memcpy(&f2, &data_buffer[curr_offset], sizeof(f2));
-		curr_offset += sizeof(f2);
+        std::memcpy(&f2, &data_buffer[curr_offset], sizeof(f2));
+        curr_offset += sizeof(f2);
 
-		std::memcpy(&size, &data_buffer[curr_offset], sizeof(size));
-		curr_offset += sizeof(size);
+        std::memcpy(&size, &data_buffer[curr_offset], sizeof(size));
+        curr_offset += sizeof(size);
 
-		std::memcpy(&f4, &data_buffer[curr_offset], sizeof(f4));
-		curr_offset += sizeof(f4);
+        std::memcpy(&f4, &data_buffer[curr_offset], sizeof(f4));
+        curr_offset += sizeof(f4);
 
-		// Reading the data vector
-		data.resize(size);
-		std::memcpy(data.data(), &data_buffer[curr_offset], size * sizeof(uint32_t));
-		curr_offset += size * sizeof(uint32_t);
-	}
+        std::memcpy(&f5, &data_buffer[curr_offset], sizeof(f5));
+        curr_offset += sizeof(f5);
+
+        vals.resize(num_vals);
+        std::memcpy(vals.data(), &data_buffer[curr_offset], num_vals * sizeof(uint32_t));
+        curr_offset += num_vals * sizeof(uint32_t);
+
+        int num_textures = grmt_chunk.num_textures;
+        tex_infos.resize(num_textures);
+        for(int i = 0; i < num_textures; i++)
+        {
+            std::memcpy(&tex_infos[i], &data_buffer[curr_offset], sizeof(TextureInfo));
+            curr_offset += sizeof(TextureInfo);
+        }
+
+        std::memcpy(&u0, &data_buffer[curr_offset], sizeof(u0));
+        curr_offset += sizeof(u0);
+
+        std::memcpy(&size_of_next_shad_chunk_plus_4, &data_buffer[curr_offset], sizeof(size_of_next_shad_chunk_plus_4));
+        curr_offset += sizeof(size_of_next_shad_chunk_plus_4);
+
+        size_t dataSize = (size - 4 - num_vals * 4 - num_textures * sizeof(TextureInfo) - 8) / 4;
+        data.resize(dataSize);
+        std::memcpy(data.data(), &data_buffer[curr_offset], dataSize * sizeof(uint32_t));
+        curr_offset += dataSize * sizeof(uint32_t);
+    }
 };
 
 struct SHAD
@@ -211,7 +243,7 @@ struct DX9S
 	std::vector<uint8_t> chunk_data;
 
 	DX9S() = default;
-	DX9S(uint32_t& curr_offset, const unsigned char* data_buffer, int data_size_bytes, bool& parsed_correctly)
+	DX9S(uint32_t& curr_offset, const unsigned char* data_buffer, const int data_size_bytes, bool& parsed_correctly, const GRMT& grmt_chunk)
 	{
 		std::memcpy(&signature, &data_buffer[curr_offset], sizeof(signature));
 		curr_offset += sizeof(signature);
@@ -219,7 +251,7 @@ struct DX9S
 		std::memcpy(&chunk_size, &data_buffer[curr_offset], sizeof(chunk_size));
 		curr_offset += sizeof(chunk_size);
 
-		sub_chunk_0 = DX9S_0(curr_offset, data_buffer, data_size_bytes, parsed_correctly);
+		sub_chunk_0 = DX9S_0(curr_offset, data_buffer, data_size_bytes, parsed_correctly, grmt_chunk);
 		SHAD_chunk_0 = SHAD(curr_offset, data_buffer, data_size_bytes, parsed_correctly);
 		if (!parsed_correctly) return;
 		SHAD_chunk_1 = SHAD(curr_offset, data_buffer, data_size_bytes, parsed_correctly);
@@ -265,6 +297,6 @@ struct AMAT_file
 
 		GRMT_chunk = GRMT(position, data, dataSize, parsed_correctly);
 		GRSN_chunk = GeneralChunk(position, data);
-		DX9S_chunk = DX9S(position, data, dataSize, parsed_correctly);
+		DX9S_chunk = DX9S(position, data, dataSize, parsed_correctly, GRMT_chunk);
 	}
 };
