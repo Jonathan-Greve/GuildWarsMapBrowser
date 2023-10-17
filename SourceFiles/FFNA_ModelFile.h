@@ -1493,6 +1493,25 @@ struct FFNA_ModelFile
 	            blend_flags.push_back(blend_flag);
 	            texture_types.push_back(1546);
             }
+
+            const auto tex_infos = amat_file.DX9S_chunk.sub_chunk_0.tex_infos;
+
+            if (tex_infos.size() == tex_indices.size())
+            {
+
+				// Order the texture and uv indices correctly based on the info from the AMAT file.
+				std::unordered_map<int, int> actual_index_map;
+	            std::vector<uint8_t> actual_tex_indices(tex_indices.size());
+	            std::vector<uint8_t> actual_uv_coords_indices(uv_coords_indices.size());
+	            for (int i = 0; i < tex_infos.size(); i++)
+	            {
+				    actual_tex_indices[i] = tex_indices[tex_infos[i].tex_index];
+				    actual_uv_coords_indices[i] = uv_coords_indices[tex_infos[i].tex_index];
+	            }
+
+                tex_indices = actual_tex_indices;
+				uv_coords_indices = actual_uv_coords_indices;
+            }
         }
 
         return Mesh(vertices, indices, uv_coords_indices, tex_indices, blend_flags, texture_types, should_cull, blend_state,
