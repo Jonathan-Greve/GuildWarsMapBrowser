@@ -86,9 +86,9 @@ struct DX9S_0
     uint32_t f5;
     std::vector<uint32_t> vals;
     std::vector<TextureInfo> tex_infos;
+    std::vector<uint32_t> data;
     uint32_t u0;
     uint32_t size_of_next_shad_chunk_plus_4;
-    std::vector<uint32_t> data;
 
     DX9S_0() = default;
 
@@ -124,16 +124,17 @@ struct DX9S_0
             curr_offset += sizeof(TextureInfo);
         }
 
-        std::memcpy(&u0, &data_buffer[curr_offset], sizeof(u0));
-        curr_offset += sizeof(u0);
-
-        std::memcpy(&size_of_next_shad_chunk_plus_4, &data_buffer[curr_offset], sizeof(size_of_next_shad_chunk_plus_4));
-        curr_offset += sizeof(size_of_next_shad_chunk_plus_4);
 
         size_t dataSize = (size - 4 - num_vals * 4 - num_textures * sizeof(TextureInfo) - 8) / 4;
         data.resize(dataSize);
         std::memcpy(data.data(), &data_buffer[curr_offset], dataSize * sizeof(uint32_t));
         curr_offset += dataSize * sizeof(uint32_t);
+
+        std::memcpy(&u0, &data_buffer[curr_offset], sizeof(u0));
+        curr_offset += sizeof(u0);
+
+        std::memcpy(&size_of_next_shad_chunk_plus_4, &data_buffer[curr_offset], sizeof(size_of_next_shad_chunk_plus_4));
+        curr_offset += sizeof(size_of_next_shad_chunk_plus_4);
     }
 };
 
@@ -296,7 +297,10 @@ struct AMAT_file
 		position += sizeof(version);
 
 		GRMT_chunk = GRMT(position, data, dataSize, parsed_correctly);
+
 		GRSN_chunk = GeneralChunk(position, data);
+		position += 8 + GRSN_chunk.chunk_size;
+
 		DX9S_chunk = DX9S(position, data, dataSize, parsed_correctly, GRMT_chunk);
 	}
 };
