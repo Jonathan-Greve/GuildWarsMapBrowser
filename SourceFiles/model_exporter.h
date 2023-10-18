@@ -18,6 +18,7 @@ struct gwmb_vec4f
 
 struct gwmb_texture
 {
+	int file_hash;
 	int width;
 	int height;
 	// Stored per row (from top of image (row_0) to bottom of image (row_height-1))
@@ -51,7 +52,7 @@ struct gwmb_vertex
 	// Vertex bitangent vector
 	gwmb_vec3f bitangent;
 
-	std::vector<gwmb_vec2f> uv_maps;
+	std::vector<std::vector<gwmb_vec2f>> uv_maps;
 };
 
 // GW Map Browser model contains the info required for the export
