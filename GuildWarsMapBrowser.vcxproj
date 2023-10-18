@@ -214,6 +214,7 @@
     <ClInclude Include="SourceFiles\CheckerboardTexture.h" />
     <ClInclude Include="SourceFiles\ConstantBufferManager.h" />
     <ClInclude Include="SourceFiles\DATManager.h" />
+    <ClInclude Include="SourceFiles\model_exporter.h" />
     <ClInclude Include="SourceFiles\NewModelPixelShader.h" />
     <ClInclude Include="SourceFiles\OldModelPixelShader.h" />
     <ClInclude Include="SourceFiles\DepthStencilStateManager.h" />
@@ -403,6 +404,7 @@
     <ClCompile Include="SourceFiles\Mesh.cpp" />
     <ClCompile Include="SourceFiles\MeshInstance.cpp" />
     <ClCompile Include="SourceFiles\MeshManager.cpp" />
+    <ClCompile Include="SourceFiles\model_exporter.cpp" />
     <ClCompile Include="SourceFiles\MouseMoveListener.cpp" />
     <FxCompile Include="SourceFiles\NewModelPixelShader.hlsl">
       <FileType>Document</FileType>
