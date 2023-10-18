@@ -233,7 +233,7 @@ public:
         terrain->m_per_terrain_cb =
           PerTerrainCB(terrain->m_grid_dim_x, terrain->m_grid_dim_z, terrain->m_bounds.map_min_x,
                        terrain->m_bounds.map_max_x, terrain->m_bounds.map_min_y, terrain->m_bounds.map_max_y,
-                       terrain->m_bounds.map_min_z, terrain->m_bounds.map_max_z, water_level, {0, 0, 0});
+                       terrain->m_bounds.map_min_z, terrain->m_bounds.map_max_z, water_level, 0.04, 0.04, {0});
 
         D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
         ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
