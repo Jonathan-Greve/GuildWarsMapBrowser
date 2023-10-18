@@ -22,6 +22,8 @@ void draw_right_panel(MapRenderer* map_renderer)
     {
 
         static float water_level = 0.0f;
+        static float terrain_tex_pad_x = 0.04f;
+        static float terrain_tex_pad_y = 0.04f;
 
         auto terrain = map_renderer->GetTerrain();
         if (terrain)
@@ -34,6 +36,18 @@ void draw_right_panel(MapRenderer* map_renderer)
             {
                 water_level = ImClamp(water_level, min_level, max_level);
                 map_renderer->UpdateTerrainWaterLevel(water_level);
+            }
+
+            if (ImGui::SliderFloat("Terrain tex pad x", &terrain_tex_pad_x, 0, 0.5, "%.2f", 0))
+            {
+                terrain_tex_pad_x = ImClamp(terrain_tex_pad_x, 0.0f, 0.5f);
+                map_renderer->UpdateTerrainTexturePadding(terrain_tex_pad_x, terrain_tex_pad_y);
+            }
+
+            if (ImGui::SliderFloat("Terrain tex pad y", &terrain_tex_pad_y, 0, 0.5, "%.2f", 0))
+            {
+                terrain_tex_pad_y = ImClamp(terrain_tex_pad_y, 0.0f, 0.5f);
+                map_renderer->UpdateTerrainTexturePadding(terrain_tex_pad_x, terrain_tex_pad_y);
             }
 
             int terrain_pixel_shader_type = static_cast<int>(map_renderer->GetTerrainPixelShaderType());
