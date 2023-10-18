@@ -156,7 +156,7 @@ private:
 
         m_per_terrain_cb =
           PerTerrainCB(m_grid_dim_x, m_grid_dim_z, m_bounds.map_min_x, m_bounds.map_max_x, m_bounds.map_min_y,
-                       m_bounds.map_max_y, m_bounds.map_min_z, m_bounds.map_max_z, 0, 0.04, 0.04, {0});
+                       m_bounds.map_max_y, m_bounds.map_min_z, m_bounds.map_max_z, 0, 0.03, 0.03, {0});
 
         return Mesh(vertices, indices, {0}, {0}, {0}, {0}, true, BlendState::Opaque, 1, {10000000, 10000000, 10000000});
     }

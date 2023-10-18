@@ -22,8 +22,8 @@ void draw_right_panel(MapRenderer* map_renderer)
     {
 
         static float water_level = 0.0f;
-        static float terrain_tex_pad_x = 0.04f;
-        static float terrain_tex_pad_y = 0.04f;
+        static float terrain_tex_pad_x = 0.03f;
+        static float terrain_tex_pad_y = 0.03f;
 
         auto terrain = map_renderer->GetTerrain();
         if (terrain)
