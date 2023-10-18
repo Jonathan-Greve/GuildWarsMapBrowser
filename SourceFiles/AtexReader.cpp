@@ -277,7 +277,14 @@ DatTexture ProcessImageFile(unsigned char* img, int size)
     case 'N':
         AtexDecompress((unsigned int*)img, size, 0x11, r, (unsigned int*)output.data());
         image = ProcessDXT3((unsigned char*)output.data(), r.xres, r.yres);
-        tex_type = TextureType::BC3;
+        if (cmptype == 'N')
+        {
+            tex_type = TextureType::NormalMap;
+        }
+        else
+        {
+			tex_type = TextureType::BC3;
+        }
         break;
     case '4':
     case '5':

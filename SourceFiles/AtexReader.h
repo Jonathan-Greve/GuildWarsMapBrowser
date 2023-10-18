@@ -14,7 +14,7 @@ enum TextureType
 {
     Placeholder0,
 	BC1,
-    Placeholder1,
+    NormalMap,
     BC3,
     Placeholder2,
     BC5,

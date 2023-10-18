@@ -1156,8 +1156,9 @@ struct FFNA_ModelFile
         uint32_t current_offset = offset;
 
         std::memcpy(ffna_signature, &data[offset], sizeof(ffna_signature));
+        current_offset += 4;
         std::memcpy(&ffna_type, &data[offset], sizeof(ffna_type));
-        current_offset += 5;
+        current_offset += 1;
 
         // Read all chunks
         while (current_offset < data.size())
@@ -1471,7 +1472,7 @@ struct FFNA_ModelFile
             {
                 uint8_t texture_index = geometry_chunk.unknown_tex_stuff1[(tex_index_start + i) % geometry_chunk.unknown_tex_stuff1.size()];
 
-                if (AMATs_parsed_correctly && amat_file.GRSN_chunk.chunk_data[6*4] != 0)
+                if (AMATs_parsed_correctly && amat_file.GRSN_chunk.chunk_data.size() > 6*4 && amat_file.GRSN_chunk.chunk_data[6*4] != 0)
                 {
                     // Tell the pixel shader to use alpha for this texture. (it sets alpha to 1 otherwise).
 	                blend_flag = 8;
@@ -1491,7 +1492,7 @@ struct FFNA_ModelFile
             for (int i = 0; i < tex_indices.size(); i++)
             {
 	            blend_flags.push_back(blend_flag);
-	            texture_types.push_back(1546);
+	            texture_types.push_back(0xFFFF); // not defined in the "new" model files
             }
 
             const auto tex_infos = amat_file.DX9S_chunk.sub_chunk_0.tex_infos;
@@ -1505,8 +1506,8 @@ struct FFNA_ModelFile
 	            std::vector<uint8_t> actual_uv_coords_indices(uv_coords_indices.size());
 	            for (int i = 0; i < tex_infos.size(); i++)
 	            {
-				    actual_tex_indices[i] = tex_indices[tex_infos[i].tex_index];
-				    actual_uv_coords_indices[i] = uv_coords_indices[tex_infos[i].tex_index];
+				    actual_tex_indices[i] = tex_indices[tex_infos[i].tex_index % tex_indices.size()];
+				    actual_uv_coords_indices[i] = i; //uv_coords_indices[tex_infos[i].tex_index];
 	            }
 
                 tex_indices = actual_tex_indices;
