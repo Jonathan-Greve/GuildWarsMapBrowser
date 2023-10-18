@@ -96,8 +96,8 @@ float2 AdjustUVForQuadrant0(float2 uv, bool isBottomEdge)
     float halfU = 0.5;
     float halfV = 0.5;
 
-    float border_u = 0.04;
-    float border_v = 0.04;
+    float border_u = terrain_texture_pad_x;
+    float border_v = terrain_texture_pad_y;
 
     if (isBottomEdge)
     {
@@ -113,8 +113,8 @@ float2 AdjustUVForQuadrant2(float2 uv, bool isLeftEdge)
     float halfU = 0.5;
     float halfV = 0.5;
 
-    float border_u = 0.04;
-    float border_v = 0.04;
+    float border_u = terrain_texture_pad_x;
+    float border_v = terrain_texture_pad_y;
 
     if (isLeftEdge)
     {
@@ -131,8 +131,8 @@ float2 AdjustUVForQuadrant3(float2 uv, bool isBottomRight)
     float halfU = 0.5;
     float halfV = 0.5;
 
-    float border_u = 0.04;
-    float border_v = 0.04;
+    float border_u = terrain_texture_pad_x;
+    float border_v = terrain_texture_pad_y;
 
     if (isBottomRight)
     {
@@ -149,8 +149,8 @@ float2 AdjustUVForQuadrant1(float2 uv, bool isTopRight)
     float halfU = 0.5;
     float halfV = 0.5;
 
-    float border_u = 0.04;
-    float border_v = 0.04;
+    float border_u = terrain_texture_pad_x;
+    float border_v = terrain_texture_pad_y;
 
     if (isTopRight)
     {
