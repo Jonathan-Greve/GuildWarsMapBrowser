@@ -201,6 +201,20 @@ public:
         m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
     }
 
+    void UpdateTerrainTexturePadding(float padding_x, float padding_y)
+    {
+        auto cb = m_terrain->m_per_terrain_cb;
+        cb.terrain_texture_pad_x = padding_x;
+        cb.terrain_texture_pad_y = padding_y;
+        m_terrain->m_per_terrain_cb = cb;
+
+        D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
+        ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
+        m_deviceContext->Map(m_per_terrain_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
+        memcpy(mappedResourceFrame.pData, &m_terrain->m_per_terrain_cb, sizeof(PerTerrainCB));
+        m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
+    }
+
     Terrain* GetTerrain() { return m_terrain; }
 
     void SetTerrain(Terrain* terrain, int texture_atlas_id)
