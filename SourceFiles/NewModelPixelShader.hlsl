@@ -68,98 +68,105 @@ struct PSOutput
 	float4 rt_1_output : SV_TARGET1; // Goes to second render target
 };
 
-PSOutput main(PixelInputType input)
+float3 compute_normalmap_lighting(const float3 normalmap_sample, const float3x3 TBN, const float3 pos)
 {
-    float3 normalFromMap = shaderTextures[1].Sample(ss, input.tex_coords2).rgb * 2.0 - 1.0;
-
     // Transform the normal from tangent space to world space
-    float3 normal = normalize(mul(normalFromMap, input.TBN));
+    const float3 normal = normalize(mul(normalmap_sample, TBN));
 
 	// Extract the camera position from the view matrix
-    float3 cameraPosition = float3(View._41, View._42, View._43);
+    const float3 camera_position = float3(View._41, View._42, View._43);
 
     // Compute lighting with the Phong reflection model for a directional light
-    float3 lightDir = -directionalLight.direction; // The light direction points towards the light source
-    float3 viewDir = normalize(cameraPosition - input.position.xyz);
-    float3 reflectDir = reflect(-lightDir, normal);
+    const float3 light_dir = -directionalLight.direction; // The light direction points towards the light source
+    const float3 view_dir = normalize(camera_position - pos);
+    const float3 reflect_dir = reflect(-light_dir, normal);
 
-    float shininess = 2;
+    const float shininess = 2;
 
-    float diff = max(dot(normal, lightDir), 0.0);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-    
-    float3 diffuse = diff * directionalLight.ambient.rbg;
-    float3 specular = spec * directionalLight.specular.rgb;
+    const float diff = max(dot(normal, light_dir), 0.0);
+    const float spec = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
 
-    // Use lightingColor for precomputed or ambient lighting
-    float3 finalColor = input.lightingColor.rgb + diffuse + specular;
+    const float3 diffuse = diff * directionalLight.ambient.rbg;
+    const float3 specular = spec * directionalLight.specular.rgb;
 
-    // Apply textures
-	float4 sampledTextureColor = float4(1, 1, 1, 1);
-	float2 texCoordsArray[8] =
-	{
-		input.tex_coords0, input.tex_coords1, input.tex_coords2, input.tex_coords3,
+    return float3(1, 1, 1) + diffuse + specular;
+};
+
+PSOutput main(PixelInputType input)
+{
+    float4 sampled_texture_color = float4(1, 1, 1, 1);
+    float2 tex_coords_array[8] =
+    {
+        input.tex_coords0, input.tex_coords1, input.tex_coords2, input.tex_coords3,
                                  input.tex_coords4, input.tex_coords5, input.tex_coords6, input.tex_coords7
-	};
+    };
 
-	for (int j = 0; j < (num_uv_texture_pairs + 3) / 4; ++j)
-	{
-		for (int k = 0; k < 4; ++k)
-		{
-			uint uv_set_index = uv_indices[j][k];
-			uint texture_index = texture_indices[j][k];
-			uint blend_flag = blend_flags[j][k];
+    float3 lighting_color = float3(1, 1, 1);
 
-			if (texture_index == 1)
-			{
-                continue;
+    bool first_non_normalmap_texture_applied = false;
+    for (int j = 0; j < (num_uv_texture_pairs + 3) / 4; ++j)
+    {
+        for (int k = 0; k < 4; ++k)
+        {
+            uint uv_set_index = uv_indices[j][k];
+            const uint texture_index = texture_indices[j][k];
+            const uint blend_flag = blend_flags[j][k];
+            const uint texture_type = texture_types[j][k] & 0xFF;
+
+
+            if (j * 4 + k >= num_uv_texture_pairs)
+            {
+                break;
             }
 
-			if (j * 4 + k >= num_uv_texture_pairs)
-			{
-				break;
-			}
-
-			for (int t = 0; t < 8; ++t)
-			{
-				if (t == texture_index)
-				{
-					float4 currentSampledTextureColor = shaderTextures[t].Sample(ss, texCoordsArray[uv_set_index]);
-					if (blend_flag == 0)
-					{
-                        currentSampledTextureColor.a = 1;
+            for (int t = 0; t < 8; ++t)
+            {
+                if (t == texture_index)
+                {
+                    if (texture_type == 2)
+                    {
+						// Compute normal map lighting
+                        const float3 normal_from_map = shaderTextures[t].Sample(ss, tex_coords_array[uv_set_index]).rgb * 2.0 - 1.0;
+                        float3 pos = input.position.xyz;
+                        lighting_color = compute_normalmap_lighting(normal_from_map, input.TBN, pos);
                     }
+                    else
+                    {
+                        if (!first_non_normalmap_texture_applied)
+                        {
+                            float4 current_sampled_texture_color = shaderTextures[t].Sample(ss, tex_coords_array[uv_set_index]);
+                            if (blend_flag == 0)
+                            {
+                                current_sampled_texture_color.a = 1;
+                            }
 
-                    // Use lerp for blending textures
-                    sampledTextureColor = saturate(sampledTextureColor * currentSampledTextureColor);
-					break;
-				}
-			}
-		}
-	}
+                            sampled_texture_color = saturate(sampled_texture_color * current_sampled_texture_color);
+                            first_non_normalmap_texture_applied = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-    if (sampledTextureColor.a <= 0.0f)
+    if (sampled_texture_color.a <= 0.0f)
     {
         discard;
     }
 
-    // Multiply the blended color with the finalColor
-	if (num_uv_texture_pairs > 0)
-	{
-		finalColor = finalColor * sampledTextureColor;
-	}
+    float3 final_color = lighting_color * sampled_texture_color.rgb;
 
+    PSOutput output;
+    output.rt_0_output = float4(final_color, sampled_texture_color.a);
 
-	PSOutput output;
-    output.rt_0_output = float4(finalColor.rgb, sampledTextureColor.a);
-
-	float4 colorId = float4(0, 0, 0, 1);
-	colorId.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
-	colorId.g = (float) ((object_id & 0x0000FF00) >> 8) / 255.0f;
-	colorId.b = (float) ((object_id & 0x000000FF)) / 255.0f;
+	float4 color_id = float4(0, 0, 0, 1);
+	color_id.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
+	color_id.g = (float) ((object_id & 0x0000FF00) >> 8) / 255.0f;
+	color_id.b = (float) ((object_id & 0x000000FF)) / 255.0f;
 
     // Render target for picking
-	output.rt_1_output = colorId;
+	output.rt_1_output = color_id;
 
 	return output;
 }
