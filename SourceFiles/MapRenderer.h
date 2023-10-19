@@ -450,6 +450,8 @@ public:
         static auto cameraCB = PerCameraCB();
         XMStoreFloat4x4(&cameraCB.view, XMMatrixTranspose(m_user_camera->GetView()));
         XMStoreFloat4x4(&cameraCB.projection, XMMatrixTranspose(m_user_camera->GetProj()));
+        XMStoreFloat3(&cameraCB.position, m_user_camera->GetPosition());
+
         D3D11_MAPPED_SUBRESOURCE mappedResource;
         ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
         m_deviceContext->Map(m_per_camera_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);

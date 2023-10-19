@@ -29,6 +29,8 @@ cbuffer PerCameraCB : register(b2)
 {
     matrix View;
     matrix Projection;
+    float3 cam_position;
+    float pad[1];
 };
 
 struct VertexInputType
@@ -98,8 +100,7 @@ PixelInputType main(VertexInputType input)
         float4 diffuseComponent = directionalLight.diffuse * NdotL;
 
 	    // Calculate the specular component using the Blinn-Phong model
-        float3 cameraPosition = float3(View._41, View._42, View._43);
-        float3 viewDirection = normalize(cameraPosition - worldPosition.xyz);
+        float3 viewDirection = normalize(cam_position - worldPosition.xyz);
         float3 halfVector = normalize(-directionalLight.direction + viewDirection);
         float NdotH = max(dot(normal, halfVector), 0.0);
         float shininess = 80.0; // You can adjust this value for shininess
