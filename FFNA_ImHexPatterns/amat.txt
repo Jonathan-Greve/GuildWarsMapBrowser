@@ -99,40 +99,47 @@ struct TECH {
   u32 u2;
   u32 u3;
   u32 some_size;
-  u8 some_data[some_size-4];
-  u32 tex_uv_indices_maybe[(data_size-some_size-12) / 4];
+  //u8 some_data[some_size-4];
+  //u32 tex_uv_indices_maybe[(data_size-some_size-12) / 4];
 };
 
 struct DX9S<auto num_textures> {
   u32 signature;
   u32 chunk_size;
   DX9S_0<num_textures> sub_chunk_0;
-  SHAD0 SHAD_chunk_0;
+  
+  u32 bytes = 0;
+  
+  u32 next_id = std::mem::read_unsigned($, 4, std::mem::Endian::Big);
+  if (next_id == 0x53484144){
+    SHAD0 SHAD_chunk_0;
+    bytes += sizeof(SHAD_chunk_0);
+  }
+  
   SHAD SHAD_chunk_1;
   
   u32 data0[3];
   
-  u32 bytes = 0;
-  u32 next_id = std::mem::read_unsigned($, 4, std::mem::Endian::Big);
-  if (next_id == 0x54454348){
+  
+  next_id = std::mem::read_unsigned($, 4, std::mem::Endian::Big);
+  if (next_id == 0x48434554){
     TECH tech_high;
     bytes += sizeof(tech_high);
   }
     
   next_id = std::mem::read_unsigned($, 4, std::mem::Endian::Big);
-  if (next_id == 0x54454348){
+  if (next_id == 0x48434554){
     TECH tech_medium;
     bytes += sizeof(tech_medium);
   }
   
   next_id = std::mem::read_unsigned($, 4, std::mem::Endian::Big);
-  if (next_id == 0x54454348){
+  if (next_id == 0x48434554){
     TECH tech_low;
     bytes += sizeof(tech_low);
   }
   
   u8 chunk_data[chunk_size-sizeof(sub_chunk_0) - 
-    sizeof(SHAD_chunk_0) - 
     sizeof(SHAD_chunk_1) - 
     sizeof(data0) -
     bytes
