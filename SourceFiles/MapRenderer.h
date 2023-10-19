@@ -49,7 +49,7 @@ public:
         // Setup lighting
         m_directionalLight.ambient = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
         m_directionalLight.diffuse = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
-        m_directionalLight.specular = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
+        m_directionalLight.specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
         m_directionalLight.direction = XMFLOAT3(1.0f, -1.0f, 0.0f);
         m_directionalLight.pad = 0.0f;
 
