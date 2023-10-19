@@ -34,8 +34,10 @@ cbuffer PerObjectCB : register(b1)
 
 cbuffer PerCameraCB : register(b2)
 {
-	matrix View;
-	matrix Projection;
+    matrix View;
+    matrix Projection;
+    float3 cam_position;
+    float cam_pad[1];
 };
 
 cbuffer PerTerrainCB : register(b3)
@@ -78,12 +80,9 @@ float3 compute_normalmap_lighting(const float3 normalmap_sample, const float3x3 
     // Transform the normal from tangent space to world space
     const float3 normal = normalize(mul(normalmap_sample, TBN));
 
-	// Extract the camera position from the view matrix
-    const float3 camera_position = float3(View._41, View._42, View._43);
-
     // Compute lighting with the Phong reflection model for a directional light
     const float3 light_dir = -directionalLight.direction; // The light direction points towards the light source
-    const float3 view_dir = normalize(camera_position - pos);
+    const float3 view_dir = normalize(cam_position - pos);
     const float3 reflect_dir = reflect(-light_dir, normal);
 
     const float shininess = 2;
@@ -175,5 +174,6 @@ PSOutput main(PixelInputType input)
 
 	return output;
 }
+
 )";
 };
