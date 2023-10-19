@@ -35,6 +35,8 @@ cbuffer PerCameraCB : register(b2)
 {
     matrix View;
     matrix Projection;
+    float3 cam_position;
+    float cam_pad[1];
 };
 
 cbuffer PerTerrainCB : register(b3)
