@@ -223,7 +223,8 @@ struct TECH
 		std::memcpy(&some_size, &data_buffer[curr_offset], sizeof(some_size));
 		curr_offset += sizeof(some_size);
 
-		uint32_t some_data_size = some_size - sizeof(some_size); // some_size includes itself so subtract sizeof(some_size)
+		uint32_t some_data_size = some_size - sizeof(some_size);
+		// some_size includes itself so subtract sizeof(some_size)
 		some_data.resize(some_data_size);
 
 		std::memcpy(some_data.data(), &data_buffer[curr_offset], some_data_size);
@@ -264,7 +265,11 @@ struct DX9S
 		curr_offset += sizeof(chunk_size);
 
 		sub_chunk_0 = DX9S_0(curr_offset, data_buffer, data_size_bytes, parsed_correctly, grmt_chunk);
-		SHAD_chunk_0 = SHAD(curr_offset, data_buffer, data_size_bytes, parsed_correctly);
+		if (curr_offset + 4 < data_size_bytes && *((uint32_t*)(&data_buffer[curr_offset])) == 0x44414853)
+		{
+			SHAD_chunk_0 = SHAD(curr_offset, data_buffer, data_size_bytes, parsed_correctly);
+		}
+
 		if (!parsed_correctly) return;
 		SHAD_chunk_1 = SHAD(curr_offset, data_buffer, data_size_bytes, parsed_correctly);
 		if (!parsed_correctly) return;
@@ -285,7 +290,7 @@ struct DX9S
 			tech_low = TECH(curr_offset, data_buffer, data_size_bytes, parsed_correctly);
 		}
 
-		uint32_t remaining_data = chunk_size - (curr_offset - (initial_offset+8));
+		uint32_t remaining_data = chunk_size - (curr_offset - (initial_offset + 8));
 		if (curr_offset + remaining_data > data_size_bytes)
 		{
 			parsed_correctly = false;
