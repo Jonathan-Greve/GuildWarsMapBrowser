@@ -1479,6 +1479,11 @@ struct FFNA_ModelFile
                     blend_state  = BlendState::AlphaBlend;
                 }
 
+                if (texture_index > texture_filenames_chunk.actual_num_texture_filenames)
+                {
+	                texture_index = texture_index & 0x0F;
+                }
+
                 if (texture_filenames_chunk.actual_num_texture_filenames < texture_index &&
                     texture_filenames_chunk.actual_num_texture_filenames > 0)
                 {
