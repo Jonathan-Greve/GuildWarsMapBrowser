@@ -26,7 +26,7 @@ MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
         DXGI_FORMAT_R8G8B8A8_UNORM, 
         DXGI_FORMAT_D32_FLOAT, 
         2, 
-        D3D_FEATURE_LEVEL_11_1,
+        D3D_FEATURE_LEVEL_11_0,
         0
     );
 
