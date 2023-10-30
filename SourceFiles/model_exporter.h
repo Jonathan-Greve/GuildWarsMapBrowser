@@ -112,6 +112,9 @@ private:
 
 		const auto& texture_filenames = model_file.texture_filenames_chunk.texture_filenames;
 
+		// Texture filehash to the parsed gwmb_texture
+		std::unordered_map<int, gwmb_texture> gwmb_textures;
+
 		// Build gwmb_textures
 		for (int i = 0; i < texture_filenames.size(); i++) {
 			const auto texture_filename = texture_filenames[i];
@@ -153,6 +156,8 @@ private:
 				for (int j = 0; j < dat_texture.rgba_data.size(); j++) {
 					gwmb_texture_i.rgba_pixels[j] = { dat_texture.rgba_data[j].r / 255.f, dat_texture.rgba_data[j].g / 255.f, dat_texture.rgba_data[j].b / 255.f, dat_texture.rgba_data[j].a / 255.f };
 				}
+
+				gwmb_textures.insert({ decoded_filename, gwmb_texture_i });
 			}
 		}
 
