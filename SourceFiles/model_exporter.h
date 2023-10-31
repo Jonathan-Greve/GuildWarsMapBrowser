@@ -5,6 +5,7 @@
 #include <FFNA_ModelFile.h>
 #include <TextureManager.h>
 #include <PixelShader.h>
+#include <json.hpp>
 
 struct gwmb_vec2f
 {
@@ -88,30 +89,170 @@ struct gwmb_model
 	std::vector<int> submodels_draw_order; // Lower values are drawn before bigger values. This is local to the individual model.
 };
 
+namespace nlohmann {
+
+	template<>
+	struct adl_serializer<gwmb_vec2f> {
+		static void to_json(json& j, const gwmb_vec2f& v) {
+			j = json{ {"x", v.x}, {"y", v.y} };
+		}
+		static void from_json(const json& j, gwmb_vec2f& v) {
+			j.at("x").get_to(v.x);
+			j.at("y").get_to(v.y);
+		}
+	};
+
+	template<>
+	struct adl_serializer<gwmb_vec3f> {
+		static void to_json(json& j, const gwmb_vec3f& v) {
+			j = json{ {"x", v.x}, {"y", v.y}, {"z", v.z} };
+		}
+		static void from_json(const json& j, gwmb_vec3f& v) {
+			j.at("x").get_to(v.x);
+			j.at("y").get_to(v.y);
+			j.at("z").get_to(v.z);
+		}
+	};
+
+	template<>
+	struct adl_serializer<gwmb_vec4f> {
+		static void to_json(json& j, const gwmb_vec4f& v) {
+			j = json{ {"x", v.x}, {"y", v.y}, {"z", v.z}, {"w", v.w} };
+		}
+		static void from_json(const json& j, gwmb_vec4f& v) {
+			j.at("x").get_to(v.x);
+			j.at("y").get_to(v.y);
+			j.at("z").get_to(v.z);
+			j.at("w").get_to(v.w);
+		}
+	};
+
+	template<>
+	struct adl_serializer<gwmb_texture> {
+		static void to_json(json& j, const gwmb_texture& t) {
+			j = json{
+				{"file_hash", t.file_hash},
+				{"width", t.width},
+				{"height", t.height},
+				{"rgba_pixels", t.rgba_pixels}
+			};
+		}
+		static void from_json(const json& j, gwmb_texture& t) {
+			j.at("file_hash").get_to(t.file_hash);
+			j.at("width").get_to(t.width);
+			j.at("height").get_to(t.height);
+			j.at("rgba_pixels").get_to(t.rgba_pixels);
+		}
+	};
+
+	template<>
+	struct adl_serializer<gwmb_vertex> {
+		static void to_json(json& j, const gwmb_vertex& v) {
+			j = json{
+				{"has_normal", v.has_normal},
+				{"has_tangent", v.has_tangent},
+				{"has_bitangent", v.has_bitangent},
+				{"num_tex_coords", v.num_tex_coords},
+				{"pos", v.pos},
+				{"normal", v.normal},
+				{"texture_uv_coords", v.texture_uv_coords}
+			};
+
+			if (v.has_tangent) {
+				j["tangent"] = v.tangent;
+			}
+
+			if (v.has_bitangent) {
+				j["bitangent"] = v.bitangent;
+			}
+		}
+		static void from_json(const json& j, gwmb_vertex& v) {
+			j.at("has_normal").get_to(v.has_normal);
+			j.at("has_tangent").get_to(v.has_tangent);
+			j.at("has_bitangent").get_to(v.has_bitangent);
+			j.at("num_tex_coords").get_to(v.num_tex_coords);
+			j.at("pos").get_to(v.pos);
+			j.at("normal").get_to(v.normal);
+			j.at("texture_uv_coords").get_to(v.texture_uv_coords);
+
+			if (j.contains("has_tangent")) {
+				j.at("tangent").get_to(v.tangent);
+			}
+			else {
+				v.has_tangent = false;
+			}
+
+			if (j.contains("has_bitangent")) {
+				j.at("bitangent").get_to(v.bitangent);
+			}
+			else {
+				v.has_bitangent = false;
+			}
+		}
+	};
+
+	template<>
+	struct adl_serializer<gwmb_submodel> {
+		static void to_json(json& j, const gwmb_submodel& s) {
+			j = json{
+				{"vertices", s.vertices},
+				{"indices", s.indices},
+				{"texture_indices", s.texture_indices},
+				{"texture_uv_map_index", s.texture_uv_map_index},
+				{"pixel_shader_type", s.pixel_shader_type}
+			};
+		}
+		static void from_json(const json& j, gwmb_submodel& s) {
+			j.at("vertices").get_to(s.vertices);
+			j.at("indices").get_to(s.indices);
+			j.at("texture_indices").get_to(s.texture_indices);
+			j.at("texture_uv_map_index").get_to(s.texture_uv_map_index);
+			j.at("pixel_shader_type").get_to(s.pixel_shader_type);
+		}
+	};
+
+	template<>
+	struct adl_serializer<gwmb_model> {
+		static void to_json(json& j, const gwmb_model& m) {
+			j = json{
+				{"textures", m.textures},
+				{"submodels", m.submodels},
+				{"submodels_draw_order", m.submodels_draw_order}
+			};
+		}
+		static void from_json(const json& j, gwmb_model& m) {
+			j.at("textures").get_to(m.textures);
+			j.at("submodels").get_to(m.submodels);
+			j.at("submodels_draw_order").get_to(m.submodels_draw_order);
+		}
+	};
+}
+
+
 // Step 1) Convert data into the gwmb_model format.
 // Step 2) Write the data to a .gwmb file. A custom data format to be used when importing into other programs like Blender.
 class model_exporter {
 public:
-	static bool export_model(const std::string save_path, const int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager) {
+	static bool export_model(const std::string save_path, const int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, bool json_pretty_print = false) {
 		// Build model
-		gwmb_model model_to_export;
-		bool success = generate_gwmb_model(model_to_export, model_mft_index, dat_manager, hash_index, texture_manager);
+		gwmb_model model;
+		bool success = generate_gwmb_model(model, model_mft_index, dat_manager, hash_index, texture_manager);
 		if (!success)
 			return false;
 
-		std::vector<unsigned char> serialized_gwmb_model;
-		model_to_export.serialize(serialized_gwmb_model);
+		nlohmann::json j = model;
 
-		if (serialized_gwmb_model.size() <= 0)
-			return false;
-
-		// Write serialized data to file
-		std::ofstream file(save_path, std::ios::binary);
+		std::ofstream file(save_path);
 		if (!file) {
 			return false; // Failed to open the file
 		}
 
-		file.write(reinterpret_cast<const char*>(serialized_gwmb_model.data()), serialized_gwmb_model.size());
+		if (json_pretty_print){
+			file << j.dump(4);
+		}
+		else {
+			file << j.dump();
+		}
 		file.close();
 
 		return true; // Successfully exported the model
@@ -209,7 +350,7 @@ private:
 			gwmb_submodel_i.indices.resize(submodel.indices.size());
 			for (int j = 0; j < submodel.indices.size(); j++) {
 				const auto index = submodel.indices[j];
-				gwmb_submodel_i.indices.push_back(index);
+				gwmb_submodel_i.indices[j] = index;
 			}
 
 			AMAT_file amat_file;
