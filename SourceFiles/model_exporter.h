@@ -4,6 +4,7 @@
 #include <AMAT_file.h>
 #include <FFNA_ModelFile.h>
 #include <TextureManager.h>
+#include <PixelShader.h>
 
 struct gwmb_vec2f
 {
@@ -58,7 +59,6 @@ struct gwmb_vertex
 
 	// UV maps
 	std::vector<gwmb_vec2f> texture_uv_coords;
-
 };
 
 // In GW a model is usually divided into smaller parts. 
@@ -70,22 +70,21 @@ struct gwmb_submodel {
 	// Each consecutive 3 indices represents a face so: indices.size() % 3 == 0 and indices.size() > 0.
 	std::vector<int> indices;
 
-	std::vector<gwmb_texture> textures;
 
 	// The index of the texture to use for each UV map. The vector has length: num_texcoords
 	std::vector<int> texture_indices;
+
+	// Tells us which of the texture_uv_coords to use. So the value of any element in texture_uv_map_index is < texture_uv_coords.size()
+	std::vector<int> texture_uv_map_index;
+
+	PixelShaderType pixel_shader_type;
 };
 
 // GW Map Browser model contains the info required for the export
 struct gwmb_model
 {
-	// Some basic file info. Might not be needed in the exporter but might be interesting to store for debugging purposes.
-	int file_hash;
-	int filename_id0;
-	int filename_id1;
-	int dat_decompressed_size;
-
-	std::vector<gwmb_submodel> submodels;
+	std::vector<gwmb_texture> textures; // Multiple submodels can use the same textures (see their texture_indices which maps into this vector)
+	std::vector<gwmb_submodel> submodels; // A model consists of 1 or more submodels.
 	std::vector<int> submodels_draw_order; // Lower values are drawn before bigger values. This is local to the individual model.
 };
 
@@ -93,16 +92,33 @@ struct gwmb_model
 // Step 2) Write the data to a .gwmb file. A custom data format to be used when importing into other programs like Blender.
 class model_exporter {
 public:
-	bool export_model(const std::string save_path, const int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager) {
+	static bool export_model(const std::string save_path, const int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager) {
 		// Build model
 		gwmb_model model_to_export;
-		generate_gwmb_model(model_to_export, model_mft_index, dat_manager, hash_index, texture_manager);
+		bool success = generate_gwmb_model(model_to_export, model_mft_index, dat_manager, hash_index, texture_manager);
+		if (!success)
+			return false;
 
-		return false;
+		std::vector<unsigned char> serialized_gwmb_model;
+		model_to_export.serialize(serialized_gwmb_model);
+
+		if (serialized_gwmb_model.size() <= 0)
+			return false;
+
+		// Write serialized data to file
+		std::ofstream file(save_path, std::ios::binary);
+		if (!file) {
+			return false; // Failed to open the file
+		}
+
+		file.write(reinterpret_cast<const char*>(serialized_gwmb_model.data()), serialized_gwmb_model.size());
+		file.close();
+
+		return true; // Successfully exported the model
 	}
 
 private:
-	bool generate_gwmb_model(gwmb_model& model_out, int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager) {
+	static bool generate_gwmb_model(gwmb_model& model_out, int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager) {
 		auto model_file = dat_manager.parse_ffna_model_file(model_mft_index);
 
 		if (!model_file.parsed_correctly)
@@ -111,9 +127,6 @@ private:
 			return false;
 
 		const auto& texture_filenames = model_file.texture_filenames_chunk.texture_filenames;
-
-		// Texture filehash to the parsed gwmb_texture
-		std::unordered_map<int, gwmb_texture> gwmb_textures;
 
 		// Build gwmb_textures
 		for (int i = 0; i < texture_filenames.size(); i++) {
@@ -157,13 +170,11 @@ private:
 					gwmb_texture_i.rgba_pixels[j] = { dat_texture.rgba_data[j].r / 255.f, dat_texture.rgba_data[j].g / 255.f, dat_texture.rgba_data[j].b / 255.f, dat_texture.rgba_data[j].a / 255.f };
 				}
 
-				gwmb_textures.insert({ decoded_filename, gwmb_texture_i });
+				model_out.textures.push_back(gwmb_texture_i);
 			}
 		}
 
 		const auto& geometry_chunk = model_file.geometry_chunk;
-
-		gwmb_model new_gwmb_model;
 
 		// Loop over each submodel
 		for (int i = 0; i < geometry_chunk.models.size(); i++) {
@@ -201,12 +212,53 @@ private:
 				gwmb_submodel_i.indices.push_back(index);
 			}
 
-			// Add textures
-			if (!model_file.textures_parsed_correctly)
-				return false;
-			model_file.texture_filenames_chunk.texture_filenames;
+			AMAT_file amat_file;
+			if (model_file.AMAT_filenames_chunk.texture_filenames.size() > 0) {
+				int sub_model_index = geometry_chunk.models[i].unknown;
+				if (geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0)
+				{
+					sub_model_index %= geometry_chunk.tex_and_vertex_shader_struct.uts0.size();
+				}
+				const auto uts1 = geometry_chunk.uts1[sub_model_index % geometry_chunk.uts1.size()];
 
-			new_gwmb_model.submodels.push_back(gwmb_submodel_i);
+				const int amat_file_index = ((uts1.some_flags0 >> 8) & 0xFF) % model_file.AMAT_filenames_chunk.texture_filenames.size();
+				const auto amat_filename = model_file.AMAT_filenames_chunk.texture_filenames[amat_file_index];
+
+				const auto decoded_filename = decode_filename(amat_filename.id0, amat_filename.id1);
+
+
+				auto mft_entry_it = hash_index.find(decoded_filename);
+				if (mft_entry_it != hash_index.end())
+				{
+					auto file_index = mft_entry_it->second.at(0);
+					amat_file = dat_manager.parse_amat_file(file_index);
+				}
+			}
+
+			Mesh prop_mesh = model_file.GetMesh(i, amat_file);
+
+			gwmb_submodel_i.texture_indices.resize(prop_mesh.tex_indices.size());
+			for (int j = 0; j < prop_mesh.tex_indices.size(); j++) {
+				gwmb_submodel_i.texture_indices[j] = prop_mesh.tex_indices[j];
+			}
+			gwmb_submodel_i.texture_uv_map_index.resize(prop_mesh.uv_coord_indices.size());
+			for (int j = 0; j < prop_mesh.tex_indices.size(); j++) {
+				gwmb_submodel_i.texture_uv_map_index[j] = prop_mesh.uv_coord_indices[j];
+			}
+
+			int draw_order = 0;
+
+			auto pixel_shader_type = PixelShaderType::OldModel;
+			if (model_file.geometry_chunk.unknown_tex_stuff1.size() > 0)
+			{
+				pixel_shader_type = PixelShaderType::NewModel;
+				draw_order = amat_file.GRMT_chunk.sort_order;
+			}
+
+			gwmb_submodel_i.pixel_shader_type = pixel_shader_type;
+
+			model_out.submodels.push_back(gwmb_submodel_i);
+			model_out.submodels_draw_order.push_back(draw_order);
 		}
 
 		return true;
