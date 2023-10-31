@@ -214,6 +214,7 @@
     <ClInclude Include="SourceFiles\CheckerboardTexture.h" />
     <ClInclude Include="SourceFiles\ConstantBufferManager.h" />
     <ClInclude Include="SourceFiles\DATManager.h" />
+    <ClInclude Include="SourceFiles\json.hpp" />
     <ClInclude Include="SourceFiles\model_exporter.h" />
     <ClInclude Include="SourceFiles\NewModelPixelShader.h" />
     <ClInclude Include="SourceFiles\OldModelPixelShader.h" />

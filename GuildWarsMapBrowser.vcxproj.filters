@@ -116,6 +116,9 @@
     <Filter Include="Exporter">
       <UniqueIdentifier>{40bb86c4-a5b8-411d-8922-ee5a56c69ccd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="json">
+      <UniqueIdentifier>{b8a86971-31a7-40cc-a758-97364e36b660}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -414,6 +417,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\model_exporter.h">
       <Filter>Exporter</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\json.hpp">
+      <Filter>json</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
