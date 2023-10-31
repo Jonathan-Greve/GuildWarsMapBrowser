@@ -6,6 +6,8 @@
 #include <shobjidl.h>
 #include <numeric>
 
+#include <model_exporter.h>
+
 #include "writeHeighMapBMP.h"
 #include "writeOBJ.h"
 
@@ -624,7 +626,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 						}
 
 						std::vector<size_t> indices(sort_orders.size());
-						std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
+						std::iota(indices.begin(), indices.end(), 0);
 
 						std::sort(indices.begin(), indices.end(),
 						          [&sort_orders](size_t i1, size_t i2) { return sort_orders[i1] < sort_orders[i2]; });
@@ -638,7 +640,6 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 						    sorted_sort_orders[i] = sort_orders[indices[i]];
 						}
 
-						// If you want, you can now swap the sorted vectors with the original ones
 						prop_meshes.swap(sorted_prop_meshes);
 						sort_orders.swap(sorted_sort_orders);
 
@@ -1179,6 +1180,16 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 
 					if (item.type == FFNA_Type2)
 					{
+						if (ImGui::MenuItem("Export Mesh to custom format"))
+						{
+							std::wstring savePath =
+							OpenFileDialog(std::format(L"model_mesh_0x{:X}", item.hash), L"gwmb");
+							if (!savePath.empty())
+							{
+								std::string savePathStr(savePath.begin(), savePath.end());
+								model_exporter::export_model(savePathStr, item.id, dat_manager, hash_index, map_renderer->GetTextureManager());
+							}
+						}
 						if (ImGui::MenuItem("Export Mesh"))
 						{
 							std::wstring savePath =
@@ -1188,7 +1199,6 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 								parse_file(dat_manager, item.id, map_renderer, hash_index, items);
 								const auto obj_file_str = write_obj_str(prop_meshes);
 
-								// Convert the savePath to a string because std::ofstream does not work with std::wstring on all platforms
 								std::string savePathStr(savePath.begin(), savePath.end());
 
 								std::ofstream outFile(savePathStr);
@@ -1224,7 +1234,6 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 									std::wstring savePath =
 									saveDir + L"\\" + std::wstring(filename.begin(), filename.end());
 
-									// Convert the savePath to a string because std::ofstream does not work with std::wstring on all platforms
 									std::string savePathStr(savePath.begin(), savePath.end());
 
 									std::ofstream outFile(savePathStr);
