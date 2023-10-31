@@ -1180,10 +1180,10 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 
 					if (item.type == FFNA_Type2)
 					{
-						if (ImGui::MenuItem("Export Mesh to custom format"))
+						if (ImGui::MenuItem("Export model as JSON"))
 						{
 							std::wstring savePath =
-							OpenFileDialog(std::format(L"model_mesh_0x{:X}", item.hash), L"gwmb");
+							OpenFileDialog(std::format(L"model_0x{:X}_gwmb", item.hash), L".json");
 							if (!savePath.empty())
 							{
 								std::string savePathStr(savePath.begin(), savePath.end());
