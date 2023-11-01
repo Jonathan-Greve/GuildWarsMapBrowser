@@ -1,5 +1,6 @@
 import bpy
 import json
+import os
 
 
 def create_image_from_rgba(name, width, height, pixels):
@@ -9,7 +10,7 @@ def create_image_from_rgba(name, width, height, pixels):
     return image
 
 
-def create_multi_texture_material(name, images):
+def create_multi_texture_material(name, images, uv_map_names):
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     nodes = mat.node_tree.nodes
@@ -18,13 +19,17 @@ def create_multi_texture_material(name, images):
     bsdf = nodes["Principled BSDF"]
     last_color = bsdf.inputs['Base Color']
 
-    for image in images:
+    for index, image in enumerate(images):
         texImage = nodes.new('ShaderNodeTexImage')
         mixRGB = nodes.new('ShaderNodeMixRGB')
+        uvMap = nodes.new('ShaderNodeUVMap')  # UV Map node
 
         texImage.image = image
+        uvMap.uv_map = uv_map_names[index]  # Set UV map name
+
         mixRGB.blend_type = 'MULTIPLY'
 
+        links.new(uvMap.outputs[0], texImage.inputs[0])  # Connect UV map to texture
         links.new(mixRGB.inputs[1], texImage.outputs['Color'])
         links.new(mixRGB.inputs[2], last_color)
         last_color = mixRGB.outputs['Color']
@@ -35,40 +40,62 @@ def create_multi_texture_material(name, images):
     return mat
 
 
+def swap_axes(vec):
+    # Swap X and Y axis
+    return (vec['x'], vec['z'], vec['y'])
+
+
 def create_mesh_from_json(context, filepath):
     with open(filepath, 'r') as f:
         data = json.load(f)
 
-    images = [create_image_from_rgba("JSON_Texture_{}".format(i), tex['width'], tex['height'], tex['rgba_pixels']) for
-              i, tex in enumerate(data.get('textures', []))]
-    material = create_multi_texture_material("JSON_Material", images)
+    base_name = os.path.basename(filepath).split('.')[0]  # Something like "model_0x43A22_gwmb"
+    model_hash = base_name.split('_')[1]  # E.g., "0x43A22"
 
-    for submodel in data.get('submodels', []):
+    # Create all images from the json data
+    all_images = [create_image_from_rgba("gwmb_texture_{}".format(tex['file_hash']), tex['width'], tex['height'],
+                                         tex['rgba_pixels']) for tex in data.get('textures', [])]
+
+    for idx, submodel in enumerate(data.get('submodels', [])):
         vertices_data = submodel.get('vertices', [])
         indices = submodel.get('indices', [])
+        vertices = [swap_axes(v['pos']) for v in vertices_data]
 
-        vertices = [tuple(v['pos'].values()) for v in vertices_data]
+        # Normals
+        normals = [swap_axes(v['normal']) if v['has_normal'] else (0, 0, 1) for v in vertices_data]
 
-        # Extract all UV coords
-        uvs_list = []
-        for vertex in vertices_data:
-            uvs = vertex['texture_uv_coords']
-            for uv_coord in uvs:
-                uvs_list.append((uv_coord['x'], uv_coord['y']))
-
+        # Faces
         faces = [tuple(indices[i:i + 3]) for i in range(0, len(indices), 3)]
 
-        mesh = bpy.data.meshes.new(name="JSON_Submodel")
+        mesh = bpy.data.meshes.new(name="{}_submodel_{}".format(model_hash, idx))
         mesh.from_pydata(vertices, [], faces)
 
-        # Add UV maps
-        uv_layer = mesh.uv_layers.new()
-        for i, loop in enumerate(mesh.loops):
-            uv_layer.data[i].uv = uvs_list[loop.vertex_index]
+        # Set Normals
+        mesh.normals_split_custom_set_from_vertices(normals)
+
+        # Create material for the submodel
+        texture_indices = submodel.get('texture_indices', [])
+        uv_map_indices = submodel.get('texture_uv_map_index', [])
+
+        # Use only the textures specified in the texture_indices for this submodel
+        submodel_images = [all_images[i] for i in texture_indices]
+
+        uv_map_names = []
+        for uv_index, tex_index in enumerate(uv_map_indices):
+            uv_layer_name = "UV_{}".format(uv_index)
+            uv_map_names.append(uv_layer_name)
+            uv_layer = mesh.uv_layers.new(name=uv_layer_name)
+            uvs = []
+            for vertex in vertices_data:
+                uvs.append(vertex['texture_uv_coords'][tex_index])
+            for i, loop in enumerate(mesh.loops):
+                uv_layer.data[i].uv = (uvs[loop.vertex_index]['x'], uvs[loop.vertex_index]['y'])
+
+        material = create_multi_texture_material("Material_submodel_{}".format(idx), submodel_images, uv_map_names)
 
         mesh.update()
 
-        obj = bpy.data.objects.new("JSON_Submodel_Object", mesh)
+        obj = bpy.data.objects.new("{}_{}".format(model_hash, idx), mesh)
         obj.data.materials.append(material)
 
         context.collection.objects.link(obj)
@@ -80,7 +107,7 @@ def create_mesh_from_json(context, filepath):
 
 class IMPORT_OT_JSONMesh(bpy.types.Operator):
     bl_idname = "import_mesh.json"
-    bl_label = "Import JSON Mesh"
+    bl_label = "Import JSON model file"
     bl_options = {'REGISTER', 'UNDO'}
 
     filepath: bpy.props.StringProperty(subtype="FILE_PATH")
