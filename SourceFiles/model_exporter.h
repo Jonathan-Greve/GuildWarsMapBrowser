@@ -308,7 +308,8 @@ private:
 				gwmb_texture_i.width = dat_texture.width;
 				gwmb_texture_i.rgba_pixels.resize(dat_texture.rgba_data.size());
 				for (int j = 0; j < dat_texture.rgba_data.size(); j++) {
-					gwmb_texture_i.rgba_pixels[j] = { dat_texture.rgba_data[j].r / 255.f, dat_texture.rgba_data[j].g / 255.f, dat_texture.rgba_data[j].b / 255.f, dat_texture.rgba_data[j].a / 255.f };
+					// Switch r and b (the current pixels are in bgra so we save it as rgba instead)
+					gwmb_texture_i.rgba_pixels[j] = { dat_texture.rgba_data[j].b / 255.f, dat_texture.rgba_data[j].g / 255.f, dat_texture.rgba_data[j].r / 255.f, dat_texture.rgba_data[j].a / 255.f };
 				}
 
 				model_out.textures.push_back(gwmb_texture_i);
