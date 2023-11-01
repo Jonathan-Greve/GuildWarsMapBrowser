@@ -1512,7 +1512,7 @@ struct FFNA_ModelFile
 	            for (int i = 0; i < tex_infos.size(); i++)
 	            {
 				    actual_tex_indices[i] = tex_indices[tex_infos[i].tex_index % tex_indices.size()];
-				    actual_uv_coords_indices[i] = i; //uv_coords_indices[tex_infos[i].tex_index];
+				    actual_uv_coords_indices[i] = i % sub_model.vertices[0].num_texcoords; //uv_coords_indices[tex_infos[i].tex_index];
 	            }
 
                 tex_indices = actual_tex_indices;
