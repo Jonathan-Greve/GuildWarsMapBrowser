@@ -18,32 +18,54 @@ def create_image_from_rgba(name, width, height, pixels):
     return image
 
 
-def create_multi_texture_material(name, images, uv_map_names):
+def create_material_for_new_models(name, images, uv_map_names, texture_types):
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
+    nodes.clear()  # Clear default nodes (it comes with a ShaderNodeBsdfPrincipled and output as default, but we'll just create them ourselves)
 
-    bsdf = nodes["Principled BSDF"]
-    last_color = bsdf.inputs['Base Color']
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
 
+    # Set all options to 0, except Roughness to 1
+    for input in bsdf.inputs:
+        if input.name in ["Roughness", "Alpha"]:
+            input.default_value = 1.0
+        else:
+            # The default_value might be a single float or a tuple depending on the socket type
+            if isinstance(input.default_value, float):
+                input.default_value = 0.0
+            elif isinstance(input.default_value, tuple):
+                input.default_value = (0.0, 0.0, 0.0, 1.0)
+
+    done = False  # We only want to set the first non-normal texture. This is because I havent figured out the pixel shaders yet for these "new" models
     for index, image in enumerate(images):
+        texture_type = texture_types[index]
+
         texImage = nodes.new('ShaderNodeTexImage')
-        mixRGB = nodes.new('ShaderNodeMixRGB')
-        uvMap = nodes.new('ShaderNodeUVMap')  # UV Map node
+        uvMap = nodes.new('ShaderNodeUVMap')
 
         texImage.image = image
-        uvMap.uv_map = uv_map_names[index]  # Set UV map name
+        uvMap.uv_map = uv_map_names[index]
+        links.new(uvMap.outputs[0], texImage.inputs[0])
+        if texture_type == 2:
+            # Normal map
+            links.new(texImage.outputs['Color'], bsdf.inputs['Normal'])
+            continue
 
-        mixRGB.blend_type = 'MULTIPLY'
+        if not done:
+            links.new(texImage.outputs['Color'], bsdf.inputs['Base Color'])
+            done = True
 
-        links.new(uvMap.outputs[0], texImage.inputs[0])  # Connect UV map to texture
-        links.new(mixRGB.inputs[1], texImage.outputs['Color'])
-        links.new(mixRGB.inputs[2], last_color)
-        last_color = mixRGB.outputs['Color']
+    output = nodes.new('ShaderNodeOutputMaterial')
+    links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
 
-    links.new(bsdf.inputs['Base Color'], last_color)
-    links.new(nodes['Material Output'].inputs['Surface'], bsdf.outputs['BSDF'])
+    # Set material settings
+    # Set Blend Mode to 'Alpha Clip'
+    mat.blend_method = 'CLIP'
+
+    # Set Shadow Mode to 'Alpha Clip'
+    mat.shadow_method = 'CLIP'
 
     return mat
 
@@ -204,6 +226,18 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
 
     # Create the Principled BSDF and Output nodes
     bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+
+    # Set all options to 0, except Roughness to 1
+    for input in bsdf.inputs:
+        if input.name == "Roughness":
+            input.default_value = 1.0
+        else:
+            # The default_value might be a single float or a tuple depending on the socket type
+            if isinstance(input.default_value, float):
+                input.default_value = 0.0
+            elif isinstance(input.default_value, tuple):
+                input.default_value = (0.0, 0.0, 0.0, 1.0)
+
     if 'Color' in prev_texture_node.outputs:
         links.new(prev_texture_node.outputs['Color'], bsdf.inputs['Base Color'])
     elif 'Vector' in prev_texture_node.outputs:
@@ -242,7 +276,7 @@ def create_mesh_from_json(context, filepath):
     all_images = [create_image_from_rgba("gwmb_texture_{}".format(tex['file_hash']), tex['width'], tex['height'],
                                          tex['rgba_pixels']) for tex in data.get('textures', [])]
 
-    texture_types = [tex['texture_type'] for tex in data.get('textures', [])]
+    all_texture_types = [tex['texture_type'] for tex in data.get('textures', [])]
 
     for idx, submodel in enumerate(data.get('submodels', [])):
         pixel_shader_type = submodel['pixel_shader_type']
@@ -270,6 +304,8 @@ def create_mesh_from_json(context, filepath):
 
         # Use only the textures specified in the texture_indices for this submodel
         submodel_images = [all_images[i] for i in texture_indices]
+        # We also get the correct texture types for the selected textures above
+        texture_types = [all_texture_types[i] for i in texture_indices]
 
         uv_map_names = []
         for uv_index, tex_index in enumerate(uv_map_indices):
@@ -287,8 +323,12 @@ def create_mesh_from_json(context, filepath):
             # Old model
             material = create_material_for_old_models("Material_submodel_{}".format(idx), submodel_images, uv_map_names,
                                                       texture_blend_flags, texture_types)
+        elif pixel_shader_type == 7:
+            # New model
+            material = create_material_for_new_models("Material_submodel_{}".format(idx), submodel_images, uv_map_names,
+                                                      texture_types)
         else:
-            material = create_multi_texture_material("Material_submodel_{}".format(idx), submodel_images, uv_map_names)
+            raise "Unknown pixel_shader_type"
 
         mesh.update()
 
@@ -304,6 +344,7 @@ def create_mesh_from_json(context, filepath):
 
 class IMPORT_OT_JSONMesh(bpy.types.Operator):
     bl_idname = "import_mesh.json"
+    bl_description = "Import a Guild Wars Map Browser model file (.json)"
     bl_label = "Import JSON model file"
     bl_options = {'REGISTER', 'UNDO'}
 
