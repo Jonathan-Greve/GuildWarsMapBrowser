@@ -208,8 +208,7 @@ namespace nlohmann {
                 {"pixel_shader_type", s.pixel_shader_type}
             };
 
-            // Only add texture_blend_flags if it's not empty
-            if (!s.texture_blend_flags.empty()) {
+            if (s.pixel_shader_type == PixelShaderType::OldModel) {
                 j["texture_blend_flags"] = s.texture_blend_flags;
             }
         }
@@ -221,7 +220,6 @@ namespace nlohmann {
             j.at("texture_uv_map_index").get_to(s.texture_uv_map_index);
             j.at("pixel_shader_type").get_to(s.pixel_shader_type);
 
-            // Only try to retrieve texture_blend_flags if it exists in the JSON
             if (j.contains("texture_blend_flags")) {
                 j.at("texture_blend_flags").get_to(s.texture_blend_flags);
             }
@@ -403,8 +401,12 @@ private:
                 gwmb_submodel_i.texture_indices[j] = prop_mesh.tex_indices[j];
             }
             gwmb_submodel_i.texture_uv_map_index.resize(prop_mesh.uv_coord_indices.size());
-            for (int j = 0; j < prop_mesh.tex_indices.size(); j++) {
+            for (int j = 0; j < prop_mesh.uv_coord_indices.size(); j++) {
                 gwmb_submodel_i.texture_uv_map_index[j] = prop_mesh.uv_coord_indices[j];
+            }
+            gwmb_submodel_i.texture_blend_flags.resize(prop_mesh.blend_flags.size());
+            for (int j = 0; j < prop_mesh.blend_flags.size(); j++) {
+                gwmb_submodel_i.texture_blend_flags[j] = prop_mesh.blend_flags[j];
             }
 
             int draw_order = 0;
