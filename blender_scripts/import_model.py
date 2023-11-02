@@ -3,6 +3,14 @@ import json
 import os
 
 
+def clamp_output(node, nodes, links):
+    clampNode = nodes.new('ShaderNodeClamp')
+    clampNode.inputs[1].default_value = 0
+    clampNode.inputs[2].default_value = 1
+    links.new(node.outputs[0], clampNode.inputs[0])
+    return clampNode
+
+
 def create_image_from_rgba(name, width, height, pixels):
     flattened_pixels = [channel for px in pixels for channel in (px['x'], px['y'], px['z'], px['w'])]
     image = bpy.data.images.new(name, width=width, height=height)
@@ -61,9 +69,12 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
     initial_alpha_node.outputs[0].default_value = 1.0
     prev_alpha_node = initial_alpha_node
 
+    prev_blend_flag = -1
+    prev_texture_type = -1
+
     for index, image in enumerate(images):
-        print(blend_flags)
         blend_flag = blend_flags[index]
+        texture_type = texture_types[index]
 
         # Create Image Texture node
         texImage = nodes.new('ShaderNodeTexImage')
@@ -76,11 +87,86 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
 
         links.new(uvMap.outputs[0], texImage.inputs[0])
 
-        # Accumulate alpha
-        accumulated_alpha += texImage.outputs['Alpha'].default_value
+        if blend_flag in [3, 5]:
+            if prev_texture_type == 1:
+                # For Color
+                multiplyNode = nodes.new('ShaderNodeVectorMath')
+                multiplyNode.operation = 'MULTIPLY'
+                links.new(texImage.outputs['Alpha'], multiplyNode.inputs[0])
+                if 'Color' in prev_texture_node.outputs:
+                    links.new(prev_texture_node.outputs['Color'], multiplyNode.inputs[1])
+                elif 'Vector' in prev_texture_node.outputs:
+                    links.new(prev_texture_node.outputs['Vector'], multiplyNode.inputs[1])
+                elif 'Result' in prev_texture_node.outputs:
+                    links.new(prev_texture_node.outputs['Result'], multiplyNode.inputs[1])
 
-        # Depending on the blend_flag, perform the blending
-        if blend_flag == 0:
+                addNode = nodes.new('ShaderNodeVectorMath')
+                addNode.operation = 'ADD'
+                links.new(multiplyNode.outputs[0], addNode.inputs[0])
+                links.new(texImage.outputs['Color'], addNode.inputs[1])
+                prev_texture_node = addNode  # clamp_output(addNode, nodes, links)
+
+                # For Alpha
+                alphaMultiplyNode = nodes.new('ShaderNodeMath')
+                alphaMultiplyNode.operation = 'MULTIPLY'
+                links.new(texImage.outputs['Alpha'], alphaMultiplyNode.inputs[0])
+                links.new(prev_alpha_node.outputs[0], alphaMultiplyNode.inputs[1])
+
+                alphaAddNode = nodes.new('ShaderNodeMath')
+                alphaAddNode.operation = 'ADD'
+                links.new(alphaMultiplyNode.outputs[0], alphaAddNode.inputs[0])
+                links.new(texImage.outputs['Alpha'], alphaAddNode.inputs[1])
+                prev_alpha_node = clamp_output(alphaAddNode, nodes, links)
+
+            else:
+                # For Color
+                multiplyNode = nodes.new('ShaderNodeVectorMath')
+                multiplyNode.operation = 'MULTIPLY'
+                links.new(prev_alpha_node.outputs[0], multiplyNode.inputs[0])
+                links.new(texImage.outputs['Color'], multiplyNode.inputs[1])
+
+                addNode = nodes.new('ShaderNodeVectorMath')
+                addNode.operation = 'ADD'
+                links.new(multiplyNode.outputs[0], addNode.inputs[0])
+                if 'Color' in prev_texture_node.outputs:
+                    links.new(prev_texture_node.outputs['Color'], addNode.inputs[1])
+                elif 'Vector' in prev_texture_node.outputs:
+                    links.new(prev_texture_node.outputs['Vector'], addNode.inputs[1])
+                prev_texture_node = addNode  # clamp_output(addNode, nodes, links)
+
+                # For Alpha
+                alphaMultiplyNode = nodes.new('ShaderNodeMath')
+                alphaMultiplyNode.operation = 'MULTIPLY'
+                links.new(prev_alpha_node.outputs[0], alphaMultiplyNode.inputs[0])
+                links.new(texImage.outputs['Alpha'], alphaMultiplyNode.inputs[1])
+
+                alphaAddNode = nodes.new('ShaderNodeMath')
+                alphaAddNode.operation = 'ADD'
+                links.new(alphaMultiplyNode.outputs[0], alphaAddNode.inputs[0])
+                links.new(texImage.outputs['Alpha'], alphaAddNode.inputs[1])
+                prev_alpha_node = clamp_output(alphaAddNode, nodes, links)
+
+        elif blend_flag == 4 and index > 0:
+            # For Color
+            mixRGBNode = nodes.new('ShaderNodeMixRGB')
+            links.new(texImage.outputs['Alpha'], mixRGBNode.inputs[0])
+            if 'Color' in prev_texture_node.outputs:
+                links.new(prev_texture_node.outputs['Color'], mixRGBNode.inputs[1])
+            elif 'Vector' in prev_texture_node.outputs:
+                links.new(prev_texture_node.outputs['Vector'], mixRGBNode.inputs[1])
+            elif 'Result' in prev_texture_node.outputs:
+                links.new(prev_texture_node.outputs['Result'], mixRGBNode.inputs[1])
+
+            links.new(texImage.outputs['Color'], mixRGBNode.inputs[2])
+            prev_texture_node = mixRGBNode  # clamp_output(mixRGBNode, nodes, links)
+
+            # For Alpha
+            mixAlphaNode = nodes.new('ShaderNodeMixRGB')
+            links.new(texImage.outputs['Alpha'], mixAlphaNode.inputs[0])
+            links.new(prev_alpha_node.outputs[0], mixAlphaNode.inputs[1])
+            links.new(texImage.outputs['Alpha'], mixAlphaNode.inputs[2])
+            prev_alpha_node = clamp_output(mixAlphaNode, nodes, links)
+        else:
             # For Color
             multiplyNode = nodes.new('ShaderNodeVectorMath')
             multiplyNode.operation = 'MULTIPLY'
@@ -95,35 +181,47 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
             links.new(texImage.outputs['Alpha'], alphaMultiplyNode.inputs[1])
             prev_alpha_node = alphaMultiplyNode
 
-        elif blend_flag == 3:
-            multiplyNode = nodes.new('ShaderNodeVectorMath')
-            multiplyNode.operation = 'MULTIPLY'
-            links.new(prev_alpha_node.outputs[0], multiplyNode.inputs[0])
-            links.new(texImage.outputs['Color'], multiplyNode.inputs[1])
+            if not ((blend_flag == 7 and prev_blend_flag == 8) or blend_flag == 6 or blend_flag == 0):
+                # Multiply Color by 2
+                multiplyByTwoNode = nodes.new('ShaderNodeVectorMath')
+                multiplyByTwoNode.operation = 'MULTIPLY'
+                multiplyByTwoNode.inputs[1].default_value = (2, 2, 2)
+                links.new(prev_texture_node.outputs[0], multiplyByTwoNode.inputs[0])
+                prev_texture_node = multiplyByTwoNode
 
-            addNode = nodes.new('ShaderNodeVectorMath')
-            addNode.operation = 'ADD'
-            links.new(multiplyNode.outputs[0], addNode.inputs[0])
-            if 'Color' in prev_texture_node.outputs:
-                links.new(prev_texture_node.outputs['Color'], addNode.inputs[1])
-            elif 'Vector' in prev_texture_node.outputs:
-                links.new(prev_texture_node.outputs['Vector'], addNode.inputs[1])
-            prev_texture_node = addNode
+                # Multiply Alpha by 2
+                alphaMultiplyByTwoNode = nodes.new('ShaderNodeMath')
+                alphaMultiplyByTwoNode.operation = 'MULTIPLY'
+                alphaMultiplyByTwoNode.inputs[1].default_value = 2
+                links.new(prev_alpha_node.outputs[0], alphaMultiplyByTwoNode.inputs[0])
+                prev_alpha_node = alphaMultiplyByTwoNode
 
-        print(prev_texture_node)
+            # Clamp the Alpha output
+            prev_alpha_node = clamp_output(prev_alpha_node, nodes, links)
+
+        prev_blend_flag = blend_flag
+        prev_texture_type = texture_type
 
     # Create the Principled BSDF and Output nodes
-    print(prev_texture_node, prev_texture_node.outputs.keys())
-    print(prev_texture_node, prev_texture_node.outputs.keys())
-
     bsdf = nodes.new('ShaderNodeBsdfPrincipled')
     if 'Color' in prev_texture_node.outputs:
         links.new(prev_texture_node.outputs['Color'], bsdf.inputs['Base Color'])
     elif 'Vector' in prev_texture_node.outputs:
         links.new(prev_texture_node.outputs['Vector'], bsdf.inputs['Base Color'])
+    elif 'Result' in prev_texture_node.outputs:
+        links.new(prev_texture_node.outputs['Result'], bsdf.inputs['Base Color'])
+
+    links.new(prev_alpha_node.outputs[0], bsdf.inputs['Alpha'])
 
     output = nodes.new('ShaderNodeOutputMaterial')
     links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
+
+    # Set material settings
+    # Set Blend Mode to 'Alpha Clip'
+    mat.blend_method = 'CLIP'
+
+    # Set Shadow Mode to 'Alpha Clip'
+    mat.shadow_method = 'CLIP'
 
     return mat
 
