@@ -40,6 +40,94 @@ def create_multi_texture_material(name, images, uv_map_names):
     return mat
 
 
+def create_material_for_old_models(name, images, uv_map_names, blend_flags, texture_types):
+    mat = bpy.data.materials.new(name=name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()  # Clear default nodes
+
+    # Alpha accumulation variable
+    accumulated_alpha = 0
+
+    # Create RGB node
+    rgb_node = nodes.new('ShaderNodeRGB')
+    rgb_node.outputs[0].default_value = (1, 1, 1, 1)
+
+    prev_texture_node = rgb_node
+
+    # Create initial alpha node and set its value to 1
+    initial_alpha_node = nodes.new('ShaderNodeValue')
+    initial_alpha_node.outputs[0].default_value = 1.0
+    prev_alpha_node = initial_alpha_node
+
+    for index, image in enumerate(images):
+        print(blend_flags)
+        blend_flag = blend_flags[index]
+
+        # Create Image Texture node
+        texImage = nodes.new('ShaderNodeTexImage')
+        texImage.image = image
+        texImage.label = "gwmb_texture"
+
+        # Create UV Map node
+        uvMap = nodes.new('ShaderNodeUVMap')
+        uvMap.uv_map = uv_map_names[index]
+
+        links.new(uvMap.outputs[0], texImage.inputs[0])
+
+        # Accumulate alpha
+        accumulated_alpha += texImage.outputs['Alpha'].default_value
+
+        # Depending on the blend_flag, perform the blending
+        if blend_flag == 0:
+            # For Color
+            multiplyNode = nodes.new('ShaderNodeVectorMath')
+            multiplyNode.operation = 'MULTIPLY'
+            links.new(prev_texture_node.outputs[0], multiplyNode.inputs[0])
+            links.new(texImage.outputs['Color'], multiplyNode.inputs[1])
+            prev_texture_node = multiplyNode
+
+            # For Alpha
+            alphaMultiplyNode = nodes.new('ShaderNodeMath')
+            alphaMultiplyNode.operation = 'MULTIPLY'
+            links.new(prev_alpha_node.outputs[0], alphaMultiplyNode.inputs[0])
+            links.new(texImage.outputs['Alpha'], alphaMultiplyNode.inputs[1])
+            prev_alpha_node = alphaMultiplyNode
+
+        elif blend_flag == 3:
+            multiplyNode = nodes.new('ShaderNodeVectorMath')
+            multiplyNode.operation = 'MULTIPLY'
+            links.new(prev_alpha_node.outputs[0], multiplyNode.inputs[0])
+            links.new(texImage.outputs['Color'], multiplyNode.inputs[1])
+
+            addNode = nodes.new('ShaderNodeVectorMath')
+            addNode.operation = 'ADD'
+            links.new(multiplyNode.outputs[0], addNode.inputs[0])
+            if 'Color' in prev_texture_node.outputs:
+                links.new(prev_texture_node.outputs['Color'], addNode.inputs[1])
+            elif 'Vector' in prev_texture_node.outputs:
+                links.new(prev_texture_node.outputs['Vector'], addNode.inputs[1])
+            prev_texture_node = addNode
+
+        print(prev_texture_node)
+
+    # Create the Principled BSDF and Output nodes
+    print(prev_texture_node, prev_texture_node.outputs.keys())
+    print(prev_texture_node, prev_texture_node.outputs.keys())
+
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    if 'Color' in prev_texture_node.outputs:
+        links.new(prev_texture_node.outputs['Color'], bsdf.inputs['Base Color'])
+    elif 'Vector' in prev_texture_node.outputs:
+        links.new(prev_texture_node.outputs['Vector'], bsdf.inputs['Base Color'])
+
+    output = nodes.new('ShaderNodeOutputMaterial')
+    links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
+
+    return mat
+
+
 def swap_axes(vec):
     # Swap X and Y axis
     return (vec['x'], vec['z'], vec['y'])
@@ -56,10 +144,15 @@ def create_mesh_from_json(context, filepath):
     all_images = [create_image_from_rgba("gwmb_texture_{}".format(tex['file_hash']), tex['width'], tex['height'],
                                          tex['rgba_pixels']) for tex in data.get('textures', [])]
 
+    texture_types = [tex['texture_type'] for tex in data.get('textures', [])]
+
     for idx, submodel in enumerate(data.get('submodels', [])):
+        pixel_shader_type = submodel['pixel_shader_type']
         vertices_data = submodel.get('vertices', [])
         indices = submodel.get('indices', [])
         vertices = [swap_axes(v['pos']) for v in vertices_data]
+
+        texture_blend_flags = submodel.get('texture_blend_flags', [])
 
         # Normals
         normals = [swap_axes(v['normal']) if v['has_normal'] else (0, 0, 1) for v in vertices_data]
@@ -91,7 +184,13 @@ def create_mesh_from_json(context, filepath):
             for i, loop in enumerate(mesh.loops):
                 uv_layer.data[i].uv = (uvs[loop.vertex_index]['x'], uvs[loop.vertex_index]['y'])
 
-        material = create_multi_texture_material("Material_submodel_{}".format(idx), submodel_images, uv_map_names)
+        material = None
+        if pixel_shader_type == 6:
+            # Old model
+            material = create_material_for_old_models("Material_submodel_{}".format(idx), submodel_images, uv_map_names,
+                                                      texture_blend_flags, texture_types)
+        else:
+            material = create_multi_texture_material("Material_submodel_{}".format(idx), submodel_images, uv_map_names)
 
         mesh.update()
 
