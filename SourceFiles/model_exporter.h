@@ -249,14 +249,14 @@ namespace nlohmann {
 // Step 2) Write the data to a .gwmb file. A custom data format to be used when importing into other programs like Blender.
 class model_exporter {
 public:
-    static bool export_model(const std::string save_path, const int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, bool json_pretty_print = false) {
+    static bool export_model(const std::string& save_path, const int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
         // Build model
         gwmb_model model;
         bool success = generate_gwmb_model(model, model_mft_index, dat_manager, hash_index, texture_manager);
         if (!success)
             return false;
 
-        nlohmann::json j = model;
+        const nlohmann::json j = model;
 
         std::ofstream file(save_path);
         if (!file) {
