@@ -234,7 +234,7 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
         else:
             try:
                 # Assuming all other inputs can safely be set to a single float value or an RGBA tuple.
-                input.default_value = 0.0 if isinstance(input.default_value, float) else (0.0, 0.0, 0.0)
+                input.default_value = 0.0 if isinstance(input.default_value, float) else (0.0, 0.0, 0.0, 0.0)
             except Exception as e:
                 print(f"Error setting default value for {input.name}: {e}")
 
@@ -345,18 +345,27 @@ def create_mesh_from_json(context, filepath):
 
 class IMPORT_OT_JSONMesh(bpy.types.Operator):
     bl_idname = "import_mesh.json"
-    bl_description = "Import a Guild Wars Map Browser model file (.json)"
     bl_label = "Import JSON model file"
+    bl_description = "Import a Guild Wars Map Browser model file (.json)"
     bl_options = {'REGISTER', 'UNDO'}
 
-    filepath: bpy.props.StringProperty(subtype="FILE_PATH")
+    # Use a CollectionProperty to store multiple file paths
+    files: bpy.props.CollectionProperty(type=bpy.types.OperatorFileListElement)
+    directory: bpy.props.StringProperty(subtype='DIR_PATH')
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        return create_mesh_from_json(context, self.filepath)
+        # Iterate over the collection of file paths
+        for file_elem in self.files:
+            filepath = os.path.join(self.directory, file_elem.name)
+            result = create_mesh_from_json(context, filepath)
+            if 'FINISHED' not in result:
+                break  # If something went wrong, exit the loop
+
+        return {'FINISHED'}
 
 
 def menu_func_import(self, context):
