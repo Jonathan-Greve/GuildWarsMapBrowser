@@ -421,6 +421,9 @@
     <ClInclude Include="SourceFiles\json.hpp">
       <Filter>json</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\map_exporter.h">
+      <Filter>Exporter</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -670,6 +673,9 @@
       <Filter>Dat reader\Dat file parsers\AMAT</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\model_exporter.cpp">
+      <Filter>Exporter</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\map_exporter.cpp">
       <Filter>Exporter</Filter>
     </ClCompile>
   </ItemGroup>
