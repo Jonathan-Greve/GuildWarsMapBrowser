@@ -8,6 +8,7 @@
 
 #include <model_exporter.h>
 
+#include "map_exporter.h"
 #include "writeHeighMapBMP.h"
 #include "writeOBJ.h"
 
@@ -1292,6 +1293,16 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
 
 					if (item.type == FFNA_Type3)
 					{
+						if (ImGui::MenuItem("Export map as JSON"))
+						{
+							std::wstring savePath =
+								OpenFileDialog(std::format(L"map_0x{:X}_gwmb", item.hash), L"json");
+							if (!savePath.empty())
+							{
+								std::string savePathStr(savePath.begin(), savePath.end());
+								map_exporter::export_map(savePathStr, item.id, dat_manager, hash_index, map_renderer->GetTextureManager());
+							}
+						}
 						if (ImGui::MenuItem("Export Terrain Mesh as .obj"))
 						{
 							std::wstring savePath =
