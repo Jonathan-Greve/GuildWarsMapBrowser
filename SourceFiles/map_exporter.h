@@ -221,6 +221,8 @@ private:
             }
 
             // Now add all the models to the map
+
+            map.terrain = new_terrain;
         }
         else
         {
