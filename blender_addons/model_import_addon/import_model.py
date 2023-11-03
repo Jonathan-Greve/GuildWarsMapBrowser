@@ -232,11 +232,12 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
         if input.name == "Roughness":
             input.default_value = 1.0
         else:
-            # The default_value might be a single float or a tuple depending on the socket type
-            if isinstance(input.default_value, float):
-                input.default_value = 0.0
-            elif isinstance(input.default_value, tuple):
-                input.default_value = (0.0, 0.0, 0.0, 1.0)
+            try:
+                # Assuming all other inputs can safely be set to a single float value or an RGBA tuple.
+                input.default_value = 0.0 if isinstance(input.default_value, float) else (0.0, 0.0, 0.0)
+            except Exception as e:
+                print(f"Error setting default value for {input.name}: {e}")
+
 
     if 'Color' in prev_texture_node.outputs:
         links.new(prev_texture_node.outputs['Color'], bsdf.inputs['Base Color'])
