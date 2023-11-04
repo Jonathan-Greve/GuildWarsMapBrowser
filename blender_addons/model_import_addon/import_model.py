@@ -265,8 +265,18 @@ def swap_axes(vec):
     # Swap X and Y axis
     return (vec['x'], vec['z'], vec['y'])
 
+def ensure_collection(context, collection_name, parent_collection=None):
+    if collection_name not in bpy.data.collections:
+        new_collection = bpy.data.collections.new(collection_name)
+        if parent_collection:
+            parent_collection.children.link(new_collection)
+        else:
+            context.scene.collection.children.link(new_collection)
+    return bpy.data.collections[collection_name]
 
 def create_mesh_from_json(context, filepath):
+    gwmb_collection = ensure_collection(context, "GWMB Models")
+    
     with open(filepath, 'r') as f:
         data = json.load(f)
 
@@ -278,8 +288,22 @@ def create_mesh_from_json(context, filepath):
                                          tex['rgba_pixels']) for tex in data.get('textures', [])]
 
     all_texture_types = [tex['texture_type'] for tex in data.get('textures', [])]
+    
+    # Ensure a collection for the model hash exists under the GWMB_Models collection
+    model_collection = ensure_collection(context, model_hash, parent_collection=gwmb_collection)
+    
+    # Set the model's hash collection as the active collection
+    layer_collection = bpy.context.view_layer.layer_collection.children[gwmb_collection.name].children[model_collection.name]
+    bpy.context.view_layer.active_layer_collection = layer_collection
 
     for idx, submodel in enumerate(data.get('submodels', [])):
+        obj_name = "{}_{}".format(model_hash, idx)
+        
+        # Check if the object already exists and skip the creation if it does
+        if obj_name in bpy.data.objects:
+            print(f"Object {obj_name} already exists. Skipping.")
+            continue
+        
         pixel_shader_type = submodel['pixel_shader_type']
         vertices_data = submodel.get('vertices', [])
         indices = submodel.get('indices', [])
@@ -333,10 +357,13 @@ def create_mesh_from_json(context, filepath):
 
         mesh.update()
 
-        obj = bpy.data.objects.new("{}_{}".format(model_hash, idx), mesh)
+        obj = bpy.data.objects.new(obj_name, mesh)
         obj.data.materials.append(material)
+        
+        # Link the object to the model's collection directly
+        model_collection.objects.link(obj)
 
-        context.collection.objects.link(obj)
+        # Make sure the object is also in the scene collection for visibility
         context.view_layer.objects.active = obj
         obj.select_set(True)
 
