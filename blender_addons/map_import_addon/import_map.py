@@ -414,14 +414,19 @@ def create_map_from_json(context, filepath):
                 rotation_matrix = rotation_from_vectors(right_vector, look_vector, up_vector)
 
                 for obj in model_collection.objects:
+                    # Instead of manipulating the original objects, create linked duplicates
+                    # The linked duplicate will share the same mesh data as the original object
+                    linked_duplicate = obj.copy()
+#                    linked_duplicate.data = obj.data.copy()  # If you want to also duplicate the mesh data, remove this line
+                    linked_duplicate.animation_data_clear()
+
                     location = Vector((world_pos['x'], world_pos['z'], world_pos['y']))
                     scale_matrix = Matrix.Scale(scale, 4)
-
-                    # Create a translation matrix
                     translation_matrix = Matrix.Translation(location)
+                    linked_duplicate.matrix_world = translation_matrix @ rotation_matrix.to_4x4() @ scale_matrix
 
-                    # Combine the matrices
-                    obj.matrix_world = translation_matrix @ rotation_matrix.to_4x4() @ scale_matrix
+                    # Link the duplicate to the scene collection (or any specific collection you want)
+                    bpy.context.collection.objects.link(linked_duplicate)
 
             else:
                 print(f"No collection with the hash {model_hash} found within '{parent_collection_name}'.")
