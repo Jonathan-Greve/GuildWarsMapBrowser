@@ -321,7 +321,7 @@ def ensure_collection(context, collection_name, parent_collection=None):
 
 def create_map_from_json(context, filepath):
     print('create_map_from_json called')
-    gwmb_collection = ensure_collection(context, "GWMB Terrains")
+    gwmb_collection = ensure_collection(context, "GWMB Maps")
 
     base_name = os.path.basename(filepath).split('.')[0]
     map_hash = base_name.split('_')[1]
@@ -344,7 +344,7 @@ def create_map_from_json(context, filepath):
     all_images = [create_image_from_rgba("gwmb_texture_{}".format(tex['file_hash']), tex['width'], tex['height'],
                                          tex['rgba_pixels']) for tex in terrain_data['textures']]
 
-    terrain_collection = ensure_collection(context, map_hash, parent_collection=gwmb_collection)
+    map_collection = ensure_collection(context, map_hash, parent_collection=gwmb_collection)
 
     vertices_data = terrain_data.get('vertices', [])
     indices = terrain_data.get('indices', [])
@@ -374,7 +374,7 @@ def create_map_from_json(context, filepath):
     obj = bpy.data.objects.new(obj_name, mesh)
 
     # Link the object to the model's collection directly
-    terrain_collection.objects.link(obj)
+    map_collection.objects.link(obj)
 
     # Make sure the object is also in the scene collection for visibility
     context.view_layer.objects.active = obj
@@ -426,7 +426,7 @@ def create_map_from_json(context, filepath):
                     linked_duplicate.matrix_world = translation_matrix @ rotation_matrix.to_4x4() @ scale_matrix
 
                     # Link the duplicate to the scene collection (or any specific collection you want)
-                    bpy.context.collection.objects.link(linked_duplicate)
+                    map_collection.objects.link(linked_duplicate)
 
             else:
                 print(f"No collection with the hash {model_hash} found within '{parent_collection_name}'.")
