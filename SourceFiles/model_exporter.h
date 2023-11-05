@@ -250,6 +250,10 @@ namespace nlohmann {
 class model_exporter {
 public:
     static bool export_model(const std::string& save_path, const int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
+        if (std::filesystem::exists(save_path)) {
+            return true; // Return immediately if the file already exists
+        }
+
         // Build model
         gwmb_model model;
         const bool success = generate_gwmb_model(model, model_mft_index, dat_manager, hash_index, texture_manager);
