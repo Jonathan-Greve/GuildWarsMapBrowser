@@ -5,24 +5,10 @@ import os
 from mathutils import Vector, Matrix
 
 
-# This recursive function will print all collection names
-def list_collections(collection, indent=0):
-    print("    " * indent + collection.name)
-    for child in collection.children:
-        list_collections(child, indent + 1)
-
-
 # Function to create a rotation matrix from two vectors
-def rotation_from_vectors(forward_vec, up_vec):
-    # Normalizing input vectors
-    forward = forward_vec.normalized()
-    up = up_vec.normalized()
-    # Generating right vector by cross product of up and forward
-    right = up.cross(forward).normalized()
-    # Recalculating up vector to ensure orthogonality
-    up = forward.cross(right).normalized()
+def rotation_from_vectors(right_vec, forward_vec, up_vec):
     # Creating a 4x4 rotation matrix from right, up and forward vectors
-    rot_mat = Matrix([right, up, forward]).transposed().to_4x4()
+    rot_mat = Matrix([right_vec, forward_vec, up_vec]).to_4x4()
     return rot_mat
 
 
@@ -52,14 +38,26 @@ def create_material_for_new_models(name, images, uv_map_names, texture_types):
 
     # Set all options to 0, except Roughness to 1
     for input in bsdf.inputs:
-        if input.name in ["Roughness", "Alpha"]:
-            input.default_value = 1.0
-        else:
-            # The default_value might be a single float or a tuple depending on the socket type
-            if isinstance(input.default_value, float):
-                input.default_value = 0.0
-            elif isinstance(input.default_value, tuple):
-                input.default_value = (0.0, 0.0, 0.0, 1.0)
+        try:
+            # Check if the input is 'Roughness' and set it to 1.0
+            if input.name == "Roughness":
+                input.default_value = 1.0
+            # Otherwise, set other inputs based on their type
+            else:
+                # For color inputs which expect a 4-tuple RGBA
+                if input.type == 'RGBA':
+                    input.default_value = (0.0, 0.0, 0.0, 1.0)  # Assuming you want full opacity
+                # For vector inputs which expect a 3-tuple XYZ or RGB
+                elif input.type == 'VECTOR':
+                    input.default_value = (0.0, 0.0, 0.0)
+                # For float inputs which expect a single value
+                elif input.type == 'VALUE':
+                    input.default_value = 0.0
+                # Handle other input types as necessary
+                else:
+                    print(f"Unhandled input type {input.type} for {input.name}")
+        except Exception as e:
+            print(f"Error setting default value for {input.name}: {e}")
 
     done = False  # We only want to set the first non-normal texture. This is because I havent figured out the pixel shaders yet for these "new" models
     for index, image in enumerate(images):
@@ -252,14 +250,26 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
 
     # Set all options to 0, except Roughness to 1
     for input in bsdf.inputs:
-        if input.name == "Roughness":
-            input.default_value = 1.0
-        else:
-            try:
-                # Assuming all other inputs can safely be set to a single float value or an RGBA tuple.
-                input.default_value = 0.0 if isinstance(input.default_value, float) else (0.0, 0.0, 0.0, 0.0)
-            except Exception as e:
-                print(f"Error setting default value for {input.name}: {e}")
+        try:
+            # Check if the input is 'Roughness' and set it to 1.0
+            if input.name == "Roughness":
+                input.default_value = 1.0
+            # Otherwise, set other inputs based on their type
+            else:
+                # For color inputs which expect a 4-tuple RGBA
+                if input.type == 'RGBA':
+                    input.default_value = (0.0, 0.0, 0.0, 1.0)  # Assuming you want full opacity
+                # For vector inputs which expect a 3-tuple XYZ or RGB
+                elif input.type == 'VECTOR':
+                    input.default_value = (0.0, 0.0, 0.0)
+                # For float inputs which expect a single value
+                elif input.type == 'VALUE':
+                    input.default_value = 0.0
+                # Handle other input types as necessary
+                else:
+                    print(f"Unhandled input type {input.type} for {input.name}")
+        except Exception as e:
+            print(f"Error setting default value for {input.name}: {e}")
 
     if 'Color' in prev_texture_node.outputs:
         links.new(prev_texture_node.outputs['Color'], bsdf.inputs['Base Color'])
@@ -311,7 +321,6 @@ def ensure_collection(context, collection_name, parent_collection=None):
 
 def create_map_from_json(context, filepath):
     print('create_map_from_json called')
-    list_collections(bpy.context.scene.collection)
     gwmb_collection = ensure_collection(context, "GWMB Terrains")
 
     base_name = os.path.basename(filepath).split('.')[0]
@@ -379,8 +388,6 @@ def create_map_from_json(context, filepath):
     # Check if the parent collection exists
     if parent_collection_name in bpy.data.collections:
         parent_collection = bpy.data.collections[parent_collection_name]
-        print(f"len(parent_collection.children)={len(parent_collection.children)}")
-        print(f"len(map_models_data)={len(map_models_data)}")
 
         for model_data in map_models_data:
             # Convert the hash to a string with uppercase hexadecimal characters
@@ -394,22 +401,28 @@ def create_map_from_json(context, filepath):
                     break
 
             if model_collection:
-                print(f'{model_hash}-----------------------------------------------------------')
                 world_pos = model_data['world_pos']
+                model_right = model_data['model_right']
                 model_look = model_data['model_look']
                 model_up = model_data['model_up']
                 scale = model_data['scale']
 
                 # Calculate rotation matrix only once for all objects in the collection
+                right_vector = Vector((model_right['x'], model_right['z'], model_right['y']))
                 look_vector = Vector((model_look['x'], model_look['z'], model_look['y']))
                 up_vector = Vector((model_up['x'], model_up['z'], model_up['y']))
-                rotation_matrix = rotation_from_vectors(look_vector, up_vector)
+                rotation_matrix = rotation_from_vectors(right_vector, look_vector, up_vector)
 
                 for obj in model_collection.objects:
-                    # Apply transformations to each object in the collection
-                    obj.location = Vector((world_pos['x'], world_pos['z'], world_pos['y']))
-                    obj.scale = Vector((scale, scale, scale))
-                    obj.rotation_euler = rotation_matrix.to_euler()
+                    location = Vector((world_pos['x'], world_pos['z'], world_pos['y']))
+                    scale_matrix = Matrix.Scale(scale, 4)
+
+                    # Create a translation matrix
+                    translation_matrix = Matrix.Translation(location)
+
+                    # Combine the matrices
+                    obj.matrix_world = translation_matrix @ rotation_matrix.to_4x4() @ scale_matrix
+
             else:
                 print(f"No collection with the hash {model_hash} found within '{parent_collection_name}'.")
 
@@ -513,6 +526,7 @@ def create_mesh_from_json(context, filepath):
 
         mesh.update()
 
+        obj_name = "{}_{}".format(model_hash, idx)
         obj = bpy.data.objects.new(obj_name, mesh)
         obj.data.materials.append(material)
 
@@ -552,7 +566,10 @@ class IMPORT_OT_GWMBMap(bpy.types.Operator):
         file_list = [f for f in os.listdir(self.directory) if f.lower().endswith('.json')]
 
         map_full_path = None
+        i = 0
         for filename in file_list:
+            print(f'progress: {i}/{len(file_list)}')
+            i = i + 1
             full_path = os.path.join(self.directory, filename)
 
             if filename.lower().startswith("model_"):
