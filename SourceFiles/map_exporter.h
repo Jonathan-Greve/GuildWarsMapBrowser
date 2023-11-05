@@ -32,6 +32,7 @@ struct gwmb_map_model
 {
     int model_hash;
     gwmb_vec3f world_pos; // To translate model into its world position.
+    gwmb_vec3f model_right; // The models right vector. Used for rotation.
     gwmb_vec3f model_up; // The models up vector. Used for rotation.
     gwmb_vec3f model_look; // THe models look vector. Used for rotation.
     float scale; // The scaling factor of the model when placed in the world.
@@ -84,6 +85,7 @@ namespace nlohmann {
             j = json{
                 {"model_hash", mm.model_hash},
                 {"world_pos", mm.world_pos},
+                {"model_right", mm.model_right},
                 {"model_up", mm.model_up},
                 {"model_look", mm.model_look},
                 {"scale", mm.scale}
@@ -92,6 +94,7 @@ namespace nlohmann {
         static void from_json(const json& j, gwmb_map_model& mm) {
             j.at("model_hash").get_to(mm.model_hash);
             j.at("world_pos").get_to(mm.world_pos);
+            j.at("model_right").get_to(mm.model_right);
             j.at("model_up").get_to(mm.model_up);
             j.at("model_look").get_to(mm.model_look);
             j.at("scale").get_to(mm.scale);
@@ -280,8 +283,9 @@ private:
                 new_map_model.model_hash = model_hash;
                 new_map_model.scale = prop_info.scaling_factor;
                 new_map_model.world_pos = { prop_info.x, prop_info.y, prop_info.z };
+                new_map_model.model_right = { v1.m128_f32[0], v1.m128_f32[1], v1.m128_f32[2] };
                 new_map_model.model_up = { v2.m128_f32[0], v2.m128_f32[1], v2.m128_f32[2] };
-                new_map_model.model_look = { -v3.m128_f32[0], -v3.m128_f32[1], v3.m128_f32[2] };
+                new_map_model.model_look = { v3.m128_f32[0], v3.m128_f32[1], v3.m128_f32[2] };
 
                 map.models.push_back(new_map_model);
             }
