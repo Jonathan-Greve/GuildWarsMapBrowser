@@ -108,9 +108,15 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
     prev_texture_node = rgb_node
 
     # Create initial alpha node and set its value to 1
+    # This is only uses for blending not for setting the alpha of the result
     initial_alpha_node = nodes.new('ShaderNodeValue')
     initial_alpha_node.outputs[0].default_value = 1.0
     prev_alpha_node = initial_alpha_node
+
+    # This will be used for setting the alpha of the result
+    initial_alpha_val_node = nodes.new('ShaderNodeValue')
+    initial_alpha_val_node.outputs[0].default_value = 0
+    prev_alpha_val_node = initial_alpha_val_node
 
     prev_blend_flag = -1
     prev_texture_type = -1
@@ -129,6 +135,38 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
         uvMap.uv_map = uv_map_names[index]
 
         links.new(uvMap.outputs[0], texImage.inputs[0])
+
+        # Update alpha_val node
+        modify_alpha_node = None
+        if blend_flag in [3, 6, 7]:
+            subNode = nodes.new('ShaderNodeMath')
+            subNode.operation = 'SUBTRACT'
+            links.new(initial_alpha_node.outputs[0], subNode.inputs[0])
+            links.new(texImage.outputs['Alpha'], subNode.inputs[1])
+            modify_alpha_node = subNode.outputs[0]
+        elif blend_flag == 0:
+            modify_alpha_node = initial_alpha_node.outputs[0]  # const val 1.0
+        else:
+            modify_alpha_node = texImage.outputs['Alpha']
+
+        # 1 - a
+        subNode = nodes.new('ShaderNodeMath')
+        subNode.operation = 'SUBTRACT'
+        links.new(initial_alpha_node.outputs[0], subNode.inputs[0])
+        links.new(prev_alpha_val_node.outputs[0], subNode.inputs[1])
+
+        # alpha * (1 - a)
+        multiplyNode = nodes.new('ShaderNodeMath')
+        multiplyNode.operation = 'MULTIPLY'
+        links.new(modify_alpha_node, multiplyNode.inputs[0])
+        links.new(subNode.outputs[0], multiplyNode.inputs[1])
+
+        addNode = nodes.new('ShaderNodeMath')
+        addNode.operation = 'ADD'
+        links.new(multiplyNode.outputs[0], addNode.inputs[0])
+        links.new(prev_alpha_val_node.outputs[0], addNode.inputs[1])
+
+        prev_alpha_val_node = addNode
 
         if blend_flag in [3, 5]:
             if prev_texture_type == 1:
@@ -192,6 +230,8 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
         elif blend_flag == 4 and index > 0:
             # For Color
             mixRGBNode = nodes.new('ShaderNodeMixRGB')
+            mixRGBNode.inputs['Fac'].default_value = 1.0
+            mixRGBNode.use_clamp = True
             links.new(texImage.outputs['Alpha'], mixRGBNode.inputs[0])
             if 'Color' in prev_texture_node.outputs:
                 links.new(prev_texture_node.outputs['Color'], mixRGBNode.inputs[1])
@@ -205,25 +245,13 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
 
             # For Alpha
             mixAlphaNode = nodes.new('ShaderNodeMixRGB')
+            mixAlphaNode.inputs['Fac'].default_value = 1.0
+            mixAlphaNode.use_clamp = True
             links.new(texImage.outputs['Alpha'], mixAlphaNode.inputs[0])
             links.new(prev_alpha_node.outputs[0], mixAlphaNode.inputs[1])
             links.new(texImage.outputs['Alpha'], mixAlphaNode.inputs[2])
             prev_alpha_node = clamp_output(mixAlphaNode, nodes, links)
         else:
-            # For Color
-            multiplyNode = nodes.new('ShaderNodeVectorMath')
-            multiplyNode.operation = 'MULTIPLY'
-            links.new(prev_texture_node.outputs[0], multiplyNode.inputs[0])
-            links.new(texImage.outputs['Color'], multiplyNode.inputs[1])
-            prev_texture_node = multiplyNode
-
-            # For Alpha
-            alphaMultiplyNode = nodes.new('ShaderNodeMath')
-            alphaMultiplyNode.operation = 'MULTIPLY'
-            links.new(prev_alpha_node.outputs[0], alphaMultiplyNode.inputs[0])
-            links.new(texImage.outputs['Alpha'], alphaMultiplyNode.inputs[1])
-            prev_alpha_node = alphaMultiplyNode
-
             if not ((blend_flag == 7 and prev_blend_flag == 8) or blend_flag == 6 or blend_flag == 0):
                 # Multiply Color by 2
                 multiplyByTwoNode = nodes.new('ShaderNodeVectorMath')
@@ -238,6 +266,25 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
                 alphaMultiplyByTwoNode.inputs[1].default_value = 2
                 links.new(prev_alpha_node.outputs[0], alphaMultiplyByTwoNode.inputs[0])
                 prev_alpha_node = alphaMultiplyByTwoNode
+
+            # For Color
+            mixRGBNode = nodes.new('ShaderNodeMixRGB')
+            mixRGBNode.blend_type = 'MULTIPLY'
+            if blend_flag == 0:
+                mixRGBNode.inputs['Fac'].default_value = 0.9
+            else:
+                mixRGBNode.inputs['Fac'].default_value = 1.0
+            mixRGBNode.use_clamp = True
+            links.new(prev_texture_node.outputs[0], mixRGBNode.inputs[1])
+            links.new(texImage.outputs['Color'], mixRGBNode.inputs[2])
+            prev_texture_node = mixRGBNode
+
+            # For Alpha
+            alphaMultiplyNode = nodes.new('ShaderNodeMath')
+            alphaMultiplyNode.operation = 'MULTIPLY'
+            links.new(prev_alpha_node.outputs[0], alphaMultiplyNode.inputs[0])
+            links.new(texImage.outputs['Alpha'], alphaMultiplyNode.inputs[1])
+            prev_alpha_node = alphaMultiplyNode
 
             # Clamp the Alpha output
             prev_alpha_node = clamp_output(prev_alpha_node, nodes, links)
@@ -278,7 +325,7 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
     elif 'Result' in prev_texture_node.outputs:
         links.new(prev_texture_node.outputs['Result'], bsdf.inputs['Base Color'])
 
-    links.new(prev_alpha_node.outputs[0], bsdf.inputs['Alpha'])
+    links.new(prev_alpha_val_node.outputs[0], bsdf.inputs['Alpha'])
 
     output = nodes.new('ShaderNodeOutputMaterial')
     links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
@@ -296,17 +343,6 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
 def swap_axes(vec):
     # Swap X and Y axis
     return (vec['x'], vec['z'], vec['y'])
-
-
-# Function to create image if it does not exist
-def ensure_image(tex):
-    image_name = "gwmb_texture_{}".format(tex['file_hash'])
-    if image_name not in bpy.data.images:
-        # If the image does not exist, create it
-        new_image = bpy.data.images.new(name=image_name, width=tex['width'], height=tex['height'], alpha=True)
-        # Here you would add the pixels to the image using tex['rgba_pixels']
-        # For example, using new_image.pixels = tex['rgba_pixels']
-    return bpy.data.images[image_name]
 
 
 def ensure_collection(context, collection_name, parent_collection=None):
@@ -417,7 +453,7 @@ def create_map_from_json(context, filepath):
                     # Instead of manipulating the original objects, create linked duplicates
                     # The linked duplicate will share the same mesh data as the original object
                     linked_duplicate = obj.copy()
-#                    linked_duplicate.data = obj.data.copy()  # If you want to also duplicate the mesh data, remove this line
+                    linked_duplicate.data = obj.data.copy()
                     linked_duplicate.animation_data_clear()
 
                     location = Vector((world_pos['x'], world_pos['z'], world_pos['y']))
