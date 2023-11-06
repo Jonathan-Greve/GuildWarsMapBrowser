@@ -12,7 +12,12 @@ def clamp_output(node, nodes, links):
 
 
 def create_image_from_rgba(name, width, height, pixels):
+    print(f'image name: {name}')
     flattened_pixels = [channel for px in pixels for channel in (px['x'], px['y'], px['z'], px['w'])]
+    if not name == 'gwmb_texture_112276':
+        print(flattened_pixels)
+        print(width)
+        print(height)
     image = bpy.data.images.new(name, width=width, height=height)
     image.pixels = flattened_pixels
     return image
@@ -87,9 +92,15 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
     prev_texture_node = rgb_node
 
     # Create initial alpha node and set its value to 1
+    # This is only uses for blending not for setting the alpha of the result
     initial_alpha_node = nodes.new('ShaderNodeValue')
     initial_alpha_node.outputs[0].default_value = 1.0
     prev_alpha_node = initial_alpha_node
+
+    # This will be used for setting the alpha of the result
+    initial_alpha_val_node = nodes.new('ShaderNodeValue')
+    initial_alpha_val_node.outputs[0].default_value = 0
+    prev_alpha_val_node = initial_alpha_val_node
 
     prev_blend_flag = -1
     prev_texture_type = -1
@@ -108,6 +119,38 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
         uvMap.uv_map = uv_map_names[index]
 
         links.new(uvMap.outputs[0], texImage.inputs[0])
+
+        # Update alpha_val node
+        modify_alpha_node = None
+        if blend_flag in [3, 6, 7]:
+            subNode = nodes.new('ShaderNodeMath')
+            subNode.operation = 'SUBTRACT'
+            links.new(initial_alpha_node.outputs[0], subNode.inputs[0])
+            links.new(texImage.outputs['Alpha'], subNode.inputs[1])
+            modify_alpha_node = subNode.outputs[0]
+        elif blend_flag == 0:
+            modify_alpha_node = initial_alpha_node.outputs[0]  # const val 1.0
+        else:
+            modify_alpha_node = texImage.outputs['Alpha']
+
+        # 1 - a
+        subNode = nodes.new('ShaderNodeMath')
+        subNode.operation = 'SUBTRACT'
+        links.new(initial_alpha_node.outputs[0], subNode.inputs[0])
+        links.new(prev_alpha_val_node.outputs[0], subNode.inputs[1])
+
+        # alpha * (1 - a)
+        multiplyNode = nodes.new('ShaderNodeMath')
+        multiplyNode.operation = 'MULTIPLY'
+        links.new(modify_alpha_node, multiplyNode.inputs[0])
+        links.new(subNode.outputs[0], multiplyNode.inputs[1])
+
+        addNode = nodes.new('ShaderNodeMath')
+        addNode.operation = 'ADD'
+        links.new(multiplyNode.outputs[0], addNode.inputs[0])
+        links.new(prev_alpha_val_node.outputs[0], addNode.inputs[1])
+
+        prev_alpha_val_node = addNode
 
         if blend_flag in [3, 5]:
             if prev_texture_type == 1:
@@ -189,20 +232,6 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
             links.new(texImage.outputs['Alpha'], mixAlphaNode.inputs[2])
             prev_alpha_node = clamp_output(mixAlphaNode, nodes, links)
         else:
-            # For Color
-            multiplyNode = nodes.new('ShaderNodeVectorMath')
-            multiplyNode.operation = 'MULTIPLY'
-            links.new(prev_texture_node.outputs[0], multiplyNode.inputs[0])
-            links.new(texImage.outputs['Color'], multiplyNode.inputs[1])
-            prev_texture_node = multiplyNode
-
-            # For Alpha
-            alphaMultiplyNode = nodes.new('ShaderNodeMath')
-            alphaMultiplyNode.operation = 'MULTIPLY'
-            links.new(prev_alpha_node.outputs[0], alphaMultiplyNode.inputs[0])
-            links.new(texImage.outputs['Alpha'], alphaMultiplyNode.inputs[1])
-            prev_alpha_node = alphaMultiplyNode
-
             if not ((blend_flag == 7 and prev_blend_flag == 8) or blend_flag == 6 or blend_flag == 0):
                 # Multiply Color by 2
                 multiplyByTwoNode = nodes.new('ShaderNodeVectorMath')
@@ -218,6 +247,20 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
                 links.new(prev_alpha_node.outputs[0], alphaMultiplyByTwoNode.inputs[0])
                 prev_alpha_node = alphaMultiplyByTwoNode
 
+            # For Color
+            mixRGBNode = nodes.new('ShaderNodeMixRGB')
+            mixRGBNode.blend_type = 'MULTIPLY'
+            links.new(prev_texture_node.outputs[0], mixRGBNode.inputs[1])
+            links.new(texImage.outputs['Color'], mixRGBNode.inputs[2])
+            prev_texture_node = mixRGBNode
+
+            # For Alpha
+            alphaMultiplyNode = nodes.new('ShaderNodeMath')
+            alphaMultiplyNode.operation = 'MULTIPLY'
+            links.new(prev_alpha_node.outputs[0], alphaMultiplyNode.inputs[0])
+            links.new(texImage.outputs['Alpha'], alphaMultiplyNode.inputs[1])
+            prev_alpha_node = alphaMultiplyNode
+
             # Clamp the Alpha output
             prev_alpha_node = clamp_output(prev_alpha_node, nodes, links)
 
@@ -229,15 +272,26 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
 
     # Set all options to 0, except Roughness to 1
     for input in bsdf.inputs:
-        if input.name == "Roughness":
-            input.default_value = 1.0
-        else:
-            try:
-                # Assuming all other inputs can safely be set to a single float value or an RGBA tuple.
-                input.default_value = 0.0 if isinstance(input.default_value, float) else (0.0, 0.0, 0.0, 0.0)
-            except Exception as e:
-                print(f"Error setting default value for {input.name}: {e}")
-
+        try:
+            # Check if the input is 'Roughness' and set it to 1.0
+            if input.name == "Roughness":
+                input.default_value = 1.0
+            # Otherwise, set other inputs based on their type
+            else:
+                # For color inputs which expect a 4-tuple RGBA
+                if input.type == 'RGBA':
+                    input.default_value = (0.0, 0.0, 0.0, 1.0)  # Assuming you want full opacity
+                # For vector inputs which expect a 3-tuple XYZ or RGB
+                elif input.type == 'VECTOR':
+                    input.default_value = (0.0, 0.0, 0.0)
+                # For float inputs which expect a single value
+                elif input.type == 'VALUE':
+                    input.default_value = 0.0
+                # Handle other input types as necessary
+                else:
+                    print(f"Unhandled input type {input.type} for {input.name}")
+        except Exception as e:
+            print(f"Error setting default value for {input.name}: {e}")
 
     if 'Color' in prev_texture_node.outputs:
         links.new(prev_texture_node.outputs['Color'], bsdf.inputs['Base Color'])
@@ -246,7 +300,7 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
     elif 'Result' in prev_texture_node.outputs:
         links.new(prev_texture_node.outputs['Result'], bsdf.inputs['Base Color'])
 
-    links.new(prev_alpha_node.outputs[0], bsdf.inputs['Alpha'])
+    links.new(prev_alpha_val_node.outputs[0], bsdf.inputs['Alpha'])
 
     output = nodes.new('ShaderNodeOutputMaterial')
     links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
@@ -265,6 +319,7 @@ def swap_axes(vec):
     # Swap X and Y axis
     return (vec['x'], vec['z'], vec['y'])
 
+
 def ensure_collection(context, collection_name, parent_collection=None):
     if collection_name not in bpy.data.collections:
         new_collection = bpy.data.collections.new(collection_name)
@@ -274,9 +329,10 @@ def ensure_collection(context, collection_name, parent_collection=None):
             context.scene.collection.children.link(new_collection)
     return bpy.data.collections[collection_name]
 
+
 def create_mesh_from_json(context, filepath):
     gwmb_collection = ensure_collection(context, "GWMB Models")
-    
+
     with open(filepath, 'r') as f:
         data = json.load(f)
 
@@ -288,22 +344,23 @@ def create_mesh_from_json(context, filepath):
                                          tex['rgba_pixels']) for tex in data.get('textures', [])]
 
     all_texture_types = [tex['texture_type'] for tex in data.get('textures', [])]
-    
+
     # Ensure a collection for the model hash exists under the GWMB_Models collection
     model_collection = ensure_collection(context, model_hash, parent_collection=gwmb_collection)
-    
+
     # Set the model's hash collection as the active collection
-    layer_collection = bpy.context.view_layer.layer_collection.children[gwmb_collection.name].children[model_collection.name]
+    layer_collection = bpy.context.view_layer.layer_collection.children[gwmb_collection.name].children[
+        model_collection.name]
     bpy.context.view_layer.active_layer_collection = layer_collection
 
     for idx, submodel in enumerate(data.get('submodels', [])):
         obj_name = "{}_{}".format(model_hash, idx)
-        
+
         # Check if the object already exists and skip the creation if it does
         if obj_name in bpy.data.objects:
             print(f"Object {obj_name} already exists. Skipping.")
             continue
-        
+
         pixel_shader_type = submodel['pixel_shader_type']
         vertices_data = submodel.get('vertices', [])
         indices = submodel.get('indices', [])
@@ -359,7 +416,7 @@ def create_mesh_from_json(context, filepath):
 
         obj = bpy.data.objects.new(obj_name, mesh)
         obj.data.materials.append(material)
-        
+
         # Link the object to the model's collection directly
         model_collection.objects.link(obj)
 
