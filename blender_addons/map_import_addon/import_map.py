@@ -38,6 +38,7 @@ def create_image_from_rgba(name, width, height, pixels):
     flattened_pixels = [channel for px in pixels for channel in (px['x'], px['y'], px['z'], px['w'])]
     image = bpy.data.images.new(name, width=width, height=height)
     image.pixels = flattened_pixels
+    image.update()
     return image
 
 
