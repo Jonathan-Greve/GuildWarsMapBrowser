@@ -26,14 +26,10 @@ def clamp_output(node, nodes, links):
 
 
 def create_image_from_rgba(name, width, height, pixels):
-    print(f'image name: {name}')
     flattened_pixels = [channel for px in pixels for channel in (px['x'], px['y'], px['z'], px['w'])]
-    if not name == 'gwmb_texture_112276':
-        print(flattened_pixels)
-        print(width)
-        print(height)
     image = bpy.data.images.new(name, width=width, height=height)
     image.pixels = flattened_pixels
+    image.update()
     return image
 
 
