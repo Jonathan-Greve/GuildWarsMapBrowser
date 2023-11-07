@@ -1,7 +1,21 @@
 import bpy
 import json
 import os
+import numpy as np
 
+# Function to calculate the average pixel value of an image
+def calculate_image_average(image):
+    # Assuming the image is already loaded into Blender's image data
+    pixels = np.array(image.pixels)
+    # The pixels array is a flat array with a sequence of R, G, B, A values for each pixel
+    # We reshape it to only focus on the RGB values
+    # If the image is not in RGBA format, this needs adjustment
+    pixel_length = len(pixels) // 4
+    pixel_array = pixels.reshape((pixel_length, 4))
+    # Calculate the average ignoring the alpha channel
+    average_rgb = np.mean(pixel_array[:, :3], axis=0)
+    # Return the average pixel value (average of R, G, and B)
+    return np.mean(average_rgb)
 
 def clamp_output(node, nodes, links):
     clampNode = nodes.new('ShaderNodeClamp')
@@ -214,6 +228,8 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
         elif blend_flag == 4 and index > 0:
             # For Color
             mixRGBNode = nodes.new('ShaderNodeMixRGB')
+            mixRGBNode.inputs['Fac'].default_value = 1.0
+            mixRGBNode.use_clamp = True
             links.new(texImage.outputs['Alpha'], mixRGBNode.inputs[0])
             if 'Color' in prev_texture_node.outputs:
                 links.new(prev_texture_node.outputs['Color'], mixRGBNode.inputs[1])
@@ -227,6 +243,8 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
 
             # For Alpha
             mixAlphaNode = nodes.new('ShaderNodeMixRGB')
+            mixAlphaNode.inputs['Fac'].default_value = 1.0
+            mixAlphaNode.use_clamp = True
             links.new(texImage.outputs['Alpha'], mixAlphaNode.inputs[0])
             links.new(prev_alpha_node.outputs[0], mixAlphaNode.inputs[1])
             links.new(texImage.outputs['Alpha'], mixAlphaNode.inputs[2])
@@ -250,6 +268,12 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
             # For Color
             mixRGBNode = nodes.new('ShaderNodeMixRGB')
             mixRGBNode.blend_type = 'MULTIPLY'
+            avg_pixel_value = calculate_image_average(image)
+            if (blend_flag == 0 and len(images) > 1) or avg_pixel_value < 0.2:
+                mixRGBNode.inputs['Fac'].default_value = 0.9
+            else:
+                mixRGBNode.inputs['Fac'].default_value = 1.0
+            mixRGBNode.use_clamp = True
             links.new(prev_texture_node.outputs[0], mixRGBNode.inputs[1])
             links.new(texImage.outputs['Color'], mixRGBNode.inputs[2])
             prev_texture_node = mixRGBNode
