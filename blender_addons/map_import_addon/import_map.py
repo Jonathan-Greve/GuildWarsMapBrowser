@@ -2,8 +2,22 @@ import bpy
 import json
 import time
 import os
+import numpy as np
 from mathutils import Vector, Matrix
 
+# Function to calculate the average pixel value of an image
+def calculate_image_average(image):
+    # Assuming the image is already loaded into Blender's image data
+    pixels = np.array(image.pixels)
+    # The pixels array is a flat array with a sequence of R, G, B, A values for each pixel
+    # We reshape it to only focus on the RGB values
+    # If the image is not in RGBA format, this needs adjustment
+    pixel_length = len(pixels) // 4
+    pixel_array = pixels.reshape((pixel_length, 4))
+    # Calculate the average ignoring the alpha channel
+    average_rgb = np.mean(pixel_array[:, :3], axis=0)
+    # Return the average pixel value (average of R, G, and B)
+    return np.mean(average_rgb)
 
 # Function to create a rotation matrix from two vectors
 def rotation_from_vectors(right_vec, forward_vec, up_vec):
@@ -270,7 +284,8 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
             # For Color
             mixRGBNode = nodes.new('ShaderNodeMixRGB')
             mixRGBNode.blend_type = 'MULTIPLY'
-            if blend_flag == 0:
+            avg_pixel_value = calculate_image_average(image)
+            if (blend_flag == 0 and len(images) > 1) or avg_pixel_value < 0.2:
                 mixRGBNode.inputs['Fac'].default_value = 0.9
             else:
                 mixRGBNode.inputs['Fac'].default_value = 1.0
