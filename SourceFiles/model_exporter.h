@@ -28,9 +28,6 @@ struct gwmb_texture
     int width;
     int height;
     TextureType texture_type;
-    // Stored per row (from top of image (row_0) to bottom of image (row_height-1))
-    // Each width*gwmb_vec4f is a row and are stored in order: row_0, row_1, ..., row_height-1.
-    std::vector<gwmb_vec4f> rgba_pixels;
 };
 
 // gwmb_vertex
@@ -139,7 +136,6 @@ namespace nlohmann {
                 {"width", t.width},
                 {"height", t.height},
                 {"texture_type", t.texture_type},
-                {"rgba_pixels", t.rgba_pixels}
             };
         }
         static void from_json(const json& j, gwmb_texture& t) {
@@ -147,7 +143,6 @@ namespace nlohmann {
             j.at("width").get_to(t.width);
             j.at("height").get_to(t.height);
             j.at("texture_type").get_to(t.texture_type);
-            j.at("rgba_pixels").get_to(t.rgba_pixels);
         }
     };
 
@@ -249,20 +244,22 @@ namespace nlohmann {
 // Step 2) Write the data to a .gwmb file. A custom data format to be used when importing into other programs like Blender.
 class model_exporter {
 public:
-    static bool export_model(const std::string& save_path, const int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
-        if (std::filesystem::exists(save_path)) {
+    static bool export_model(const std::string& save_dir, const std::string& filename, const int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
+        std::string saveFilePath = save_dir + "\\" + filename;
+
+        if (std::filesystem::exists(saveFilePath)) {
             return true; // Return immediately if the file already exists
         }
 
         // Build model
         gwmb_model model;
-        const bool success = generate_gwmb_model(model, model_mft_index, dat_manager, hash_index, texture_manager);
+        const bool success = generate_gwmb_model(model, model_mft_index, dat_manager, hash_index, texture_manager, save_dir);
         if (!success)
             return false;
 
         const nlohmann::json j = model;
 
-        std::ofstream file(save_path);
+        std::ofstream file(saveFilePath);
         if (!file) {
             return false; // Failed to open the file
         }
@@ -279,7 +276,7 @@ public:
     }
 
 private:
-    static bool generate_gwmb_model(gwmb_model& model_out, int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager) {
+    static bool generate_gwmb_model(gwmb_model& model_out, int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const std::string& save_dir) {
         auto model_file = dat_manager.parse_ffna_model_file(model_mft_index);
 
         if (!model_file.parsed_correctly)
@@ -303,7 +300,7 @@ private:
                 if (!entry)
                     return false;
 
-                int texture_id = -1; // not used
+                int texture_id = -1;
                 DatTexture dat_texture;
                 if (entry->type == DDS)
                 {
@@ -327,10 +324,16 @@ private:
                 gwmb_texture_i.height = dat_texture.height;
                 gwmb_texture_i.width = dat_texture.width;
                 gwmb_texture_i.texture_type = dat_texture.texture_type;
-                gwmb_texture_i.rgba_pixels.resize(dat_texture.rgba_data.size());
-                for (int j = 0; j < dat_texture.rgba_data.size(); j++) {
-                    // Switch r and b (the current pixels are in bgra so we save it as rgba instead)
-                    gwmb_texture_i.rgba_pixels[j] = { dat_texture.rgba_data[j].b / 255.f, dat_texture.rgba_data[j].g / 255.f, dat_texture.rgba_data[j].r / 255.f, dat_texture.rgba_data[j].a / 255.f };
+
+                ID3D11ShaderResourceView* texture =
+                    texture_manager->GetTexture(texture_id);
+
+                std::string texture_save_path = save_dir + "\\" + std::to_string(gwmb_texture_i.file_hash) + ".png";
+                std::wstring texture_save_pathw = std::wstring(texture_save_path.begin(), texture_save_path.end());
+
+                if (!SaveTextureToPng(texture, texture_save_pathw, texture_manager))
+                {
+                    throw "Unable to save texture to png while exporting model";
                 }
 
                 model_out.textures.push_back(gwmb_texture_i);

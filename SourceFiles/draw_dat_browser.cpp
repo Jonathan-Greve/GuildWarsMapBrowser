@@ -1194,13 +1194,10 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                                 // Use std::format to create the filename
                                 std::string filename = std::format("model_0x{:X}_gwmb.json", item.hash);
 
-                                std::wstring savePath =
-                                    saveDir + L"\\" + std::wstring(filename.begin(), filename.end());
-
-                                std::string savePathStr(savePath.begin(), savePath.end());
+                                std::string savePath(saveDir.begin(), saveDir.end());
                                 
                                 // Export the model to the chosen path
-                                model_exporter::export_model(savePathStr, item.id, dat_manager, hash_index, map_renderer->GetTextureManager());
+                                model_exporter::export_model(savePath, filename, item.id, dat_manager, hash_index, map_renderer->GetTextureManager());
                             }
                         }
                         if (ImGui::MenuItem("Export Mesh"))

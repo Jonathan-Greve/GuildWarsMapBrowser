@@ -172,16 +172,27 @@ private:
                 {
                     const DatTexture dat_texture =
                         dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
+                    int texture_id = -1;
+                    auto HR = texture_manager->CreateTextureFromRGBA(dat_texture.width,
+                        dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
+                        decoded_filename);
+
                     if (dat_texture.width > 0 && dat_texture.height > 0) {
                         gwmb_texture gwmb_texture_i;
                         gwmb_texture_i.file_hash = decoded_filename;
                         gwmb_texture_i.height = dat_texture.height;
                         gwmb_texture_i.width = dat_texture.width;
                         gwmb_texture_i.texture_type = dat_texture.texture_type;
-                        gwmb_texture_i.rgba_pixels.resize(dat_texture.rgba_data.size());
-                        for (int j = 0; j < dat_texture.rgba_data.size(); j++) {
-                            // Switch r and b (the current pixels are in bgra so we save it as rgba instead)
-                            gwmb_texture_i.rgba_pixels[j] = { dat_texture.rgba_data[j].b / 255.f, dat_texture.rgba_data[j].g / 255.f, dat_texture.rgba_data[j].r / 255.f, dat_texture.rgba_data[j].a / 255.f };
+
+                        ID3D11ShaderResourceView* texture =
+                            texture_manager->GetTexture(texture_id);
+
+                        std::string texture_save_path = save_directory + "\\" + std::to_string(gwmb_texture_i.file_hash) + ".png";
+                        std::wstring texture_save_pathw = std::wstring(texture_save_path.begin(), texture_save_path.end());
+
+                        if (!SaveTextureToPng(texture, texture_save_pathw, texture_manager))
+                        {
+                            throw "Unable to save texture to png while terrain texture";
                         }
 
                         new_terrain.textures.push_back(gwmb_texture_i);
@@ -234,7 +245,7 @@ private:
                 if (mft_entry_it != hash_index.end())
                 {
                     // Export model to map folder
-                    model_exporter::export_model(std::format("{}\\model_0x{:X}_gwmb.json", save_directory, decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
+                    model_exporter::export_model(save_directory, std::format("model_0x{:X}_gwmb.json", decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
                     model_hashes.push_back(decoded_filename);
                 }
             }
@@ -248,7 +259,7 @@ private:
                 if (mft_entry_it != hash_index.end())
                 {
                     // Export model to map folder
-                    model_exporter::export_model(std::format("{}\\model_0x{:X}_gwmb.json", save_directory, decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
+                    model_exporter::export_model(save_directory, std::format("model_0x{:X}_gwmb.json", decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
                     model_hashes.push_back(decoded_filename);
                 }
             }

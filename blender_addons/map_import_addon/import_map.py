@@ -5,20 +5,6 @@ import os
 import numpy as np
 from mathutils import Vector, Matrix
 
-# Function to calculate the average pixel value of an image
-def calculate_image_average(image):
-    # Assuming the image is already loaded into Blender's image data
-    pixels = np.array(image.pixels)
-    # The pixels array is a flat array with a sequence of R, G, B, A values for each pixel
-    # We reshape it to only focus on the RGB values
-    # If the image is not in RGBA format, this needs adjustment
-    pixel_length = len(pixels) // 4
-    pixel_array = pixels.reshape((pixel_length, 4))
-    # Calculate the average ignoring the alpha channel
-    average_rgb = np.mean(pixel_array[:, :3], axis=0)
-    # Return the average pixel value (average of R, G, and B)
-    return np.mean(average_rgb)
-
 # Function to create a rotation matrix from two vectors
 def rotation_from_vectors(right_vec, forward_vec, up_vec):
     # Creating a 4x4 rotation matrix from right, up and forward vectors
@@ -32,14 +18,6 @@ def clamp_output(node, nodes, links):
     clampNode.inputs[2].default_value = 1
     links.new(node.outputs[0], clampNode.inputs[0])
     return clampNode
-
-
-def create_image_from_rgba(name, width, height, pixels):
-    flattened_pixels = [channel for px in pixels for channel in (px['x'], px['y'], px['z'], px['w'])]
-    image = bpy.data.images.new(name, width=width, height=height)
-    image.pixels = flattened_pixels
-    image.update()
-    return image
 
 
 def create_material_for_new_models(name, images, uv_map_names, texture_types):
@@ -105,7 +83,6 @@ def create_material_for_new_models(name, images, uv_map_names, texture_types):
 
     return mat
 
-
 def create_material_for_old_models(name, images, uv_map_names, blend_flags, texture_types):
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
@@ -122,10 +99,13 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
 
     prev_texture_node = rgb_node
 
-    # Create initial alpha node and set its value to 1
+    const_node_1 = nodes.new('ShaderNodeValue')
+    const_node_1.outputs[0].default_value = 1.0
+
+    # Create initial alpha node and set its value to 2
     # This is only uses for blending not for setting the alpha of the result
     initial_alpha_node = nodes.new('ShaderNodeValue')
-    initial_alpha_node.outputs[0].default_value = 1.0
+    initial_alpha_node.outputs[0].default_value = 2.0
     prev_alpha_node = initial_alpha_node
 
     # This will be used for setting the alpha of the result
@@ -156,18 +136,19 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
         if blend_flag in [3, 6, 7]:
             subNode = nodes.new('ShaderNodeMath')
             subNode.operation = 'SUBTRACT'
-            links.new(initial_alpha_node.outputs[0], subNode.inputs[0])
+            links.new(const_node_1.outputs[0], subNode.inputs[0])
             links.new(texImage.outputs['Alpha'], subNode.inputs[1])
             modify_alpha_node = subNode.outputs[0]
         elif blend_flag == 0:
-            modify_alpha_node = initial_alpha_node.outputs[0]  # const val 1.0
+            texImage.image.alpha_mode = 'NONE'
+            modify_alpha_node = const_node_1.outputs[0]
         else:
             modify_alpha_node = texImage.outputs['Alpha']
 
         # 1 - a
         subNode = nodes.new('ShaderNodeMath')
         subNode.operation = 'SUBTRACT'
-        links.new(initial_alpha_node.outputs[0], subNode.inputs[0])
+        links.new(const_node_1.outputs[0], subNode.inputs[0])
         links.new(prev_alpha_val_node.outputs[0], subNode.inputs[1])
 
         # alpha * (1 - a)
@@ -210,9 +191,10 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
 
                 alphaAddNode = nodes.new('ShaderNodeMath')
                 alphaAddNode.operation = 'ADD'
+                alphaAddNode.use_clamp = True
                 links.new(alphaMultiplyNode.outputs[0], alphaAddNode.inputs[0])
                 links.new(texImage.outputs['Alpha'], alphaAddNode.inputs[1])
-                prev_alpha_node = clamp_output(alphaAddNode, nodes, links)
+                prev_alpha_node = alphaAddNode
 
             else:
                 # For Color
@@ -228,7 +210,7 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
                     links.new(prev_texture_node.outputs['Color'], addNode.inputs[1])
                 elif 'Vector' in prev_texture_node.outputs:
                     links.new(prev_texture_node.outputs['Vector'], addNode.inputs[1])
-                prev_texture_node = addNode  # clamp_output(addNode, nodes, links)
+                prev_texture_node = addNode
 
                 # For Alpha
                 alphaMultiplyNode = nodes.new('ShaderNodeMath')
@@ -238,9 +220,10 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
 
                 alphaAddNode = nodes.new('ShaderNodeMath')
                 alphaAddNode.operation = 'ADD'
+                alphaAddNode.use_clamp = True
                 links.new(alphaMultiplyNode.outputs[0], alphaAddNode.inputs[0])
                 links.new(texImage.outputs['Alpha'], alphaAddNode.inputs[1])
-                prev_alpha_node = clamp_output(alphaAddNode, nodes, links)
+                prev_alpha_node = alphaAddNode
 
         elif blend_flag == 4 and index > 0:
             # For Color
@@ -265,7 +248,7 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
             links.new(texImage.outputs['Alpha'], mixAlphaNode.inputs[0])
             links.new(prev_alpha_node.outputs[0], mixAlphaNode.inputs[1])
             links.new(texImage.outputs['Alpha'], mixAlphaNode.inputs[2])
-            prev_alpha_node = clamp_output(mixAlphaNode, nodes, links)
+            prev_alpha_node = mixAlphaNode
         else:
             if not ((blend_flag == 7 and prev_blend_flag == 8) or blend_flag == 6 or blend_flag == 0):
                 # Multiply Color by 2
@@ -285,11 +268,7 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
             # For Color
             mixRGBNode = nodes.new('ShaderNodeMixRGB')
             mixRGBNode.blend_type = 'MULTIPLY'
-            avg_pixel_value = calculate_image_average(image)
-            if (blend_flag == 0 and len(images) > 1) or avg_pixel_value < 0.2:
-                mixRGBNode.inputs['Fac'].default_value = 0.9
-            else:
-                mixRGBNode.inputs['Fac'].default_value = 1.0
+            mixRGBNode.inputs['Fac'].default_value = 1.0
             mixRGBNode.use_clamp = True
             links.new(prev_texture_node.outputs[0], mixRGBNode.inputs[1])
             links.new(texImage.outputs['Color'], mixRGBNode.inputs[2])
@@ -301,9 +280,7 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
             links.new(prev_alpha_node.outputs[0], alphaMultiplyNode.inputs[0])
             links.new(texImage.outputs['Alpha'], alphaMultiplyNode.inputs[1])
             prev_alpha_node = alphaMultiplyNode
-
-            # Clamp the Alpha output
-            prev_alpha_node = clamp_output(prev_alpha_node, nodes, links)
+            prev_alpha_node.use_clamp = True
 
         prev_blend_flag = blend_flag
         prev_texture_type = texture_type
@@ -393,8 +370,20 @@ def create_map_from_json(context, filepath):
     terrain_data = data['terrain']
 
     # Create all images from the json data
-    all_images = [create_image_from_rgba("gwmb_texture_{}".format(tex['file_hash']), tex['width'], tex['height'],
-                                         tex['rgba_pixels']) for tex in terrain_data['textures']]
+    all_images = []
+    for tex in data.get('textures', []):
+        image_name = "gwmb_texture_{}".format(tex['file_hash'])
+        if image_name not in bpy.data.images:
+            # Construct the file path using os.path.join for portability
+            image_path = os.path.join(directory, "{}.png".format(tex['file_hash']))
+            # Load the image and assign its name to match the 'image_name'
+            image = bpy.data.images.load(image_path)
+            image.name = image_name
+            all_images.append(image)
+        else:
+            # The image already exists in bpy.data.images
+            image = bpy.data.images[image_name]
+            all_images.append(image)
 
     map_collection = ensure_collection(context, map_hash, parent_collection=gwmb_collection)
 
@@ -489,7 +478,8 @@ def create_map_from_json(context, filepath):
     return {'FINISHED'}
 
 
-def create_mesh_from_json(context, filepath):
+def create_mesh_from_json(context, directory, filename):
+    filepath = os.path.join(directory, filename)
     # Derive base_name and model_hash without opening the file
     base_name = os.path.basename(filepath).split('.')[0]  # Something like "model_0x43A22_gwmb"
     model_hash = base_name.split('_')[1]  # E.g., "0x43A22"
@@ -514,7 +504,8 @@ def create_mesh_from_json(context, filepath):
     for tex in data.get('textures', []):
         image_name = "gwmb_texture_{}".format(tex['file_hash'])
         if image_name not in existing_images:
-            image = create_image_from_rgba(image_name, tex['width'], tex['height'], tex['rgba_pixels'])
+            image_path = f"{directory}\\{tex['file_hash']}.png"
+            image = bpy.data.images.load(image_path)
             all_images.append(image)
         else:
             image = bpy.data.images[image_name]
@@ -630,7 +621,7 @@ class IMPORT_OT_GWMBMap(bpy.types.Operator):
             full_path = os.path.join(self.directory, filename)
 
             if filename.lower().startswith("model_"):
-                result = create_mesh_from_json(context, full_path)
+                result = create_mesh_from_json(context, self.directory, filename)
                 if 'FINISHED' not in result:
                     self.report({'ERROR'}, f"Failed to import model from file: {filename}")
                     continue
