@@ -244,9 +244,12 @@ private:
                 auto mft_entry_it = hash_index.find(decoded_filename);
                 if (mft_entry_it != hash_index.end())
                 {
-                    // Export model to map folder
-                    model_exporter::export_model(save_directory, std::format("model_0x{:X}_gwmb.json", decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
-                    model_hashes.push_back(decoded_filename);
+                    const auto entry = dat_manager.get_MFT()[mft_entry_it->second.at(0)];
+                    if (entry.type == FFNA_Type2) {
+                        // Export model to map folder
+                        model_exporter::export_model(save_directory, std::format("model_0x{:X}_gwmb.json", decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
+                        model_hashes.push_back(decoded_filename);
+                    }
                 }
             }
 
@@ -258,9 +261,12 @@ private:
                 auto mft_entry_it = hash_index.find(decoded_filename);
                 if (mft_entry_it != hash_index.end())
                 {
-                    // Export model to map folder
-                    model_exporter::export_model(save_directory, std::format("model_0x{:X}_gwmb.json", decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
-                    model_hashes.push_back(decoded_filename);
+                    const auto entry = dat_manager.get_MFT()[mft_entry_it->second.at(0)];
+                    if (entry.type == FFNA_Type2) {
+                        // Export model to map folder
+                        model_exporter::export_model(save_directory, std::format("model_0x{:X}_gwmb.json", decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
+                        model_hashes.push_back(decoded_filename);
+                    }
                 }
             }
 
