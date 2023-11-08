@@ -338,6 +338,11 @@ def swap_axes(vec):
     return (vec['x'], vec['z'], vec['y'])
 
 
+def scale_axes(vec, scale):
+    # Swap X and Y axis
+    return (vec[0] * scale, vec[1] * scale, vec[2] * scale)
+
+
 def ensure_collection(context, collection_name, parent_collection=None):
     if collection_name not in bpy.data.collections:
         new_collection = bpy.data.collections.new(collection_name)
@@ -499,15 +504,19 @@ def create_mesh_from_json(context, directory, filename):
     existing_images = set(bpy.data.images.keys())
 
     # Create all images from the json data
-    all_images = []
     all_texture_types = []
+    all_images = []
     for tex in data.get('textures', []):
         image_name = "gwmb_texture_{}".format(tex['file_hash'])
-        if image_name not in existing_images:
-            image_path = f"{directory}\\{tex['file_hash']}.png"
+        if image_name not in bpy.data.images:
+            # Construct the file path using os.path.join for portability
+            image_path = os.path.join(directory, "{}.png".format(tex['file_hash']))
+            # Load the image and assign its name to match the 'image_name'
             image = bpy.data.images.load(image_path)
+            image.name = image_name
             all_images.append(image)
         else:
+            # The image already exists in bpy.data.images
             image = bpy.data.images[image_name]
             all_images.append(image)
         all_texture_types.append(tex['texture_type'])
@@ -524,6 +533,9 @@ def create_mesh_from_json(context, directory, filename):
         pixel_shader_type = submodel['pixel_shader_type']
         vertices_data = submodel.get('vertices', [])
         indices = submodel.get('indices', [])
+
+        # Swap axis to match Blenders coordinate system.
+        # Also scale the vertices to be inches rather than meters. 1 Inch = 0.0254m. (Guild Wars uses GW Inches)
         vertices = [swap_axes(v['pos']) for v in vertices_data]
 
         texture_blend_flags = submodel.get('texture_blend_flags', [])
@@ -532,7 +544,7 @@ def create_mesh_from_json(context, directory, filename):
         normals = [swap_axes(v['normal']) if v['has_normal'] else (0, 0, 1) for v in vertices_data]
 
         # Faces
-        faces = [tuple(indices[i:i + 3]) for i in range(0, len(indices), 3)]
+        faces = [tuple(reversed(indices[i:i + 3])) for i in range(0, len(indices), 3)]
 
         mesh = bpy.data.meshes.new(name="{}_submodel_{}".format(model_hash, idx))
         mesh.from_pydata(vertices, [], faces)
@@ -551,14 +563,19 @@ def create_mesh_from_json(context, directory, filename):
 
         uv_map_names = []
         for uv_index, tex_index in enumerate(uv_map_indices):
-            uv_layer_name = "UV_{}".format(uv_index)
+            uv_layer_name = f"UV_{uv_index}"
             uv_map_names.append(uv_layer_name)
             uv_layer = mesh.uv_layers.new(name=uv_layer_name)
             uvs = []
             for vertex in vertices_data:
-                uvs.append(vertex['texture_uv_coords'][tex_index])
+                # In DirectX 11 (DX11), used by the Guild Wars Map Browser, the UV coordinate system originates at the top left with (0,0), meaning the V coordinate increases downwards.
+                # In Blender, however, the UV coordinate system originates at the bottom left with (0,0), so the V coordinate increases upwards.
+                # Therefore, to correctly map DX11 UVs to Blender's UV system, we subtract the V value from 1, effectively flipping the texture on the vertical axis.
+                uvs.append((vertex['texture_uv_coords'][tex_index]['x'], 1 - vertex['texture_uv_coords'][tex_index]['y']))
+
             for i, loop in enumerate(mesh.loops):
-                uv_layer.data[i].uv = (uvs[loop.vertex_index]['x'], uvs[loop.vertex_index]['y'])
+                uv_layer.data[i].uv = uvs[loop.vertex_index]
+
 
         material = None
         if pixel_shader_type == 6:
