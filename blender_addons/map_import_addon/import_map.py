@@ -140,7 +140,7 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
             links.new(texImage.outputs['Alpha'], subNode.inputs[1])
             modify_alpha_node = subNode.outputs[0]
         elif blend_flag == 0:
-            texImage.image.alpha_mode = 'NONE'
+            #texImage.image.alpha_mode = 'NONE'
             modify_alpha_node = const_node_1.outputs[0]
         else:
             modify_alpha_node = texImage.outputs['Alpha']
@@ -324,8 +324,11 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
     links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
 
     # Set material settings
-    # Set Blend Mode to 'Alpha Clip'
-    mat.blend_method = 'CLIP'
+    mat.blend_method = 'BLEND'
+    if 8 in blend_flags or 4 in blend_flags:
+        mat.show_transparent_back = True
+    else:
+        mat.show_transparent_back = False
 
     # Set Shadow Mode to 'Alpha Clip'
     mat.shadow_method = 'CLIP'
