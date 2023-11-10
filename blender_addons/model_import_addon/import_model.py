@@ -89,14 +89,22 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
     prev_blend_flag = -1
     prev_texture_type = -1
 
+    is_opaque = True
+
     for index, image in enumerate(images):
         blend_flag = blend_flags[index]
         texture_type = texture_types[index]
+
+        if blend_flag in [1,2,3,4,5,8]:
+            print('false')
+            is_opaque = False
 
         # Create Image Texture node
         texImage = nodes.new('ShaderNodeTexImage')
         texImage.image = image
         texImage.label = "gwmb_texture"
+
+        texImageNoAlpha = None
 
         # Create UV Map node
         uvMap = nodes.new('ShaderNodeUVMap')
@@ -113,7 +121,12 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
             links.new(texImage.outputs['Alpha'], subNode.inputs[1])
             modify_alpha_node = subNode.outputs[0]
         elif blend_flag == 0:
-            texImage.image.alpha_mode = 'NONE'
+            # Need to create new texture for this to work in Blender
+            texImageNoAlpha = nodes.new('ShaderNodeTexImage')
+            texImageNoAlpha.image = image
+            texImageNoAlpha.label = "gwmb_texture"
+            texImageNoAlpha.image.alpha_mode = 'NONE'
+
             modify_alpha_node = const_node_1.outputs[0]
         else:
             modify_alpha_node = texImage.outputs['Alpha']
@@ -244,7 +257,10 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
             mixRGBNode.inputs['Fac'].default_value = 1.0
             mixRGBNode.use_clamp = True
             links.new(prev_texture_node.outputs[0], mixRGBNode.inputs[1])
-            links.new(texImage.outputs['Color'], mixRGBNode.inputs[2])
+            if texImageNoAlpha is None:
+                links.new(texImage.outputs['Color'], mixRGBNode.inputs[2])
+            else:
+                links.new(texImageNoAlpha.outputs['Color'], mixRGBNode.inputs[2])
             prev_texture_node = mixRGBNode
 
             # For Alpha
@@ -297,8 +313,13 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
     links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
 
     # Set material settings
-    # Set Blend Mode to 'Alpha Clip'
-    mat.blend_method = 'CLIP'
+    mat.blend_method = 'BLEND'
+    if 8 in blend_flags or 4 in blend_flags:
+        mat.show_transparent_back = True
+    else:
+        mat.show_transparent_back = False
+        if is_opaque:
+            mat.blend_method = 'OPAQUE'
 
     # Set Shadow Mode to 'Alpha Clip'
     mat.shadow_method = 'CLIP'
@@ -414,11 +435,11 @@ def create_mesh_from_json(context, directory, filename):
                 # In DirectX 11 (DX11), used by the Guild Wars Map Browser, the UV coordinate system originates at the top left with (0,0), meaning the V coordinate increases downwards.
                 # In Blender, however, the UV coordinate system originates at the bottom left with (0,0), so the V coordinate increases upwards.
                 # Therefore, to correctly map DX11 UVs to Blender's UV system, we subtract the V value from 1, effectively flipping the texture on the vertical axis.
-                uvs.append((vertex['texture_uv_coords'][tex_index]['x'], 1 - vertex['texture_uv_coords'][tex_index]['y']))
+                uvs.append(
+                    (vertex['texture_uv_coords'][tex_index]['x'], 1 - vertex['texture_uv_coords'][tex_index]['y']))
 
             for i, loop in enumerate(mesh.loops):
                 uv_layer.data[i].uv = uvs[loop.vertex_index]
-
 
         material = None
         if pixel_shader_type == 6:
