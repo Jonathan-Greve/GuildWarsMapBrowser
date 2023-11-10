@@ -810,8 +810,18 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 }
             }
         }
-    }
 
+        for (int i = 0; i < selected_ffna_map_file.props_info_chunk.some_vertex_data.vertices.size(); i++) {
+            const auto vertex = selected_ffna_map_file.props_info_chunk.some_vertex_data.vertices[i];
+            map_renderer->AddBox(vertex.x, -vertex.z, vertex.y, 50);
+        }
+
+        for (int i = 0; i < selected_ffna_map_file.props_info_chunk.some_data1.array.size(); i++) {
+            const auto vertex = selected_ffna_map_file.props_info_chunk.some_data1.array[i];
+            map_renderer->AddBox(vertex.x, 2000, vertex.y, 50);
+        }
+    }
+        
     break;
     default:
         break;

@@ -318,6 +318,10 @@ public:
             }
         }
 
+        for (const auto& mesh_id : extra_mesh_ids) {
+            m_mesh_manager->RemoveMesh(mesh_id);
+        }
+
         m_prop_mesh_ids.clear();
     }
 
@@ -467,6 +471,28 @@ public:
                                m_stencil_state_manager.get(), m_user_camera->GetPosition3f());
     }
 
+    void AddBox(float x, float y, float z, float size) {
+        auto mesh_id = m_mesh_manager->AddBox({ size, size, size });
+        extra_mesh_ids.push_back(mesh_id);
+
+        DirectX::XMFLOAT4X4 meshWorldMatrix;
+        DirectX::XMStoreFloat4x4(&meshWorldMatrix, DirectX::XMMatrixTranslation(x, y, z));
+        PerObjectCB meshPerObjectData;
+        meshPerObjectData.world = meshWorldMatrix;
+        meshPerObjectData.num_uv_texture_pairs = 1;
+        m_mesh_manager->UpdateMeshPerObjectData(mesh_id, meshPerObjectData);
+
+        int texture_tile_size = 96;
+        int texture_width = texture_tile_size * 2;
+        int texture_height = texture_tile_size * 2;
+        CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size);
+        m_terrain_checkered_texture_id =
+            m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
+                texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 3214972);
+
+        m_mesh_manager->SetTexturesForMesh(mesh_id, { m_texture_manager->GetTexture(m_terrain_checkered_texture_id) }, 3);
+    }
+
 private:
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_deviceContext;
@@ -488,6 +514,7 @@ private:
     PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainTexturedWithShadows;
 
     std::vector<std::pair<uint32_t, std::vector<int>>> m_prop_mesh_ids;
+    std::vector<int> extra_mesh_ids; // For stuff like spheres and boxes.
 
     bool m_is_terrain_mesh_set = false;
     int m_terrain_mesh_id = -1;
