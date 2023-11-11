@@ -17,10 +17,15 @@ struct gwmb_map_vertex
 
     // UV coord
     gwmb_vec2f uv_coord;
+
+    // Texture index, i.e. which of the textures to use for the tile starting at the top left vertex.
+    int texture_index;
 };
 
 struct gwmb_terrain
 {
+    int width; // How many tiles in the x direction (west to east)
+    int height; // How many tiles in the z direction (south to north)
     std::vector<gwmb_map_vertex> vertices;
     std::vector<int> indices;
     std::vector<gwmb_texture> textures; // A terrain has up to 64 textures.
@@ -52,7 +57,8 @@ namespace nlohmann {
             j = json{
                 {"pos", mv.pos},
                 {"normal", mv.normal},
-                {"uv_coord", mv.uv_coord}
+                {"uv_coord", mv.uv_coord},
+                {"texture_index", mv.texture_index}
             };
         }
 
@@ -60,6 +66,7 @@ namespace nlohmann {
             j.at("pos").get_to(mv.pos);
             j.at("normal").get_to(mv.normal);
             j.at("uv_coord").get_to(mv.uv_coord);
+            j.at("texture_index").get_to(mv.texture_index);
         }
     };
 
@@ -67,12 +74,16 @@ namespace nlohmann {
     struct adl_serializer<gwmb_terrain> {
         static void to_json(json& j, const gwmb_terrain& t) {
             j = json{
+                {"width", t.width},
+                {"height", t.height},
                 {"vertices", t.vertices},
                 {"indices", t.indices},
                 {"textures", t.textures}
             };
         }
         static void from_json(const json& j, gwmb_terrain& t) {
+            j.at("width").get_to(t.width);
+            j.at("height").get_to(t.height);
             j.at("vertices").get_to(t.vertices);
             j.at("indices").get_to(t.indices);
             j.at("textures").get_to(t.textures);
@@ -105,12 +116,14 @@ namespace nlohmann {
     struct adl_serializer<gwmb_map> {
         static void to_json(json& j, const gwmb_map& m) {
             j = json{
+                {"filehash", m.filehash},
                 {"terrain", m.terrain},
                 {"models", m.models}
             };
         }
 
         static void from_json(const json& j, gwmb_map& m) {
+            j.at("filehash").get_to(m.filehash);
             j.at("terrain").get_to(m.terrain);
             j.at("models").get_to(m.models);
         }
@@ -123,7 +136,7 @@ public:
     static bool export_map(const std::string& save_directory, const int map_filehash, const int map_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
         // Build model
         gwmb_map map;
-        const bool success = generate_gwmb_map(save_directory, map, map_mft_index, dat_manager, hash_index, texture_manager);
+        const bool success = generate_gwmb_map(save_directory, map, map_mft_index, dat_manager, hash_index, texture_manager, map_filehash);
         if (!success)
             return false;
 
@@ -143,8 +156,10 @@ public:
     }
 
 private:
-    static bool generate_gwmb_map(const std::string& save_directory, gwmb_map& map, int map_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager) {
+    static bool generate_gwmb_map(const std::string& save_directory, gwmb_map& map, int map_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, int map_filehash) {
         auto map_file = dat_manager.parse_ffna_map_file(map_mft_index);
+
+        map.filehash = map_filehash;
 
         if (map_file.terrain_chunk.terrain_heightmap.size() > 0 &&
             map_file.terrain_chunk.terrain_heightmap.size() ==
@@ -192,13 +207,43 @@ private:
 
                         if (!SaveTextureToPng(texture, texture_save_pathw, texture_manager))
                         {
-                            throw "Unable to save texture to png while terrain texture";
+                            throw "Unable to save texture to png while creating terrain texture";
                         }
 
+                        terrain_dat_textures.push_back(dat_texture);
                         new_terrain.textures.push_back(gwmb_texture_i);
                     }
                 }
             }
+
+            // Save terrain textures in texture atlas
+            int terrain_tex_atlas_tex_id = -1;
+            const auto terrain_tex_atlas = texture_manager->BuildTextureAtlas(terrain_dat_textures, -1, -1);
+
+            if (terrain_tex_atlas.width > 0 && terrain_tex_atlas.height > 0)
+            {
+                texture_manager->CreateTextureFromRGBA(
+                    terrain_tex_atlas.width,
+                    terrain_tex_atlas.height,
+                    terrain_tex_atlas.rgba_data.data(), 
+                    &terrain_tex_atlas_tex_id,
+                    -1);
+            }
+            else {
+                throw "terrain texture atlas could not be created";
+            }
+
+            ID3D11ShaderResourceView* texture =
+                texture_manager->GetTexture(terrain_tex_atlas_tex_id);
+
+            std::string texture_save_path = save_directory + "\\" + "atlas_" + std::to_string(map_filehash) + ".png";
+            std::wstring texture_save_pathw = std::wstring(texture_save_path.begin(), texture_save_path.end());
+
+            if (!SaveTextureToPng(texture, texture_save_pathw, texture_manager))
+            {
+                throw "Unable to save texture to png while terrain texture atlas";
+            }
+
 
             // Now add the terrain mesh
             auto& terrain_texture_indices =
@@ -214,12 +259,18 @@ private:
                 terrain_texture_indices, terrain_shadow_map,
                 map_file.map_info_chunk.map_bounds);
 
+            const auto& terrain_tex_index_grid = terrain->get_texture_index_grid();
+
             const auto terrain_mesh = terrain->get_mesh();
             new_terrain.vertices.resize(terrain_mesh->vertices.size());
             for (int i = 0; i < terrain_mesh->vertices.size(); i++) {
+                const auto texture_index = terrain_tex_index_grid[terrain->m_grid_dim_z - (i / terrain->m_grid_dim_x) - 1][i % terrain->m_grid_dim_x];
+
                 const auto vertex = terrain_mesh->vertices[i];
 
                 gwmb_map_vertex new_gwmb_map_vertex;
+                new_gwmb_map_vertex.texture_index = texture_index;
+
                 new_gwmb_map_vertex.normal = { vertex.normal.x, vertex.normal.y, vertex.normal.z };
                 new_gwmb_map_vertex.pos = { vertex.position.x, vertex.position.y, vertex.position.z };
 
@@ -306,6 +357,9 @@ private:
 
                 map.models.push_back(new_map_model);
             }
+
+            new_terrain.width = terrain->m_grid_dim_x;
+            new_terrain.height = terrain->m_grid_dim_z;
 
             map.terrain = new_terrain;
         }
