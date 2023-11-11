@@ -124,7 +124,7 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
         blend_flag = blend_flags[index]
         texture_type = texture_types[index]
 
-        if blend_flag in [1,2,3,4,5,8]:
+        if blend_flag in [1, 2, 3, 4, 5, 8]:
             print('false')
             is_opaque = False
 
@@ -376,7 +376,8 @@ def ensure_collection(context, collection_name, parent_collection=None):
     return bpy.data.collections[collection_name]
 
 
-def create_map_from_json(context, filepath):
+def create_map_from_json(context, directory, filename):
+    filepath = os.path.join(directory, filename)
     print('create_map_from_json called')
     gwmb_collection = ensure_collection(context, "GWMB Maps")
 
@@ -402,52 +403,111 @@ def create_map_from_json(context, filepath):
     for tex in data.get('textures', []):
         image_name = "gwmb_texture_{}".format(tex['file_hash'])
         if image_name not in bpy.data.images:
-            # Construct the file path using os.path.join for portability
             image_path = os.path.join(directory, "{}.png".format(tex['file_hash']))
-            # Load the image and assign its name to match the 'image_name'
             image = bpy.data.images.load(image_path)
             image.name = image_name
             all_images.append(image)
         else:
-            # The image already exists in bpy.data.images
             image = bpy.data.images[image_name]
             all_images.append(image)
+
+    map_filehash = data['filehash']
+    terrain_tex_atlas_name = "gwmb_terrain_texture_atlas_{}".format(map_filehash)
+    if terrain_tex_atlas_name not in bpy.data.images:
+        terrain_tex_atlas_image_path = os.path.join(directory, "atlas_{}.png".format(map_filehash))
+        terrain_tex_atlas = bpy.data.images.load(terrain_tex_atlas_image_path)
+        terrain_tex_atlas.name = terrain_tex_atlas_name
+    else:
+        terrain_tex_atlas = bpy.data.images[terrain_tex_atlas_name]
 
     map_collection = ensure_collection(context, map_hash, parent_collection=gwmb_collection)
 
     vertices_data = terrain_data.get('vertices', [])
     indices = terrain_data.get('indices', [])
-    vertices = [swap_axes(v['pos']) for v in vertices_data]
+    texture_indices = [v['texture_index'] for v in vertices_data]
 
-    # Normals
-    normals = [swap_axes(v['normal']) for v in vertices_data]
+    terrain_width = terrain_data.get('width')
+    terrain_height = terrain_data.get('height')
 
-    # Faces
-    faces = [tuple(indices[i:i + 3]) for i in range(0, len(indices), 3)]
+    # Assuming each texture in the atlas occupies 1/8th of the width and height
+    atlas_grid_size = 8
 
-    mesh = bpy.data.meshes.new(name="{}_terrain".format(map_hash))
-    mesh.from_pydata(vertices, [], faces)
+    # Function to calculate UV coordinates based on texture index
+    def calculate_uv_coordinates(texture_index, corner):
+        grid_x = texture_index % atlas_grid_size
+        grid_y = texture_index // atlas_grid_size
 
-    # Set Normals
-    mesh.normals_split_custom_set_from_vertices(normals)
+        # Adjusting the offsets for each corner
+        # Corner: 0 = bottom-left, 1 = bottom-right, 2 = top-right, 3 = top-left
+        offsets = [(0, 0), (1, 0), (1, 1), (0, 1)]
+        u = (grid_x + offsets[corner][0]) / atlas_grid_size
+        v = 1 - ((grid_y + offsets[corner][1]) / atlas_grid_size)
+        return (u, v)
 
-    uv_layer = mesh.uv_layers.new(name="terrain_uv")
-    uvs = []
-    for vertex in vertices_data:
-        uvs.append(vertex['uv_coord'])
-    for i, loop in enumerate(mesh.loops):
-        uv_layer.data[i].uv = (uvs[loop.vertex_index]['x'], uvs[loop.vertex_index]['y'])
+    # Duplicate vertices at borders
+    new_vertices = []
+    new_faces = []
+    new_uvs = []
 
+    for y in range(terrain_height - 1):
+        for x in range(terrain_width - 1):
+            # Top-left vertex of each tile
+            top_left_vertex_index = y * terrain_width + x
+            texture_index = texture_indices[top_left_vertex_index]
+
+            # Create vertices for the current tile
+            tile_vertex_indices = []
+            for dy in range(2):
+                for dx in range(2):
+                    idx = (y + dy) * terrain_width + (x + dx)
+                    new_vertices.append(swap_axes(vertices_data[idx]['pos']))
+                    tile_vertex_indices.append(len(new_vertices) - 1)
+
+            # Create a face for the current tile
+            new_faces.append((tile_vertex_indices[0], tile_vertex_indices[1], tile_vertex_indices[3], tile_vertex_indices[2]))
+
+            # Calculate and assign UVs
+            for corner in range(4):
+                uv = calculate_uv_coordinates(texture_index, corner)
+                new_uvs.append(uv)
+
+    # Create new mesh
+    terrain_mesh_name = "{}_terrain".format(map_hash)
+    mesh = bpy.data.meshes.new(name=terrain_mesh_name)
+    mesh.from_pydata(new_vertices, [], new_faces)
     mesh.update()
 
-    obj = bpy.data.objects.new(obj_name, mesh)
+    # Create UV layer and assign UVs
+    uv_layer = mesh.uv_layers.new(name="terrain_uv")
+    for i, loop in enumerate(mesh.loops):
+        uv_layer.data[i].uv = new_uvs[i]
 
-    # Link the object to the model's collection directly
+    # Create object and link to the collection
+    obj = bpy.data.objects.new(obj_name, mesh)
     map_collection.objects.link(obj)
 
-    # Make sure the object is also in the scene collection for visibility
-    context.view_layer.objects.active = obj
-    obj.select_set(True)
+    # Assign material using the texture atlas
+    material = bpy.data.materials.new(name="TerrainMaterial")
+    material.use_nodes = True
+    nodes = material.node_tree.nodes
+    nodes.clear()
+
+    bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
+    texture_node = nodes.new(type='ShaderNodeTexImage')
+    texture_node.image = terrain_tex_atlas
+    uv_map_node = nodes.new(type='ShaderNodeUVMap')
+    uv_map_node.uv_map = "terrain_uv"
+
+    # Connect nodes
+    material.node_tree.links.new(texture_node.inputs['Vector'], uv_map_node.outputs['UV'])
+    material.node_tree.links.new(bsdf.inputs['Base Color'], texture_node.outputs['Color'])
+
+    output_node = nodes.new('ShaderNodeOutputMaterial')
+    material.node_tree.links.new(output_node.inputs['Surface'], bsdf.outputs['BSDF'])
+    material.blend_method = 'OPAQUE'
+
+    # Assign material to the object
+    obj.data.materials.append(material)
 
     # Now that we have added the terrain we will transform the models
     # (translate, rotate and scale) that should already be imported at this point
@@ -483,19 +543,20 @@ def create_map_from_json(context, filepath):
                 rotation_matrix = rotation_from_vectors(right_vector, look_vector, up_vector)
 
                 for obj in model_collection.objects:
-                    # Instead of manipulating the original objects, create linked duplicates
-                    # The linked duplicate will share the same mesh data as the original object
-                    linked_duplicate = obj.copy()
-                    linked_duplicate.data = obj.data.copy()
-                    linked_duplicate.animation_data_clear()
+                    if obj.name not in map_collection.objects:
+                        # Instead of manipulating the original objects, create linked duplicates
+                        # The linked duplicate will share the same mesh data as the original object
+                        linked_duplicate = obj.copy()
+                        linked_duplicate.data = obj.data.copy()
+                        linked_duplicate.animation_data_clear()
 
-                    location = Vector((world_pos['x'], world_pos['z'], world_pos['y']))
-                    scale_matrix = Matrix.Scale(scale, 4)
-                    translation_matrix = Matrix.Translation(location)
-                    linked_duplicate.matrix_world = translation_matrix @ rotation_matrix.to_4x4() @ scale_matrix
+                        location = Vector((world_pos['x'], world_pos['z'], world_pos['y']))
+                        scale_matrix = Matrix.Scale(scale, 4)
+                        translation_matrix = Matrix.Translation(location)
+                        linked_duplicate.matrix_world = translation_matrix @ rotation_matrix.to_4x4() @ scale_matrix
 
-                    # Link the duplicate to the scene collection (or any specific collection you want)
-                    map_collection.objects.link(linked_duplicate)
+                        # Link the duplicate to the scene collection (or any specific collection you want)
+                        map_collection.objects.link(linked_duplicate)
 
             else:
                 print(f"No collection with the hash {model_hash} found within '{parent_collection_name}'.")
@@ -653,12 +714,11 @@ class IMPORT_OT_GWMBMap(bpy.types.Operator):
         # List all json files in the directory
         file_list = [f for f in os.listdir(self.directory) if f.lower().endswith('.json')]
 
-        map_full_path = None
+        map_filename = None
         i = 0
         for filename in file_list:
             print(f'progress: {i}/{len(file_list)}')
             i = i + 1
-            full_path = os.path.join(self.directory, filename)
 
             if filename.lower().startswith("model_"):
                 result = create_mesh_from_json(context, self.directory, filename)
@@ -667,11 +727,11 @@ class IMPORT_OT_GWMBMap(bpy.types.Operator):
                     continue
 
             elif filename.lower().startswith("map_"):
-                map_full_path = full_path
+                map_filename = filename
 
         # Now process the map JSON file to transform all the models (translate, rotate, scale) as well as add terrain
-        if not (map_full_path == None):
-            result = create_map_from_json(context, map_full_path)
+        if not (map_filename == None):
+            result = create_map_from_json(context, self.directory, map_filename)
             if 'FINISHED' not in result:
                 self.report({'ERROR'}, f"Failed to import map from file: {filename}")
 
