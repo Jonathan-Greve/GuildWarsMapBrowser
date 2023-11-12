@@ -4,6 +4,30 @@ import os
 import numpy as np
 
 
+def set_clipping_values():
+    """ Sets clipping start and end for all cameras and 3D viewports. """
+    min_clip = 10
+    max_clip = 300000
+    for workspace in bpy.data.workspaces:
+        for screen in workspace.screens:
+            for area in screen.areas:
+                if area.type == 'VIEW_3D':
+                    for space in area.spaces:
+                        if space.type == 'VIEW_3D':
+                            space.clip_start = min_clip
+                            space.clip_end = max_clip
+
+
+def disable_render_preview_background():
+    world = bpy.context.scene.world
+    if world is not None:
+        world.use_nodes = True
+        nodes = world.node_tree.nodes
+        # Set the background color to gray or any desired color
+        nodes['Background'].inputs['Color'].default_value = (0.6, 0.6, 0.6, 1)
+        nodes['Background'].inputs['Strength'].default_value = 0.7
+
+
 def create_material_for_new_models(name, images, uv_map_names, texture_types):
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
@@ -57,20 +81,23 @@ def create_material_for_new_models(name, images, uv_map_names, texture_types):
 
 
 def create_material_for_old_models(name, images, uv_map_names, blend_flags, texture_types):
+    disable_render_preview_background()
+    set_clipping_values()
+
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     nodes.clear()  # Clear default nodes
 
-    # Alpha accumulation variable
-    accumulated_alpha = 0
+    # Lighting is computed in the vertex shader in GW, we use this as a stand-in for lighting
+    # since GWs models shaders doesn't match very well with Blenders shader systems.
+    lighting_node = nodes.new('ShaderNodeCombineXYZ')
+    lighting_node.inputs['X'].default_value = 2.0
+    lighting_node.inputs['Y'].default_value = 2.0
+    lighting_node.inputs['Z'].default_value = 2.0
 
-    # Create RGB node
-    rgb_node = nodes.new('ShaderNodeRGB')
-    rgb_node.outputs[0].default_value = (1, 1, 1, 1)
-
-    prev_texture_node = rgb_node
+    prev_texture_node = lighting_node
 
     const_node_1 = nodes.new('ShaderNodeValue')
     const_node_1.outputs[0].default_value = 1.0
@@ -95,8 +122,7 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
         blend_flag = blend_flags[index]
         texture_type = texture_types[index]
 
-        if blend_flag in [1,2,3,4,5,8]:
-            print('false')
+        if blend_flag in [1, 2, 3, 4, 5, 8]:
             is_opaque = False
 
         # Create Image Texture node
