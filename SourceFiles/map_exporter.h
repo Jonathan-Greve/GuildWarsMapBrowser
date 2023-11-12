@@ -48,6 +48,7 @@ struct gwmb_map
     int filehash;
     gwmb_terrain terrain;
     std::vector<gwmb_map_model> models;
+    float min_x, max_x, min_y, max_y, min_z, max_z;
 };
 
 namespace nlohmann {
@@ -118,7 +119,13 @@ namespace nlohmann {
             j = json{
                 {"filehash", m.filehash},
                 {"terrain", m.terrain},
-                {"models", m.models}
+                {"models", m.models},
+                {"min_x", m.min_x},
+                {"max_x", m.max_x},
+                {"min_y", m.min_y},
+                {"max_y", m.max_y},
+                {"min_z", m.min_z},
+                {"max_z", m.max_z}
             };
         }
 
@@ -126,6 +133,12 @@ namespace nlohmann {
             j.at("filehash").get_to(m.filehash);
             j.at("terrain").get_to(m.terrain);
             j.at("models").get_to(m.models);
+            j.at("min_x").get_to(m.min_x);
+            j.at("max_x").get_to(m.max_x);
+            j.at("min_y").get_to(m.min_y);
+            j.at("max_y").get_to(m.max_y);
+            j.at("min_z").get_to(m.min_z);
+            j.at("max_z").get_to(m.max_z);
         }
     };
 }
@@ -258,6 +271,13 @@ private:
                 map_file.terrain_chunk.terrain_heightmap,
                 terrain_texture_indices, terrain_shadow_map,
                 map_file.map_info_chunk.map_bounds);
+
+            map.min_x = terrain->m_bounds.map_min_x;
+            map.max_x = terrain->m_bounds.map_max_x;
+            map.min_y = terrain->m_bounds.map_min_y;
+            map.max_y = terrain->m_bounds.map_max_y;
+            map.min_z = terrain->m_bounds.map_min_z;
+            map.max_z = terrain->m_bounds.map_max_z;
 
             const auto& terrain_tex_index_grid = terrain->get_texture_index_grid();
 
