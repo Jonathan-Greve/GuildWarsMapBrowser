@@ -8,7 +8,32 @@ from mathutils import Vector, Matrix
 import bpy
 
 
-def create_water_surface(water_level=0.0, terrain_min_x_max_y=(-50000, 50000), terrain_max_x_min_y=(50000, -50000), map_collection=None):
+def set_clipping_values():
+    """ Sets clipping start and end for all cameras and 3D viewports. """
+    min_clip = 10
+    max_clip = 300000
+    for workspace in bpy.data.workspaces:
+        for screen in workspace.screens:
+            for area in screen.areas:
+                if area.type == 'VIEW_3D':
+                    for space in area.spaces:
+                        if space.type == 'VIEW_3D':
+                            space.clip_start = min_clip
+                            space.clip_end = max_clip
+
+
+def disable_render_preview_background():
+    world = bpy.context.scene.world
+    if world is not None:
+        world.use_nodes = True
+        nodes = world.node_tree.nodes
+        # Set the background color to gray or any desired color
+        nodes['Background'].inputs['Color'].default_value = (0.6, 0.6, 0.6, 1)
+        nodes['Background'].inputs['Strength'].default_value = 0.7
+
+
+def create_water_surface(water_level=0.0, terrain_min_x_max_y=(-50000, 50000), terrain_max_x_min_y=(50000, -50000),
+                         map_collection=None):
     print('Creating water')
 
     min_x, max_y = terrain_min_x_max_y
@@ -19,7 +44,7 @@ def create_water_surface(water_level=0.0, terrain_min_x_max_y=(-50000, 50000), t
         (min_x, min_y, water_level),  # Bottom left
         (max_x, min_y, water_level),  # Bottom right
         (max_x, max_y, water_level),  # Top right
-        (min_x, max_y, water_level)   # Top left
+        (min_x, max_y, water_level)  # Top left
     ]
     water_faces = [(0, 1, 2, 3)]
 
@@ -32,23 +57,36 @@ def create_water_surface(water_level=0.0, terrain_min_x_max_y=(-50000, 50000), t
     water_obj = bpy.data.objects.new("WaterSurface", water_mesh)
     water_obj.location = (0, 0, water_level)  # Adjust as needed
 
+    # Enable Eevee settings for reflection
+    bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+    bpy.context.scene.eevee.use_ssr = True
+    bpy.context.scene.eevee.use_ssr_refraction = True
+    bpy.context.scene.eevee.ssr_quality = 1
+    bpy.context.scene.eevee.ssr_thickness = 0.1
+
     # Create a new material for the water
     water_mat = bpy.data.materials.new(name="WaterMaterial")
     water_mat.use_nodes = True
     nodes = water_mat.node_tree.nodes
     nodes.clear()
 
-    # Create Principled BSDF node for basic water appearance
+    # Create Principled BSDF node for water appearance with reflections
     bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
-    bsdf.inputs['Base Color'].default_value = (0.0, 0.42, 0.55, 1)  # Blue color
-    bsdf.inputs['Roughness'].default_value = 0.1
-    bsdf.inputs['Transmission'].default_value = 0.9
-    bsdf.inputs['IOR'].default_value = 1.333
+    bsdf.inputs['Base Color'].default_value = (0.0, 0.344, 0.55, 1)  # Blue color
+    bsdf.inputs['Roughness'].default_value = 0.05  # Sharp reflections
+    bsdf.inputs['Transmission'].default_value = 0.95  # Transparency
+    bsdf.inputs['IOR'].default_value = 1.333  # Index of Refraction
+    bsdf.inputs['Alpha'].default_value = 0.8  # Transparency
+    bsdf.inputs['Emission'].default_value = (0.002, 0.004, 0.022, 1)
 
     # Add Output node and link nodes
     output_node = nodes.new('ShaderNodeOutputMaterial')
     links = water_mat.node_tree.links
     links.new(bsdf.outputs['BSDF'], output_node.inputs['Surface'])
+
+    # Set material settings for transparency and reflection
+    water_mat.blend_method = 'HASHED'
+    water_mat.shadow_method = 'HASHED'
 
     # Assign material to the water object
     water_obj.data.materials.append(water_mat)
@@ -88,7 +126,7 @@ def create_material_for_new_models(name, images, uv_map_names, texture_types):
     for input in bsdf.inputs:
         try:
             # Check if the input is 'Roughness' and set it to 1.0
-            if input.name == "Roughness":
+            if input.name == "Roughness" or input.name == "Alpha":
                 input.default_value = 1.0
             # Otherwise, set other inputs based on their type
             else:
@@ -179,7 +217,6 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
         texture_type = texture_types[index]
 
         if blend_flag in [1, 2, 3, 4, 5, 8]:
-            print('false')
             is_opaque = False
 
         # Create Image Texture node
@@ -431,6 +468,9 @@ def ensure_collection(context, collection_name, parent_collection=None):
 
 
 def create_map_from_json(context, directory, filename):
+    disable_render_preview_background()
+    set_clipping_values()
+
     filepath = os.path.join(directory, filename)
     print('create_map_from_json called')
     gwmb_collection = ensure_collection(context, "GWMB Maps")
@@ -470,6 +510,7 @@ def create_map_from_json(context, directory, filename):
     if terrain_tex_atlas_name not in bpy.data.images:
         terrain_tex_atlas_image_path = os.path.join(directory, "atlas_{}.png".format(map_filehash))
         terrain_tex_atlas = bpy.data.images.load(terrain_tex_atlas_image_path)
+        terrain_tex_atlas.alpha_mode = 'NONE'
         terrain_tex_atlas.name = terrain_tex_atlas_name
     else:
         terrain_tex_atlas = bpy.data.images[terrain_tex_atlas_name]
@@ -548,6 +589,29 @@ def create_map_from_json(context, directory, filename):
     nodes.clear()
 
     bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
+    # Set all options to 0, except Roughness to 1
+    for input in bsdf.inputs:
+        try:
+            # Check if the input is 'Roughness' and set it to 1.0
+            if input.name == "Roughness" or input.name == "Alpha":
+                input.default_value = 1.0
+            # Otherwise, set other inputs based on their type
+            else:
+                # For color inputs which expect a 4-tuple RGBA
+                if input.type == 'RGBA':
+                    input.default_value = (0.0, 0.0, 0.0, 1.0)  # Assuming you want full opacity
+                # For vector inputs which expect a 3-tuple XYZ or RGB
+                elif input.type == 'VECTOR':
+                    input.default_value = (0.0, 0.0, 0.0)
+                # For float inputs which expect a single value
+                elif input.type == 'VALUE':
+                    input.default_value = 0.0
+                # Handle other input types as necessary
+                else:
+                    print(f"Unhandled input type {input.type} for {input.name}")
+        except Exception as e:
+            print(f"Error setting default value for {input.name}: {e}")
+
     texture_node = nodes.new(type='ShaderNodeTexImage')
     texture_node.image = terrain_tex_atlas
     uv_map_node = nodes.new(type='ShaderNodeUVMap')
@@ -564,7 +628,6 @@ def create_map_from_json(context, directory, filename):
     # Assign material to the object
     obj.data.materials.append(material)
 
-    # Add water:
     top_left_point = (data['min_x'], data['max_z'])
     bottom_right_point = (data['max_x'], data['min_z'])
 
