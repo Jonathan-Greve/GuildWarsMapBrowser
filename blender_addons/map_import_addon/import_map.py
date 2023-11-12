@@ -5,6 +5,60 @@ import os
 import numpy as np
 from mathutils import Vector, Matrix
 
+import bpy
+
+
+def create_water_surface(water_level=0.0, terrain_min_x_max_y=(-50000, 50000), terrain_max_x_min_y=(50000, -50000), map_collection=None):
+    print('Creating water')
+
+    min_x, max_y = terrain_min_x_max_y
+    max_x, min_y = terrain_max_x_min_y
+
+    # Define the vertices for the water plane
+    water_vertices = [
+        (min_x, min_y, water_level),  # Bottom left
+        (max_x, min_y, water_level),  # Bottom right
+        (max_x, max_y, water_level),  # Top right
+        (min_x, max_y, water_level)   # Top left
+    ]
+    water_faces = [(0, 1, 2, 3)]
+
+    # Create a new mesh for the water surface
+    water_mesh = bpy.data.meshes.new("WaterMesh")
+    water_mesh.from_pydata(water_vertices, [], water_faces)
+    water_mesh.update()
+
+    # Create a new object for the water surface
+    water_obj = bpy.data.objects.new("WaterSurface", water_mesh)
+    water_obj.location = (0, 0, water_level)  # Adjust as needed
+
+    # Create a new material for the water
+    water_mat = bpy.data.materials.new(name="WaterMaterial")
+    water_mat.use_nodes = True
+    nodes = water_mat.node_tree.nodes
+    nodes.clear()
+
+    # Create Principled BSDF node for basic water appearance
+    bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
+    bsdf.inputs['Base Color'].default_value = (0.0, 0.42, 0.55, 1)  # Blue color
+    bsdf.inputs['Roughness'].default_value = 0.1
+    bsdf.inputs['Transmission'].default_value = 0.9
+    bsdf.inputs['IOR'].default_value = 1.333
+
+    # Add Output node and link nodes
+    output_node = nodes.new('ShaderNodeOutputMaterial')
+    links = water_mat.node_tree.links
+    links.new(bsdf.outputs['BSDF'], output_node.inputs['Surface'])
+
+    # Assign material to the water object
+    water_obj.data.materials.append(water_mat)
+
+    # Link the water object to the specified collection
+    if map_collection:
+        map_collection.objects.link(water_obj)
+    else:
+        bpy.context.collection.objects.link(water_obj)
+
 
 # Function to create a rotation matrix from two vectors
 def rotation_from_vectors(right_vec, forward_vec, up_vec):
@@ -92,14 +146,14 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
     links = mat.node_tree.links
     nodes.clear()  # Clear default nodes
 
-    # Alpha accumulation variable
-    accumulated_alpha = 0
+    # Lighting is computed in the vertex shader in GW, we use this as a stand-in for lighting
+    # since GWs models shaders doesn't match very well with Blenders shader systems.
+    lighting_node = nodes.new('ShaderNodeCombineXYZ')
+    lighting_node.inputs['X'].default_value = 2.0
+    lighting_node.inputs['Y'].default_value = 2.0
+    lighting_node.inputs['Z'].default_value = 2.0
 
-    # Create RGB node
-    rgb_node = nodes.new('ShaderNodeRGB')
-    rgb_node.outputs[0].default_value = (1, 1, 1, 1)
-
-    prev_texture_node = rgb_node
+    prev_texture_node = lighting_node
 
     const_node_1 = nodes.new('ShaderNodeValue')
     const_node_1.outputs[0].default_value = 1.0
@@ -464,7 +518,8 @@ def create_map_from_json(context, directory, filename):
                     tile_vertex_indices.append(len(new_vertices) - 1)
 
             # Create a face for the current tile
-            new_faces.append((tile_vertex_indices[0], tile_vertex_indices[1], tile_vertex_indices[3], tile_vertex_indices[2]))
+            new_faces.append(
+                (tile_vertex_indices[0], tile_vertex_indices[1], tile_vertex_indices[3], tile_vertex_indices[2]))
 
             # Calculate and assign UVs
             for corner in range(4):
@@ -508,6 +563,13 @@ def create_map_from_json(context, directory, filename):
 
     # Assign material to the object
     obj.data.materials.append(material)
+
+    # Add water:
+    top_left_point = (data['min_x'], data['max_z'])
+    bottom_right_point = (data['max_x'], data['min_z'])
+
+    # Add water:
+    create_water_surface(0.0, top_left_point, bottom_right_point, map_collection)
 
     # Now that we have added the terrain we will transform the models
     # (translate, rotate and scale) that should already be imported at this point
