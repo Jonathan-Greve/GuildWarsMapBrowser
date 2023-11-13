@@ -200,12 +200,9 @@ namespace nlohmann {
                 {"indices", s.indices},
                 {"texture_indices", s.texture_indices},
                 {"texture_uv_map_index", s.texture_uv_map_index},
+                {"texture_blend_flags", s.texture_blend_flags},
                 {"pixel_shader_type", s.pixel_shader_type}
             };
-
-            if (s.pixel_shader_type == PixelShaderType::OldModel) {
-                j["texture_blend_flags"] = s.texture_blend_flags;
-            }
         }
 
         static void from_json(const json& j, gwmb_submodel& s) {
@@ -213,11 +210,8 @@ namespace nlohmann {
             j.at("indices").get_to(s.indices);
             j.at("texture_indices").get_to(s.texture_indices);
             j.at("texture_uv_map_index").get_to(s.texture_uv_map_index);
+            j.at("texture_blend_flags").get_to(s.texture_blend_flags);
             j.at("pixel_shader_type").get_to(s.pixel_shader_type);
-
-            if (j.contains("texture_blend_flags")) {
-                j.at("texture_blend_flags").get_to(s.texture_blend_flags);
-            }
         }
     };
 
