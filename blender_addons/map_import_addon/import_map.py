@@ -113,7 +113,7 @@ def clamp_output(node, nodes, links):
     return clampNode
 
 
-def create_material_for_new_models(name, images, uv_map_names, texture_types):
+def create_material_for_new_models(name, images, uv_map_names, blend_flags, texture_types):
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     nodes = mat.node_tree.nodes
@@ -148,6 +148,7 @@ def create_material_for_new_models(name, images, uv_map_names, texture_types):
     done = False  # We only want to set the first non-normal texture. This is because I havent figured out the pixel shaders yet for these "new" models
     for index, image in enumerate(images):
         texture_type = texture_types[index]
+        blend_flag = blend_flags[index]
 
         texImage = nodes.new('ShaderNodeTexImage')
         uvMap = nodes.new('ShaderNodeUVMap')
@@ -162,17 +163,24 @@ def create_material_for_new_models(name, images, uv_map_names, texture_types):
 
         if not done:
             links.new(texImage.outputs['Color'], bsdf.inputs['Base Color'])
+
+            if blend_flag != 8:
+                texImage.image.alpha_mode = 'NONE'
+            links.new(texImage.outputs['Alpha'], bsdf.inputs['Alpha'])
+
             done = True
 
     output = nodes.new('ShaderNodeOutputMaterial')
     links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
 
     # Set material settings
-    # Set Blend Mode to 'Alpha Clip'
-    mat.blend_method = 'CLIP'
-
-    # Set Shadow Mode to 'Alpha Clip'
-    mat.shadow_method = 'CLIP'
+    if 8 in blend_flags:
+        mat.blend_method = 'BLEND'
+        mat.shadow_method = 'CLIP'
+        mat.alpha_threshold = 0.0
+    else:
+        mat.blend_method = 'OPAQUE'
+        mat.shadow_method = 'OPAQUE'
 
     return mat
 
@@ -798,7 +806,7 @@ def create_mesh_from_json(context, directory, filename):
         elif pixel_shader_type == 7:
             # New model
             material = create_material_for_new_models("Material_submodel_{}".format(idx), submodel_images, uv_map_names,
-                                                      texture_types)
+                                                      texture_blend_flags, texture_types)
         else:
             raise "Unknown pixel_shader_type"
 
