@@ -243,7 +243,9 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
         elif blend_flag == 0:
             # Need to create new texture for this to work in Blender
             texImageNoAlpha = nodes.new('ShaderNodeTexImage')
-            texImageNoAlpha.image = image
+            # we must duplicate the image, otherwise any changed we make to it's properties will apply to the
+            # existing image. So we duplicate so we can set this textures alpha mode to None without affecting the existing texture.
+            texImageNoAlpha.image = image.copy()
             texImageNoAlpha.label = "gwmb_texture"
             texImageNoAlpha.image.alpha_mode = 'NONE'
 
@@ -614,6 +616,8 @@ def create_map_from_json(context, directory, filename):
 
     texture_node = nodes.new(type='ShaderNodeTexImage')
     texture_node.image = terrain_tex_atlas
+    texture_node.interpolation = 'Closest'
+
     uv_map_node = nodes.new(type='ShaderNodeUVMap')
     uv_map_node.uv_map = "terrain_uv"
 
