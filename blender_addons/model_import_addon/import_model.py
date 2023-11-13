@@ -28,7 +28,7 @@ def disable_render_preview_background():
         nodes['Background'].inputs['Strength'].default_value = 0.7
 
 
-def create_material_for_new_models(name, images, uv_map_names, texture_types):
+def create_material_for_new_models(name, images, uv_map_names, blend_flags, texture_types):
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     nodes = mat.node_tree.nodes
@@ -39,18 +39,31 @@ def create_material_for_new_models(name, images, uv_map_names, texture_types):
 
     # Set all options to 0, except Roughness to 1
     for input in bsdf.inputs:
-        if input.name in ["Roughness", "Alpha"]:
-            input.default_value = 1.0
-        else:
-            # The default_value might be a single float or a tuple depending on the socket type
-            if isinstance(input.default_value, float):
-                input.default_value = 0.0
-            elif isinstance(input.default_value, tuple):
-                input.default_value = (0.0, 0.0, 0.0, 1.0)
+        try:
+            # Check if the input is 'Roughness' and set it to 1.0
+            if input.name == "Roughness" or input.name == "Alpha":
+                input.default_value = 1.0
+            # Otherwise, set other inputs based on their type
+            else:
+                # For color inputs which expect a 4-tuple RGBA
+                if input.type == 'RGBA':
+                    input.default_value = (0.0, 0.0, 0.0, 1.0)  # Assuming you want full opacity
+                # For vector inputs which expect a 3-tuple XYZ or RGB
+                elif input.type == 'VECTOR':
+                    input.default_value = (0.0, 0.0, 0.0)
+                # For float inputs which expect a single value
+                elif input.type == 'VALUE':
+                    input.default_value = 0.0
+                # Handle other input types as necessary
+                else:
+                    print(f"Unhandled input type {input.type} for {input.name}")
+        except Exception as e:
+            print(f"Error setting default value for {input.name}: {e}")
 
     done = False  # We only want to set the first non-normal texture. This is because I havent figured out the pixel shaders yet for these "new" models
     for index, image in enumerate(images):
         texture_type = texture_types[index]
+        blend_flag = blend_flags[index]
 
         texImage = nodes.new('ShaderNodeTexImage')
         uvMap = nodes.new('ShaderNodeUVMap')
@@ -65,25 +78,29 @@ def create_material_for_new_models(name, images, uv_map_names, texture_types):
 
         if not done:
             links.new(texImage.outputs['Color'], bsdf.inputs['Base Color'])
+
+            if blend_flag != 8:
+                texImage.image.alpha_mode = 'NONE'
+            links.new(texImage.outputs['Alpha'], bsdf.inputs['Alpha'])
+
             done = True
 
     output = nodes.new('ShaderNodeOutputMaterial')
     links.new(bsdf.outputs['BSDF'], output.inputs['Surface'])
 
     # Set material settings
-    # Set Blend Mode to 'Alpha Clip'
-    mat.blend_method = 'CLIP'
-
-    # Set Shadow Mode to 'Alpha Clip'
-    mat.shadow_method = 'CLIP'
+    if 8 in blend_flags:
+        mat.blend_method = 'BLEND'
+        mat.shadow_method = 'CLIP'
+        mat.alpha_threshold = 0.0
+    else:
+        mat.blend_method = 'OPAQUE'
+        mat.shadow_method = 'OPAQUE'
 
     return mat
 
 
 def create_material_for_old_models(name, images, uv_map_names, blend_flags, texture_types):
-    disable_render_preview_background()
-    set_clipping_values()
-
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
     nodes = mat.node_tree.nodes
@@ -149,7 +166,9 @@ def create_material_for_old_models(name, images, uv_map_names, blend_flags, text
         elif blend_flag == 0:
             # Need to create new texture for this to work in Blender
             texImageNoAlpha = nodes.new('ShaderNodeTexImage')
-            texImageNoAlpha.image = image
+            # we must duplicate the image, otherwise any changed we make to it's properties will apply to the
+            # existing image. So we duplicate so we can set this textures alpha mode to None without affecting the existing texture.
+            texImageNoAlpha.image = image.copy()
             texImageNoAlpha.label = "gwmb_texture"
             texImageNoAlpha.image.alpha_mode = 'NONE'
 
@@ -475,7 +494,7 @@ def create_mesh_from_json(context, directory, filename):
         elif pixel_shader_type == 7:
             # New model
             material = create_material_for_new_models("Material_submodel_{}".format(idx), submodel_images, uv_map_names,
-                                                      texture_types)
+                                                      texture_blend_flags, texture_types)
         else:
             raise "Unknown pixel_shader_type"
 
