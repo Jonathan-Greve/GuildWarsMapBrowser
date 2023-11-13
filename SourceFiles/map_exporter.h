@@ -231,7 +231,7 @@ private:
 
             // Save terrain textures in texture atlas
             int terrain_tex_atlas_tex_id = -1;
-            const auto terrain_tex_atlas = texture_manager->BuildTextureAtlas(terrain_dat_textures, -1, -1);
+            const auto terrain_tex_atlas = texture_manager->BuildTextureAtlas(terrain_dat_textures, 8, 8);
 
             if (terrain_tex_atlas.width > 0 && terrain_tex_atlas.height > 0)
             {
