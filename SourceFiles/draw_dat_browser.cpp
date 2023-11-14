@@ -924,8 +924,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
     static std::string curr_map_id_filter = "";
     static std::string curr_name_filter = "";
     static int curr_pvp_filter = -1;
-    static std::string curr_file_id_0_filter = "";
-    static std::string curr_file_id_1_filter = "";
+    static std::string curr_filename_filter = "";
 
     // The values set by the user in the GUI
     static std::string id_filter_text;
@@ -934,8 +933,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
     static std::string map_id_filter_text;
     static std::string name_filter_text;
     static int pvp_filter_value = -1; // -1 means no filter, 0 means false, 1 means true
-    static std::string file_id_0_filter_text;
-    static std::string file_id_1_filter_text;
+    static std::string filename_filter_text;
 
     static bool filter_update_required = true;
 
@@ -975,15 +973,9 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
         filter_update_required = true;
     }
 
-    if (curr_file_id_0_filter != file_id_0_filter_text)
+    if (curr_filename_filter != filename_filter_text)
     {
-        curr_file_id_0_filter = file_id_0_filter_text;
-        filter_update_required = true;
-    }
-
-    if (curr_file_id_1_filter != file_id_1_filter_text)
-    {
-        curr_file_id_1_filter = file_id_1_filter_text;
+        curr_filename_filter = filename_filter_text;
         filter_update_required = true;
     }
 
@@ -1027,26 +1019,22 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
             }
         }
 
-        if (!file_id_0_filter_text.empty())
+        if (!filename_filter_text.empty())
         {
-            int file_id_0_filter_value = custom_stoi(file_id_0_filter_text);
-            // Assuming you have a file_id_0_index similar to id_index or hash_index
-            if (file_id_0_index.contains(file_id_0_filter_value))
+            int filename_filter_value = custom_stoi(filename_filter_text);
+            uint16_t id0 = filename_filter_value & 0xFFFF;
+            uint16_t id1 = (filename_filter_value >> 16) & 0xFFFF;
+
+            if (file_id_0_index.contains(id0))
             {
-                apply_filter(file_id_0_index[file_id_0_filter_value], intersection);
+                apply_filter(file_id_0_index[id0], intersection);
+            }
+
+            if (file_id_1_index.contains(id1))
+            {
+                apply_filter(file_id_1_index[id1], intersection);
             }
         }
-
-        if (!file_id_1_filter_text.empty())
-        {
-            int file_id_1_filter_value = custom_stoi(file_id_1_filter_text);
-            // Assuming you have a file_id_1_index similar to id_index or hash_index
-            if (file_id_1_index.contains(file_id_1_filter_value))
-            {
-                apply_filter(file_id_1_index[file_id_1_filter_value], intersection);
-            }
-        }
-
 
         if (type_filter_value != NONE)
         {
@@ -1099,7 +1087,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
         }
 
         if (id_filter_text.empty() && hash_filter_text.empty() && type_filter_value == NONE &&
-            map_id_filter_text.empty() && name_filter_text.empty() && pvp_filter_value == -1 && file_id_0_filter_text.empty() && file_id_1_filter_text.empty()) {
+            map_id_filter_text.empty() && name_filter_text.empty() && pvp_filter_value == -1 && filename_filter_text.empty()) {
             filtered_items = items;
         }
         else { for (const auto& id : intersection) { filtered_items.push_back(items[id]); } }
@@ -1111,31 +1099,25 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
         curr_map_id_filter = map_id_filter_text;
         curr_name_filter = name_filter_text;
         curr_pvp_filter = pvp_filter_value;
-        curr_file_id_0_filter = file_id_0_filter_text;
-        curr_file_id_1_filter = file_id_1_filter_text;
+        curr_filename_filter = filename_filter_text;
     }
 
     // Filter table
     // Render the filter inputs and the table
-    ImGui::Columns(7);
+    ImGui::Columns(6);
     ImGui::Text("Id:");
     ImGui::SameLine();
     ImGui::InputText("##IdFilter", &id_filter_text);
     ImGui::NextColumn();
 
-    ImGui::Text("Hash:");
+    ImGui::Text("File ID:");
     ImGui::SameLine();
     ImGui::InputText("##HashFilter", &hash_filter_text);
     ImGui::NextColumn();
 
-    ImGui::Text("File ID 0:");
+    ImGui::Text("Filename");
     ImGui::SameLine();
-    ImGui::InputText("##FileID0Filter", &file_id_0_filter_text);
-    ImGui::NextColumn();
-
-    ImGui::Text("File ID 1:");
-    ImGui::SameLine();
-    ImGui::InputText("##FileID1Filter", &file_id_1_filter_text);
+    ImGui::InputText("##FilenameFilter", &filename_filter_text);
     ImGui::NextColumn();
 
     ImGui::Text("Name:");
@@ -1165,7 +1147,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
         ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
         ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY;
 
-    if (ImGui::BeginTable("data browser", 10, flags))
+    if (ImGui::BeginTable("data browser", 9, flags))
     {
         // Declare columns
         // We use the "user_id" parameter of TableSetupColumn() to specify a user id that will be stored in the sort specifications.
@@ -1175,9 +1157,8 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
         // - ImGuiTableColumnFlags_NoSort / ImGuiTableColumnFlags_NoSortAscending / ImGuiTableColumnFlags_NoSortDescending
         // - ImGuiTableColumnFlags_PreferSortAscending / ImGuiTableColumnFlags_PreferSortDescending
         ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_DefaultSort, 0.0f, DatBrowserItemColumnID_id);
-        ImGui::TableSetupColumn("Hash", 0, 0.0f, DatBrowserItemColumnID_hash);
-        ImGui::TableSetupColumn("File ID 0", 0, 0.0f, DatBrowserItemColumnID_file_id_0);
-        ImGui::TableSetupColumn("File ID 1", 0, 0.0f, DatBrowserItemColumnID_file_id_1);
+        ImGui::TableSetupColumn("File ID", 0, 0.0f, DatBrowserItemColumnID_hash);
+        ImGui::TableSetupColumn("Filename", 0, 0.0f, DatBrowserItemColumnID_filename);
         ImGui::TableSetupColumn("Name", 0, 0.0f, DatBrowserItemColumnID_name);
         ImGui::TableSetupColumn("Type", 0, 0.0f, DatBrowserItemColumnID_type);
         ImGui::TableSetupColumn("Size", 0, 0.0f, DatBrowserItemColumnID_size);
@@ -1492,13 +1473,11 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                 ImGui::Text(file_hash_text.c_str());
                 ImGui::TableNextColumn();
 
-                const auto file_id_0_text = std::format("0x{:X} ({})", item.file_id_0, item.file_id_0);
-                ImGui::Text(file_id_0_text.c_str());
+                uint32_t filename = (item.file_id_0 & 0xFFFF) + ((item.file_id_1 << 16) & 0xFFFF0000);
+                const auto filename_text = std::format("0x{:X} ({})", filename, filename);
+                ImGui::Text(filename_text.c_str());
                 ImGui::TableNextColumn();
 
-                const auto file_id_1_text = std::format("0x{:X} ({})", item.file_id_1, item.file_id_1);
-                ImGui::Text(file_id_1_text.c_str());
-                ImGui::TableNextColumn();
 
                 if (item.type == FFNA_Type3)
                 {
@@ -1659,11 +1638,8 @@ inline int IMGUI_CDECL DatBrowserItem::CompareWithSortSpecs(const void* lhs, con
         case DatBrowserItemColumnID_decompressed_size:
             delta = (a->decompressed_size - b->decompressed_size);
             break;
-        case DatBrowserItemColumnID_file_id_0:
-            delta = (a->file_id_0 - b->file_id_0);
-            break;
-        case DatBrowserItemColumnID_file_id_1:
-            delta = (a->file_id_1 - b->file_id_1);
+        case DatBrowserItemColumnID_filename:
+            delta = (a->file_id_0 + (a->file_id_1 << 16)) - (b->file_id_0 + (b->file_id_1 << 16));
             break;
         case DatBrowserItemColumnID_map_id: // Modified map_id case
             for (size_t i = 0; i < std::min(a->map_ids.size(), b->map_ids.size()); ++i)
