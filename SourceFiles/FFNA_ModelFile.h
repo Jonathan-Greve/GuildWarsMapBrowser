@@ -15,6 +15,11 @@ constexpr uint32_t GR_FVF_TANGENT_AND_BITANGENT = 0x30;
 
 inline int decode_filename(int id0, int id1) { return (id0 - 0xff00ff) + (id1 * 0xff00); }
 
+inline void encode_filehash(uint32_t filehash, int& id0_out, int& id1_out) {
+    id0_out = static_cast<wchar_t>(((filehash - 1) % 0xff00) + 0x100);
+    id1_out = static_cast<wchar_t>(((filehash - 1) / 0xff00) + 0x100);
+}
+
 inline uint32_t get_fvf(uint32_t dat_fvf)
 {
     return (dat_fvf & 0xff0) << 4 | dat_fvf >> 8 & 0x30 | dat_fvf & 0xf;
