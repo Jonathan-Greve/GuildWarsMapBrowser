@@ -1025,14 +1025,48 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
             uint16_t id0 = filename_filter_value & 0xFFFF;
             uint16_t id1 = (filename_filter_value >> 16) & 0xFFFF;
 
-            if (file_id_0_index.contains(id0))
-            {
-                apply_filter(file_id_0_index[id0], intersection);
-            }
+            bool is_full_filename_hash = id0 > 0xFF && id1 > 0xFF;
 
-            if (file_id_1_index.contains(id1))
-            {
-                apply_filter(file_id_1_index[id1], intersection);
+            if (!is_full_filename_hash) {
+                if (file_id_0_index.contains(id0))
+                {
+                    apply_filter(file_id_0_index[id0], intersection);
+                }
+
+                if (file_id_1_index.contains(id1))
+                {
+                    apply_filter(file_id_1_index[id1], intersection);
+                }
+            }
+            else {
+                if (file_id_0_index.contains(id0) && file_id_1_index.contains(id1))
+                {
+                    apply_filter(file_id_0_index[id0], intersection);
+                    apply_filter(file_id_1_index[id1], intersection);
+                }
+
+                // For the full filenames (i.e. id0 and id1 combined) we want the search to work in both litle and big endian for convenience.
+                uint32_t big_endian_value = ((filename_filter_value >> 24) & 0xff) | // Move byte 3 to byte 0
+                    ((filename_filter_value << 8) & 0xff0000) | // Move byte 1 to byte 2
+                    ((filename_filter_value >> 8) & 0xff00) | // Move byte 2 to byte 1
+                    ((filename_filter_value << 24) & 0xff000000); // byte 0 to byte 3
+
+                id0 = big_endian_value & 0xFFFF;
+                id1 = (big_endian_value >> 16) & 0xFFFF;
+
+                std::unordered_set<int> intersection_tmp;
+
+                if (file_id_0_index.contains(id0) && file_id_1_index.contains(id1))
+                {
+                    apply_filter(file_id_0_index[id0], intersection_tmp);
+                    apply_filter(file_id_1_index[id1], intersection_tmp);
+                }
+
+                // Add values from intersection_tmp to intersection
+                for (const auto& value : intersection_tmp)
+                {
+                    intersection.insert(value);
+                }
             }
         }
 
