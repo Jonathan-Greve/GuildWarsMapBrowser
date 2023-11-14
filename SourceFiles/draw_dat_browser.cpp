@@ -330,9 +330,9 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                                 auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(dat_texture.width,
                                     dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
                                     decoded_filename);
-
-                                model_texture_types.insert({ texture_id, dat_texture.texture_type });
                             }
+
+                            model_texture_types.insert({ texture_id, dat_texture.texture_type });
                         }
 
                         assert(texture_id >= 0);
