@@ -14,12 +14,15 @@ enum DatBrowserItemColumnID
 {
     DatBrowserItemColumnID_id,
     DatBrowserItemColumnID_hash,
+    DatBrowserItemColumnID_file_id_0,
+    DatBrowserItemColumnID_file_id_1,
+    DatBrowserItemColumnID_name,
     DatBrowserItemColumnID_type,
     DatBrowserItemColumnID_size,
     DatBrowserItemColumnID_decompressed_size,
     DatBrowserItemColumnID_map_id,
-    DatBrowserItemColumnID_name,
-    DatBrowserItemColumnID_is_pvp
+    DatBrowserItemColumnID_is_pvp,
+
 };
 
 struct DatBrowserItem
@@ -29,6 +32,8 @@ struct DatBrowserItem
     FileType type;
     uint32_t size;
     uint32_t decompressed_size;
+    uint32_t file_id_0;
+    uint32_t file_id_1;
 
     std::vector<uint32_t> map_ids;
     std::vector<std::string> names;
