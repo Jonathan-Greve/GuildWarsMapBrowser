@@ -1518,8 +1518,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                 ImGui::Text(file_hash_text.c_str());
                 ImGui::TableNextColumn();
 
-                uint32_t filename = (item.file_id_0 & 0xFFFF) + ((item.file_id_1 << 16) & 0xFFFF0000);
-                const auto filename_text = std::format("0x{:X} ({})", filename, filename);
+                const auto filename_text = std::format("0x{:X} 0x{:X}", item.file_id_0, item.file_id_1);
                 ImGui::Text(filename_text.c_str());
                 ImGui::TableNextColumn();
 
