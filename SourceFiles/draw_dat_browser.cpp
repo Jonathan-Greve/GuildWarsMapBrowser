@@ -820,6 +820,17 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
         //    const auto vertex = selected_ffna_map_file.props_info_chunk.some_data1.array[i];
         //    map_renderer->AddBox(vertex.x, 2000, vertex.y, 50);
         //}
+
+        //for (int i = 0; i < selected_ffna_map_file.chunk5.some_array.size(); i++) {
+        //    auto color1 = CheckerboardTexture::GetColorForIndex(i);
+        //    auto color2 = CheckerboardTexture::GetColorForIndex(i + 1);
+
+        //    const auto& vertices = selected_ffna_map_file.chunk5.some_array[i].vertices;
+        //    for (int j = 0; j < vertices.size(); j++) {
+        //        const auto& vertex = vertices[j];
+        //        map_renderer->AddBox(vertex.x, 2000, vertex.y, 200, color1, color2);
+        //    }
+        //}
     }
         
     break;
