@@ -17,7 +17,7 @@ void draw_texture_panel(MapRenderer* map_renderer)
         const float min_width = 256;
         const float min_height = 256 + 60;
         ImGui::SetNextWindowSizeConstraints(ImVec2(min_width, min_height), ImVec2(FLT_MAX, FLT_MAX));
-        ImGui::Begin("Texture Panel");
+        ImGui::Begin("Texture Panel", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
 
         // Display texture information
         ImGui::Text("Selected Texture ID: %d", selected_dat_texture.texture_id);
