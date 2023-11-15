@@ -17,7 +17,7 @@ void draw_picking_info(const PickingInfo& info)
 	if (info.prop_index >= 0) { last_hovered_prop_index = info.prop_index; }
 
 	// Create a new ImGui window called "Picking Info"
-	ImGui::Begin("Picking Info");
+	ImGui::Begin("Picking Info", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
 
 	// Display mouse coordinates
 	ImGui::Text("Mouse Coordinates: (%d, %d)", info.client_x, info.client_y);

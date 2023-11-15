@@ -17,7 +17,7 @@ extern std::vector<FileData> selected_map_files;
 
 void draw_left_panel(MapRenderer* map_renderer)
 {
-    constexpr auto window_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    constexpr auto window_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoFocusOnAppearing;
 
     // set up the left panel
     ImGui::SetNextWindowPos(ImVec2(GuiGlobalConstants::panel_padding, GuiGlobalConstants::panel_padding));
