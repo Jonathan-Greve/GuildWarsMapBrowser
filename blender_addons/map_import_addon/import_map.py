@@ -74,10 +74,16 @@ def create_water_surface(water_level=0.0, terrain_min_x_max_y=(-50000, 50000), t
     bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
     bsdf.inputs['Base Color'].default_value = (0.0, 0.344, 0.55, 1)  # Blue color
     bsdf.inputs['Roughness'].default_value = 0.05  # Sharp reflections
-    bsdf.inputs['Transmission'].default_value = 0.95  # Transparency
     bsdf.inputs['IOR'].default_value = 1.333  # Index of Refraction
     bsdf.inputs['Alpha'].default_value = 0.8  # Transparency
-    bsdf.inputs['Emission'].default_value = (0.002, 0.004, 0.022, 1)
+
+    print(f'blender version: {bpy.app.version}')
+    if (4, 0, 0) >= bpy.app.version:
+        bsdf.inputs['Transmission Weight'].default_value = 0.95
+        bsdf.inputs['Emission Color'].default_value = (0.002, 0.004, 0.022, 1)
+    else:
+        bsdf.inputs['Transmission'].default_value = 0.95
+        bsdf.inputs['Emission'].default_value = (0.002, 0.004, 0.022, 1)
 
     # Add Output node and link nodes
     output_node = nodes.new('ShaderNodeOutputMaterial')
