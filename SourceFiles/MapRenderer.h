@@ -471,7 +471,10 @@ public:
                                m_stencil_state_manager.get(), m_user_camera->GetPosition3f());
     }
 
-    void AddBox(float x, float y, float z, float size) {
+    void AddBox(float x, float y, float z, float size, 
+            CheckerboardTexture::ColorChoice color_choice1 = CheckerboardTexture::ColorChoice::White, 
+            CheckerboardTexture::ColorChoice color_choice2 = CheckerboardTexture::ColorChoice::Silver)
+    {
         auto mesh_id = m_mesh_manager->AddBox({ size, size, size });
         extra_mesh_ids.push_back(mesh_id);
 
@@ -485,12 +488,12 @@ public:
         int texture_tile_size = 96;
         int texture_width = texture_tile_size * 2;
         int texture_height = texture_tile_size * 2;
-        CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size);
-        m_terrain_checkered_texture_id =
+        CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size, color_choice1, color_choice2);
+        const auto checkered_tex_id =
             m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
-                texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 3214972);
+                texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 3214972 + (int)color_choice1 * 20 + (int)color_choice2);
 
-        m_mesh_manager->SetTexturesForMesh(mesh_id, { m_texture_manager->GetTexture(m_terrain_checkered_texture_id) }, 3);
+        m_mesh_manager->SetTexturesForMesh(mesh_id, { m_texture_manager->GetTexture(checkered_tex_id) }, 3);
     }
 
 private:
