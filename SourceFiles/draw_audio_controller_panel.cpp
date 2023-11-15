@@ -35,7 +35,7 @@ void draw_audio_controller_panel(HSTREAM streamHandle)
         float currPos = static_cast<float>(currPosDouble);
         float totalDur = static_cast<float>(totalDurDouble);
 
-        ImGui::Begin("Audio Control");
+        ImGui::Begin("Audio Control", nullptr, ImGuiWindowFlags_NoFocusOnAppearing);
 
         // Separate sections for better layout
         ImGui::Text("Track Information");
