@@ -7,6 +7,11 @@ from mathutils import Vector, Matrix
 
 import bpy
 
+def set_metric_space():
+    bpy.context.scene.unit_settings.system = 'METRIC'
+    bpy.context.scene.unit_settings.length_unit = 'METERS'
+    bpy.context.scene.unit_settings.scale_length = 0.02
+
 
 def set_clipping_values():
     """ Sets clipping start and end for all cameras and 3D viewports. """
@@ -486,6 +491,7 @@ def ensure_collection(context, collection_name, parent_collection=None):
 def create_map_from_json(context, directory, filename):
     disable_render_preview_background()
     set_clipping_values()
+    set_metric_space()
 
     filepath = os.path.join(directory, filename)
     print('create_map_from_json called')

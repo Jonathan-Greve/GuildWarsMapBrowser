@@ -3,6 +3,11 @@ import json
 import os
 import numpy as np
 
+def set_metric_space():
+    bpy.context.scene.unit_settings.system = 'METRIC'
+    bpy.context.scene.unit_settings.length_unit = 'METERS'
+    bpy.context.scene.unit_settings.scale_length = 0.02
+
 
 def set_clipping_values():
     """ Sets clipping start and end for all cameras and 3D viewports. """
@@ -535,6 +540,9 @@ class IMPORT_OT_JSONMesh(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
+        set_clipping_values()
+        set_metric_space()
+        
         i = 0
         for file_elem in self.files:
             print(f'progress: {i}/{len(self.files)}')
