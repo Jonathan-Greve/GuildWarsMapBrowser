@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Guild Wars Map Browser Model Importer",
     "author": "Jonathan Bjørn Greve",
-    "version": (1, 0),
+    "version": (1, 1),
     "blender": (3, 6, 5),
     "location": "File > Import > GW Map Browser Model File (.json)",
     "description": "Import a 3D model from a JSON file provided by Guild Wars Map Browser.",
