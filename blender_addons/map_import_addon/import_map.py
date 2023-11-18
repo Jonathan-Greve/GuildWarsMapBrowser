@@ -83,7 +83,7 @@ def create_water_surface(water_level=0.0, terrain_min_x_max_y=(-50000, 50000), t
     bsdf.inputs['Alpha'].default_value = 0.8  # Transparency
 
     print(f'blender version: {bpy.app.version}')
-    if (4, 0, 0) >= bpy.app.version:
+    if bpy.app.version >= (4, 0, 0):
         bsdf.inputs['Transmission Weight'].default_value = 0.95
         bsdf.inputs['Emission Color'].default_value = (0.002, 0.004, 0.022, 1)
     else:
