@@ -1,6 +1,4 @@
-Guild Wars Map Browser
-=====================
-
+# Guild Wars Map Browser
 Browse the Guild Wars .dat file. Included features:
 - Searching and filtering the internal files in the dat.
 - Rendering 3D terrains for all maps.
@@ -10,6 +8,13 @@ Browse the Guild Wars .dat file. Included features:
 - Playback of audio files.
 - Extract 3D models and textures.
 - And more
+
+## How to use
+- You might need vc_redist_x86 (Microsoft Visual c++ Redistributable) that you can get [here](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) or [direct download link](https://aka.ms/vs/17/release/vc_redist.x86.exe).
+- Download GuildWarsMapBrowser.exe from [releases](https://github.com/Jonathan-Greve/GuildWarsMapBrowser/releases) and run it.
+- To import into Blender see the guide in the release notes or check [this reddit post](https://www.reddit.com/r/GuildWars/comments/17wnlj3/guild_wars_map_browser_v50_exporting_to_blender)
+
+## Preview
  
  Here is an preview of Monastery Overlook as seen rendered in GuildWarsMapBrowser and pre-searing Ascalon City
 ![Monastery Overlook](images/v5_0_monastery_overlook.png)
@@ -39,5 +44,6 @@ See *CONTRIBUTING.MD*
 
 ## Credits:
 Decompressing the .dat file uses the source code from:
- - [GWDatBrowser]https://github.com/kytulendu/GWDatBrowser
+ - [GWDatBrowser](https://github.com/kytulendu/GWDatBrowser)
      - Specifically I use: AtexAsm.h/cpp, AtexReader.h/cpp, GWUnpacker.h/cpp, xentax.h/cpp
+ - The Guild Wars community for being supportive and showing interest in the project.
