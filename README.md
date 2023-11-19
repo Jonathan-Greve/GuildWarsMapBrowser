@@ -46,4 +46,4 @@ See *CONTRIBUTING.MD*
 Decompressing the .dat file uses the source code from:
  - [GWDatBrowser](https://github.com/kytulendu/GWDatBrowser)
      - Specifically I use: AtexAsm.h/cpp, AtexReader.h/cpp, GWUnpacker.h/cpp, xentax.h/cpp
- - The Guild Wars community for being supportive and showing interest in the project.
+ - The Guild Wars community for being supportive, reporting bugs and showing interest in the project.
