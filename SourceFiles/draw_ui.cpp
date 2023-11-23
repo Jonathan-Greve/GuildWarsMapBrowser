@@ -10,6 +10,7 @@
 #include "draw_text_panel.h"
 #include "draw_hex_editor_panel.h"
 #include "draw_picking_info.h"
+#include "draw_dat_compare_panel.h"
 
 extern FileType selected_file_type;
 extern HSTREAM selected_audio_stream_handle;
@@ -35,6 +36,7 @@ void draw_ui(InitializationState initialization_state, int dat_files_to_read, in
             draw_data_browser(dat_manager, map_renderer);
             draw_left_panel(map_renderer);
             draw_right_panel(map_renderer);
+            draw_dat_compare_panel(dat_manager);
 
             draw_picking_info(picking_info);
 
