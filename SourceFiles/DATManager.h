@@ -38,6 +38,10 @@ public:
     int get_num_files_type_read() { return m_num_types_read; }
     int get_num_files() { return m_dat.getNumFiles(); }
 
+    std::wstring get_filepath() {
+        return m_dat_filepath;
+    }
+
     std::vector<MFTEntry>& get_MFT() { return m_dat.get_MFT(); }
 
     FFNA_MapFile parse_ffna_map_file(int index);

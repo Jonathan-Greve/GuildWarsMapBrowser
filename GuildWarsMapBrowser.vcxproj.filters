@@ -119,6 +119,9 @@
     <Filter Include="json">
       <UniqueIdentifier>{b8a86971-31a7-40cc-a758-97364e36b660}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GUI\DatComparePanel">
+      <UniqueIdentifier>{e8dea6c2-bee5-444c-b5f5-87cef162d9d4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -424,6 +427,9 @@
     <ClInclude Include="SourceFiles\map_exporter.h">
       <Filter>Exporter</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\draw_dat_compare_panel.h">
+      <Filter>GUI\DatComparePanel</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -677,6 +683,9 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\map_exporter.cpp">
       <Filter>Exporter</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_dat_compare_panel.cpp">
+      <Filter>GUI\DatComparePanel</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
