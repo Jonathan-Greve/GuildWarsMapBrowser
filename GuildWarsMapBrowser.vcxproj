@@ -216,6 +216,7 @@
     <ClInclude Include="SourceFiles\CheckerboardTexture.h" />
     <ClInclude Include="SourceFiles\ConstantBufferManager.h" />
     <ClInclude Include="SourceFiles\DATManager.h" />
+    <ClInclude Include="SourceFiles\draw_dat_compare_panel.h" />
     <ClInclude Include="SourceFiles\json.hpp" />
     <ClInclude Include="SourceFiles\map_exporter.h" />
     <ClInclude Include="SourceFiles\model_exporter.h" />
@@ -380,6 +381,7 @@
     <ClCompile Include="SourceFiles\draw_chunk_20000000.cpp" />
     <ClCompile Include="SourceFiles\draw_chunk_20000003.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_browser.cpp" />
+    <ClCompile Include="SourceFiles\draw_dat_compare_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_load_progress_bar.cpp" />
     <ClCompile Include="SourceFiles\draw_gui_for_open_dat_file.cpp" />
     <ClCompile Include="SourceFiles\draw_hex_editor_panel.cpp" />
