@@ -4,6 +4,7 @@
 #include "GWUnpacker.h"
 #include <algorithm>
 #include <map>
+#include <MurmurHash3.h>
 
 using namespace std;
 
@@ -127,7 +128,7 @@ void GWDat::read(HANDLE file_handle, void* buffer, int size, int count)
     }
 }
 
-unsigned char* GWDat::readFile(HANDLE file_handle, unsigned int n, bool translate /* = true*/)
+unsigned char* GWDat::readFile(HANDLE file_handle, unsigned int n, bool translate)
 {
     MFTEntry& m = MFT[n];
 
@@ -163,6 +164,10 @@ unsigned char* GWDat::readFile(HANDLE file_handle, unsigned int n, bool translat
         memcpy(Output, Input, m.Size);
         OutSize = m.Size;
     }
+
+    // Use murmurhash3 for comparing files
+    MurmurHash3_x86_32(Output, OutSize, 0, &m.murmurhash3);
+
     delete[] Input;
 
     if (Output)
