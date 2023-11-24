@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "draw_dat_compare_panel.h"
 #include <filesystem>
+#include <draw_dat_load_progress_bar.h>
 
 std::vector<std::wstring> file_paths;
 std::map<int, DATManager*> dat_managers; // Map to hold pointers to DATManagers with integer aliases
@@ -103,19 +104,45 @@ void draw_dat_compare_panel(DATManager& existing_dat_manager)
         }
     }
 
-    if (ImGui::Button("Start Analyzing")) {
-        for (const auto& filepath : file_paths) {
-            if (filepath != existing_dat_filepath && dat_managers.find(filepath_to_alias[filepath]) == dat_managers.end()) {
-                DATManager* new_dat_manager = new DATManager();
-                if (new_dat_manager->Init(filepath)) {
-                    dat_managers[filepath_to_alias[filepath]] = new_dat_manager;
-                }
-                else {
-                    delete new_dat_manager;
+    // Variables to store cumulative progress
+    int total_additional_files_read = 0;
+    int total_additional_files = 0;
+
+    // Sum up the progress of all additional dat files
+    for (const auto& filepath : file_paths) {
+        if (filepath != existing_dat_filepath) { // Skip the existing dat file
+            int alias = filepath_to_alias[filepath];
+            if (dat_managers.find(alias) != dat_managers.end()) {
+                // Assuming each DATManager has methods to get the number of files read and the total files
+                total_additional_files_read += dat_managers[alias]->get_num_files_type_read();
+                total_additional_files += dat_managers[alias]->get_num_files();
+            }
+        }
+    }
+    if (total_additional_files_read == total_additional_files) {
+        if (ImGui::Button("Start Analyzing")) {
+            for (const auto& filepath : file_paths) {
+                if (filepath != existing_dat_filepath && dat_managers.find(filepath_to_alias[filepath]) == dat_managers.end()) {
+                    DATManager* new_dat_manager = new DATManager();
+                    if (new_dat_manager->Init(filepath)) {
+                        dat_managers[filepath_to_alias[filepath]] = new_dat_manager;
+                    }
+                    else {
+                        delete new_dat_manager;
+                    }
                 }
             }
         }
     }
+    else {
+        ImGui::Text("Analyzation in progress. Please wait.");
+    }
 
     ImGui::End();
+
+    // Show progress bar of loading additional dat files
+    // Draw a single progress bar for the cumulative progress
+    if (total_additional_files_read < total_additional_files) {
+        draw_dat_load_progress_bar(total_additional_files_read, total_additional_files);
+    }
 }
