@@ -20,7 +20,8 @@ using Microsoft::WRL::ComPtr;
 extern std::unordered_map<uint32_t, uint32_t> object_id_to_prop_index;
 
 MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
-    : m_input_manager(input_manager)
+    : m_input_manager(input_manager),
+      m_dat_manager_to_show_in_dat_browser(0)
 {
     m_deviceResources = std::make_unique<DX::DeviceResources>(
         DXGI_FORMAT_R8G8B8A8_UNORM, 
@@ -155,7 +156,7 @@ void MapBrowser::Render()
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    draw_ui(m_dat_managers, m_map_renderer.get(), picking_info);
+    draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info);
 
     static bool show_demo_window = false;
     if (show_demo_window)

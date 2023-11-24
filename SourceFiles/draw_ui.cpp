@@ -17,8 +17,10 @@ extern HSTREAM selected_audio_stream_handle;
 extern std::string selected_text_file_str;
 extern std::vector<uint8_t> selected_raw_data;
 
-void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, MapRenderer* map_renderer, PickingInfo picking_info)
+void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show, MapRenderer* map_renderer, PickingInfo picking_info)
 {
+    static bool dat_manager_to_show_changed = false;
+    int initial_dat_manager_to_show = dat_manager_to_show;
 
     if (! gw_dat_path_set)
     {
@@ -26,9 +28,9 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, MapRender
     }
     else
     {
-        const auto& initialization_state = dat_managers[0]->m_initialization_state;
-        const auto& dat_files_read = dat_managers[0]->get_num_files_type_read();
-        const auto& dat_total_files = dat_managers[0]->get_num_files();
+        const auto& initialization_state = dat_managers[dat_manager_to_show]->m_initialization_state;
+        const auto& dat_files_read = dat_managers[dat_manager_to_show]->get_num_files_type_read();
+        const auto& dat_total_files = dat_managers[dat_manager_to_show]->get_num_files();
 
         if (initialization_state == InitializationState::Started)
         {
@@ -36,10 +38,10 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, MapRender
         }
         if (initialization_state == InitializationState::Completed)
         {
-            draw_data_browser(dat_managers[0].get(), map_renderer);
+            draw_data_browser(dat_managers[dat_manager_to_show].get(), map_renderer, dat_manager_to_show_changed);
             draw_left_panel(map_renderer);
             draw_right_panel(map_renderer);
-            draw_dat_compare_panel(dat_managers);
+            draw_dat_compare_panel(dat_managers, dat_manager_to_show);
 
             draw_picking_info(picking_info);
 
@@ -65,4 +67,6 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, MapRender
             }
         }
     }
+
+    dat_manager_to_show_changed = dat_manager_to_show != initial_dat_manager_to_show;
 }

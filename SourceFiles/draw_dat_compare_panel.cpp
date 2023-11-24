@@ -7,7 +7,17 @@ std::vector<std::wstring> file_paths;
 std::map<std::wstring, int> filepath_to_alias; // Map to track filepath and its alias
 
 
-void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_managers)
+void add_dat_manager(const std::wstring& filepath, std::map<int, std::unique_ptr<DATManager>>& dat_managers)
+{
+    if (dat_managers.find(filepath_to_alias[filepath]) == dat_managers.end()) {
+        auto new_dat_manager = std::make_unique<DATManager>();
+        if (new_dat_manager->Init(filepath)) {
+            dat_managers[filepath_to_alias[filepath]] = std::move(new_dat_manager);
+        }
+    }
+}
+
+void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show)
 {
     static const std::wstring& existing_dat_filepath = dat_managers[0]->get_filepath();
     static bool isExistingFilePathAdded = false;
@@ -71,6 +81,7 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
                 if (std::find(file_paths.begin(), file_paths.end(), wstr) == file_paths.end()) {
                     file_paths.push_back(wstr);
                     filepath_to_alias[wstr] = filepath_to_alias.size();
+                    add_dat_manager(wstr, dat_managers);
                 }
             }
             ImGuiFileDialog::Instance()->Close();
@@ -82,18 +93,21 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
         int alias = filepath_to_alias[file_paths[i]];
         ImGui::Text("DAT %d: %ls", alias, file_paths[i].c_str());
 
-        std::string btn_label = "Remove ##" + std::to_string(i);
-        if (file_paths[i] != existing_dat_filepath) {
-            if (!is_analyzing) {
+        if (!is_analyzing) {
+            if (alias != dat_manager_to_show) {
                 ImGui::SameLine();
+                std::string btn_label = "Remove ##" + std::to_string(i);
                 if (ImGui::Button(btn_label.c_str())) {
 
                     int alias_to_remove = filepath_to_alias[file_paths[i]];
 
+                    if (alias_to_remove < dat_manager_to_show) {
+                        dat_manager_to_show--;
+                    }
+
                     // Remove DATManager if it exists
                     if (dat_managers.find(alias_to_remove) != dat_managers.end()) {
                         dat_managers.erase(alias_to_remove);
-                    }
 
                     // Erase file from vectors and map
                     filepath_to_alias.erase(file_paths[i]);
@@ -119,25 +133,20 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
                     dat_managers = std::move(updated_dat_managers);
 
                     --i; // Adjust loop counter as the list size has changed
-                }
-            }
-        }
-    }
-
-    if (!is_analyzing) {
-        if (ImGui::Button("Start Analyzing")) {
-            for (const auto& filepath : file_paths) {
-                if (filepath != existing_dat_filepath && dat_managers.find(filepath_to_alias[filepath]) == dat_managers.end()) {
-                    auto new_dat_manager = std::make_unique<DATManager>();
-                    if (new_dat_manager->Init(filepath)) {
-                        dat_managers[filepath_to_alias[filepath]] = std::move(new_dat_manager);
                     }
                 }
+
+                ImGui::SameLine();
+                std::string show_btn_label = "Show in DAT browser ##" + std::to_string(i);
+                if (ImGui::Button(show_btn_label.c_str())) {
+                    dat_manager_to_show = alias;
+                }
+            }
+            else {
+                ImGui::SameLine();
+                ImGui::Text("Currently shown");
             }
         }
-    }
-    else {
-        ImGui::Text("Analyzation in progress. Please wait.");
     }
 
     ImGui::End();
