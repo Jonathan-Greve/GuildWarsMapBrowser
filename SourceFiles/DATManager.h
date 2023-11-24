@@ -38,7 +38,7 @@ public:
     int get_num_files_type_read() { return m_num_types_read; }
     int get_num_files() { return m_dat.getNumFiles(); }
 
-    std::wstring get_filepath() {
+    const std::wstring get_filepath() {
         return m_dat_filepath;
     }
 

@@ -65,8 +65,7 @@ private:
     // Input manager
     InputManager* m_input_manager;
 
-    // dat file manager
-    DATManager m_dat_manager;
+    std::map<int, std::unique_ptr<DATManager>> m_dat_managers;
 
     std::unique_ptr<MapRenderer> m_map_renderer;
 };
