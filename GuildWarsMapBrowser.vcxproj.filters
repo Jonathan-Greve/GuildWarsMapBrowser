@@ -122,6 +122,9 @@
     <Filter Include="GUI\DatComparePanel">
       <UniqueIdentifier>{e8dea6c2-bee5-444c-b5f5-87cef162d9d4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MurmurHash3">
+      <UniqueIdentifier>{b70e6b3b-f197-4975-9b87-36bceb7eba2a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -430,6 +433,9 @@
     <ClInclude Include="SourceFiles\draw_dat_compare_panel.h">
       <Filter>GUI\DatComparePanel</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\MurmurHash3.h">
+      <Filter>MurmurHash3</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -686,6 +692,9 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\draw_dat_compare_panel.cpp">
       <Filter>GUI\DatComparePanel</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\MurmurHash3.cpp">
+      <Filter>MurmurHash3</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

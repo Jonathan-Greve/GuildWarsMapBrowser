@@ -64,6 +64,7 @@ struct MFTEntry
     __int32 type;
     __int32 uncompressedSize;
     __int32 Hash;
+    uint32_t murmurhash3;
 };
 
 struct MFTExpansion
