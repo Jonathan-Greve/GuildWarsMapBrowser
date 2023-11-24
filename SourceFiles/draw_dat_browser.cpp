@@ -847,7 +847,7 @@ std::string to_lower(const std::string& input);
 std::wstring OpenFileDialog(std::wstring filename = L"", std::wstring fileType = L"");
 std::wstring OpenDirectoryDialog();
 
-void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer)
+void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const bool dat_manager_changed)
 {
     static std::vector<DatBrowserItem> items;
     static std::vector<DatBrowserItem> filtered_items;
@@ -861,6 +861,19 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer)
     static std::unordered_map<int, std::vector<int>> map_id_index;
     static std::unordered_map<std::string, std::vector<int>> name_index;
     static std::unordered_map<bool, std::vector<int>> pvp_index;
+
+    if (dat_manager_changed) {
+        items.clear();
+        filtered_items.clear();
+        id_index.clear();
+        hash_index.clear();
+        file_id_0_index.clear();
+        file_id_1_index.clear();
+        type_index.clear();
+        map_id_index.clear();
+        name_index.clear();
+        pvp_index.clear();
+    }
 
     auto dat_browser_window_size =
         ImVec2(ImGui::GetIO().DisplaySize.x -
@@ -949,6 +962,10 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer)
     static std::string filename_filter_text;
 
     static bool filter_update_required = true;
+
+    if (dat_manager_changed) {
+        filter_update_required = true;
+    }
 
     if (curr_id_filter != id_filter_text)
     {
