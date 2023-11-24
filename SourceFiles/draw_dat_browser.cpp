@@ -81,10 +81,10 @@ void apply_filter(const std::vector<int>& new_filter, std::unordered_set<int>& i
     }
 }
 
-void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
+void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
     std::unordered_map<int, std::vector<int>>& hash_index, std::vector<DatBrowserItem>& items)
 {
-    const auto MFT = dat_manager.get_MFT();
+    const auto MFT = dat_manager->get_MFT();
     if (index >= MFT.size())
         return;
 
@@ -100,7 +100,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
         lpfnBassStreamFree(selected_audio_stream_handle);
     }
 
-    unsigned char* raw_data = dat_manager.read_file(index);
+    unsigned char* raw_data = dat_manager->read_file(index);
     selected_raw_data = std::vector<uint8_t>(raw_data, raw_data + entry->uncompressedSize);
     delete raw_data;
 
@@ -182,7 +182,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
         //case ATTXDXTA: Cannot parse this
     case ATTXDXTL:
     {
-        selected_dat_texture.dat_texture = dat_manager.parse_ffna_texture_file(index);
+        selected_dat_texture.dat_texture = dat_manager->parse_ffna_texture_file(index);
         if (selected_dat_texture.dat_texture.width > 0 && selected_dat_texture.dat_texture.height > 0)
         {
             map_renderer->GetTextureManager()->CreateTextureFromRGBA(
@@ -196,7 +196,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
     break;
     case DDS:
     {
-        const std::vector<uint8_t> ddsData = dat_manager.parse_dds_file(index);
+        const std::vector<uint8_t> ddsData = dat_manager->parse_dds_file(index);
         size_t ddsDataSize = ddsData.size();
         HRESULT hr = map_renderer->GetTextureManager()->CreateTextureFromDDSInMemory(
             ddsData.data(), ddsDataSize, &selected_dat_texture.texture_id,
@@ -210,7 +210,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
     break;
     break;
     case FFNA_Type2:
-        selected_ffna_model_file = dat_manager.parse_ffna_model_file(index);
+        selected_ffna_model_file = dat_manager->parse_ffna_model_file(index);
         if (selected_ffna_model_file.parsed_correctly)
         {
             map_renderer->UnsetTerrain();
@@ -244,7 +244,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                     if (mft_entry_it != hash_index.end())
                     {
                         auto file_index = mft_entry_it->second.at(0);
-                        amat_file = dat_manager.parse_amat_file(file_index);
+                        amat_file = dat_manager->parse_amat_file(file_index);
                     }
                 }
                 Mesh prop_mesh = selected_ffna_model_file.GetMesh(i, amat_file);
@@ -313,7 +313,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                         DatTexture dat_texture;
                         if (entry->type == DDS)
                         {
-                            const auto ddsData = dat_manager.parse_dds_file(file_index);
+                            const auto ddsData = dat_manager->parse_dds_file(file_index);
                             size_t ddsDataSize = ddsData.size();
                             const auto hr = map_renderer->GetTextureManager()->
                                 CreateTextureFromDDSInMemory(ddsData.data(), ddsDataSize, &texture_id, &dat_texture.width,
@@ -323,7 +323,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                         }
                         else
                         {
-                            dat_texture = dat_manager.parse_ffna_texture_file(file_index);
+                            dat_texture = dat_manager->parse_ffna_texture_file(file_index);
                             // Create texture if it wasn't cached.
                             if (texture_id < 0)
                             {
@@ -460,7 +460,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
 
         object_id_to_prop_index.clear();
         selected_map_files.clear();
-        selected_ffna_map_file = dat_manager.parse_ffna_map_file(index);
+        selected_ffna_map_file = dat_manager->parse_ffna_map_file(index);
 
         if (selected_ffna_map_file.terrain_chunk.terrain_heightmap.size() > 0 &&
             selected_ffna_map_file.terrain_chunk.terrain_heightmap.size() ==
@@ -485,7 +485,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 if (mft_entry_it != hash_index.end())
                 {
                     const DatTexture dat_texture =
-                        dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
+                        dat_manager->parse_ffna_texture_file(mft_entry_it->second.at(0));
                     if (dat_texture.width > 0 && dat_texture.height > 0) {
                         terrain_dat_textures.push_back(dat_texture);
                     }
@@ -552,7 +552,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 if (type == FFNA_Type2)
                 {
                     selected_map_files.emplace_back(
-                        dat_manager.parse_ffna_model_file(mft_entry_it->second.at(0)));
+                        dat_manager->parse_ffna_model_file(mft_entry_it->second.at(0)));
                 }
             }
         }
@@ -569,7 +569,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                 auto type = items[mft_entry_it->second.at(0)].type;
                 if (type == FFNA_Type2)
                 {
-                    auto map_model = dat_manager.parse_ffna_model_file(mft_entry_it->second.at(0));
+                    auto map_model = dat_manager->parse_ffna_model_file(mft_entry_it->second.at(0));
                     selected_map_files.emplace_back(map_model);
                 }
             }
@@ -615,7 +615,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                             if (mft_entry_it != hash_index.end())
                             {
                                 auto file_index = mft_entry_it->second.at(0);
-                                amat_file = dat_manager.parse_amat_file(file_index);
+                                amat_file = dat_manager->parse_amat_file(file_index);
                             }
                         }
 
@@ -677,7 +677,7 @@ void parse_file(DATManager& dat_manager, int index, MapRenderer* map_renderer,
                                 {
                                     // Get texture from .dat
                                     auto dat_texture =
-                                        dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
+                                        dat_manager->parse_ffna_texture_file(mft_entry_it->second.at(0));
 
                                     // Create texture
                                     auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
@@ -847,7 +847,7 @@ std::string to_lower(const std::string& input);
 std::wstring OpenFileDialog(std::wstring filename = L"", std::wstring fileType = L"");
 std::wstring OpenDirectoryDialog();
 
-void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
+void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer)
 {
     static std::vector<DatBrowserItem> items;
     static std::vector<DatBrowserItem> filtered_items;
@@ -877,7 +877,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
     // Create item list
     if (items.size() == 0)
     {
-        const auto& entries = dat_manager.get_MFT();
+        const auto& entries = dat_manager->get_MFT();
         for (int i = 0; i < entries.size(); i++)
         {
             const auto& entry = entries[i];
@@ -1253,7 +1253,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                     if (ImGui::MenuItem("Save decompressed data to file"))
                     {
                         std::wstring savePath = OpenFileDialog(std::format(L"0x{:X}", item.hash), L"gwraw");
-                        if (!savePath.empty()) { dat_manager.save_raw_decompressed_data_to_file(item.id, savePath); }
+                        if (!savePath.empty()) { dat_manager->save_raw_decompressed_data_to_file(item.id, savePath); }
                     }
 
                     if (item.type == SOUND || item.type == AMP)
@@ -1261,7 +1261,7 @@ void draw_data_browser(DATManager& dat_manager, MapRenderer* map_renderer)
                         if (ImGui::MenuItem("Save to mp3"))
                         {
                             std::wstring savePath = OpenFileDialog(std::format(L"0x{:X}", item.hash), L"mp3");
-                            if (!savePath.empty()) { dat_manager.save_raw_decompressed_data_to_file(item.id, savePath); }
+                            if (!savePath.empty()) { dat_manager->save_raw_decompressed_data_to_file(item.id, savePath); }
                         }
                     }
 

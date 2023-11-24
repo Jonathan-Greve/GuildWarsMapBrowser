@@ -238,7 +238,7 @@ namespace nlohmann {
 // Step 2) Write the data to a .gwmb file. A custom data format to be used when importing into other programs like Blender.
 class model_exporter {
 public:
-    static bool export_model(const std::string& save_dir, const std::string& filename, const int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
+    static bool export_model(const std::string& save_dir, const std::string& filename, const int model_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
         std::string saveFilePath = save_dir + "\\" + filename;
 
         if (std::filesystem::exists(saveFilePath)) {
@@ -270,8 +270,8 @@ public:
     }
 
 private:
-    static bool generate_gwmb_model(gwmb_model& model_out, int model_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const std::string& save_dir) {
-        auto model_file = dat_manager.parse_ffna_model_file(model_mft_index);
+    static bool generate_gwmb_model(gwmb_model& model_out, int model_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const std::string& save_dir) {
+        auto model_file = dat_manager->parse_ffna_model_file(model_mft_index);
 
         if (!model_file.parsed_correctly)
             return false;
@@ -289,7 +289,7 @@ private:
             if (mft_entry_it != hash_index.end())
             {
                 auto file_index = mft_entry_it->second.at(0);
-                const auto* entry = &(dat_manager.get_MFT()[file_index]);
+                const auto* entry = &(dat_manager->get_MFT()[file_index]);
 
                 if (!entry)
                     return false;
@@ -298,7 +298,7 @@ private:
                 DatTexture dat_texture;
                 if (entry->type == DDS)
                 {
-                    const auto ddsData = dat_manager.parse_dds_file(file_index);
+                    const auto ddsData = dat_manager->parse_dds_file(file_index);
                     size_t ddsDataSize = ddsData.size();
                     const auto hr = texture_manager->
                         CreateTextureFromDDSInMemory(ddsData.data(), ddsDataSize, &texture_id, &dat_texture.width,
@@ -307,7 +307,7 @@ private:
                 }
                 else
                 {
-                    dat_texture = dat_manager.parse_ffna_texture_file(file_index);
+                    dat_texture = dat_manager->parse_ffna_texture_file(file_index);
                     auto HR = texture_manager->CreateTextureFromRGBA(dat_texture.width,
                         dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
                         decoded_filename);
@@ -391,7 +391,7 @@ private:
                 if (mft_entry_it != hash_index.end())
                 {
                     auto file_index = mft_entry_it->second.at(0);
-                    amat_file = dat_manager.parse_amat_file(file_index);
+                    amat_file = dat_manager->parse_amat_file(file_index);
                 }
             }
 
