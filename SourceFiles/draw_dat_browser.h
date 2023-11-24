@@ -45,5 +45,5 @@ struct DatBrowserItem
 
 void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer);
 
-void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer);
+void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, bool dat_manager_changed);
 
