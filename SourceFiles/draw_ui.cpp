@@ -17,8 +17,7 @@ extern HSTREAM selected_audio_stream_handle;
 extern std::string selected_text_file_str;
 extern std::vector<uint8_t> selected_raw_data;
 
-void draw_ui(InitializationState initialization_state, int dat_files_to_read, int dat_total_files,
-             DATManager& dat_manager, MapRenderer* map_renderer, PickingInfo picking_info)
+void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, MapRenderer* map_renderer, PickingInfo picking_info)
 {
 
     if (! gw_dat_path_set)
@@ -27,16 +26,20 @@ void draw_ui(InitializationState initialization_state, int dat_files_to_read, in
     }
     else
     {
+        const auto& initialization_state = dat_managers[0]->m_initialization_state;
+        const auto& dat_files_read = dat_managers[0]->get_num_files_type_read();
+        const auto& dat_total_files = dat_managers[0]->get_num_files();
+
         if (initialization_state == InitializationState::Started)
         {
-            draw_dat_load_progress_bar(dat_files_to_read, dat_total_files);
+            draw_dat_load_progress_bar(dat_files_read, dat_total_files);
         }
         if (initialization_state == InitializationState::Completed)
         {
-            draw_data_browser(dat_manager, map_renderer);
+            draw_data_browser(dat_managers[0].get(), map_renderer);
             draw_left_panel(map_renderer);
             draw_right_panel(map_renderer);
-            draw_dat_compare_panel(dat_manager);
+            draw_dat_compare_panel(dat_managers);
 
             draw_picking_info(picking_info);
 

@@ -30,6 +30,8 @@ MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
         0
     );
 
+    m_dat_managers.emplace(0, std::make_unique<DATManager>()); // Dat manager to store first dat file (more can be loaded later in comparison panel)
+
     m_deviceResources->RegisterDeviceNotify(this);
 }
 
@@ -93,9 +95,9 @@ void MapBrowser::Tick()
 // Updates the world.
 void MapBrowser::Update(DX::StepTimer const& timer)
 {
-    if (gw_dat_path_set && m_dat_manager.m_initialization_state == InitializationState::NotStarted)
+    if (gw_dat_path_set && m_dat_managers[0]->m_initialization_state == InitializationState::NotStarted)
     {
-        bool succeeded = m_dat_manager.Init(gw_dat_path);
+        bool succeeded = m_dat_managers[0]->Init(gw_dat_path);
         if (! succeeded)
         {
             gw_dat_path_set = false;
@@ -153,8 +155,7 @@ void MapBrowser::Render()
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    draw_ui(m_dat_manager.m_initialization_state, m_dat_manager.get_num_files_type_read(),
-            m_dat_manager.get_num_files(), m_dat_manager, m_map_renderer.get(), picking_info);
+    draw_ui(m_dat_managers, m_map_renderer.get(), picking_info);
 
     static bool show_demo_window = false;
     if (show_demo_window)

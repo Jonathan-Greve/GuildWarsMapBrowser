@@ -146,7 +146,7 @@ namespace nlohmann {
 class map_exporter
 {
 public:
-    static bool export_map(const std::string& save_directory, const int map_filehash, const int map_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
+    static bool export_map(const std::string& save_directory, const int map_filehash, const int map_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
         // Build model
         gwmb_map map;
         const bool success = generate_gwmb_map(save_directory, map, map_mft_index, dat_manager, hash_index, texture_manager, map_filehash);
@@ -169,8 +169,8 @@ public:
     }
 
 private:
-    static bool generate_gwmb_map(const std::string& save_directory, gwmb_map& map, int map_mft_index, DATManager& dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, int map_filehash) {
-        auto map_file = dat_manager.parse_ffna_map_file(map_mft_index);
+    static bool generate_gwmb_map(const std::string& save_directory, gwmb_map& map, int map_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, int map_filehash) {
+        auto map_file = dat_manager->parse_ffna_map_file(map_mft_index);
 
         map.filehash = map_filehash;
 
@@ -199,7 +199,7 @@ private:
                 if (mft_entry_it != hash_index.end())
                 {
                     const DatTexture dat_texture =
-                        dat_manager.parse_ffna_texture_file(mft_entry_it->second.at(0));
+                        dat_manager->parse_ffna_texture_file(mft_entry_it->second.at(0));
                     int texture_id = -1;
                     auto HR = texture_manager->CreateTextureFromRGBA(dat_texture.width,
                         dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
@@ -315,7 +315,7 @@ private:
                 auto mft_entry_it = hash_index.find(decoded_filename);
                 if (mft_entry_it != hash_index.end())
                 {
-                    const auto entry = dat_manager.get_MFT()[mft_entry_it->second.at(0)];
+                    const auto entry = dat_manager->get_MFT()[mft_entry_it->second.at(0)];
                     if (entry.type == FFNA_Type2) {
                         // Export model to map folder
                         model_exporter::export_model(save_directory, std::format("model_0x{:X}_gwmb.json", decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
@@ -332,7 +332,7 @@ private:
                 auto mft_entry_it = hash_index.find(decoded_filename);
                 if (mft_entry_it != hash_index.end())
                 {
-                    const auto entry = dat_manager.get_MFT()[mft_entry_it->second.at(0)];
+                    const auto entry = dat_manager->get_MFT()[mft_entry_it->second.at(0)];
                     if (entry.type == FFNA_Type2) {
                         // Export model to map folder
                         model_exporter::export_model(save_directory, std::format("model_0x{:X}_gwmb.json", decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
