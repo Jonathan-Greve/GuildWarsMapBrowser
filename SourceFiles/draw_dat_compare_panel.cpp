@@ -91,7 +91,7 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
     // List selected files
     for (size_t i = 0; i < file_paths.size(); ++i) {
         int alias = filepath_to_alias[file_paths[i]];
-        ImGui::Text("DAT %d: %ls", alias, file_paths[i].c_str());
+        ImGui::Text("DAT%d: %ls", alias, file_paths[i].c_str());
 
         if (!is_analyzing) {
             if (alias != dat_manager_to_show) {
