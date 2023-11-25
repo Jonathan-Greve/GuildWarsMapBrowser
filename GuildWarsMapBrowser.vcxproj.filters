@@ -125,6 +125,9 @@
     <Filter Include="MurmurHash3">
       <UniqueIdentifier>{b70e6b3b-f197-4975-9b87-36bceb7eba2a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DatComparerDSL">
+      <UniqueIdentifier>{1ab35d05-5c12-4765-ad6c-3112c5a9264c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -436,6 +439,12 @@
     <ClInclude Include="SourceFiles\MurmurHash3.h">
       <Filter>MurmurHash3</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\dat_comparer_lexer.h">
+      <Filter>DatComparerDSL</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\dat_comparer_parser.h">
+      <Filter>DatComparerDSL</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -695,6 +704,12 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\MurmurHash3.cpp">
       <Filter>MurmurHash3</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\dat_comparer_lexer.cpp">
+      <Filter>DatComparerDSL</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\dat_comparer_parser.cpp">
+      <Filter>DatComparerDSL</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

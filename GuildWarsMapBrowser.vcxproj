@@ -216,6 +216,8 @@
     <ClInclude Include="SourceFiles\CheckerboardTexture.h" />
     <ClInclude Include="SourceFiles\ConstantBufferManager.h" />
     <ClInclude Include="SourceFiles\DATManager.h" />
+    <ClInclude Include="SourceFiles\dat_comparer_lexer.h" />
+    <ClInclude Include="SourceFiles\dat_comparer_parser.h" />
     <ClInclude Include="SourceFiles\draw_dat_compare_panel.h" />
     <ClInclude Include="SourceFiles\json.hpp" />
     <ClInclude Include="SourceFiles\map_exporter.h" />
@@ -375,6 +377,8 @@
     <ClCompile Include="SourceFiles\CheckerboardTexture.cpp" />
     <ClCompile Include="SourceFiles\ConstantBufferManager.cpp" />
     <ClCompile Include="SourceFiles\DATManager.cpp" />
+    <ClCompile Include="SourceFiles\dat_comparer_lexer.cpp" />
+    <ClCompile Include="SourceFiles\dat_comparer_parser.cpp" />
     <ClCompile Include="SourceFiles\DepthStencilStateManager.cpp" />
     <ClCompile Include="SourceFiles\DeviceResources.cpp" />
     <ClCompile Include="SourceFiles\DirectionalLight.cpp" />
