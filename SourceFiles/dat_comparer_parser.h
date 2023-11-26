@@ -29,7 +29,7 @@ private:
             return std::stoi(str);
         }
         catch (const std::invalid_argument& e) {
-            throw std::runtime_error("Invalid argument: The string \"" + str + "\" is not a valid integer.");
+            throw std::runtime_error("Invalid argument: The string \"" + str + "\" is not a valid integer. Did you forget to include a number after \"DAT\"? (e.g. \"DAT0\").");
         }
         catch (const std::out_of_range& e) {
             throw std::runtime_error("Out of range: The string \"" + str + "\" is too large for an int.");
@@ -118,7 +118,7 @@ inline std::vector<uint32_t> evaluate(const std::shared_ptr<ASTNode>& node, cons
         if (it != DATs_hashes.end()) {
             return { it->second };
         }
-        throw std::runtime_error("Undefined data value: " + std::to_string(node->value));
+        throw std::runtime_error("Undefined DAT file: DAT" + std::to_string(node->value));
     }
 
     std::set<uint32_t> result_set;
