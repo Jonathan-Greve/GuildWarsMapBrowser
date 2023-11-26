@@ -2,10 +2,14 @@
 #include "draw_dat_compare_panel.h"
 #include <filesystem>
 #include <draw_dat_load_progress_bar.h>
+#include <dat_comparer_lexer.h>
+#include <dat_comparer_parser.h>
 
 std::vector<std::wstring> file_paths;
 std::map<std::wstring, int> filepath_to_alias; // Map to track filepath and its alias
 
+Lexer lexer{ "" };
+std::unique_ptr<Parser> parser;
 
 void add_dat_manager(const std::wstring& filepath, std::map<int, std::unique_ptr<DATManager>>& dat_managers)
 {
@@ -15,6 +19,17 @@ void add_dat_manager(const std::wstring& filepath, std::map<int, std::unique_ptr
             dat_managers[filepath_to_alias[filepath]] = std::move(new_dat_manager);
         }
     }
+}
+
+int TextEditCallback(ImGuiInputTextCallbackData* data) {
+    if (data->EventFlag == ImGuiInputTextFlags_CallbackAlways) {
+        for (int i = 0; i < data->BufTextLen; i++) {
+            data->Buf[i] = std::toupper(data->Buf[i]);
+        }
+
+        // Place any additional code here to do something whenever the InputText changes
+    }
+    return 0;
 }
 
 void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show)
@@ -146,6 +161,39 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
                 ImGui::SameLine();
                 ImGui::Text("Currently shown");
             }
+        }
+    }
+
+    if (!is_analyzing) {
+        ImGui::Separator();
+        static char filter_expression[256] = ""; // Buffer for input text
+
+        static std::string filter_expr_error = "";
+        static std::string filter_last_success_parsed_expr = "";
+
+        ImGui::Text("Filter Expression");
+        ImGui::SameLine();
+        if (ImGui::InputText("##filter_expression", filter_expression, sizeof(filter_expression), ImGuiInputTextFlags_CallbackAlways, TextEditCallback)) {
+            try {
+                lexer = Lexer(filter_expression);
+                parser = std::make_unique<Parser>(lexer); // Create a new Parser instance
+                auto AST = parser->parse();
+
+                filter_expr_error = "";
+                filter_last_success_parsed_expr = filter_expression;
+            }
+            catch (const std::exception& e) {
+                filter_expr_error = e.what();
+            }
+        }
+
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Enter the comparison expression here. Examples include logical operations like AND, OR, XOR, NOT. For instance:\n- NOT (DAT0 AND DAT1) XOR DAT0\n- NOT (DAT0 AND (DAT1 OR DAT2))\n- (DAT0 OR DAT1) AND NOT (DAT2 XOR DAT3)");
+        }
+
+        ImGui::Text(std::format("Filter error: {}", filter_expr_error).c_str());
+        if (filter_last_success_parsed_expr != "" && filter_expr_error.size() > 0) {
+            ImGui::Text(std::format("Last successful parse: \"{}\"", filter_last_success_parsed_expr).c_str());
         }
     }
 
