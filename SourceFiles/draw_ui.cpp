@@ -16,10 +16,12 @@ extern FileType selected_file_type;
 extern HSTREAM selected_audio_stream_handle;
 extern std::string selected_text_file_str;
 extern std::vector<uint8_t> selected_raw_data;
+bool dat_manager_to_show_changed = false;
+bool dat_compare_filter_result_changed = false;
+std::unordered_set<uint32_t> dat_compare_filter_result;
 
 void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show, MapRenderer* map_renderer, PickingInfo picking_info)
 {
-    static bool dat_manager_to_show_changed = false;
     int initial_dat_manager_to_show = dat_manager_to_show;
 
     if (! gw_dat_path_set)
@@ -38,10 +40,11 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
         }
         if (initialization_state == InitializationState::Completed)
         {
-            draw_data_browser(dat_managers[dat_manager_to_show].get(), map_renderer, dat_manager_to_show_changed);
+            draw_data_browser(dat_managers[dat_manager_to_show].get(), map_renderer, dat_manager_to_show_changed, dat_compare_filter_result, dat_compare_filter_result_changed);
             draw_left_panel(map_renderer);
             draw_right_panel(map_renderer);
-            draw_dat_compare_panel(dat_managers, dat_manager_to_show);
+            dat_compare_filter_result_changed = false;
+            draw_dat_compare_panel(dat_managers, dat_manager_to_show, dat_compare_filter_result, dat_compare_filter_result_changed);
 
             draw_picking_info(picking_info);
 
