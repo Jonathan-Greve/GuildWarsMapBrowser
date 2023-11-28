@@ -230,7 +230,8 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
 
                     try
                     {
-                        const auto eval_result = evaluate(filter_last_success_parsed_AST, DATs_hashes);
+                        std::vector<uint32_t> exclude;
+                        const auto eval_result = evaluate(filter_last_success_parsed_AST, DATs_hashes, exclude);
                         if (!eval_result.empty())
                             filter_eval_result.emplace(file_id);
                         //filter_eval_result.insert(eval_result.begin(), eval_result.end());

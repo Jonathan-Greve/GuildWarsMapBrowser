@@ -56,7 +56,7 @@ private:
 
         while (current_token.token_type == GWMBTokenType::OR) {
             Token token = current_token;
-            eat(GWMBTokenType::OR);
+                eat(GWMBTokenType::OR);
             node = std::make_shared<ASTNode>(token.token_type, token.value, node, term());
         }
 
@@ -112,14 +112,14 @@ private:
     }
 };
 
-inline std::vector<uint32_t> evaluate(const std::shared_ptr<ASTNode>& node, const std::map<int, uint32_t>& DATs_hashes) {
+inline std::vector<uint32_t> evaluate(const std::shared_ptr<ASTNode>& node, const std::map<int, uint32_t>& DATs_hashes, std::vector<uint32_t>& exclude) {
     if (node->type == GWMBTokenType::DAT) {
         auto it = DATs_hashes.find(node->value);
         if (it != DATs_hashes.end()) {
             return { it->second };
         }
 
-        return {};
+        throw std::runtime_error("Dat missing expected file: DAT" + std::to_string(node->value));
     }
 
     std::set<uint32_t> result_set;
@@ -127,9 +127,9 @@ inline std::vector<uint32_t> evaluate(const std::shared_ptr<ASTNode>& node, cons
     std::vector<uint32_t> right_eval;
 
     if (node->left)
-        left_eval = evaluate(node->left, DATs_hashes);
+        left_eval = evaluate(node->left, DATs_hashes, exclude);
     if (node->right)
-        right_eval = evaluate(node->right, DATs_hashes);
+        right_eval = evaluate(node->right, DATs_hashes, exclude);
 
     switch (node->type) {
     case GWMBTokenType::AND:
@@ -159,8 +159,11 @@ inline std::vector<uint32_t> evaluate(const std::shared_ptr<ASTNode>& node, cons
         }
         break;
     case GWMBTokenType::NOT:
-        for (const auto& [key, hash] : DATs_hashes) {
-            if (std::find(left_eval.begin(), left_eval.end(), hash) == left_eval.end()) {
+        for (const auto hash : left_eval) {
+            exclude.push_back(hash);
+        }
+        for (const auto& [dat_index, hash] : DATs_hashes) {
+            if (std::find(exclude.begin(), exclude.end(), hash) == exclude.end()) {
                 result_set.insert(hash);
             }
         }
@@ -169,5 +172,10 @@ inline std::vector<uint32_t> evaluate(const std::shared_ptr<ASTNode>& node, cons
         throw std::runtime_error("Invalid node type");
     }
 
+    for (const auto hash : exclude) {
+        result_set.erase(hash);
+    }
+
+    exclude.clear();
     return std::vector<uint32_t>(result_set.begin(), result_set.end());
 }
