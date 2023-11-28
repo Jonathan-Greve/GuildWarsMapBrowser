@@ -118,7 +118,8 @@ inline std::vector<uint32_t> evaluate(const std::shared_ptr<ASTNode>& node, cons
         if (it != DATs_hashes.end()) {
             return { it->second };
         }
-        throw std::runtime_error("Undefined DAT file: DAT" + std::to_string(node->value));
+
+        return {};
     }
 
     std::set<uint32_t> result_set;
@@ -150,6 +151,7 @@ inline std::vector<uint32_t> evaluate(const std::shared_ptr<ASTNode>& node, cons
                 result_set.insert(hash);
             }
         }
+
         for (const auto& hash : right_eval) {
             if (std::find(left_eval.begin(), left_eval.end(), hash) == left_eval.end()) {
                 result_set.insert(hash);
