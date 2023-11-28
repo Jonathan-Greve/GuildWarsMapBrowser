@@ -38,6 +38,8 @@ struct DatBrowserItem
     std::vector<std::string> names;
     std::vector<int> is_pvp;
 
+    uint32_t murmurhash3;
+
     static const ImGuiTableSortSpecs* s_current_sort_specs;
 
     static int IMGUI_CDECL CompareWithSortSpecs(const void* lhs, const void* rhs);
@@ -45,5 +47,5 @@ struct DatBrowserItem
 
 void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer);
 
-void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, bool dat_manager_changed);
+void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, bool dat_manager_changed, const std::unordered_set<uint32_t>& dat_compare_filter_result, const bool dat_compare_filter_result_changed);
 

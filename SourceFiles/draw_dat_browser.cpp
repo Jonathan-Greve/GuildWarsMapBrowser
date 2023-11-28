@@ -847,7 +847,7 @@ std::string to_lower(const std::string& input);
 std::wstring OpenFileDialog(std::wstring filename = L"", std::wstring fileType = L"");
 std::wstring OpenDirectoryDialog();
 
-void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const bool dat_manager_changed)
+void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const bool dat_manager_changed, const std::unordered_set<uint32_t>& dat_compare_filter_result, const bool dat_compare_filter_result_changed)
 {
     static std::vector<DatBrowserItem> items;
     static std::vector<DatBrowserItem> filtered_items;
@@ -901,7 +901,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
             encode_filehash(entry.Hash, filename_id_0, filename_id_1);
 
             DatBrowserItem new_item{
-                i, entry.Hash, static_cast<FileType>(entry.type), entry.Size, entry.uncompressedSize, filename_id_0, filename_id_1, {}, {}, {}
+                i, entry.Hash, static_cast<FileType>(entry.type), entry.Size, entry.uncompressedSize, filename_id_0, filename_id_1, {}, {}, {}, entry.murmurhash3
             };
             if (entry.Hash != 0 && entry.type == FFNA_Type3)
             {
@@ -1006,6 +1006,10 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
     if (curr_filename_filter != filename_filter_text)
     {
         curr_filename_filter = filename_filter_text;
+        filter_update_required = true;
+    }
+
+    if (dat_compare_filter_result_changed) {
         filter_update_required = true;
     }
 
@@ -1133,9 +1137,22 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 
         if (id_filter_text.empty() && hash_filter_text.empty() && type_filter_value == NONE &&
             map_id_filter_text.empty() && name_filter_text.empty() && pvp_filter_value == -1 && filename_filter_text.empty()) {
-            filtered_items = items;
+            for (const auto& item : items) {
+                if (dat_compare_filter_result.contains(item.hash) || dat_compare_filter_result.empty())
+                {
+                    filtered_items.push_back(item);
+                }
+            }
         }
-        else { for (const auto& id : intersection) { filtered_items.push_back(items[id]); } }
+        else { 
+            for (const auto& id : intersection) 
+            {
+                const auto& item = items[id];
+                if (dat_compare_filter_result.contains(item.hash) || dat_compare_filter_result.empty()) {
+                    filtered_items.push_back(item);
+                }
+            } 
+        }
 
         // Set them equal so that the filter won't run again until the filter changes.
         curr_id_filter = id_filter_text;

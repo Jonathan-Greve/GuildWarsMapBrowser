@@ -8,7 +8,7 @@
 std::vector<std::wstring> file_paths;
 std::map<std::wstring, int> filepath_to_alias; // Map to track filepath and its alias
 std::vector<std::unordered_map<uint32_t, uint32_t>> dat_fileid_to_mm3hash;
-std::vector<uint32_t> filter_eval_result;
+std::unordered_set<uint32_t> filter_eval_result;
 std::set<uint32_t> all_dats_file_ids; // all the file_ids in dat_fileid_to_mm3hash
 
 Lexer lexer{ "" };
@@ -35,7 +35,7 @@ int TextEditCallback(ImGuiInputTextCallbackData* data) {
     return 0;
 }
 
-void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show)
+void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show, std::unordered_set<uint32_t>& dat_compare_filter_result_out, bool& filter_result_changed_out)
 {
     static const std::wstring& existing_dat_filepath = dat_managers[0]->get_filepath();
     static bool isExistingFilePathAdded = false;
@@ -211,7 +211,7 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
 
         if (num_eval_errors > 0 || filter_eval_result.size() > 0) {
             ImGui::Text(std::format("Num eval errors: {}", num_eval_errors).c_str());
-            ImGui::Text(std::format("Num matching files: {}", filter_eval_result.size()).c_str());
+            ImGui::Text(std::format("Num unique files: {}", filter_eval_result.size()).c_str());
         }
 
         if (filter_expression.size() > 0 && filter_expression == filter_last_success_parsed_expr && filter_expr_error == "") {
@@ -231,13 +231,18 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
                     try
                     {
                         const auto eval_result = evaluate(filter_last_success_parsed_AST, DATs_hashes);
-                        filter_eval_result.insert(filter_eval_result.end(), eval_result.begin(), eval_result.end());
+                        if (!eval_result.empty())
+                            filter_eval_result.emplace(file_id);
+                        //filter_eval_result.insert(eval_result.begin(), eval_result.end());
                     }
                     catch (const std::exception&)
                     {
                         num_eval_errors += 1;
                     }
                 }
+
+                filter_result_changed_out = true;
+                dat_compare_filter_result_out = filter_eval_result;
             }
         }
     }
