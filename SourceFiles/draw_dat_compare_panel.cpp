@@ -262,8 +262,9 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
                             }
                         }
 
-                        if (to_exlucde_count < eval_result.size() && success)
+                        if (eval_result.size() > 0)
                             filter_eval_result.emplace(file_id);
+                        //filter_eval_result.insert(eval_result.begin(), eval_result.end()); 
                     }
                     catch (const std::exception&)
                     {
