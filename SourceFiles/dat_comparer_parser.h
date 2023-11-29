@@ -56,7 +56,7 @@ private:
 
         while (current_token.token_type == GWMBTokenType::OR) {
             Token token = current_token;
-                eat(GWMBTokenType::OR);
+            eat(GWMBTokenType::OR);
             node = std::make_shared<ASTNode>(token.token_type, token.value, node, term());
         }
 
@@ -112,24 +112,34 @@ private:
     }
 };
 
-inline std::vector<uint32_t> evaluate(const std::shared_ptr<ASTNode>& node, const std::map<int, uint32_t>& DATs_hashes, std::vector<uint32_t>& exclude) {
+inline std::vector<uint32_t> evaluate(const std::shared_ptr<ASTNode>& node, const std::map<int, uint32_t>& DATs_hashes, std::vector<uint32_t>& exclude, const std::unordered_set<int>& dat_that_can_be_empty, bool& success) {
+    success = true;
+
     if (node->type == GWMBTokenType::DAT) {
         auto it = DATs_hashes.find(node->value);
         if (it != DATs_hashes.end()) {
             return { it->second };
         }
 
-        throw std::runtime_error("Dat missing expected file: DAT" + std::to_string(node->value));
+        if (dat_that_can_be_empty.contains(node->value))
+            return {};
+
+        success = false;
+        return {};
     }
 
     std::set<uint32_t> result_set;
     std::vector<uint32_t> left_eval;
     std::vector<uint32_t> right_eval;
 
-    if (node->left)
-        left_eval = evaluate(node->left, DATs_hashes, exclude);
-    if (node->right)
-        right_eval = evaluate(node->right, DATs_hashes, exclude);
+    if (node->left) {
+        left_eval = evaluate(node->left, DATs_hashes, exclude, dat_that_can_be_empty, success);
+        if (!success) return {};
+    }
+    if (node->right) {
+        right_eval = evaluate(node->right, DATs_hashes, exclude, dat_that_can_be_empty, success);
+        if (!success) return {};
+    }
 
     switch (node->type) {
     case GWMBTokenType::AND:
