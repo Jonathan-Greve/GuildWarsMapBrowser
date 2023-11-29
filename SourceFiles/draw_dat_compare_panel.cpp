@@ -278,6 +278,14 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
         }
     }
 
+    if (filter_eval_result.size() > 0) {
+        if (ImGui::Button("Clear filter")) {
+            filter_result_changed_out = true;
+            dat_compare_filter_result_out.clear();
+            filter_eval_result.clear();
+        }
+    }
+
     ImGui::End();
 
     // Create maps for each dat file mapping filehash(file_id) to each entrys murmurhash.
