@@ -38,6 +38,9 @@ extern std::string selected_text_file_str = "";
 
 inline int selected_map_file_index = -1;
 
+inline uint32_t selected_item_hash = -1;
+inline int last_focused_item_index = -1;
+
 inline extern FileType selected_file_type = NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
 inline extern FFNA_MapFile selected_ffna_map_file{};
@@ -1209,7 +1212,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
         ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
         ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY;
 
-    if (ImGui::BeginTable("data browser", 9, flags))
+    if (ImGui::BeginTable("data browser", 10, flags))
     {
         // Declare columns
         // We use the "user_id" parameter of TableSetupColumn() to specify a user id that will be stored in the sort specifications.
@@ -1227,6 +1230,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
         ImGui::TableSetupColumn("Decompressed size", 0, 0.0f, DatBrowserItemColumnID_decompressed_size);
         ImGui::TableSetupColumn("Map id", 0, 0.0f, DatBrowserItemColumnID_map_id);
         ImGui::TableSetupColumn("PvP", 0, 0.0f, DatBrowserItemColumnID_is_pvp);
+        ImGui::TableSetupColumn("murmur3", 0, 0.0f, DatBrowserItemColumnID_murmurhash3);
         ImGui::TableSetupScrollFreeze(0, 1); // Make row always visible
 
         ImGui::TableHeadersRow();
@@ -1265,6 +1269,13 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                 ImGui::PushID(item.id);
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
+
+                // Check if this is the row to highlight
+                if (item.hash > 0 && item.hash == selected_item_hash) {
+                    // Set the background color for this row
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
+                }
+
                 if (ImGui::Selectable(label.c_str(), item_is_selected, selectable_flags))
                 {
                     if (ImGui::GetIO().KeyCtrl) {}
@@ -1272,13 +1283,62 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                     {
                         parse_file(dat_manager, item.id, map_renderer, hash_index, items);
                         selected_item_id = item.id;
+                        selected_item_hash = item.hash;
                     }
                 }
                 // If the item is focused (highlighted by navigation), select it immediately
-                else if (ImGui::IsItemFocused() && selected_item_id != item.id)
-                {
-                    parse_file(dat_manager, item.id, map_renderer, hash_index, items);
-                    selected_item_id = item.id;
+                if (ImGui::IsItemFocused() && selected_item_id != item.id) {
+                    if (selected_item_id != item.id) {
+                        parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                        selected_item_id = item.id;
+                        selected_item_hash = item.hash;
+                    }
+
+                    // Check the direction of focus movement and adjust the scroll position
+                    if (last_focused_item_index != -1) {
+                        float row_height = ImGui::GetTextLineHeightWithSpacing();
+
+                        if (row_n < last_focused_item_index) {
+                            // Focus moved up, scroll up
+                            ImGui::SetScrollY(ImGui::GetScrollY() - row_height);
+                        }
+                        else if (row_n > last_focused_item_index) {
+                            // Focus moved down, scroll down
+                            ImGui::SetScrollY(ImGui::GetScrollY() + row_height);
+                        }
+                    }
+
+                    last_focused_item_index = row_n; // Update the last focused item index
+                }
+
+                if (dat_manager_changed) {
+                    // Find the index of the item with item.hash == selected_item_hash
+                    int item_index = -1;
+                    for (int i = 0; i < filtered_items.size(); ++i) {
+                        if (filtered_items[i].hash == selected_item_hash) {
+                            item_index = i;
+                            break;
+                        }
+                    }
+
+                    // If the item was found
+                    if (item_index != -1) {
+                        // Calculate the height of a single row (this is an approximation)
+                        float row_height = ImGui::GetTextLineHeightWithSpacing();
+
+                        // Calculate the number of visible rows in the table
+                        float visible_rows = ImGui::GetWindowHeight() / row_height;
+
+                        // Calculate the position to scroll to
+                        // We want the selected row to be at the top of the table, so we scroll to its position minus half the visible rows
+                        float scroll_pos = (item_index - visible_rows / 2) * row_height;
+
+                        // Clamp the scroll position to the valid range
+                        scroll_pos = std::max(0.0f, std::min(scroll_pos, ImGui::GetScrollMaxY()));
+
+                        // Scroll to the item
+                        ImGui::SetScrollY(scroll_pos);
+                    }
                 }
 
                 //Add context menu on right clicking item in table
@@ -1664,8 +1724,11 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                         }
                     }
                 }
-
                 else { ImGui::Text("-"); }
+
+                ImGui::TableNextColumn();
+                ImGui::Text("%u", item.murmurhash3);
+
                 ImGui::PopID();
             }
         ImGui::EndTable();
@@ -1689,6 +1752,9 @@ inline int IMGUI_CDECL DatBrowserItem::CompareWithSortSpecs(const void* lhs, con
             break;
         case DatBrowserItemColumnID_hash:
             delta = (a->hash - b->hash);
+            break;
+        case DatBrowserItemColumnID_murmurhash3:
+            delta = (a->murmurhash3 - b->murmurhash3);
             break;
         case DatBrowserItemColumnID_type:
             delta = (a->type - b->type);

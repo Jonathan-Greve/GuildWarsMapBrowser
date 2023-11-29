@@ -21,6 +21,7 @@ enum DatBrowserItemColumnID
     DatBrowserItemColumnID_decompressed_size,
     DatBrowserItemColumnID_map_id,
     DatBrowserItemColumnID_is_pvp,
+    DatBrowserItemColumnID_murmurhash3
 
 };
 
