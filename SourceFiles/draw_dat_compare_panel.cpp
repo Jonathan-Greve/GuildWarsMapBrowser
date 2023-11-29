@@ -10,6 +10,7 @@ std::map<std::wstring, int> filepath_to_alias; // Map to track filepath and its 
 std::vector<std::unordered_map<uint32_t, uint32_t>> dat_fileid_to_mm3hash;
 std::unordered_set<uint32_t> filter_eval_result;
 std::set<uint32_t> all_dats_file_ids; // all the file_ids in dat_fileid_to_mm3hash
+std::unordered_set<int> dat_that_can_be_empty;
 
 Lexer lexer{ "" };
 std::unique_ptr<Parser> parser;
@@ -118,6 +119,18 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
         int alias = filepath_to_alias[file_paths[i]];
         ImGui::Text("DAT%d: %ls", alias, file_paths[i].c_str());
 
+        bool is_dat_empty_allowed = dat_that_can_be_empty.find(alias) != dat_that_can_be_empty.end();
+        ImGui::SameLine();
+        std::string checkbox_label = "Can be empty ##" + std::to_string(alias);
+        if (ImGui::Checkbox(checkbox_label.c_str(), &is_dat_empty_allowed)) {
+            if (is_dat_empty_allowed) {
+                dat_that_can_be_empty.insert(alias);
+            }
+            else {
+                dat_that_can_be_empty.erase(alias);
+            }
+        }
+
         if (!is_analyzing) {
             if (alias != dat_manager_to_show) {
                 ImGui::SameLine();
@@ -145,6 +158,13 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
                             pair.second -= 1;
                         }
                     }
+
+                    dat_that_can_be_empty.erase(alias_to_remove);
+                    std::unordered_set<int> updated_dat_that_can_be_empty;
+                    for (auto& a : dat_that_can_be_empty) {
+                        updated_dat_that_can_be_empty.insert(a > alias_to_remove ? a - 1 : a);
+                    }
+                    dat_that_can_be_empty = std::move(updated_dat_that_can_be_empty);
 
                     // Update dat_managers map to reflect new aliases
                     std::map<int, std::unique_ptr<DATManager>> updated_dat_managers;
@@ -231,10 +251,19 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
                     try
                     {
                         std::vector<uint32_t> exclude;
-                        const auto eval_result = evaluate(filter_last_success_parsed_AST, DATs_hashes, exclude);
-                        if (!eval_result.empty())
+                        bool success = true;
+                        const auto eval_result = evaluate(filter_last_success_parsed_AST, DATs_hashes, exclude, dat_that_can_be_empty, success);
+
+                        int to_exlucde_count = 0;
+                        for (const auto hash : exclude) {
+                            const auto it = std::find(eval_result.begin(), eval_result.end(), hash);
+                            if (it != eval_result.end()) {
+                                to_exlucde_count++;
+                            }
+                        }
+
+                        if (to_exlucde_count < eval_result.size() && success)
                             filter_eval_result.emplace(file_id);
-                        //filter_eval_result.insert(eval_result.begin(), eval_result.end());
                     }
                     catch (const std::exception&)
                     {
