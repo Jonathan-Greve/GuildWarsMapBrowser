@@ -128,3 +128,17 @@ inline void ThrowIfFailed(HRESULT hr)
     }
 }
 }
+
+static const char* type_strings[26] = {
+    " ", "AMAT", "Amp", "ATEXDXT1", "ATEXDXT2", "ATEXDXT3", "ATEXDXT4",
+    "ATEXDXT5", "ATEXDXTN", "ATEXDXTA", "ATEXDXTL", "ATTXDXT1", "ATTXDXT3", "ATTXDXT5",
+    "ATTXDXTN", "ATTXDXTA", "ATTXDXTL", "DDS", "FFNA - Model", "FFNA - Map", "FFNA - Unknown",
+    "MFTBase", "NOT_READ", "Sound", "Text", "Unknown"
+};
+
+inline int decode_filename(int id0, int id1) { return (id0 - 0xff00ff) + (id1 * 0xff00); }
+
+inline void encode_filehash(uint32_t filehash, int& id0_out, int& id1_out) {
+    id0_out = static_cast<wchar_t>(((filehash - 1) % 0xff00) + 0x100);
+    id1_out = static_cast<wchar_t>(((filehash - 1) / 0xff00) + 0x100);
+}

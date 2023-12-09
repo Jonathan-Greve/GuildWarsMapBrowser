@@ -128,6 +128,15 @@
     <Filter Include="DatComparerDSL">
       <UniqueIdentifier>{1ab35d05-5c12-4765-ad6c-3112c5a9264c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GUI\Custom file info editor panel">
+      <UniqueIdentifier>{b8db4111-6c16-4d88-bb6b-2064dfdb519a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="rapidcsv">
+      <UniqueIdentifier>{bb9dfd1f-b7f7-4632-9fa7-e0aed36c5735}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DatComparerDSL\peglib">
+      <UniqueIdentifier>{4c0074cf-a030-4801-bcff-a4090cb0c3e1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -439,10 +448,14 @@
     <ClInclude Include="SourceFiles\MurmurHash3.h">
       <Filter>MurmurHash3</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\dat_comparer_lexer.h">
-      <Filter>DatComparerDSL</Filter>
+    <ClInclude Include="SourceFiles\draw_file_info_editor_panel.h" />
+    <ClInclude Include="SourceFiles\rapidcsv.h">
+      <Filter>rapidcsv</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\dat_comparer_parser.h">
+    <ClInclude Include="peglib\peglib.h">
+      <Filter>DatComparerDSL\peglib</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\comparer_dsl.h">
       <Filter>DatComparerDSL</Filter>
     </ClInclude>
   </ItemGroup>
@@ -705,10 +718,8 @@
     <ClCompile Include="SourceFiles\MurmurHash3.cpp">
       <Filter>MurmurHash3</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\dat_comparer_lexer.cpp">
-      <Filter>DatComparerDSL</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\dat_comparer_parser.cpp">
+    <ClCompile Include="SourceFiles\draw_file_info_editor_panel.cpp" />
+    <ClCompile Include="SourceFiles\comparer_dsl.cpp">
       <Filter>DatComparerDSL</Filter>
     </ClCompile>
   </ItemGroup>
