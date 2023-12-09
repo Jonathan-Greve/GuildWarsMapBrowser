@@ -2,18 +2,14 @@
 #include "draw_dat_compare_panel.h"
 #include <filesystem>
 #include <draw_dat_load_progress_bar.h>
-#include <dat_comparer_lexer.h>
-#include <dat_comparer_parser.h>
+#include <comparer_dsl.h>
 
 std::vector<std::wstring> file_paths;
 std::map<std::wstring, int> filepath_to_alias; // Map to track filepath and its alias
-std::vector<std::unordered_map<uint32_t, uint32_t>> dat_fileid_to_mm3hash;
+std::vector<std::unordered_map<uint32_t, DatCompareFileInfo>> fileid_to_compare_file_infos;
 std::unordered_set<uint32_t> filter_eval_result;
-std::set<uint32_t> all_dats_file_ids; // all the file_ids in dat_fileid_to_mm3hash
-std::unordered_set<int> dat_that_can_be_empty;
+std::set<uint32_t> all_dats_file_ids; // all the file_ids in fileid_to_compare_file_infos
 
-Lexer lexer{ "" };
-std::unique_ptr<Parser> parser;
 
 void add_dat_manager(const std::wstring& filepath, std::map<int, std::unique_ptr<DATManager>>& dat_managers)
 {
@@ -28,7 +24,7 @@ void add_dat_manager(const std::wstring& filepath, std::map<int, std::unique_ptr
 int TextEditCallback(ImGuiInputTextCallbackData* data) {
     if (data->EventFlag == ImGuiInputTextFlags_CallbackAlways) {
         for (int i = 0; i < data->BufTextLen; i++) {
-            data->Buf[i] = std::toupper(data->Buf[i]);
+            data->Buf[i] = std::tolower(data->Buf[i]);
         }
 
         // Place any additional code here to do something whenever the InputText changes
@@ -38,6 +34,8 @@ int TextEditCallback(ImGuiInputTextCallbackData* data) {
 
 void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show, std::unordered_set<uint32_t>& dat_compare_filter_result_out, bool& filter_result_changed_out)
 {
+    static ComparerDSL comparer_dsl;
+
     static const std::wstring& existing_dat_filepath = dat_managers[0]->get_filepath();
     static bool isExistingFilePathAdded = false;
 
@@ -119,18 +117,6 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
         int alias = filepath_to_alias[file_paths[i]];
         ImGui::Text("DAT%d: %ls", alias, file_paths[i].c_str());
 
-        bool is_dat_empty_allowed = dat_that_can_be_empty.find(alias) != dat_that_can_be_empty.end();
-        ImGui::SameLine();
-        std::string checkbox_label = "Can be empty ##" + std::to_string(alias);
-        if (ImGui::Checkbox(checkbox_label.c_str(), &is_dat_empty_allowed)) {
-            if (is_dat_empty_allowed) {
-                dat_that_can_be_empty.insert(alias);
-            }
-            else {
-                dat_that_can_be_empty.erase(alias);
-            }
-        }
-
         if (!is_analyzing) {
             if (alias != dat_manager_to_show) {
                 ImGui::SameLine();
@@ -147,38 +133,31 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
                     if (dat_managers.find(alias_to_remove) != dat_managers.end()) {
                         dat_managers.erase(alias_to_remove);
 
-                    // Erase file from vectors and map
-                    filepath_to_alias.erase(file_paths[i]);
-                    file_paths.erase(file_paths.begin() + i);
-                    dat_fileid_to_mm3hash.clear();
+                        // Erase file from vectors and map
+                        filepath_to_alias.erase(file_paths[i]);
+                        file_paths.erase(file_paths.begin() + i);
+                        fileid_to_compare_file_infos.clear();
 
-                    // Reorder the aliases in the map
-                    for (auto& pair : filepath_to_alias) {
-                        if (pair.second > alias_to_remove) {
-                            pair.second -= 1;
+                        // Reorder the aliases in the map
+                        for (auto& pair : filepath_to_alias) {
+                            if (pair.second > alias_to_remove) {
+                                pair.second -= 1;
+                            }
                         }
-                    }
 
-                    dat_that_can_be_empty.erase(alias_to_remove);
-                    std::unordered_set<int> updated_dat_that_can_be_empty;
-                    for (auto& a : dat_that_can_be_empty) {
-                        updated_dat_that_can_be_empty.insert(a > alias_to_remove ? a - 1 : a);
-                    }
-                    dat_that_can_be_empty = std::move(updated_dat_that_can_be_empty);
-
-                    // Update dat_managers map to reflect new aliases
-                    std::map<int, std::unique_ptr<DATManager>> updated_dat_managers;
-                    for (auto& pair : dat_managers) {
-                        if (pair.first > alias_to_remove) {
-                            updated_dat_managers[pair.first - 1] = std::move(pair.second);
+                        // Update dat_managers map to reflect new aliases
+                        std::map<int, std::unique_ptr<DATManager>> updated_dat_managers;
+                        for (auto& pair : dat_managers) {
+                            if (pair.first > alias_to_remove) {
+                                updated_dat_managers[pair.first - 1] = std::move(pair.second);
+                            }
+                            else if (pair.first < alias_to_remove) {
+                                updated_dat_managers[pair.first] = std::move(pair.second);
+                            }
                         }
-                        else if (pair.first < alias_to_remove) {
-                            updated_dat_managers[pair.first] = std::move(pair.second);
-                        }
-                    }
-                    dat_managers = std::move(updated_dat_managers);
+                        dat_managers = std::move(updated_dat_managers);
 
-                    --i; // Adjust loop counter as the list size has changed
+                        --i; // Adjust loop counter as the list size has changed
                     }
                 }
 
@@ -202,22 +181,12 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
         static std::string filter_expr_error = "";
         static std::string filter_last_success_parsed_expr = "";
         static int num_eval_errors = 0;
-        static std::shared_ptr<ASTNode> filter_last_success_parsed_AST;
 
         ImGui::Text("Filter Expression");
         ImGui::SameLine();
         if (ImGui::InputText("##filter_expression", &filter_expression, ImGuiInputTextFlags_CallbackAlways, TextEditCallback)) {
-            try {
-                lexer = Lexer(filter_expression);
-                parser = std::make_unique<Parser>(lexer); // Create a new Parser instance
-                filter_last_success_parsed_AST = parser->parse();
-
-                filter_expr_error = "";
-                filter_last_success_parsed_expr = filter_expression;
-            }
-            catch (const std::exception& e) {
-                filter_expr_error = e.what();
-            }
+            filter_expr_error = "";
+            filter_last_success_parsed_expr = filter_expression;
         }
 
         if (ImGui::IsItemHovered()) {
@@ -234,37 +203,34 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
             ImGui::Text(std::format("Num unique files: {}", filter_eval_result.size()).c_str());
         }
 
+        const auto log_messages = comparer_dsl.get_log_messages();
+        if (log_messages.size()) {
+            ImGui::Text("Parsing errors:");
+            for (const auto& msg : log_messages) {
+                ImGui::Text(msg.c_str());
+            }
+        }
+
         if (filter_expression.size() > 0 && filter_expression == filter_last_success_parsed_expr && filter_expr_error == "") {
             if (ImGui::Button("Start filtering")) {
                 filter_eval_result.clear();
                 num_eval_errors = 0;
 
                 for (const auto file_id : all_dats_file_ids) {
-                    std::map<int, uint32_t> DATs_hashes;
+                    std::unordered_map<int, DatCompareFileInfo> file_infos;
                     for (int i = 0; i < dat_managers.size(); i++) {
-                        const auto it = dat_fileid_to_mm3hash[i].find(file_id);
-                        if (it != dat_fileid_to_mm3hash[i].end()) {
-                            DATs_hashes.insert_or_assign(i, it->second);
+                        const auto it = fileid_to_compare_file_infos[i].find(file_id);
+                        if (it != fileid_to_compare_file_infos[i].end()) {
+                            file_infos.insert_or_assign(i, it->second);
                         }
                     }
 
                     try
                     {
-                        std::vector<uint32_t> exclude;
-                        bool success = true;
-                        const auto eval_result = evaluate(filter_last_success_parsed_AST, DATs_hashes, exclude, dat_that_can_be_empty, success);
+                        const auto should_include_file = comparer_dsl.parse(filter_expression, file_infos);
 
-                        int to_exlucde_count = 0;
-                        for (const auto hash : exclude) {
-                            const auto it = std::find(eval_result.begin(), eval_result.end(), hash);
-                            if (it != eval_result.end()) {
-                                to_exlucde_count++;
-                            }
-                        }
-
-                        if (eval_result.size() > 0)
+                        if (should_include_file)
                             filter_eval_result.emplace(file_id);
-                        //filter_eval_result.insert(eval_result.begin(), eval_result.end()); 
                     }
                     catch (const std::exception&)
                     {
@@ -290,12 +256,12 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
 
     // Create maps for each dat file mapping filehash(file_id) to each entrys murmurhash.
     // We don't include files where the file_id is the same (i.e. many files have the file_id 0) which I don't know how to compare between multiples dats
-    if (!is_analyzing && dat_fileid_to_mm3hash.size() < dat_managers.size()) {
+    if (!is_analyzing && fileid_to_compare_file_infos.size() < dat_managers.size()) {
         all_dats_file_ids.clear();
-        dat_fileid_to_mm3hash.clear();
+        fileid_to_compare_file_infos.clear();
         for (int i = 0; i < dat_managers.size(); i++) {
             std::set<uint32_t> seen_file_ids;
-            std::unordered_map<uint32_t, uint32_t> new_map;
+            std::unordered_map<uint32_t, DatCompareFileInfo> new_map;
             const auto& mft = dat_managers[i]->get_MFT();
             for (int j = 0; j < mft.size(); j++) {
                 const auto file_id = mft[j].Hash;
@@ -310,13 +276,21 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
                     }
                 }
                 else {
-                    new_map.emplace(file_id, mft[j].murmurhash3);
+                    int filename_id_0 = 0;
+                    int filename_id_1 = 0;
+
+                    // Update filename_id_0 and filename_id_1 with the proper values.
+                    encode_filehash(mft[j].Hash, filename_id_0, filename_id_1);
+
+                    DatCompareFileInfo file_info{ mft[j].murmurhash3, mft[j].uncompressedSize, filename_id_0, filename_id_1 };
+
+                    new_map.emplace(file_id, file_info);
                     seen_file_ids.emplace(file_id);
                     all_dats_file_ids.emplace(file_id);
                 }
             }
 
-            dat_fileid_to_mm3hash.emplace_back(new_map);
+            fileid_to_compare_file_infos.emplace_back(new_map);
         }
     }
 }
