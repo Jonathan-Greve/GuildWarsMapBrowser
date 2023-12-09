@@ -90,7 +90,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir)\SourceFiles;$(ProjectDir)/tinytiff;$(ProjectDir)\DearImGui;$(ProjectDir)\ImGuiFileDialog-Lib_Only;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)\SourceFiles;$(ProjectDir)\tinytiff;$(ProjectDir)\DearImGui;$(ProjectDir)\ImGuiFileDialog-Lib_Only;$(ProjectDir)\DirectXTex;$(ProjectDir)\peglib;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
@@ -135,7 +135,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir)\tinytiff;$(ProjectDir)\DirectXTex;$(ProjectDir)\SourceFiles;$(ProjectDir)\ImGuiFileDialog-Lib_Only;$(ProjectDir)\DearImGui;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)\SourceFiles;$(ProjectDir)\tinytiff;$(ProjectDir)\DearImGui;$(ProjectDir)\ImGuiFileDialog-Lib_Only;$(ProjectDir)\DirectXTex;$(ProjectDir)\peglib;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
@@ -207,6 +207,7 @@
     <ClInclude Include="ImGuiFileDialog-Lib_Only\dirent\dirent.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
+    <ClInclude Include="peglib\peglib.h" />
     <ClInclude Include="SourceFiles\AMAT_file.h" />
     <ClInclude Include="SourceFiles\AtexAsm.h" />
     <ClInclude Include="SourceFiles\AtexReader.h" />
@@ -214,11 +215,11 @@
     <ClInclude Include="SourceFiles\Box.h" />
     <ClInclude Include="SourceFiles\Camera.h" />
     <ClInclude Include="SourceFiles\CheckerboardTexture.h" />
+    <ClInclude Include="SourceFiles\comparer_dsl.h" />
     <ClInclude Include="SourceFiles\ConstantBufferManager.h" />
     <ClInclude Include="SourceFiles\DATManager.h" />
-    <ClInclude Include="SourceFiles\dat_comparer_lexer.h" />
-    <ClInclude Include="SourceFiles\dat_comparer_parser.h" />
     <ClInclude Include="SourceFiles\draw_dat_compare_panel.h" />
+    <ClInclude Include="SourceFiles\draw_file_info_editor_panel.h" />
     <ClInclude Include="SourceFiles\json.hpp" />
     <ClInclude Include="SourceFiles\map_exporter.h" />
     <ClInclude Include="SourceFiles\model_exporter.h" />
@@ -270,6 +271,7 @@
     <ClInclude Include="SourceFiles\PerTerrainCB.h" />
     <ClInclude Include="SourceFiles\PickingPixelShader.h" />
     <ClInclude Include="SourceFiles\PixelShader.h" />
+    <ClInclude Include="SourceFiles\rapidcsv.h" />
     <ClInclude Include="SourceFiles\RasterizerStateManager.h" />
     <ClInclude Include="SourceFiles\RenderBatch.h" />
     <ClInclude Include="SourceFiles\RenderCommand.h" />
@@ -375,10 +377,9 @@
     <ClCompile Include="SourceFiles\Box.cpp" />
     <ClCompile Include="SourceFiles\Camera.cpp" />
     <ClCompile Include="SourceFiles\CheckerboardTexture.cpp" />
+    <ClCompile Include="SourceFiles\comparer_dsl.cpp" />
     <ClCompile Include="SourceFiles\ConstantBufferManager.cpp" />
     <ClCompile Include="SourceFiles\DATManager.cpp" />
-    <ClCompile Include="SourceFiles\dat_comparer_lexer.cpp" />
-    <ClCompile Include="SourceFiles\dat_comparer_parser.cpp" />
     <ClCompile Include="SourceFiles\DepthStencilStateManager.cpp" />
     <ClCompile Include="SourceFiles\DeviceResources.cpp" />
     <ClCompile Include="SourceFiles\DirectionalLight.cpp" />
@@ -388,6 +389,7 @@
     <ClCompile Include="SourceFiles\draw_dat_browser.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_compare_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_load_progress_bar.cpp" />
+    <ClCompile Include="SourceFiles\draw_file_info_editor_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_gui_for_open_dat_file.cpp" />
     <ClCompile Include="SourceFiles\draw_hex_editor_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_left_panel.cpp" />
