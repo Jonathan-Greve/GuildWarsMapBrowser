@@ -151,9 +151,8 @@ std::vector<std::vector<std::string>> load_csv(const std::string& filepath) {
     return data;
 }
 
-void draw_file_info_editor_panel() {
+void draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data) {
     static std::set<ModelTypes> selected_model_types;
-    static std::vector<std::vector<std::string>> csv_data;
 
     std::string selected_item_hash_hex = std::format("0x{:08x}", selected_item_hash);
 

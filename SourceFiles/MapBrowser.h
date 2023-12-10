@@ -68,5 +68,7 @@ private:
     std::map<int, std::unique_ptr<DATManager>> m_dat_managers;
     int m_dat_manager_to_show_in_dat_browser;
 
+    std::vector<std::vector<std::string>> m_csv_data;
+
     std::unique_ptr<MapRenderer> m_map_renderer;
 };
