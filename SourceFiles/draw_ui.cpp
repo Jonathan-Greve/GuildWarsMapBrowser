@@ -19,6 +19,7 @@ extern std::string selected_text_file_str;
 extern std::vector<uint8_t> selected_raw_data;
 bool dat_manager_to_show_changed = false;
 bool dat_compare_filter_result_changed = false;
+bool custom_file_info_changed = false;
 std::unordered_set<uint32_t> dat_compare_filter_result;
 
 void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show, MapRenderer* map_renderer, PickingInfo picking_info, 
@@ -42,12 +43,14 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
         }
         if (initialization_state == InitializationState::Completed)
         {
-            draw_data_browser(dat_managers[dat_manager_to_show].get(), map_renderer, dat_manager_to_show_changed, dat_compare_filter_result, dat_compare_filter_result_changed);
+            draw_data_browser(dat_managers[dat_manager_to_show].get(), map_renderer, dat_manager_to_show_changed, dat_compare_filter_result, dat_compare_filter_result_changed, csv_data, custom_file_info_changed);
             draw_left_panel(map_renderer);
             draw_right_panel(map_renderer);
             dat_compare_filter_result_changed = false;
             draw_dat_compare_panel(dat_managers, dat_manager_to_show, dat_compare_filter_result, dat_compare_filter_result_changed);
-            draw_file_info_editor_panel(csv_data);
+            
+            custom_file_info_changed = false;
+            custom_file_info_changed = draw_file_info_editor_panel(csv_data);
 
             draw_picking_info(picking_info);
 
