@@ -202,9 +202,24 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
         static int found_row_index = -1;
         static bool edit_mode = false;
 
+        static std::string name_buf;
+        static std::string gwwiki_buf;
+        static std::string map_id_buf;
+        static bool is_explorable = false;
+        static bool is_outpost = false;
+        static bool is_pvp = false;
+        static std::string model_type;
+
         bool selected_item_hash_changed = prev_selected_item_hash != selected_item_hash;
         if (selected_item_hash_changed) {
             selected_model_types.clear();
+            name_buf.clear();
+            gwwiki_buf.clear();
+            map_id_buf.clear();
+            is_explorable = false;
+            is_outpost = false;
+            is_pvp = false;
+            model_type.clear();
 
             edit_mode = false;
             found_row_index = -1;
@@ -236,14 +251,6 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
             row[8] = std::to_string(static_cast<int>(selected_file_type));
             row_backup = row;
         }
-
-        static std::string name_buf;
-        static std::string gwwiki_buf;
-        static std::string map_id_buf;
-        static bool is_explorable = false;
-        static bool is_outpost = false;
-        static bool is_pvp = false;
-        static std::string model_type;
 
         if (found_row_index >= 0 && found_row_index < csv_data.size() && !edit_mode) {
             row = csv_data[found_row_index];
