@@ -843,7 +843,8 @@ std::string to_lower(const std::string& input);
 std::wstring OpenFileDialog(std::wstring filename = L"", std::wstring fileType = L"");
 std::wstring OpenDirectoryDialog();
 
-void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const bool dat_manager_changed, const std::unordered_set<uint32_t>& dat_compare_filter_result, const bool dat_compare_filter_result_changed)
+void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const bool dat_manager_changed, const std::unordered_set<uint32_t>& dat_compare_filter_result, const bool dat_compare_filter_result_changed,
+    std::vector<std::vector<std::string>>& csv_data, bool custom_file_info_changed)
 {
     static std::vector<DatBrowserItem> items;
     static std::vector<DatBrowserItem> filtered_items;
@@ -858,7 +859,36 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
     static std::unordered_map<std::string, std::vector<int>> name_index;
     static std::unordered_map<bool, std::vector<int>> pvp_index;
 
-    if (dat_manager_changed) {
+    static std::unordered_map<int, CustomFileInfoEntry> custom_file_info_map;
+
+    if (custom_file_info_changed) {
+        for (int i = 1; i < csv_data.size(); i ++) {
+            const auto& row = csv_data[i];
+            CustomFileInfoEntry new_entry;
+            if (row[0][0] == '0' && std::tolower(row[0][1]) == 'x') {
+                new_entry.hash = std::stoi(row[0], 0, 16);
+            }
+            else {
+                new_entry.hash = std::stoi(row[0]);
+            }
+
+            for (auto name_token : std::views::split(row[1], ';')) {
+                std::string name(&*name_token.begin(), std::ranges::distance(name_token));
+                new_entry.names.push_back(name);
+            }
+
+            for (auto map_id_token : std::views::split(row[3], ';')) {
+                std::string map_id(&*map_id_token.begin(), std::ranges::distance(map_id_token));
+                new_entry.map_ids.push_back(std::stoi(map_id));
+            }
+
+            new_entry.is_pvp = row[6] == "yes";
+
+            custom_file_info_map.emplace(new_entry.hash, new_entry);
+        }
+    }
+
+    if (dat_manager_changed || custom_file_info_changed) {
         items.clear();
         filtered_items.clear();
         id_index.clear();
@@ -899,17 +929,30 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
             DatBrowserItem new_item{
                 i, entry.Hash, static_cast<FileType>(entry.type), entry.Size, entry.uncompressedSize, filename_id_0, filename_id_1, {}, {}, {}, entry.murmurhash3
             };
+            const auto custom_file_info_it = custom_file_info_map.find(entry.Hash);
             if (entry.Hash != 0 && entry.type == FFNA_Type3)
             {
-                auto it = constant_maps_info.find(entry.Hash);
-                if (it != constant_maps_info.end())
-                {
-                    for (const auto& map : it->second)
+                if (custom_file_info_it != custom_file_info_map.end()) {
+                    new_item.names = custom_file_info_it->second.names;
+                    new_item.map_ids = custom_file_info_it->second.map_ids;
+                    new_item.is_pvp = { custom_file_info_it->second.is_pvp };
+                }
+                else {
+                    auto it = constant_maps_info.find(entry.Hash);
+                    if (it != constant_maps_info.end())
                     {
-                        new_item.map_ids.push_back(map.map_id);
-                        new_item.names.push_back(map.map_name);
-                        new_item.is_pvp.push_back(map.is_pvp);
+                        for (const auto& map : it->second)
+                        {
+                            new_item.map_ids.push_back(map.map_id);
+                            new_item.names.push_back(map.map_name);
+                            new_item.is_pvp.push_back(map.is_pvp);
+                        }
                     }
+                }
+            }
+            else {
+                if (custom_file_info_it != custom_file_info_map.end()) {
+                    new_item.names = custom_file_info_it->second.names;
                 }
             }
 
@@ -959,7 +1002,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 
     static bool filter_update_required = true;
 
-    if (dat_manager_changed) {
+    if (dat_manager_changed || custom_file_info_changed) {
         filter_update_required = true;
     }
 
@@ -1304,7 +1347,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                     last_focused_item_index = row_n; // Update the last focused item index
                 }
 
-                if (dat_manager_changed) {
+                if (dat_manager_changed || custom_file_info_changed) {
                     // Find the index of the item with item.hash == selected_item_hash
                     int item_index = -1;
                     for (int i = 0; i < filtered_items.size(); ++i) {
@@ -1593,7 +1636,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                 ImGui::TableNextColumn();
 
 
-                if (item.type == FFNA_Type3)
+                if (!item.names.empty())
                 {
                     std::string name;
                     for (int i = 0; i < item.names.size(); i++)
