@@ -21,7 +21,8 @@ bool dat_manager_to_show_changed = false;
 bool dat_compare_filter_result_changed = false;
 std::unordered_set<uint32_t> dat_compare_filter_result;
 
-void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show, MapRenderer* map_renderer, PickingInfo picking_info)
+void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show, MapRenderer* map_renderer, PickingInfo picking_info, 
+    std::vector<std::vector<std::string>>& csv_data)
 {
     int initial_dat_manager_to_show = dat_manager_to_show;
 
@@ -46,7 +47,7 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
             draw_right_panel(map_renderer);
             dat_compare_filter_result_changed = false;
             draw_dat_compare_panel(dat_managers, dat_manager_to_show, dat_compare_filter_result, dat_compare_filter_result_changed);
-            draw_file_info_editor_panel();
+            draw_file_info_editor_panel(csv_data);
 
             draw_picking_info(picking_info);
 
