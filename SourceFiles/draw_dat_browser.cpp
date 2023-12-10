@@ -38,7 +38,7 @@ extern std::string selected_text_file_str = "";
 
 inline int selected_map_file_index = -1;
 
-inline uint32_t selected_item_hash = -1;
+inline extern uint32_t selected_item_hash = -1;
 inline int last_focused_item_index = -1;
 
 inline extern FileType selected_file_type = NONE;
@@ -63,13 +63,6 @@ inline std::unordered_map<int, TextureType> model_texture_types;
 
 std::unique_ptr<Terrain> terrain;
 std::vector<Mesh> prop_meshes;
-
-const char* type_strings[26] = {
-    " ", "AMAT", "Amp", "ATEXDXT1", "ATEXDXT2", "ATEXDXT3", "ATEXDXT4",
-    "ATEXDXT5", "ATEXDXTN", "ATEXDXTA", "ATEXDXTL", "ATTXDXT1", "ATTXDXT3", "ATTXDXT5",
-    "ATTXDXTN", "ATTXDXTA", "ATTXDXTL", "DDS", "FFNA - Model", "FFNA - Map", "FFNA - Unknown",
-    "MFTBase", "NOT_READ", "Sound", "Text", "Unknown"
-};
 
 const ImGuiTableSortSpecs* DatBrowserItem::s_current_sort_specs = nullptr;
 
