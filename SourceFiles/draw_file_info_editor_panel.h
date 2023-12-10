@@ -1,6 +1,6 @@
 #pragma once
 
-void draw_file_info_editor_panel();
+void draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data);
 
 enum class ModelTypes
 {
