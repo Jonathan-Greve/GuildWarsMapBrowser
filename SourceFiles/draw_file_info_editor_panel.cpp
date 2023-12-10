@@ -151,8 +151,10 @@ std::vector<std::vector<std::string>> load_csv(const std::string& filepath) {
     return data;
 }
 
-void draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data) {
+bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data) {
     static std::set<ModelTypes> selected_model_types;
+
+    bool csv_changed = false;
 
     std::string selected_item_hash_hex = std::format("0x{:08x}", selected_item_hash);
 
@@ -177,6 +179,7 @@ void draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
 
         if (!csv_filepath.empty()) {
             csv_data = load_csv(csv_filepath.string());
+            csv_changed = true;
         }
     }
 
@@ -187,6 +190,7 @@ void draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
             if (!csv_filepath.empty()) {
                 csv_data = load_csv(csv_filepath.string());
                 const auto filepath = save_last_filepath(csv_filepath, last_csv_filename);
+                csv_changed = true;
             }
         }
         ImGui::Separator();
@@ -334,6 +338,7 @@ void draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
                 }
 
                 save_csv(csv_filepath.string(), csv_data, selected_item_hash_hex);
+                csv_changed = true;
             }
 
             ImGui::SameLine();
@@ -398,4 +403,6 @@ void draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
     }
 
     ImGui::End();
+
+    return csv_changed;
 }
