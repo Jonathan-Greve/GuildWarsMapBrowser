@@ -13,6 +13,8 @@ enum class ModelTypes
     prop_foliage, // Trees, bushes, flowers, grass, vines, and other plant life.
     prop_furniture, // Chairs, tables, bookcases, beds, benches and other decorations.
     prop_nature, // Rocks, boulders, cliffs, water bodies, and other natural formations
+    prop_bridge, // Bridges
+    prop_statue, // Statue
     prop_barrier, // Gates, walls, hedges, and other objects used to block or define boundaries.
     prop_miscellaneous, // Items that don't fit into other prop categories
 
@@ -65,6 +67,8 @@ inline std::string ModelTypeToString(ModelTypes type)
     case ModelTypes::prop_foliage: return "prop_foliage";
     case ModelTypes::prop_furniture: return "prop_furniture";
     case ModelTypes::prop_nature: return "prop_nature";
+    case ModelTypes::prop_bridge: return "prop_bridge";
+    case ModelTypes::prop_statue: return "prop_statue";
     case ModelTypes::prop_barrier: return "prop_barrier";
     case ModelTypes::prop_miscellaneous: return "prop_miscellaneous";
     case ModelTypes::item_weapon_axe: return "item_weapon_axe";
@@ -106,6 +110,8 @@ inline ModelTypes StringToModelType(const std::string& typeString)
     if (typeString == "prop_foliage") return ModelTypes::prop_foliage;
     if (typeString == "prop_furniture") return ModelTypes::prop_furniture;
     if (typeString == "prop_nature") return ModelTypes::prop_nature;
+    if (typeString == "prop_bridge") return ModelTypes::prop_bridge;
+    if (typeString == "prop_statue") return ModelTypes::prop_statue;
     if (typeString == "prop_barrier") return ModelTypes::prop_barrier;
     if (typeString == "prop_miscellaneous") return ModelTypes::prop_miscellaneous;
     if (typeString == "item_weapon_axe") return ModelTypes::item_weapon_axe;
