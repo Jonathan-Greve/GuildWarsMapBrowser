@@ -177,7 +177,7 @@ inline std::optional<std::filesystem::path> load_last_filepath(const std::string
 inline std::optional<std::filesystem::path> save_last_filepath(const std::filesystem::path& filepath, const std::string& filename) {
     auto exe_dir_opt = get_executable_directory();
     if (exe_dir_opt) {
-        std::ofstream outfile(*exe_dir_opt / filename);
+        std::ofstream outfile(*exe_dir_opt / filename, std::ios::trunc);
         outfile << filepath.string();
 
         return filepath;

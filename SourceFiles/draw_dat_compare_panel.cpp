@@ -74,16 +74,18 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
     if (!is_analyzing) {
         // File selection button
         if (ImGui::Button("Select File")) {
-            std::ifstream inFile("dat_browser_last_filepath.txt");
-            std::string initial_filepath;
+            std::string initial_filepath = ".";
 
-            if (inFile) {
-                std::getline(inFile, initial_filepath);
-                inFile.close();
+            const auto filepath_existing = load_last_filepath("dat_browser_last_filepath.txt");
+            if (filepath_existing.has_value()) {
+                initial_filepath = filepath_existing.value().parent_path().string();
             }
 
             if (!std::filesystem::exists(initial_filepath) || !std::filesystem::is_directory(initial_filepath)) {
-                initial_filepath = ".";
+                const auto filepath_curr_dir = get_executable_directory();
+                if (filepath_curr_dir.has_value()) {
+                    initial_filepath = filepath_curr_dir.value().string();
+                }
             }
 
             ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".dat", initial_filepath + "\\.");
@@ -95,9 +97,7 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
                 std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
                 std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
 
-                std::ofstream outFile("dat_browser_last_filepath.txt", std::ios::trunc);
-                outFile << filePath;
-                outFile.close();
+                save_last_filepath(filePathName, "dat_browser_last_filepath.txt");
 
                 std::wstring wstr(filePathName.begin(), filePathName.end());
 

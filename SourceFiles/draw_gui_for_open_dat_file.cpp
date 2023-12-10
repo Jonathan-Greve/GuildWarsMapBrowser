@@ -32,21 +32,18 @@ void draw_gui_for_open_dat_file()
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.4f, 0.4f, 0.4f, 1.0f));
     if (ImGui::Button("Select a \"Gw.dat\" File", button_size))
     {
-        // Check for the existence of the "dat_browser_last_filepath.txt" file
-        std::ifstream inFile("dat_browser_last_filepath.txt");
-        std::string initial_filepath;
+        std::string initial_filepath = ".";
 
-        if (inFile)
-        {
-            // If the file exists, read the path Gfrom it
-            std::getline(inFile, initial_filepath);
-            inFile.close();
+        const auto filepath_existing = load_last_filepath("dat_browser_last_filepath.txt");
+        if (filepath_existing.has_value()) {
+            initial_filepath = filepath_existing.value().parent_path().string();
         }
 
-        // Check if the initial_filepath is a valid path
-        if (! std::filesystem::exists(initial_filepath) || ! std::filesystem::is_directory(initial_filepath))
-        {
-            initial_filepath = ".";
+        if (!std::filesystem::exists(initial_filepath) || !std::filesystem::is_directory(initial_filepath)) {
+            const auto filepath_curr_dir = get_executable_directory();
+            if (filepath_curr_dir.has_value()) {
+                initial_filepath = filepath_curr_dir.value().string();
+            }
         }
 
         ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".dat",
@@ -65,9 +62,7 @@ void draw_gui_for_open_dat_file()
             std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
 
             // Write the selected path to the .txt file
-            std::ofstream outFile("dat_browser_last_filepath.txt", std::ios::trunc);
-            outFile << filePath;
-            outFile.close();
+            save_last_filepath(filePathName, "dat_browser_last_filepath.txt");
 
             std::wstring wstr(filePathName.begin(), filePathName.end());
             gw_dat_path = wstr;
