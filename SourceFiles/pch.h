@@ -55,6 +55,8 @@
 #include <span>
 #include <unordered_set>
 #include <variant>
+#include <optional>
+#include <filesystem>
 
 // Dear ImGui
 #define IMGUI_DEFINE_MATH_OPERATORS
@@ -141,4 +143,45 @@ inline int decode_filename(int id0, int id1) { return (id0 - 0xff00ff) + (id1 * 
 inline void encode_filehash(uint32_t filehash, int& id0_out, int& id1_out) {
     id0_out = static_cast<wchar_t>(((filehash - 1) % 0xff00) + 0x100);
     id1_out = static_cast<wchar_t>(((filehash - 1) / 0xff00) + 0x100);
+}
+
+inline std::optional<std::filesystem::path> get_executable_directory() {
+    WCHAR path[MAX_PATH];
+    HMODULE hModule = GetModuleHandle(NULL);
+    if (hModule != NULL) {
+        // Get the path to the executable
+        if (GetModuleFileName(hModule, path, MAX_PATH) > 0) {
+            // Convert to std::filesystem::path and return the directory part
+            return std::filesystem::path(path).parent_path();
+        }
+    }
+    return std::nullopt; // Return nullopt if unable to retrieve the path
+}
+
+inline std::optional<std::filesystem::path> load_last_filepath(const std::string& filename) {
+    auto exe_dir_opt = get_executable_directory();
+    if (exe_dir_opt) {
+        if (std::filesystem::exists(*exe_dir_opt / filename)) {
+            std::ifstream infile(*exe_dir_opt / filename);
+            if (infile.is_open()) {
+                std::string line;
+                std::getline(infile, line);
+                return line;
+            }
+        }
+    }
+
+    return std::nullopt;
+}
+
+inline std::optional<std::filesystem::path> save_last_filepath(const std::filesystem::path& filepath, const std::string& filename) {
+    auto exe_dir_opt = get_executable_directory();
+    if (exe_dir_opt) {
+        std::ofstream outfile(*exe_dir_opt / filename);
+        outfile << filepath.string();
+
+        return filepath;
+    }
+
+    return std::nullopt;
 }

@@ -9,6 +9,11 @@ extern FileType selected_file_type;
 extern uint32_t selected_item_hash;
 uint32_t prev_selected_item_hash = -1;
 
+const std::string last_csv_filename {"custom_file_info_last_filepath.txt"};
+
+std::filesystem::path csv_filepath;
+std::filesystem::path last_csv_filepath;
+
 bool verify_temp_file(const std::string& temp_filepath,
     const std::vector<std::vector<std::string>>& expected_data,
     const std::string& updated_item_hash) {
@@ -146,8 +151,6 @@ std::vector<std::vector<std::string>> load_csv(const std::string& filepath) {
     return data;
 }
 
-std::wstring csv_filepath = L"";
-
 void draw_file_info_editor_panel() {
     static std::set<ModelTypes> selected_model_types;
     static std::vector<std::vector<std::string>> csv_data;
@@ -157,15 +160,39 @@ void draw_file_info_editor_panel() {
     ImGui::Begin("Custom File Info");
 
     // Load csv file if not already loaded
-    if (csv_data.empty()) {
-        if (ImGui::Button("Open CSV File")) {
-            csv_filepath = open_file_dialog();
-            if (!csv_filepath.empty()) {
-                std::string filepath(csv_filepath.begin(), csv_filepath.end());
-                csv_data = load_csv(filepath);
-            }
+    if (csv_filepath.empty()) {
+        const auto filepath = load_last_filepath(last_csv_filename);
+        if (filepath.has_value()) {
+            csv_filepath = filepath.value();
         }
     }
+
+    // Load csv file if not already loaded
+    if (csv_data.empty()) {
+        if (csv_filepath.empty()) {
+            if (ImGui::Button("Open CSV File")) {
+                csv_filepath = open_file_dialog();
+                const auto filepath = save_last_filepath(csv_filepath, last_csv_filename);
+            }
+        }
+
+        if (!csv_filepath.empty()) {
+            csv_data = load_csv(csv_filepath.string());
+        }
+    }
+
+    // Button to change the CSV file
+    if (!csv_filepath.empty()) {
+        if (ImGui::Button("Change CSV File")) {
+            csv_filepath = open_file_dialog();
+            if (!csv_filepath.empty()) {
+                csv_data = load_csv(csv_filepath.string());
+                const auto filepath = save_last_filepath(csv_filepath, last_csv_filename);
+            }
+        }
+        ImGui::Separator();
+    }
+
     if (selected_item_hash == -1) {
     }
     else {
@@ -307,8 +334,7 @@ void draw_file_info_editor_panel() {
                     csv_data[found_row_index][6] = is_pvp ? "yes" : "no";
                 }
 
-                std::string filepath(csv_filepath.begin(), csv_filepath.end());
-                save_csv(filepath, csv_data, selected_item_hash_hex);
+                save_csv(csv_filepath.string(), csv_data, selected_item_hash_hex);
             }
 
             ImGui::SameLine();
