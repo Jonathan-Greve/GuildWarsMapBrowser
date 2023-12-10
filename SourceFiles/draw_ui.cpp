@@ -11,6 +11,7 @@
 #include "draw_hex_editor_panel.h"
 #include "draw_picking_info.h"
 #include "draw_dat_compare_panel.h"
+#include "draw_file_info_editor_panel.h"
 
 extern FileType selected_file_type;
 extern HSTREAM selected_audio_stream_handle;
@@ -45,6 +46,7 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
             draw_right_panel(map_renderer);
             dat_compare_filter_result_changed = false;
             draw_dat_compare_panel(dat_managers, dat_manager_to_show, dat_compare_filter_result, dat_compare_filter_result_changed);
+            draw_file_info_editor_panel();
 
             draw_picking_info(picking_info);
 

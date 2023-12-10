@@ -448,7 +448,6 @@
     <ClInclude Include="SourceFiles\MurmurHash3.h">
       <Filter>MurmurHash3</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\draw_file_info_editor_panel.h" />
     <ClInclude Include="SourceFiles\rapidcsv.h">
       <Filter>rapidcsv</Filter>
     </ClInclude>
@@ -457,6 +456,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\comparer_dsl.h">
       <Filter>DatComparerDSL</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\draw_file_info_editor_panel.h">
+      <Filter>GUI\Custom file info editor panel</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -718,9 +720,11 @@
     <ClCompile Include="SourceFiles\MurmurHash3.cpp">
       <Filter>MurmurHash3</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\draw_file_info_editor_panel.cpp" />
     <ClCompile Include="SourceFiles\comparer_dsl.cpp">
       <Filter>DatComparerDSL</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_file_info_editor_panel.cpp">
+      <Filter>GUI\Custom file info editor panel</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
