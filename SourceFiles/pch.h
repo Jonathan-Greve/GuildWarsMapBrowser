@@ -166,7 +166,9 @@ inline std::optional<std::filesystem::path> load_last_filepath(const std::string
             if (infile.is_open()) {
                 std::string line;
                 std::getline(infile, line);
-                return line;
+                if (std::filesystem::exists(line)) {
+                    return line;
+                }
             }
         }
     }
