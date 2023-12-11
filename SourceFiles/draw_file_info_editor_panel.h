@@ -1,5 +1,11 @@
 #pragma once
 
+void edit_model(std::set<ModelTypes>& selected_model_types, ModelTypes& current_selection, std::string& model_type);
+
+void edit_map(std::string& curr_map_id_input_buf, std::set<std::string>& prev_added_map_ids, std::string& prev_map_id_input, std::set<int>& selected_map_ids, std::string& map_id_buf, bool& is_explorable, bool& is_outpost, bool& is_pvp);
+
+void save(bool& edit_mode, int& found_row_index, std::vector<std::vector<std::string>>& csv_data, std::vector<std::string>& row, std::string& name_buf, std::string& gwwiki_buf, std::string& model_type, std::string& map_id_buf, bool is_explorable, bool is_outpost, bool is_pvp, std::string& selected_item_hash_hex, bool& csv_changed);
+
 bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data);
 
 enum class ModelTypes
