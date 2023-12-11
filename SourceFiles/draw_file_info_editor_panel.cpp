@@ -176,6 +176,119 @@ std::vector<std::vector<std::string>> load_csv(const std::string& filepath) {
     return data;
 }
 
+void edit_model(std::set<ModelTypes>& selected_model_types, ModelTypes& current_selection, std::string& model_type)
+{
+    // Dropdown for selecting model types
+    if (ImGui::BeginCombo("##ModelTypes", "Select Model Type")) {
+        // Loop through all model types
+        for (int i = 0; i <= static_cast<int>(ModelTypes::unknown); ++i) {
+            ModelTypes type = static_cast<ModelTypes>(i);
+            if (!selected_model_types.contains(type)) {
+                if (ImGui::Selectable(ModelTypeToString(type).c_str(), current_selection == type)) {
+                    if (type != ModelTypes::unknown) {
+                        selected_model_types.insert(type);
+                    }
+                    current_selection = ModelTypes::unknown;
+                }
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    // Display selected model types and allow for their removal
+    for (auto it = selected_model_types.begin(); it != selected_model_types.end();) {
+        std::string label = ModelTypeToString(*it) + "##Selected";
+        if (ImGui::Button(("- " + label).c_str())) {
+            it = selected_model_types.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+
+    // Convert selected model types to a semicolon-separated string
+    model_type.clear();
+    for (const auto& type : selected_model_types) {
+        if (!model_type.empty()) model_type += ";";
+        model_type += ModelTypeToString(type);
+    }
+}
+
+void edit_map(std::string& curr_map_id_input_buf, std::set<std::string>& prev_added_map_ids, std::string& prev_map_id_input, std::set<int>& selected_map_ids, std::string& map_id_buf, bool& is_explorable, bool& is_outpost, bool& is_pvp)
+{
+    ImGui::InputText("Map id", &curr_map_id_input_buf, ImGuiInputTextFlags_CallbackCharFilter, FilterDigits);
+    if (!curr_map_id_input_buf.empty()) {
+        ImGui::SameLine();
+        if (ImGui::Button("Add another")) {
+            prev_added_map_ids.insert(curr_map_id_input_buf);
+            curr_map_id_input_buf.clear();
+            prev_map_id_input.clear();
+        }
+    }
+
+    if (curr_map_id_input_buf != prev_map_id_input) {
+        if (!prev_map_id_input.empty() && !prev_added_map_ids.contains(prev_map_id_input) && is_decimal_number(prev_map_id_input)) {
+            selected_map_ids.erase(std::stoi(prev_map_id_input));
+        }
+
+        if (!curr_map_id_input_buf.empty() && is_decimal_number(curr_map_id_input_buf)) {
+            selected_map_ids.insert(std::stoi(curr_map_id_input_buf));
+        }
+    }
+
+    for (auto it = selected_map_ids.begin(); it != selected_map_ids.end();) {
+        std::string curr_map_id = std::to_string(*it);
+        std::string label = curr_map_id + "##Selected";
+        if (ImGui::Button(("- " + label).c_str())) {
+            it = selected_map_ids.erase(it);
+            prev_added_map_ids.erase(curr_map_id);
+        }
+        else {
+            ++it;
+        }
+    }
+
+    // Convert selected model types to a semicolon-separated string
+    map_id_buf.clear();
+    for (const auto& map_id : selected_map_ids) {
+        if (!map_id_buf.empty()) map_id_buf += ";";
+        map_id_buf += std::to_string(map_id);
+    }
+
+    ImGui::Checkbox("Is Explorable", &is_explorable);
+    ImGui::Checkbox("Is Outpost", &is_outpost);
+    ImGui::Checkbox("Is PvP", &is_pvp);
+
+    prev_map_id_input = curr_map_id_input_buf;
+}
+
+void save(bool& edit_mode, int& found_row_index, std::vector<std::vector<std::string>>& csv_data, std::vector<std::string>& row, std::string& name_buf, std::string& gwwiki_buf, std::string& model_type, std::string& map_id_buf, bool is_explorable, bool is_outpost, bool is_pvp, std::string& selected_item_hash_hex, bool& csv_changed)
+{
+    edit_mode = false;
+    if (found_row_index == -1) {
+        csv_data.push_back(row);
+        found_row_index = csv_data.size() - 1;
+    }
+
+    // column 0 (file_id) and column 8 (file type) already set automatically
+
+    csv_data[found_row_index][1] = name_buf;
+    csv_data[found_row_index][2] = gwwiki_buf;
+
+    if (selected_file_type == FFNA_Type2) {
+        csv_data[found_row_index][7] = model_type;
+    }
+    else if (selected_file_type == FFNA_Type3) {
+        csv_data[found_row_index][3] = map_id_buf;
+        csv_data[found_row_index][4] = is_explorable ? "yes" : "no";
+        csv_data[found_row_index][5] = is_outpost ? "yes" : "no";
+        csv_data[found_row_index][6] = is_pvp ? "yes" : "no";
+    }
+
+    save_csv(csv_filepath.string(), csv_data, selected_item_hash_hex);
+    csv_changed = true;
+}
+
 bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data) {
     static std::set<ModelTypes> selected_model_types;
     static std::set<int> selected_map_ids;
@@ -324,113 +437,14 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
 
             if (selected_file_type == FFNA_Type2) {
                 static ModelTypes current_selection = ModelTypes::unknown;
-
-                // Dropdown for selecting model types
-                if (ImGui::BeginCombo("##ModelTypes", "Select Model Type")) {
-                    // Loop through all model types
-                    for (int i = 0; i <= static_cast<int>(ModelTypes::unknown); ++i) {
-                        ModelTypes type = static_cast<ModelTypes>(i);
-                        if (!selected_model_types.contains(type)) {
-                            if (ImGui::Selectable(ModelTypeToString(type).c_str(), current_selection == type)) {
-                                if (type != ModelTypes::unknown) {
-                                    selected_model_types.insert(type);
-                                }
-                                current_selection = ModelTypes::unknown;
-                            }
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-
-                // Display selected model types and allow for their removal
-                for (auto it = selected_model_types.begin(); it != selected_model_types.end();) {
-                    std::string label = ModelTypeToString(*it) + "##Selected";
-                    if (ImGui::Button(("- " + label).c_str())) {
-                        it = selected_model_types.erase(it);
-                    }
-                    else {
-                        ++it;
-                    }
-                }
-
-                // Convert selected model types to a semicolon-separated string
-                model_type.clear();
-                for (const auto& type : selected_model_types) {
-                    if (!model_type.empty()) model_type += ";";
-                    model_type += ModelTypeToString(type);
-                }
+                edit_model(selected_model_types, current_selection, model_type);
             }
             else if (selected_file_type == FFNA_Type3) {
-                ImGui::InputText("Map id", &curr_map_id_input_buf, ImGuiInputTextFlags_CallbackCharFilter, FilterDigits);
-                if (!curr_map_id_input_buf.empty()) {
-                    ImGui::SameLine();
-                    if (ImGui::Button("Add another")) {
-                        prev_added_map_ids.insert(curr_map_id_input_buf);
-                        curr_map_id_input_buf.clear();
-                        prev_map_id_input.clear();
-                    }
-                }
-
-                if (curr_map_id_input_buf != prev_map_id_input) {
-                    if (!prev_map_id_input.empty() && !prev_added_map_ids.contains(prev_map_id_input) && is_decimal_number(prev_map_id_input)) {
-                        selected_map_ids.erase(std::stoi(prev_map_id_input));
-                    }
-
-                    if (!curr_map_id_input_buf.empty() && is_decimal_number(curr_map_id_input_buf)) {
-                        selected_map_ids.insert(std::stoi(curr_map_id_input_buf));
-                    }
-                }
-
-                for (auto it = selected_map_ids.begin(); it != selected_map_ids.end();) {
-                    std::string curr_map_id = std::to_string(*it);
-                    std::string label = curr_map_id + "##Selected";
-                    if (ImGui::Button(("- " + label).c_str())) {
-                        it = selected_map_ids.erase(it);
-                        prev_added_map_ids.erase(curr_map_id);
-                    }
-                    else {
-                        ++it;
-                    }
-                }
-
-                // Convert selected model types to a semicolon-separated string
-                map_id_buf.clear();
-                for (const auto& map_id : selected_map_ids) {
-                    if (!map_id_buf.empty()) map_id_buf += ";";
-                    map_id_buf += std::to_string(map_id);
-                }
-
-                ImGui::Checkbox("Is Explorable", &is_explorable);
-                ImGui::Checkbox("Is Outpost", &is_outpost);
-                ImGui::Checkbox("Is PvP", &is_pvp);
-
-                prev_map_id_input = curr_map_id_input_buf;
+                edit_map(curr_map_id_input_buf, prev_added_map_ids, prev_map_id_input, selected_map_ids, map_id_buf, is_explorable, is_outpost, is_pvp);
             }
 
             if (ImGui::Button("Save")) {
-                edit_mode = false;
-                if (found_row_index == -1) {
-                    csv_data.push_back(row);
-                    found_row_index = csv_data.size() - 1;
-                }
-
-                // column 0 (file_id) and column 8 (file type) already set automatically
-
-                csv_data[found_row_index][1] = name_buf;
-                csv_data[found_row_index][2] = gwwiki_buf;
-
-                if (selected_file_type == FFNA_Type2) {
-                    csv_data[found_row_index][7] = model_type;
-                }
-                else if (selected_file_type == FFNA_Type3) {
-                    csv_data[found_row_index][3] = map_id_buf;
-                    csv_data[found_row_index][4] = is_explorable ? "yes" : "no";
-                    csv_data[found_row_index][5] = is_outpost ? "yes" : "no";
-                    csv_data[found_row_index][6] = is_pvp ? "yes" : "no";
-                }
-
-                save_csv(csv_filepath.string(), csv_data, selected_item_hash_hex);
-                csv_changed = true;
+                save(edit_mode, found_row_index, csv_data, row, name_buf, gwwiki_buf, model_type, map_id_buf, is_explorable, is_outpost, is_pvp, selected_item_hash_hex, csv_changed);
             }
 
             ImGui::SameLine();
