@@ -69,6 +69,10 @@ void ComparerDSL::define_semantic_actions()
         };
 
     m_parser["NOT_OP"] = [&](const SemanticValues& sv) {
+        if (sv.choice() == 0) {
+            return any_cast<int>(sv[0]);
+        }
+
         return static_cast<int>(!static_cast<bool>(any_cast<int>(sv[0])));
         };
 
@@ -115,6 +119,10 @@ void ComparerDSL::define_semantic_actions()
         };
 
     m_parser["COMP"] = [&](const SemanticValues& sv) {
+        if (sv.size() == 1) {
+            return any_cast<int>(sv[0]);
+        }
+
         auto left = any_cast<int>(sv[0]);
         auto right = any_cast<int>(sv[2]);
         auto op_choice = any_cast<int>(sv[1]);
@@ -138,7 +146,78 @@ void ComparerDSL::define_semantic_actions()
         return 0;
         };
 
+    m_parser["ARITHMETIC"] = [&](const SemanticValues& sv) {
+        if (sv.size() == 1) {
+            return any_cast<int>(sv[0]);
+        }
+
+        int result = any_cast<int>(sv[0]);
+        for (int i = 1; i < sv.size(); i += 2) {
+            auto op_choice = any_cast<int>(sv[i]);
+            auto val = any_cast<int>(sv[i + 1]);
+
+            switch (op_choice) {
+            case 0: // '+'
+                result += val;
+                break;
+            case 1: // '-'
+                result -= val;
+                break;
+            default:
+                break;
+            }
+        }
+
+        return result;
+        };
+
+    m_parser["TERM"] = [&](const SemanticValues& sv) {
+        if (sv.size() == 1) {
+            return any_cast<int>(sv[0]);
+        }
+
+        int result = any_cast<int>(sv[0]);
+        for (int i = 1; i < sv.size(); i += 2) {
+            auto op_choice = any_cast<int>(sv[i]);
+            auto val = any_cast<int>(sv[i + 1]);
+
+            switch (op_choice) {
+            case 0: // '*'
+                result *= val;
+                break;
+            case 1: // '/'
+                if (val != 0)
+                    result /= val;
+                else
+                    throw std::runtime_error("Division by zero");
+                break;
+            case 2: // '%'
+                if (val != 0)
+                    result %= val;
+                else
+                    throw std::runtime_error("Modulo by zero");
+                break;
+            default:
+                break;
+            }
+        }
+
+        return result;
+        };
+
+    m_parser["FACTOR"] = [&](const SemanticValues& sv) {
+        return any_cast<int>(sv[0]);
+        };
+
     m_parser["COMP_OP"] = [&](const SemanticValues& sv) {
+        return static_cast<int>(sv.choice());
+        };
+
+    m_parser["ADD_SUB_OP"] = [&](const SemanticValues& sv) {
+        return static_cast<int>(sv.choice());
+        };
+
+    m_parser["MUL_DIV_OP"] = [&](const SemanticValues& sv) {
         return static_cast<int>(sv.choice());
         };
 

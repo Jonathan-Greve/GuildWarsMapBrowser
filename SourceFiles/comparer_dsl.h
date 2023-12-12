@@ -8,16 +8,21 @@ struct DatCompareFileInfo {
     int fname1;
 };
 
-constexpr auto grammar = R"(
+constexpr  auto grammar = R"(
     EXPR          <- OR_OP
     OR_OP         <- AND_OP ('or'i AND_OP)*
-    AND_OP        <- PRIMARY ('and'i PRIMARY)*
-    PRIMARY       <- (NOT_OP / '(' EXPR ')' / EXISTS / COMP / COMPARE_TYPE) WHITESPACE
-    NOT_OP        <- 'not'i PRIMARY
+    AND_OP        <- COMP ('and'i COMP)*
+    COMP          <- NOT_OP (COMP_OP NOT_OP)?
+    NOT_OP        <- ARITHMETIC / 'not'i COMP
+    ARITHMETIC    <- TERM (ADD_SUB_OP TERM)*
+    TERM          <- FACTOR (MUL_DIV_OP FACTOR)*
+    FACTOR        <- PRIMARY / NUMBER
+    PRIMARY       <- (EXISTS  / COMPARE_TYPE / '(' EXPR ')' ) WHITESPACE
+    ADD_SUB_OP    <- '+' / '-'
+    MUL_DIV_OP    <- '*' / '/' / '%'
     EXISTS        <- 'exists'i '(' HASH NUMBER (',' HASH NUMBER)* ')'
-    COMP          <- COMPARE_TYPE COMP_OP PRIMARY
     COMP_OP       <- '==' / '!=' / '>=' / '<=' / '>' / '<'
-    COMPARE_TYPE  <- HASH NUMBER / SIZE NUMBER / FNAME0 NUMBER / FNAME1 NUMBER / FNAME NUMBER / NUMBER
+    COMPARE_TYPE  <- HASH NUMBER / SIZE NUMBER / FNAME0 NUMBER / FNAME1 NUMBER / FNAME NUMBER
     ~HASH         <- 'hash'i
     ~SIZE         <- 'size'i
     ~FNAME        <- 'fname'i
