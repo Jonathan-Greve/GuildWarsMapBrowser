@@ -872,12 +872,12 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                 new_entry.hash = std::stoi(row[0]);
             }
 
-            for (auto name_token : std::views::split(row[1], ';')) {
+            for (auto name_token : std::views::split(row[1], '|')) {
                 std::string name(&*name_token.begin(), std::ranges::distance(name_token));
                 new_entry.names.push_back(name);
             }
 
-            for (auto map_id_token : std::views::split(row[3], ';')) {
+            for (auto map_id_token : std::views::split(row[3], '|')) {
                 std::string map_id(&*map_id_token.begin(), std::ranges::distance(map_id_token));
                 new_entry.map_ids.push_back(std::stoi(map_id));
             }

@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "draw_file_info_editor_panel.h"
 #include "rapidcsv.h"
 #include <commdlg.h> 
@@ -14,6 +14,19 @@ const std::string last_csv_filename{ "custom_file_info_last_filepath.txt" };
 std::filesystem::path csv_filepath;
 std::filesystem::path last_csv_filepath;
 
+const char multival_separator = '|'; // Used for multivalue columns like names, map ids and model types
+
+std::vector<std::string> split(const std::string& str, const char delimiter) {
+    std::vector<std::string> result;
+
+    auto split_view = std::views::split(str, delimiter);
+    for (const auto& part : split_view) {
+        result.emplace_back(part.begin(), part.end());
+    }
+
+    return result;
+}
+
 // Callback function to filter out non-digit characters
 static int FilterDigits(ImGuiInputTextCallbackData* data) {
     if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
@@ -22,6 +35,15 @@ static int FilterDigits(ImGuiInputTextCallbackData* data) {
         }
     }
     return 0; // Keep this character (i.e. keep it if it's a digit)
+}
+
+static int FilterVerticalBarAway(ImGuiInputTextCallbackData* data) {
+    if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
+        if (data->EventChar != '|') {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 bool is_decimal_number(const std::string& str) {
@@ -209,9 +231,69 @@ void edit_model(std::set<ModelTypes>& selected_model_types, ModelTypes& current_
     // Convert selected model types to a semicolon-separated string
     model_type.clear();
     for (const auto& type : selected_model_types) {
-        if (!model_type.empty()) model_type += ";";
+        if (!model_type.empty()) model_type += multival_separator;
         model_type += ModelTypeToString(type);
     }
+}
+
+void display_semicolon_separated_string(const std::string& separated_string) {
+    const auto items = split(separated_string, multival_separator);
+
+    for (int i = 0; i < items.size(); i++) {
+        const auto& item = items[i];
+        if (!item.empty()) {
+            if (i > 0) {
+                ImGui::SameLine();
+                ImGui::Text(", ");
+                ImGui::SameLine();
+            }
+            ImGui::Text("%s", item.c_str());
+        }
+    }
+}
+
+
+void edit_name(std::string& curr_name_input_buf, std::set<std::string>& prev_added_names, std::string& prev_name_input, std::set<std::string>& selected_names, std::string& name_buf) {
+    ImGui::InputText("Name", &curr_name_input_buf);
+    if (!curr_name_input_buf.empty()) {
+        ImGui::SameLine();
+        if (ImGui::Button("Add another")) {
+            prev_added_names.insert(curr_name_input_buf);
+            curr_name_input_buf.clear();
+            prev_name_input.clear();
+        }
+    }
+
+    if (curr_name_input_buf != prev_name_input) {
+        if (!prev_name_input.empty() && !prev_added_names.contains(prev_name_input)) {
+            selected_names.erase(prev_name_input);
+        }
+
+        if (!curr_name_input_buf.empty()) {
+            selected_names.insert(curr_name_input_buf);
+        }
+    }
+
+    for (auto it = selected_names.begin(); it != selected_names.end();) {
+        std::string curr_map_id = *it;
+        std::string label = curr_map_id + "##Selected";
+        if (ImGui::Button(("- " + label).c_str())) {
+            it = selected_names.erase(it);
+            prev_added_names.erase(curr_map_id);
+        }
+        else {
+            ++it;
+        }
+    }
+
+    // Convert selected model types to a semicolon-separated string
+    name_buf.clear();
+    for (const auto& name : selected_names) {
+        if (!name_buf.empty()) name_buf += multival_separator;
+        name_buf += name;
+    }
+
+    prev_name_input = curr_name_input_buf;
 }
 
 void edit_map(std::string& curr_map_id_input_buf, std::set<std::string>& prev_added_map_ids, std::string& prev_map_id_input, std::set<int>& selected_map_ids, std::string& map_id_buf, bool& is_explorable, bool& is_outpost, bool& is_pvp)
@@ -251,7 +333,7 @@ void edit_map(std::string& curr_map_id_input_buf, std::set<std::string>& prev_ad
     // Convert selected model types to a semicolon-separated string
     map_id_buf.clear();
     for (const auto& map_id : selected_map_ids) {
-        if (!map_id_buf.empty()) map_id_buf += ";";
+        if (!map_id_buf.empty()) map_id_buf += multival_separator;
         map_id_buf += std::to_string(map_id);
     }
 
@@ -292,10 +374,17 @@ void save(bool& edit_mode, int& found_row_index, std::vector<std::vector<std::st
 bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data) {
     static std::set<ModelTypes> selected_model_types;
     static std::set<int> selected_map_ids;
+    static std::set<std::string> selected_names;
 
+    // Used for map ids input
     static std::string curr_map_id_input_buf;
     static std::string prev_map_id_input;
     static std::set<std::string> prev_added_map_ids; // when "Add another" is pressed we save the map_id value here. This is to make sure we don't delete them when changing the new map_id and it overlaps the previous one but then changes.
+
+    // Used for names input
+    static std::string curr_name_input_buf;
+    static std::string prev_name_input;
+    static std::set<std::string> prev_added_names;
 
     bool csv_changed = false;
 
@@ -358,8 +447,12 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
             curr_map_id_input_buf.clear();
             prev_map_id_input.clear();
             prev_added_map_ids.clear();
+            curr_name_input_buf.clear();
+            prev_name_input.clear();
+            prev_added_names.clear();
             selected_model_types.clear();
             selected_map_ids.clear();
+            selected_names.clear();
             name_buf.clear();
             gwwiki_buf.clear();
             map_id_buf.clear();
@@ -412,9 +505,10 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
             // Clear the current selection set
             selected_model_types.clear();
             selected_map_ids.clear();
+            selected_names.clear();
 
             // Split the model_type string by semicolons and convert each part to the enum value
-            for (auto token : std::views::split(model_type, ';')) {
+            for (auto token : std::views::split(model_type, multival_separator)) {
                 std::string_view token_sv(&*token.begin(), std::ranges::distance(token));
                 ModelTypes type = StringToModelType(std::string(token_sv)); // Convert token to string and then to ModelTypes enum
                 if (type != ModelTypes::unknown) { // Check for a valid type
@@ -422,9 +516,13 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
                 }
             }
 
-            for (auto map_id_token : std::views::split(map_id_buf, ';')) {
+            for (auto map_id_token : std::views::split(map_id_buf, multival_separator)) {
                 auto map_id = std::stoi(std::string(map_id_token.begin(), map_id_token.end()));
                 selected_map_ids.insert(map_id);
+            }
+
+            for (auto name_token : std::views::split(name_buf, multival_separator)) {
+                selected_names.emplace(std::string(name_token.begin(), name_token.end()));
             }
         }
 
@@ -432,7 +530,8 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
         ImGui::Text("File ID: %s", row[0].c_str());
 
         if (edit_mode) {
-            ImGui::InputText("Name", &name_buf);
+            edit_name(curr_name_input_buf, prev_added_names, prev_name_input, selected_names, name_buf);
+
             ImGui::InputText("URL", &gwwiki_buf);
 
             if (selected_file_type == FFNA_Type2) {
@@ -455,7 +554,9 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
         }
         else {
             if (row[1] != "") {
-                ImGui::Text("Name: \"%s\"", row[1].c_str());
+                ImGui::Text("Namese: ");
+                ImGui::SameLine();
+                display_semicolon_separated_string(row[1]);
             }
             else {
                 ImGui::Text("Name: N/A");
@@ -475,15 +576,9 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
             else if (selected_file_type == FFNA_Type3) {
                 const auto& map_ids_string = row[3];
                 ImGui::Text("Map ids: ");
+                ImGui::SameLine();
 
-                std::stringstream ss(map_ids_string);
-                std::string map_id;
-                while (std::getline(ss, map_id, ';')) {
-                    if (!map_id.empty()) {
-                        ImGui::SameLine();
-                        ImGui::Text("%s, ", map_id.c_str());
-                    }
-                }
+                display_semicolon_separated_string(map_ids_string);
 
                 bool is_explorable = row[4] == "yes";
                 bool is_outpost = row[5] == "yes";
