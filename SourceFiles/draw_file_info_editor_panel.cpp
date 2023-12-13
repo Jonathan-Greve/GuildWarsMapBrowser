@@ -7,6 +7,8 @@
 
 extern FileType selected_file_type;
 extern uint32_t selected_item_hash;
+extern uint32_t selected_item_murmurhash3;
+
 uint32_t prev_selected_item_hash = -1;
 
 const std::string last_csv_filename{ "custom_file_info_last_filepath.txt" };
@@ -39,11 +41,11 @@ static int FilterDigits(ImGuiInputTextCallbackData* data) {
 
 static int FilterVerticalBarAway(ImGuiInputTextCallbackData* data) {
     if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
-        if (data->EventChar != '|') {
-            return 1;
+        if (data->EventChar == '|') {
+            return 1; // Throw char away
         }
     }
-    return 0;
+    return 0; // Keep char (i.e. all other chars than '|')
 }
 
 bool is_decimal_number(const std::string& str) {
@@ -61,8 +63,28 @@ bool verify_temp_file(const std::string& temp_filepath,
         std::stringstream linestream(line);
         std::string cell;
         std::vector<std::string> row;
+        bool insideQuotes = false;
 
-        while (std::getline(linestream, cell, ',')) {
+        while (linestream.good()) {
+            char c = linestream.get();
+            if (c == '\"') {
+                if (insideQuotes && linestream.peek() == '\"') {
+                    cell += '\"';
+                    linestream.get();
+                }
+                else {
+                    insideQuotes = !insideQuotes;
+                }
+            }
+            else if (c == ',' && !insideQuotes) {
+                row.push_back(cell);
+                cell.clear();
+            }
+            else if (c != EOF) {
+                cell += c;
+            }
+        }
+        if (!cell.empty()) {
             row.push_back(cell);
         }
 
@@ -110,8 +132,8 @@ void save_csv(const std::string& filepath,
                 cell.replace(pos, 1, "\"\"");
                 pos += 2; // Move past the new double quotes
             }
-            // Enclose in quotes if the cell contains a comma or a quote
-            if (cell.find(',') != std::string::npos || cell.find('\"') != std::string::npos) {
+            // Enclose in quotes if the cell contains a comma, quote, or newline
+            if (cell.find(',') != std::string::npos || cell.find('\"') != std::string::npos || cell.find('\n') != std::string::npos) {
                 cell = "\"" + cell + "\"";
             }
             temp_file << cell;
@@ -132,6 +154,26 @@ void save_csv(const std::string& filepath,
 
     // Remove the backup file after successful save
     std::filesystem::remove(backup_filepath);
+}
+
+bool create_empty_csv(const std::filesystem::path& csv_filepath) {
+    if (std::filesystem::exists(csv_filepath)) {
+        return false;
+    }
+
+    // Define the header
+    const std::string header = "file_id,name,gww_url,map_ids,is_explorable,is_outpost,is_pvp,model_type,file_type";
+
+    // Create and write the header to the CSV file
+    try {
+        std::ofstream file(csv_filepath);
+        file << header << std::endl;
+        file.close();
+        return true;
+    }
+    catch (const std::exception&) {
+        return false;
+    }
 }
 
 bool is_type_texture(FileType type) {
@@ -160,7 +202,7 @@ bool is_type_texture(FileType type) {
     return false;
 }
 
-std::wstring open_file_dialog() {
+std::wstring open_file_dialog(bool saveAs = false) {
     OPENFILENAME ofn;
     WCHAR szFile[260] = { 0 };
     ZeroMemory(&ofn, sizeof(ofn));
@@ -173,10 +215,26 @@ std::wstring open_file_dialog() {
     ofn.lpstrFileTitle = NULL;
     ofn.nMaxFileTitle = 0;
     ofn.lpstrInitialDir = NULL;
-    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+    ofn.Flags = OFN_PATHMUSTEXIST;
 
-    if (GetOpenFileName(&ofn) == TRUE) {
-        return ofn.lpstrFile;
+    if (saveAs) {
+        ofn.Flags |= OFN_OVERWRITEPROMPT; // Add overwrite prompt for saving files
+        if (GetSaveFileName(&ofn) == TRUE) {
+            std::wstring filePath = ofn.lpstrFile;
+
+            // Check if the file extension is .csv, if not, append it
+            if (filePath.size() < 4 || filePath.compare(filePath.size() - 4, 4, L".csv") != 0) {
+                filePath += L".csv";
+            }
+
+            return filePath;
+        }
+    }
+    else {
+        ofn.Flags |= OFN_FILEMUSTEXIST; // Ensure file must exist for opening files
+        if (GetOpenFileName(&ofn) == TRUE) {
+            return ofn.lpstrFile;
+        }
     }
 
     return L"";
@@ -254,7 +312,7 @@ void display_semicolon_separated_string(const std::string& separated_string) {
 
 
 void edit_name(std::string& curr_name_input_buf, std::set<std::string>& prev_added_names, std::string& prev_name_input, std::set<std::string>& selected_names, std::string& name_buf) {
-    ImGui::InputText("Name", &curr_name_input_buf);
+    ImGui::InputText("Name", &curr_name_input_buf, ImGuiInputTextFlags_CallbackCharFilter, FilterVerticalBarAway);
     if (!curr_name_input_buf.empty()) {
         ImGui::SameLine();
         if (ImGui::Button("Add another")) {
@@ -388,9 +446,18 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
 
     bool csv_changed = false;
 
-    std::string selected_item_hash_hex = std::format("0x{:08x}", selected_item_hash);
+    const uint32_t item_hash = selected_item_hash > 0 ? selected_item_hash : selected_item_murmurhash3;
+
+    std::string selected_item_hash_hex = std::format("0x{:08x}", item_hash);
 
     ImGui::Begin("Custom File Info");
+
+    if (csv_filepath.empty()) {
+        ImGui::Text("Loaded file: None");
+    }
+    else {
+        ImGui::Text("Loaded file: \"%s\"", csv_filepath.string().c_str());
+    }
 
     // Load csv file if not already loaded
     if (csv_filepath.empty()) {
@@ -425,10 +492,24 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
                 csv_changed = true;
             }
         }
-        ImGui::Separator();
     }
 
-    if (selected_item_hash == -1) {
+    ImGui::SameLine();
+
+    if (ImGui::Button("Create new empty csv file")) {
+        csv_filepath = open_file_dialog(true);
+        if (!csv_filepath.empty()) {
+            if (create_empty_csv(csv_filepath.string())) {
+                csv_data = load_csv(csv_filepath.string());
+                save_last_filepath(csv_filepath, last_csv_filename);
+                csv_changed = true;
+            }
+        }
+    }
+
+    ImGui::Separator();
+
+    if (item_hash == -1 || csv_data.empty()) {
     }
     else {
         static int found_row_index = -1;
@@ -442,7 +523,7 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
         static bool is_pvp = false;
         static std::string model_type;
 
-        bool selected_item_hash_changed = prev_selected_item_hash != selected_item_hash;
+        bool selected_item_hash_changed = prev_selected_item_hash != item_hash;
         if (selected_item_hash_changed) {
             curr_map_id_input_buf.clear();
             prev_map_id_input.clear();
@@ -466,17 +547,17 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
             for (int i = 1; i < csv_data.size(); i++) {
                 const auto& row = csv_data[i];
 
-                uint32_t row_hash_int = -1; // max value (no such file_id in the dat, use as non-existance)
+                uint32_t row_hash_int = -1; // max value (no such file_id or murmurhash3 in the dat, use -1 as non-existance)
 
                 // check if the file_id in the csv start with 0x or 0X
                 if (row[0][0] == '0' && std::tolower(row[0][1]) == 'x') {
-                    row_hash_int = std::stoi(row[0], 0, 16);
+                    row_hash_int = std::stoul(row[0], 0, 16);
                 }
                 else {
-                    row_hash_int = std::stoi(row[0]);
+                    row_hash_int = std::stoul(row[0]);
                 }
 
-                if (row_hash_int == selected_item_hash) {
+                if (row_hash_int == item_hash) {
                     found_row_index = i;
                     break;
                 }
@@ -486,7 +567,7 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
         // If no matching row is found, create a new one but we don't add it to the csv until the user press 'save'
         static std::vector<std::string> row_backup;
         std::vector<std::string> row(9);
-        if (found_row_index == -1 && selected_item_hash != -1) {
+        if (found_row_index == -1 && item_hash != -1) {
             row[0] = selected_item_hash_hex;
             row[8] = type_strings[selected_file_type];
             row_backup = row;
@@ -554,7 +635,7 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
         }
         else {
             if (row[1] != "") {
-                ImGui::Text("Namese: ");
+                ImGui::Text("Names: ");
                 ImGui::SameLine();
                 display_semicolon_separated_string(row[1]);
             }
@@ -575,10 +656,16 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
 
             else if (selected_file_type == FFNA_Type3) {
                 const auto& map_ids_string = row[3];
-                ImGui::Text("Map ids: ");
-                ImGui::SameLine();
+                if (map_ids_string != "") {
+                    ImGui::Text("Map ids: ");
+                    ImGui::SameLine();
 
-                display_semicolon_separated_string(map_ids_string);
+                    display_semicolon_separated_string(map_ids_string);
+                }
+                else {
+                    ImGui::Text("Map ids: N/A");
+                }
+                
 
                 bool is_explorable = row[4] == "yes";
                 bool is_outpost = row[5] == "yes";
@@ -600,7 +687,7 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
             }
         }
 
-        prev_selected_item_hash = selected_item_hash;
+        prev_selected_item_hash = item_hash;
     }
 
     ImGui::End();
