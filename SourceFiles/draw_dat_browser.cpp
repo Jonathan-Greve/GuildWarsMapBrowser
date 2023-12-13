@@ -39,6 +39,7 @@ extern std::string selected_text_file_str = "";
 inline int selected_map_file_index = -1;
 
 inline extern uint32_t selected_item_hash = -1;
+inline extern uint32_t selected_item_murmurhash3 = -1;
 inline int last_focused_item_index = -1;
 
 inline extern FileType selected_file_type = NONE;
@@ -866,20 +867,24 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
             const auto& row = csv_data[i];
             CustomFileInfoEntry new_entry;
             if (row[0][0] == '0' && std::tolower(row[0][1]) == 'x') {
-                new_entry.hash = std::stoi(row[0], 0, 16);
+                new_entry.hash = std::stoul(row[0], 0, 16);
             }
             else {
-                new_entry.hash = std::stoi(row[0]);
+                new_entry.hash = std::stoul(row[0]);
             }
 
             for (auto name_token : std::views::split(row[1], '|')) {
-                std::string name(&*name_token.begin(), std::ranges::distance(name_token));
-                new_entry.names.push_back(name);
+                if (!name_token.empty()) {
+                    std::string name(&*name_token.begin(), std::ranges::distance(name_token));
+                    new_entry.names.push_back(name);
+                }
             }
 
             for (auto map_id_token : std::views::split(row[3], '|')) {
-                std::string map_id(&*map_id_token.begin(), std::ranges::distance(map_id_token));
-                new_entry.map_ids.push_back(std::stoi(map_id));
+                if (!map_id_token.empty()) {
+                    std::string map_id(&*map_id_token.begin(), std::ranges::distance(map_id_token));
+                    new_entry.map_ids.push_back(std::stoi(map_id));
+                }
             }
 
             new_entry.is_pvp = row[6] == "yes";
@@ -929,8 +934,13 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
             DatBrowserItem new_item{
                 i, entry.Hash, static_cast<FileType>(entry.type), entry.Size, entry.uncompressedSize, filename_id_0, filename_id_1, {}, {}, {}, entry.murmurhash3
             };
-            const auto custom_file_info_it = custom_file_info_map.find(entry.Hash);
-            if (entry.Hash != 0 && entry.type == FFNA_Type3)
+            auto custom_file_info_it = custom_file_info_map.find(entry.Hash);
+            if (custom_file_info_it == custom_file_info_map.end()) {
+                // Files with file_id == 0 uses murmurhash3 instead when saved to custom file
+                custom_file_info_it = custom_file_info_map.find(entry.murmurhash3);
+            }
+
+            if (entry.type == FFNA_Type3)
             {
                 if (custom_file_info_it != custom_file_info_map.end()) {
                     new_item.names = custom_file_info_it->second.names;
@@ -1053,8 +1063,10 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
     }
 
     // Only re-run the filter when the user changed filter params in the GUI.
+    bool filter_updated = filter_update_required;
     if (filter_update_required)
     {
+
         filter_update_required = false;
 
         filtered_items.clear();
@@ -1272,7 +1284,12 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
         ImGui::TableHeadersRow();
 
         // Sort our data if sort specs have been changed!
-        if (ImGuiTableSortSpecs* sorts_specs = ImGui::TableGetSortSpecs())
+        ImGuiTableSortSpecs* sorts_specs = ImGui::TableGetSortSpecs();
+        if (sorts_specs)
+            if (dat_manager_changed || custom_file_info_changed || filter_updated) {
+                sorts_specs->SpecsDirty = true;
+            }
+
             if (sorts_specs->SpecsDirty)
             {
                 DatBrowserItem::s_current_sort_specs =
@@ -1320,6 +1337,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                         parse_file(dat_manager, item.id, map_renderer, hash_index, items);
                         selected_item_id = item.id;
                         selected_item_hash = item.hash;
+                        selected_item_murmurhash3 = item.murmurhash3;
                     }
                 }
                 // If the item is focused (highlighted by navigation), select it immediately
@@ -1328,6 +1346,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                         parse_file(dat_manager, item.id, map_renderer, hash_index, items);
                         selected_item_id = item.id;
                         selected_item_hash = item.hash;
+                        selected_item_murmurhash3 = item.murmurhash3;
                     }
 
                     // Check the direction of focus movement and adjust the scroll position
@@ -1348,12 +1367,21 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                 }
 
                 if (dat_manager_changed || custom_file_info_changed) {
-                    // Find the index of the item with item.hash == selected_item_hash
+                    // Find the index of the item with item.hash == selected_item_hash or item.murmurhash3 == selected_item_hash
                     int item_index = -1;
                     for (int i = 0; i < filtered_items.size(); ++i) {
                         if (filtered_items[i].hash == selected_item_hash) {
                             item_index = i;
                             break;
+                        }
+                    }
+
+                    if (item_index == -1) {
+                        for (int i = 0; i < filtered_items.size(); ++i) {
+                            if (filtered_items[i].murmurhash3 == selected_item_hash) { // note multiple files can share the same murmurhash3
+                                item_index = i;
+                                break;
+                            }
                         }
                     }
 
