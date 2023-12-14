@@ -26,6 +26,7 @@ ComparerDSL::ComparerDSL()
 
 bool ComparerDSL::parse(const std::string& input_expression, std::unordered_map<int, DatCompareFileInfo>& file_infos)
 {
+    m_log_messages.clear();
     m_file_infos = file_infos;
 
     int val = 0;
