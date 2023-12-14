@@ -444,6 +444,8 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
     static std::string prev_name_input;
     static std::set<std::string> prev_added_names;
 
+    static std::unordered_map<uint32_t, int> item_hash_to_row_index;
+
     bool csv_changed = false;
 
     const uint32_t item_hash = selected_item_hash > 0 ? selected_item_hash : selected_item_murmurhash3;
@@ -507,6 +509,30 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
         }
     }
 
+    static std::set<uint32_t> duplicate_hashes_in_csv;
+    if (csv_changed) {
+        for (int i = 1; i < csv_data.size(); i++) {
+            const auto& row = csv_data[i];
+
+            uint32_t row_hash_int = -1; // max value (no such file_id or murmurhash3 in the dat, use -1 as non-existance)
+
+            // check if the file_id in the csv start with 0x or 0X
+            if (row[0][0] == '0' && std::tolower(row[0][1]) == 'x') {
+                row_hash_int = std::stoul(row[0], 0, 16);
+            }
+            else {
+                row_hash_int = std::stoul(row[0]);
+            }
+
+            if (item_hash_to_row_index.contains(row_hash_int)) {
+                duplicate_hashes_in_csv.insert(row_hash_int);
+            }
+            else{
+                item_hash_to_row_index.try_emplace(row_hash_int, i);
+            }
+        }
+    }
+
     ImGui::Separator();
 
     if (item_hash == -1 || csv_data.empty()) {
@@ -544,23 +570,9 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
 
             edit_mode = false;
             found_row_index = -1;
-            for (int i = 1; i < csv_data.size(); i++) {
-                const auto& row = csv_data[i];
 
-                uint32_t row_hash_int = -1; // max value (no such file_id or murmurhash3 in the dat, use -1 as non-existance)
-
-                // check if the file_id in the csv start with 0x or 0X
-                if (row[0][0] == '0' && std::tolower(row[0][1]) == 'x') {
-                    row_hash_int = std::stoul(row[0], 0, 16);
-                }
-                else {
-                    row_hash_int = std::stoul(row[0]);
-                }
-
-                if (row_hash_int == item_hash) {
-                    found_row_index = i;
-                    break;
-                }
+            if (item_hash_to_row_index.contains(item_hash)) {
+                found_row_index = item_hash_to_row_index[item_hash];
             }
         }
 
@@ -688,6 +700,15 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
         }
 
         prev_selected_item_hash = item_hash;
+    }
+
+    if (!duplicate_hashes_in_csv.empty()) {
+        ImGui::Separator();
+        ImGui::Text("Duplicate entries:");
+        for (const auto& hash : duplicate_hashes_in_csv) {
+            std::string duplicate_row_text = std::format("0x{:08x}", hash);
+            ImGui::Text(duplicate_row_text.c_str());
+        }
     }
 
     ImGui::End();
