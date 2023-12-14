@@ -6,6 +6,79 @@
 #include "InputManager.h"
 #include "Extract_BASS_DLL_resource.h"
 #include <filesystem>
+#include <DbgHelp.h>
+
+LONG WINAPI UnhandledExceptionHandler(EXCEPTION_POINTERS* pExceptionPointers) {
+    HANDLE process = GetCurrentProcess();
+    HANDLE thread = GetCurrentThread();
+
+    CONTEXT context = *pExceptionPointers->ContextRecord;
+
+    STACKFRAME64 stackFrame;
+    memset(&stackFrame, 0, sizeof(STACKFRAME64));
+
+#ifdef _M_IX86 // Check whether the build is 32 or 64 bits
+    int machineType = IMAGE_FILE_MACHINE_I386;
+    stackFrame.AddrPC.Offset = context.Eip;
+    stackFrame.AddrPC.Mode = AddrModeFlat;
+    stackFrame.AddrFrame.Offset = context.Ebp;
+    stackFrame.AddrFrame.Mode = AddrModeFlat;
+    stackFrame.AddrStack.Offset = context.Esp;
+    stackFrame.AddrStack.Mode = AddrModeFlat;
+#elif _M_X64
+    int machineType = IMAGE_FILE_MACHINE_AMD64;
+    stackFrame.AddrPC.Offset = context.Rip;
+    stackFrame.AddrPC.Mode = AddrModeFlat;
+    stackFrame.AddrFrame.Offset = context.Rsp;
+    stackFrame.AddrFrame.Mode = AddrModeFlat;
+    stackFrame.AddrStack.Offset = context.Rsp;
+    stackFrame.AddrStack.Mode = AddrModeFlat;
+#endif
+
+    SymInitialize(process, NULL, TRUE);
+
+    std::stringstream ss;
+    ss << "Unhandled exception occurred.\nException Code: " << std::hex << pExceptionPointers->ExceptionRecord->ExceptionCode << std::endl;
+    ss << "Call Stack:\n";
+
+    SYMBOL_INFO* symbol = (SYMBOL_INFO*)calloc(sizeof(SYMBOL_INFO) + 256 * sizeof(char), 1);
+    symbol->MaxNameLen = 255;
+    symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+
+    IMAGEHLP_LINE64 line;
+    line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+
+    DWORD displacement;
+
+    while (StackWalk64(
+        machineType, process, thread, &stackFrame, &context, NULL,
+        SymFunctionTableAccess64, SymGetModuleBase64, NULL)) {
+
+        // Obtain the symbol for the address
+        if (SymFromAddr(process, stackFrame.AddrPC.Offset, 0, symbol)) {
+            ss << "Function: " << symbol->Name << " - Address: 0x" << std::hex << symbol->Address << std::endl;
+        }
+
+        // Try to obtain the file and line number for the address
+        if (SymGetLineFromAddr64(process, stackFrame.AddrPC.Offset, &displacement, &line)) {
+            ss << "File: " << line.FileName << " - Line: 0x" << std::hex << line.LineNumber << std::endl;
+        }
+
+        // Check for end of stack or invalid frame
+        if (stackFrame.AddrPC.Offset == 0) {
+            break;
+        }
+    }
+
+    free(symbol);
+    SymCleanup(process);
+
+    MessageBoxA(NULL, ss.str().c_str(), "Critical Error", MB_ICONERROR | MB_OK);
+
+    ExitProcess(pExceptionPointers->ExceptionRecord->ExceptionCode);
+
+    return EXCEPTION_EXECUTE_HANDLER;
+}
 
 // BASS
 extern LPFNBASSSTREAMCREATEFILE lpfnBassStreamCreateFile = nullptr;
@@ -61,6 +134,8 @@ extern "C"
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine,
                     _In_ int nCmdShow)
 {
+    SetUnhandledExceptionFilter(UnhandledExceptionHandler);
+
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
