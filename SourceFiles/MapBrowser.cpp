@@ -23,13 +23,7 @@ MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
     : m_input_manager(input_manager),
       m_dat_manager_to_show_in_dat_browser(0)
 {
-    m_deviceResources = std::make_unique<DX::DeviceResources>(
-        DXGI_FORMAT_R8G8B8A8_UNORM, 
-        DXGI_FORMAT_D32_FLOAT, 
-        2, 
-        D3D_FEATURE_LEVEL_11_0,
-        0
-    );
+    m_deviceResources = std::make_unique<DX::DeviceResources>(DXGI_FORMAT_R8G8B8A8_UNORM);
 
     m_dat_managers.emplace(0, std::make_unique<DATManager>()); // Dat manager to store first dat file (more can be loaded later in comparison panel)
 
