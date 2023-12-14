@@ -29,7 +29,7 @@ constexpr  auto grammar = R"(
     ~FNAME0       <- 'fname0'i
     ~FNAME1       <- 'fname1'i
     NUMBER        <- HEX_NUMBER / DEC_NUMBER
-    HEX_NUMBER    <- '0x'i [a-fA-F0-9]+
+    HEX_NUMBER    <- < '0x'i [a-fA-F0-9]+ >
     DEC_NUMBER    <- < [0-9]+ >
     ~WHITESPACE   <- SPACE
     ~SPACE        <- (' ' / '\t')*
