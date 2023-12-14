@@ -208,6 +208,7 @@
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
     <ClInclude Include="peglib\peglib.h" />
+    <ClInclude Include="show_how_to_use_dat_comparer_guide.h" />
     <ClInclude Include="SourceFiles\AMAT_file.h" />
     <ClInclude Include="SourceFiles\AtexAsm.h" />
     <ClInclude Include="SourceFiles\AtexReader.h" />
@@ -370,6 +371,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="show_how_to_use_dat_comparer_guide.cpp" />
     <ClCompile Include="SourceFiles\AMAT_file.cpp" />
     <ClCompile Include="SourceFiles\AtexAsm.cpp" />
     <ClCompile Include="SourceFiles\AtexReader.cpp" />
