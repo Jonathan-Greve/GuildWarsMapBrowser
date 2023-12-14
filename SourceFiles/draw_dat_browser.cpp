@@ -889,7 +889,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 
             new_entry.is_pvp = row[6] == "yes";
 
-            custom_file_info_map.emplace(new_entry.hash, new_entry);
+            custom_file_info_map.insert_or_assign(new_entry.hash, new_entry);
         }
     }
 
