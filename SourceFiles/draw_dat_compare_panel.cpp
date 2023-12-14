@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <draw_dat_load_progress_bar.h>
 #include <comparer_dsl.h>
+#include <show_how_to_use_dat_comparer_guide.h>
 
 std::vector<std::wstring> file_paths;
 std::map<std::wstring, int> filepath_to_alias; // Map to track filepath and its alias
@@ -10,6 +11,7 @@ std::vector<std::unordered_map<uint32_t, DatCompareFileInfo>> fileid_to_compare_
 std::unordered_set<uint32_t> filter_eval_result;
 std::set<uint32_t> all_dats_file_ids; // all the file_ids in fileid_to_compare_file_infos
 
+static bool show_how_to_use_guide = false;
 
 void add_dat_manager(const std::wstring& filepath, std::map<int, std::unique_ptr<DATManager>>& dat_managers)
 {
@@ -184,13 +186,13 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
 
         ImGui::Text("Filter Expression");
         ImGui::SameLine();
-        if (ImGui::InputText("##filter_expression", &filter_expression, ImGuiInputTextFlags_CallbackAlways, TextEditCallback)) {
+        if (ImGui::InputText("##filter_expression", &filter_expression)) {
             filter_expr_error = "";
             filter_last_success_parsed_expr = filter_expression;
         }
 
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Enter the comparison expression here. Examples include logical operations like AND, OR, XOR, NOT. For instance:\n- NOT (DAT0 AND DAT1) XOR DAT0\n- NOT (DAT0 AND (DAT1 OR DAT2))\n- (DAT0 OR DAT1) AND NOT (DAT2 XOR DAT3)");
+            ImGui::SetTooltip("To learn how to use the tool press the checkbox at the bottom (The guide opens in a separate ImGui window).");
         }
 
         ImGui::Text(std::format("Filter error: {}", filter_expr_error).c_str());
@@ -201,14 +203,6 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
         if (num_eval_errors > 0 || filter_eval_result.size() > 0) {
             ImGui::Text(std::format("Num eval errors: {}", num_eval_errors).c_str());
             ImGui::Text(std::format("Num unique files: {}", filter_eval_result.size()).c_str());
-        }
-
-        const auto log_messages = comparer_dsl.get_log_messages();
-        if (log_messages.size()) {
-            ImGui::Text("Parsing errors:");
-            for (const auto& msg : log_messages) {
-                ImGui::Text(msg.c_str());
-            }
         }
 
         if (filter_expression.size() > 0 && filter_expression == filter_last_success_parsed_expr && filter_expr_error == "") {
@@ -252,7 +246,26 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
         }
     }
 
+    const auto log_messages = comparer_dsl.get_log_messages();
+    if (log_messages.size()) {
+        std::set<std::string> errors;
+        ImGui::Text("Parsing errors:");
+        for (const auto& msg : log_messages) {
+            errors.insert(msg);
+        }
+
+        for (const auto& error : errors) {
+            ImGui::Text(error.c_str());
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::Checkbox("Show How to Use Guide", &show_how_to_use_guide);
+
+
     ImGui::End();
+
+    show_how_to_use_dat_comparer_guide(&show_how_to_use_guide);
 
     // Create maps for each dat file mapping filehash(file_id) to each entrys murmurhash.
     // We don't include files where the file_id is the same (i.e. many files have the file_id 0) which I don't know how to compare between multiples dats

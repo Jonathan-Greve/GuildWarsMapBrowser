@@ -460,6 +460,9 @@
     <ClInclude Include="SourceFiles\draw_file_info_editor_panel.h">
       <Filter>GUI\Custom file info editor panel</Filter>
     </ClInclude>
+    <ClInclude Include="show_how_to_use_dat_comparer_guide.h">
+      <Filter>GUI\DatComparePanel</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -725,6 +728,9 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\draw_file_info_editor_panel.cpp">
       <Filter>GUI\Custom file info editor panel</Filter>
+    </ClCompile>
+    <ClCompile Include="show_how_to_use_dat_comparer_guide.cpp">
+      <Filter>GUI\DatComparePanel</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
