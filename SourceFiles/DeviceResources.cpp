@@ -292,22 +292,13 @@ void DeviceResources::CreateWindowSizeDependentResources()
     }
     else
     {
-
-        UINT numQualityLevels = 0;
-		m_d3dDevice->CheckMultisampleQualityLevels(backBufferFormat, 4, &numQualityLevels);
-		if (numQualityLevels == 0) {
-			// 4x MSAA is not supported by your GPU for this format
-            // Do nothing for now
-		}
-
-        // Create a descriptor for the swap chain.
         DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
         swapChainDesc.Width = backBufferWidth;
         swapChainDesc.Height = backBufferHeight;
         swapChainDesc.Format = backBufferFormat;
         swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapChainDesc.BufferCount = m_backBufferCount;
-        swapChainDesc.SampleDesc.Count = numQualityLevels;
+        swapChainDesc.SampleDesc.Count = 1;
         swapChainDesc.SampleDesc.Quality = 0;
         swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
         swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
