@@ -9,6 +9,21 @@
 #include <DbgHelp.h>
 
 LONG WINAPI UnhandledExceptionHandler(EXCEPTION_POINTERS* pExceptionPointers) {
+    // Create mini dump file
+    HANDLE hDumpFile = CreateFile(L"CrashDump.dmp", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+    MINIDUMP_EXCEPTION_INFORMATION dumpInfo;
+    dumpInfo.ExceptionPointers = pExceptionPointers;
+    dumpInfo.ThreadId = GetCurrentThreadId();
+    dumpInfo.ClientPointers = TRUE;
+
+    MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hDumpFile, 
+        static_cast<MINIDUMP_TYPE>(MiniDumpWithThreadInfo | MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithDataSegs), 
+        &dumpInfo, NULL, NULL);
+
+    CloseHandle(hDumpFile);
+
+    // Show error info to user
     HANDLE process = GetCurrentProcess();
     HANDLE thread = GetCurrentThread();
 
@@ -38,6 +53,10 @@ LONG WINAPI UnhandledExceptionHandler(EXCEPTION_POINTERS* pExceptionPointers) {
     SymInitialize(process, NULL, TRUE);
 
     std::stringstream ss;
+    ss << "Sorry! Guild Wars Map Browser just crashed unexpectedly.\n";
+    ss << "A dump file has been created: \"CrashDump.dmp\".\n";
+    ss << "Please contact the developers or create an issue on Github with the dump file attached if possible.\n\n";
+    ss << "-------------------------------------------------------------------------------\n";
     ss << "Unhandled exception occurred.\nException Code: " << std::hex << pExceptionPointers->ExceptionRecord->ExceptionCode << std::endl;
     ss << "Call Stack:\n";
 
@@ -114,8 +133,8 @@ extern HMODULE hBassFxDll = 0;
 
 namespace
 {
-std::unique_ptr<MapBrowser> g_map_browser;
-std::unique_ptr<InputManager> g_input_manager;
+    std::unique_ptr<MapBrowser> g_map_browser;
+    std::unique_ptr<InputManager> g_input_manager;
 }
 
 LPCWSTR g_szAppName = L"GuildWarsMapBrowser";
@@ -132,7 +151,7 @@ extern "C"
 
 // Entry point
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine,
-                    _In_ int nCmdShow)
+    _In_ int nCmdShow)
 {
     SetUnhandledExceptionFilter(UnhandledExceptionHandler);
 
@@ -172,13 +191,13 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 
         HWND hwnd = CreateWindowExW(0, L"GuildWarsMapBrowserWindowClass", g_szAppName, WS_OVERLAPPEDWINDOW,
-                                    CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top,
-                                    nullptr, nullptr, hInstance, nullptr);
+            CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top,
+            nullptr, nullptr, hInstance, nullptr);
         // TODO: Change to CreateWindowExW(WS_EX_TOPMOST, L"GuildWarsMapBrowserWindowClass", g_szAppName, WS_POPUP,
         // to default to fullscreen.
 
-		g_input_manager = std::make_unique<InputManager>(hwnd);
-		g_map_browser = std::make_unique<MapBrowser>(g_input_manager.get());
+        g_input_manager = std::make_unique<InputManager>(hwnd);
+        g_map_browser = std::make_unique<MapBrowser>(g_input_manager.get());
 
         if (! hwnd)
             return 1;
@@ -215,34 +234,34 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
                     if (is_bass_working)
                     {
                         lpfnBassStreamCreateFile =
-                          (LPFNBASSSTREAMCREATEFILE)GetProcAddress(hBassDll, "BASS_StreamCreateFile");
+                            (LPFNBASSSTREAMCREATEFILE)GetProcAddress(hBassDll, "BASS_StreamCreateFile");
                         lpfnBassChannelPlay =
-                          (LPFNBASSCHANNELPLAY)GetProcAddress(hBassDll, "BASS_ChannelPlay");
+                            (LPFNBASSCHANNELPLAY)GetProcAddress(hBassDll, "BASS_ChannelPlay");
                         lpfnBassChannelPause =
-                          (LPFNBASSCHANNELPAUSE)GetProcAddress(hBassDll, "BASS_ChannelPause");
+                            (LPFNBASSCHANNELPAUSE)GetProcAddress(hBassDll, "BASS_ChannelPause");
                         lpfnBassChannelStop =
-                          (LPFNBASSCHANNELSTOP)GetProcAddress(hBassDll, "BASS_ChannelStop");
+                            (LPFNBASSCHANNELSTOP)GetProcAddress(hBassDll, "BASS_ChannelStop");
                         lpfnBassChannelBytes2Seconds =
-                          (LPFNBASSCHANNELBYTES2SECONDS)GetProcAddress(hBassDll, "BASS_ChannelBytes2Seconds");
+                            (LPFNBASSCHANNELBYTES2SECONDS)GetProcAddress(hBassDll, "BASS_ChannelBytes2Seconds");
                         lpfnBassChannelGetLength =
-                          (LPFNBASSCHANNELGETLENGTH)GetProcAddress(hBassDll, "BASS_ChannelGetLength");
+                            (LPFNBASSCHANNELGETLENGTH)GetProcAddress(hBassDll, "BASS_ChannelGetLength");
                         lpfnBassStreamGetFilePosition = (LPFNBASSSTREAMGETFILEPOSITION)GetProcAddress(
-                          hBassDll, "BASS_StreamGetFilePosition");
+                            hBassDll, "BASS_StreamGetFilePosition");
                         lpfnBassChannelGetInfo =
-                          (LPFNBASSCHANNELGETINFO)GetProcAddress(hBassDll, "BASS_ChannelGetInfo");
+                            (LPFNBASSCHANNELGETINFO)GetProcAddress(hBassDll, "BASS_ChannelGetInfo");
                         lpfnBassChannelFlags =
-                          (LPFNBASSCHANNELFLAGS)GetProcAddress(hBassDll, "BASS_ChannelFlags");
+                            (LPFNBASSCHANNELFLAGS)GetProcAddress(hBassDll, "BASS_ChannelFlags");
                         lpfnBassStreamFree = (LPFNBASSSTREAMFREE)GetProcAddress(hBassDll, "BASS_StreamFree");
                         lpfnBassChannelSetPosition =
-                          (LPFNBASSCHANNELSETPOSITION)GetProcAddress(hBassDll, "BASS_ChannelSetPosition");
+                            (LPFNBASSCHANNELSETPOSITION)GetProcAddress(hBassDll, "BASS_ChannelSetPosition");
                         lpfnBassChannelGetPosition =
-                          (LPFNBASSCHANNELGETPOSITION)GetProcAddress(hBassDll, "BASS_ChannelGetPosition");
+                            (LPFNBASSCHANNELGETPOSITION)GetProcAddress(hBassDll, "BASS_ChannelGetPosition");
                         lpfnBassChannelSeconds2Bytes =
-                          (LPFNBASSCHANNELSECONDS2BYTES)GetProcAddress(hBassDll, "BASS_ChannelSeconds2Bytes");
+                            (LPFNBASSCHANNELSECONDS2BYTES)GetProcAddress(hBassDll, "BASS_ChannelSeconds2Bytes");
                         lpfnBassChannelSetAttribute =
-                          (LPFNBASSCHANNELSETATTRIBUTE)GetProcAddress(hBassDll, "BASS_ChannelSetAttribute");
+                            (LPFNBASSCHANNELSETATTRIBUTE)GetProcAddress(hBassDll, "BASS_ChannelSetAttribute");
                         lpfnBassFxTempoCreate =
-                          (LPFNBASSFXTMPOCREATE)GetProcAddress(hBassFxDll, "BASS_FX_TempoCreate");
+                            (LPFNBASSFXTMPOCREATE)GetProcAddress(hBassFxDll, "BASS_FX_TempoCreate");
                     }
                 }
             }
@@ -275,7 +294,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
 // Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
-                                                             LPARAM lParam);
+    LPARAM lParam);
 
 // Windows procedure
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -301,9 +320,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_input_manager->OnKeyUp(static_cast<UINT>(wParam), hWnd);
         break;
 
-    //case WM_MOUSEMOVE:
-    //    g_input_manager->OnMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd);
-    //    break;
+        //case WM_MOUSEMOVE:
+        //    g_input_manager->OnMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd);
+        //    break;
     case WM_INPUT:
     {
         g_input_manager->ProcessRawInput(lParam);
@@ -324,8 +343,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_input_manager->OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam), hWnd);
         break;
     case WM_MOUSELEAVE:
-		g_input_manager->OnMouseLeave(hWnd);
-		break;
+        g_input_manager->OnMouseLeave(hWnd);
+        break;
     case WM_PAINT:
         if (s_in_sizemove && map_browser)
         {
@@ -455,7 +474,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ShowWindow(hWnd, SW_SHOWNORMAL);
 
                 SetWindowPos(hWnd, HWND_TOP, 0, 0, width, height,
-                             SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
+                    SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
             }
             else
             {
@@ -463,7 +482,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 SetWindowLongPtr(hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
 
                 SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0,
-                             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 
                 ShowWindow(hWnd, SW_SHOWMAXIMIZED);
             }
