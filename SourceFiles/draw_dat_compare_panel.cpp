@@ -4,6 +4,7 @@
 #include <draw_dat_load_progress_bar.h>
 #include <comparer_dsl.h>
 #include <show_how_to_use_dat_comparer_guide.h>
+#include <GuiGlobalConstants.h>
 
 std::vector<std::wstring> file_paths;
 std::map<std::wstring, int> filepath_to_alias; // Map to track filepath and its alias
@@ -71,198 +72,198 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
         draw_dat_load_progress_bar(total_additional_files_read, total_additional_files);
     }
 
-    ImGui::Begin("Compare DAT files");
-
-    if (!is_analyzing) {
-        // File selection button
-        if (ImGui::Button("Select File")) {
-            std::string initial_filepath = ".";
-
-            const auto filepath_existing = load_last_filepath("dat_browser_last_filepath.txt");
-            if (filepath_existing.has_value()) {
-                initial_filepath = filepath_existing.value().parent_path().string();
-            }
-
-            if (!std::filesystem::exists(initial_filepath) || !std::filesystem::is_directory(initial_filepath)) {
-                const auto filepath_curr_dir = get_executable_directory();
-                if (filepath_curr_dir.has_value()) {
-                    initial_filepath = filepath_curr_dir.value().string();
-                }
-            }
-
-            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".dat", initial_filepath + "\\.");
-        }
-
-        // Display File Dialog
-        if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
-            if (ImGuiFileDialog::Instance()->IsOk()) {
-                std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-                std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
-
-                save_last_filepath(filePathName, "dat_browser_last_filepath.txt");
-
-                std::wstring wstr(filePathName.begin(), filePathName.end());
-
-                if (std::find(file_paths.begin(), file_paths.end(), wstr) == file_paths.end()) {
-                    file_paths.push_back(wstr);
-                    filepath_to_alias[wstr] = filepath_to_alias.size();
-                    add_dat_manager(wstr, dat_managers);
-                    is_analyzing = true;
-                }
-            }
-            ImGuiFileDialog::Instance()->Close();
-        }
-    }
-
-    // List selected files
-    for (size_t i = 0; i < file_paths.size(); ++i) {
-        int alias = filepath_to_alias[file_paths[i]];
-        ImGui::Text("DAT%d: %ls", alias, file_paths[i].c_str());
+    if (GuiGlobalConstants::is_compare_panel_open && ImGui::Begin("Compare DAT files", &GuiGlobalConstants::is_compare_panel_open)) {
 
         if (!is_analyzing) {
-            if (alias != dat_manager_to_show) {
-                ImGui::SameLine();
-                std::string btn_label = "Remove ##" + std::to_string(i);
-                if (ImGui::Button(btn_label.c_str())) {
+            // File selection button
+            if (ImGui::Button("Select File")) {
+                std::string initial_filepath = ".";
 
-                    int alias_to_remove = filepath_to_alias[file_paths[i]];
+                const auto filepath_existing = load_last_filepath("dat_browser_last_filepath.txt");
+                if (filepath_existing.has_value()) {
+                    initial_filepath = filepath_existing.value().parent_path().string();
+                }
 
-                    if (alias_to_remove < dat_manager_to_show) {
-                        dat_manager_to_show--;
-                    }
-
-                    // Remove DATManager if it exists
-                    if (dat_managers.find(alias_to_remove) != dat_managers.end()) {
-                        dat_managers.erase(alias_to_remove);
-
-                        // Erase file from vectors and map
-                        filepath_to_alias.erase(file_paths[i]);
-                        file_paths.erase(file_paths.begin() + i);
-                        fileid_to_compare_file_infos.clear();
-
-                        // Reorder the aliases in the map
-                        for (auto& pair : filepath_to_alias) {
-                            if (pair.second > alias_to_remove) {
-                                pair.second -= 1;
-                            }
-                        }
-
-                        // Update dat_managers map to reflect new aliases
-                        std::map<int, std::unique_ptr<DATManager>> updated_dat_managers;
-                        for (auto& pair : dat_managers) {
-                            if (pair.first > alias_to_remove) {
-                                updated_dat_managers[pair.first - 1] = std::move(pair.second);
-                            }
-                            else if (pair.first < alias_to_remove) {
-                                updated_dat_managers[pair.first] = std::move(pair.second);
-                            }
-                        }
-                        dat_managers = std::move(updated_dat_managers);
-
-                        --i; // Adjust loop counter as the list size has changed
+                if (!std::filesystem::exists(initial_filepath) || !std::filesystem::is_directory(initial_filepath)) {
+                    const auto filepath_curr_dir = get_executable_directory();
+                    if (filepath_curr_dir.has_value()) {
+                        initial_filepath = filepath_curr_dir.value().string();
                     }
                 }
 
-                ImGui::SameLine();
-                std::string show_btn_label = "Show in DAT browser ##" + std::to_string(i);
-                if (ImGui::Button(show_btn_label.c_str())) {
-                    dat_manager_to_show = alias;
-                }
+                ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".dat", initial_filepath + "\\.");
             }
-            else {
-                ImGui::SameLine();
-                ImGui::Text("Currently shown");
+
+            // Display File Dialog
+            if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
+                if (ImGuiFileDialog::Instance()->IsOk()) {
+                    std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+                    std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+
+                    save_last_filepath(filePathName, "dat_browser_last_filepath.txt");
+
+                    std::wstring wstr(filePathName.begin(), filePathName.end());
+
+                    if (std::find(file_paths.begin(), file_paths.end(), wstr) == file_paths.end()) {
+                        file_paths.push_back(wstr);
+                        filepath_to_alias[wstr] = filepath_to_alias.size();
+                        add_dat_manager(wstr, dat_managers);
+                        is_analyzing = true;
+                    }
+                }
+                ImGuiFileDialog::Instance()->Close();
             }
         }
-    }
 
-    if (!is_analyzing) {
-        ImGui::Separator();
-        static std::string filter_expression = ""; // Buffer for input text
+        // List selected files
+        for (size_t i = 0; i < file_paths.size(); ++i) {
+            int alias = filepath_to_alias[file_paths[i]];
+            ImGui::Text("DAT%d: %ls", alias, file_paths[i].c_str());
 
-        static std::string filter_expr_error = "";
-        static std::string filter_last_success_parsed_expr = "";
-        static int num_eval_errors = 0;
+            if (!is_analyzing) {
+                if (alias != dat_manager_to_show) {
+                    ImGui::SameLine();
+                    std::string btn_label = "Remove ##" + std::to_string(i);
+                    if (ImGui::Button(btn_label.c_str())) {
 
-        ImGui::Text("Filter Expression");
-        ImGui::SameLine();
-        if (ImGui::InputText("##filter_expression", &filter_expression)) {
-            filter_expr_error = "";
-            filter_last_success_parsed_expr = filter_expression;
-        }
+                        int alias_to_remove = filepath_to_alias[file_paths[i]];
 
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("To learn how to use the tool press the checkbox at the bottom (The guide opens in a separate ImGui window).");
-        }
+                        if (alias_to_remove < dat_manager_to_show) {
+                            dat_manager_to_show--;
+                        }
 
-        ImGui::Text(std::format("Filter error: {}", filter_expr_error).c_str());
-        if (filter_last_success_parsed_expr != "" && filter_expr_error.size() > 0) {
-            ImGui::Text(std::format("Last successful parse: \"{}\"", filter_last_success_parsed_expr).c_str());
-        }
+                        // Remove DATManager if it exists
+                        if (dat_managers.find(alias_to_remove) != dat_managers.end()) {
+                            dat_managers.erase(alias_to_remove);
 
-        if (num_eval_errors > 0 || filter_eval_result.size() > 0) {
-            ImGui::Text(std::format("Num eval errors: {}", num_eval_errors).c_str());
-            ImGui::Text(std::format("Num unique files: {}", filter_eval_result.size()).c_str());
-        }
+                            // Erase file from vectors and map
+                            filepath_to_alias.erase(file_paths[i]);
+                            file_paths.erase(file_paths.begin() + i);
+                            fileid_to_compare_file_infos.clear();
 
-        if (filter_expression.size() > 0 && filter_expression == filter_last_success_parsed_expr && filter_expr_error == "") {
-            if (ImGui::Button("Start filtering")) {
-                filter_eval_result.clear();
-                num_eval_errors = 0;
+                            // Reorder the aliases in the map
+                            for (auto& pair : filepath_to_alias) {
+                                if (pair.second > alias_to_remove) {
+                                    pair.second -= 1;
+                                }
+                            }
 
-                for (const auto file_id : all_dats_file_ids) {
-                    std::unordered_map<int, DatCompareFileInfo> file_infos;
-                    for (int i = 0; i < dat_managers.size(); i++) {
-                        const auto it = fileid_to_compare_file_infos[i].find(file_id);
-                        if (it != fileid_to_compare_file_infos[i].end()) {
-                            file_infos.insert_or_assign(i, it->second);
+                            // Update dat_managers map to reflect new aliases
+                            std::map<int, std::unique_ptr<DATManager>> updated_dat_managers;
+                            for (auto& pair : dat_managers) {
+                                if (pair.first > alias_to_remove) {
+                                    updated_dat_managers[pair.first - 1] = std::move(pair.second);
+                                }
+                                else if (pair.first < alias_to_remove) {
+                                    updated_dat_managers[pair.first] = std::move(pair.second);
+                                }
+                            }
+                            dat_managers = std::move(updated_dat_managers);
+
+                            --i; // Adjust loop counter as the list size has changed
                         }
                     }
 
-                    try
-                    {
-                        const auto should_include_file = comparer_dsl.parse(filter_expression, file_infos);
-
-                        if (should_include_file)
-                            filter_eval_result.emplace(file_id);
-                    }
-                    catch (const std::exception&)
-                    {
-                        num_eval_errors += 1;
+                    ImGui::SameLine();
+                    std::string show_btn_label = "Show in DAT browser ##" + std::to_string(i);
+                    if (ImGui::Button(show_btn_label.c_str())) {
+                        dat_manager_to_show = alias;
                     }
                 }
+                else {
+                    ImGui::SameLine();
+                    ImGui::Text("Currently shown");
+                }
+            }
+        }
 
+        if (!is_analyzing) {
+            ImGui::Separator();
+            static std::string filter_expression = ""; // Buffer for input text
+
+            static std::string filter_expr_error = "";
+            static std::string filter_last_success_parsed_expr = "";
+            static int num_eval_errors = 0;
+
+            ImGui::Text("Filter Expression");
+            ImGui::SameLine();
+            if (ImGui::InputText("##filter_expression", &filter_expression)) {
+                filter_expr_error = "";
+                filter_last_success_parsed_expr = filter_expression;
+            }
+
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("To learn how to use the tool press the checkbox at the bottom (The guide opens in a separate ImGui window).");
+            }
+
+            ImGui::Text(std::format("Filter error: {}", filter_expr_error).c_str());
+            if (filter_last_success_parsed_expr != "" && filter_expr_error.size() > 0) {
+                ImGui::Text(std::format("Last successful parse: \"{}\"", filter_last_success_parsed_expr).c_str());
+            }
+
+            if (num_eval_errors > 0 || filter_eval_result.size() > 0) {
+                ImGui::Text(std::format("Num eval errors: {}", num_eval_errors).c_str());
+                ImGui::Text(std::format("Num unique files: {}", filter_eval_result.size()).c_str());
+            }
+
+            if (filter_expression.size() > 0 && filter_expression == filter_last_success_parsed_expr && filter_expr_error == "") {
+                if (ImGui::Button("Start filtering")) {
+                    filter_eval_result.clear();
+                    num_eval_errors = 0;
+
+                    for (const auto file_id : all_dats_file_ids) {
+                        std::unordered_map<int, DatCompareFileInfo> file_infos;
+                        for (int i = 0; i < dat_managers.size(); i++) {
+                            const auto it = fileid_to_compare_file_infos[i].find(file_id);
+                            if (it != fileid_to_compare_file_infos[i].end()) {
+                                file_infos.insert_or_assign(i, it->second);
+                            }
+                        }
+
+                        try
+                        {
+                            const auto should_include_file = comparer_dsl.parse(filter_expression, file_infos);
+
+                            if (should_include_file)
+                                filter_eval_result.emplace(file_id);
+                        }
+                        catch (const std::exception&)
+                        {
+                            num_eval_errors += 1;
+                        }
+                    }
+
+                    filter_result_changed_out = true;
+                    dat_compare_filter_result_out = filter_eval_result;
+                }
+            }
+        }
+
+        if (filter_eval_result.size() > 0) {
+            if (ImGui::Button("Clear filter")) {
                 filter_result_changed_out = true;
-                dat_compare_filter_result_out = filter_eval_result;
+                dat_compare_filter_result_out.clear();
+                filter_eval_result.clear();
             }
         }
-    }
 
-    if (filter_eval_result.size() > 0) {
-        if (ImGui::Button("Clear filter")) {
-            filter_result_changed_out = true;
-            dat_compare_filter_result_out.clear();
-            filter_eval_result.clear();
-        }
-    }
+        const auto log_messages = comparer_dsl.get_log_messages();
+        if (log_messages.size()) {
+            std::set<std::string> errors;
+            ImGui::Text("Parsing errors:");
+            for (const auto& msg : log_messages) {
+                errors.insert(msg);
+            }
 
-    const auto log_messages = comparer_dsl.get_log_messages();
-    if (log_messages.size()) {
-        std::set<std::string> errors;
-        ImGui::Text("Parsing errors:");
-        for (const auto& msg : log_messages) {
-            errors.insert(msg);
+            for (const auto& error : errors) {
+                ImGui::Text(error.c_str());
+            }
         }
 
-        for (const auto& error : errors) {
-            ImGui::Text(error.c_str());
-        }
+        ImGui::Separator();
+        ImGui::Checkbox("Show How to Use Guide", &show_how_to_use_guide);
+
     }
-
-    ImGui::Separator();
-    ImGui::Checkbox("Show How to Use Guide", &show_how_to_use_guide);
-
-
     ImGui::End();
 
     show_how_to_use_dat_comparer_guide(&show_how_to_use_guide);
