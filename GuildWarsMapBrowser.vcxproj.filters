@@ -137,6 +137,9 @@
     <Filter Include="DatComparerDSL\peglib">
       <UniqueIdentifier>{4c0074cf-a030-4801-bcff-a4090cb0c3e1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GUI\gui_window_controller">
+      <UniqueIdentifier>{5d2ebe63-2f91-426e-948e-bc732047a3e6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -463,6 +466,9 @@
     <ClInclude Include="show_how_to_use_dat_comparer_guide.h">
       <Filter>GUI\DatComparePanel</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\draw_gui_window_controller.h">
+      <Filter>GUI\gui_window_controller</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -731,6 +737,9 @@
     </ClCompile>
     <ClCompile Include="show_how_to_use_dat_comparer_guide.cpp">
       <Filter>GUI\DatComparePanel</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_gui_window_controller.cpp">
+      <Filter>GUI\gui_window_controller</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

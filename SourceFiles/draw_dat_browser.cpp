@@ -831,7 +831,7 @@ void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         //    }
         //}
     }
-        
+
     break;
     default:
         break;
@@ -863,7 +863,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
     static std::unordered_map<int, CustomFileInfoEntry> custom_file_info_map;
 
     if (custom_file_info_changed) {
-        for (int i = 1; i < csv_data.size(); i ++) {
+        for (int i = 1; i < csv_data.size(); i++) {
             const auto& row = csv_data[i];
             CustomFileInfoEntry new_entry;
             if (row[0][0] == '0' && std::tolower(row[0][1]) == 'x') {
@@ -906,389 +906,396 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
         pvp_index.clear();
     }
 
-    auto dat_browser_window_size =
-        ImVec2(ImGui::GetIO().DisplaySize.x -
-            (GuiGlobalConstants::left_panel_width + GuiGlobalConstants::panel_padding * 2) -
-            (GuiGlobalConstants::right_panel_width + GuiGlobalConstants::panel_padding * 2),
-            300);
-    auto dat_browser_window_pos =
-        ImVec2(GuiGlobalConstants::left_panel_width + GuiGlobalConstants::panel_padding * 2,
-            GuiGlobalConstants::panel_padding);
-    ImGui::SetNextWindowPos(dat_browser_window_pos);
-    ImGui::SetNextWindowSize(dat_browser_window_size);
-
-    ImGui::Begin("Browse .dat file contents");
-    // Create item list
-    if (items.size() == 0)
+    if (!GuiGlobalConstants::is_dat_browser_resizeable)
     {
-        const auto& entries = dat_manager->get_MFT();
-        for (int i = 0; i < entries.size(); i++)
+        auto dat_browser_window_size =
+            ImVec2(ImGui::GetIO().DisplaySize.x -
+                (GuiGlobalConstants::left_panel_width + GuiGlobalConstants::panel_padding * 2) -
+                (GuiGlobalConstants::right_panel_width + GuiGlobalConstants::panel_padding * 2),
+                300);
+        ImGui::SetNextWindowSize(dat_browser_window_size);
+    }
+
+    if (!GuiGlobalConstants::is_dat_browser_movable) {
+        auto dat_browser_window_pos =
+            ImVec2(GuiGlobalConstants::left_panel_width + GuiGlobalConstants::panel_padding * 2,
+                GuiGlobalConstants::panel_padding);
+        ImGui::SetNextWindowPos(dat_browser_window_pos);
+    }
+
+
+    if (GuiGlobalConstants::is_dat_browser_open && ImGui::Begin("Browse .dat file contents", &GuiGlobalConstants::is_dat_browser_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
+        // Create item list
+        if (items.size() == 0)
         {
-            const auto& entry = entries[i];
-            int filename_id_0 = 0;
-            int filename_id_1 = 0;
-
-            // Update filename_id_0 and filename_id_1 with the proper values.
-            encode_filehash(entry.Hash, filename_id_0, filename_id_1);
-
-            DatBrowserItem new_item{
-                i, entry.Hash, static_cast<FileType>(entry.type), entry.Size, entry.uncompressedSize, filename_id_0, filename_id_1, {}, {}, {}, entry.murmurhash3
-            };
-            auto custom_file_info_it = custom_file_info_map.find(entry.Hash);
-            if (custom_file_info_it == custom_file_info_map.end()) {
-                // Files with file_id == 0 uses murmurhash3 instead when saved to custom file
-                custom_file_info_it = custom_file_info_map.find(entry.murmurhash3);
-            }
-
-            if (entry.type == FFNA_Type3)
+            const auto& entries = dat_manager->get_MFT();
+            for (int i = 0; i < entries.size(); i++)
             {
-                if (custom_file_info_it != custom_file_info_map.end()) {
-                    new_item.names = custom_file_info_it->second.names;
-                    new_item.map_ids = custom_file_info_it->second.map_ids;
-                    new_item.is_pvp = { custom_file_info_it->second.is_pvp };
+                const auto& entry = entries[i];
+                int filename_id_0 = 0;
+                int filename_id_1 = 0;
+
+                // Update filename_id_0 and filename_id_1 with the proper values.
+                encode_filehash(entry.Hash, filename_id_0, filename_id_1);
+
+                DatBrowserItem new_item{
+                    i, entry.Hash, static_cast<FileType>(entry.type), entry.Size, entry.uncompressedSize, filename_id_0, filename_id_1, {}, {}, {}, entry.murmurhash3
+                };
+                auto custom_file_info_it = custom_file_info_map.find(entry.Hash);
+                if (custom_file_info_it == custom_file_info_map.end()) {
+                    // Files with file_id == 0 uses murmurhash3 instead when saved to custom file
+                    custom_file_info_it = custom_file_info_map.find(entry.murmurhash3);
                 }
-                else {
-                    auto it = constant_maps_info.find(entry.Hash);
-                    if (it != constant_maps_info.end())
-                    {
-                        for (const auto& map : it->second)
+
+                if (entry.type == FFNA_Type3)
+                {
+                    if (custom_file_info_it != custom_file_info_map.end()) {
+                        new_item.names = custom_file_info_it->second.names;
+                        new_item.map_ids = custom_file_info_it->second.map_ids;
+                        new_item.is_pvp = { custom_file_info_it->second.is_pvp };
+                    }
+                    else {
+                        auto it = constant_maps_info.find(entry.Hash);
+                        if (it != constant_maps_info.end())
                         {
-                            new_item.map_ids.push_back(map.map_id);
-                            new_item.names.push_back(map.map_name);
-                            new_item.is_pvp.push_back(map.is_pvp);
+                            for (const auto& map : it->second)
+                            {
+                                new_item.map_ids.push_back(map.map_id);
+                                new_item.names.push_back(map.map_name);
+                                new_item.is_pvp.push_back(map.is_pvp);
+                            }
                         }
                     }
                 }
+                else {
+                    if (custom_file_info_it != custom_file_info_map.end()) {
+                        new_item.names = custom_file_info_it->second.names;
+                    }
+                }
+
+                items.push_back(new_item);
             }
-            else {
-                if (custom_file_info_it != custom_file_info_map.end()) {
-                    new_item.names = custom_file_info_it->second.names;
+            filtered_items = items;
+        }
+
+        if (items.size() != 0 && id_index.empty())
+        {
+            for (int i = 0; i < items.size(); i++)
+            {
+                const auto& item = items[i];
+                id_index[item.id].push_back(i);
+                hash_index[item.hash].push_back(i);
+                type_index[item.type].push_back(i);
+                file_id_0_index[item.file_id_0].push_back(i);
+                file_id_1_index[item.file_id_1].push_back(i);
+
+                for (const auto map_id : item.map_ids) { map_id_index[map_id].push_back(i); }
+                for (const auto& name : item.names)
+                {
+                    if (name != "" && name != "-")
+                        name_index[name].push_back(i);
+                }
+                for (const auto is_pvp : item.is_pvp) { pvp_index[is_pvp].push_back(i); }
+            }
+        }
+
+        // Set after filtering is complete.
+        static std::string curr_id_filter = "";
+        static std::string curr_hash_filter = "";
+        static FileType curr_type_filter = NONE;
+        static std::string curr_map_id_filter = "";
+        static std::string curr_name_filter = "";
+        static int curr_pvp_filter = -1;
+        static std::string curr_filename_filter = "";
+
+        // The values set by the user in the GUI
+        static std::string id_filter_text;
+        static std::string hash_filter_text;
+        static FileType type_filter_value = NONE;
+        static std::string map_id_filter_text;
+        static std::string name_filter_text;
+        static int pvp_filter_value = -1; // -1 means no filter, 0 means false, 1 means true
+        static std::string filename_filter_text;
+
+        static bool filter_update_required = true;
+
+        if (dat_manager_changed || custom_file_info_changed) {
+            filter_update_required = true;
+        }
+
+        if (curr_id_filter != id_filter_text)
+        {
+            curr_id_filter = id_filter_text;
+            filter_update_required = true;
+        }
+
+        if (curr_hash_filter != hash_filter_text)
+        {
+            curr_hash_filter = hash_filter_text;
+            filter_update_required = true;
+        }
+
+        if (curr_type_filter != type_filter_value)
+        {
+            curr_type_filter = type_filter_value;
+            filter_update_required = true;
+        }
+
+        if (curr_map_id_filter != map_id_filter_text)
+        {
+            curr_map_id_filter = map_id_filter_text;
+            filter_update_required = true;
+        }
+
+        if (curr_name_filter != name_filter_text)
+        {
+            curr_name_filter = name_filter_text;
+            filter_update_required = true;
+        }
+
+        if (curr_pvp_filter != pvp_filter_value)
+        {
+            curr_pvp_filter = pvp_filter_value;
+            filter_update_required = true;
+        }
+
+        if (curr_filename_filter != filename_filter_text)
+        {
+            curr_filename_filter = filename_filter_text;
+            filter_update_required = true;
+        }
+
+        if (dat_compare_filter_result_changed) {
+            filter_update_required = true;
+        }
+
+        // Only re-run the filter when the user changed filter params in the GUI.
+        bool filter_updated = filter_update_required;
+        if (filter_update_required)
+        {
+
+            filter_update_required = false;
+
+            filtered_items.clear();
+
+            std::unordered_set<int> intersection;
+
+            if (!id_filter_text.empty())
+            {
+                int id_filter_value = custom_stoi(id_filter_text);
+                if (id_index.contains(id_filter_value))
+                {
+                    intersection.insert(id_index[id_filter_value].begin(), id_index[id_filter_value].end());
                 }
             }
 
-            items.push_back(new_item);
-        }
-        filtered_items = items;
-    }
-
-    if (items.size() != 0 && id_index.empty())
-    {
-        for (int i = 0; i < items.size(); i++)
-        {
-            const auto& item = items[i];
-            id_index[item.id].push_back(i);
-            hash_index[item.hash].push_back(i);
-            type_index[item.type].push_back(i);
-            file_id_0_index[item.file_id_0].push_back(i);
-            file_id_1_index[item.file_id_1].push_back(i);
-
-            for (const auto map_id : item.map_ids) { map_id_index[map_id].push_back(i); }
-            for (const auto& name : item.names)
+            if (!hash_filter_text.empty())
             {
-                if (name != "" && name != "-")
-                    name_index[name].push_back(i);
-            }
-            for (const auto is_pvp : item.is_pvp) { pvp_index[is_pvp].push_back(i); }
-        }
-    }
-
-    // Set after filtering is complete.
-    static std::string curr_id_filter = "";
-    static std::string curr_hash_filter = "";
-    static FileType curr_type_filter = NONE;
-    static std::string curr_map_id_filter = "";
-    static std::string curr_name_filter = "";
-    static int curr_pvp_filter = -1;
-    static std::string curr_filename_filter = "";
-
-    // The values set by the user in the GUI
-    static std::string id_filter_text;
-    static std::string hash_filter_text;
-    static FileType type_filter_value = NONE;
-    static std::string map_id_filter_text;
-    static std::string name_filter_text;
-    static int pvp_filter_value = -1; // -1 means no filter, 0 means false, 1 means true
-    static std::string filename_filter_text;
-
-    static bool filter_update_required = true;
-
-    if (dat_manager_changed || custom_file_info_changed) {
-        filter_update_required = true;
-    }
-
-    if (curr_id_filter != id_filter_text)
-    {
-        curr_id_filter = id_filter_text;
-        filter_update_required = true;
-    }
-
-    if (curr_hash_filter != hash_filter_text)
-    {
-        curr_hash_filter = hash_filter_text;
-        filter_update_required = true;
-    }
-
-    if (curr_type_filter != type_filter_value)
-    {
-        curr_type_filter = type_filter_value;
-        filter_update_required = true;
-    }
-
-    if (curr_map_id_filter != map_id_filter_text)
-    {
-        curr_map_id_filter = map_id_filter_text;
-        filter_update_required = true;
-    }
-
-    if (curr_name_filter != name_filter_text)
-    {
-        curr_name_filter = name_filter_text;
-        filter_update_required = true;
-    }
-
-    if (curr_pvp_filter != pvp_filter_value)
-    {
-        curr_pvp_filter = pvp_filter_value;
-        filter_update_required = true;
-    }
-
-    if (curr_filename_filter != filename_filter_text)
-    {
-        curr_filename_filter = filename_filter_text;
-        filter_update_required = true;
-    }
-
-    if (dat_compare_filter_result_changed) {
-        filter_update_required = true;
-    }
-
-    // Only re-run the filter when the user changed filter params in the GUI.
-    bool filter_updated = filter_update_required;
-    if (filter_update_required)
-    {
-
-        filter_update_required = false;
-
-        filtered_items.clear();
-
-        std::unordered_set<int> intersection;
-
-        if (!id_filter_text.empty())
-        {
-            int id_filter_value = custom_stoi(id_filter_text);
-            if (id_index.contains(id_filter_value))
-            {
-                intersection.insert(id_index[id_filter_value].begin(), id_index[id_filter_value].end());
-            }
-        }
-
-        if (!hash_filter_text.empty())
-        {
-            int hash_filter_value = custom_stoi(hash_filter_text);
-            if (hash_index.contains(hash_filter_value))
-            {
-                if (id_filter_text.empty())
+                int hash_filter_value = custom_stoi(hash_filter_text);
+                if (hash_index.contains(hash_filter_value))
                 {
-                    intersection.insert(hash_index[hash_filter_value].begin(),
-                        hash_index[hash_filter_value].end());
+                    if (id_filter_text.empty())
+                    {
+                        intersection.insert(hash_index[hash_filter_value].begin(),
+                            hash_index[hash_filter_value].end());
+                    }
+                    else
+                    {
+                        std::unordered_set<int> new_intersection;
+                        for (int id : hash_index[hash_filter_value])
+                        {
+                            if (intersection.contains(id)) { new_intersection.insert(id); }
+                        }
+                        intersection = std::move(new_intersection);
+                    }
+                }
+            }
+
+            if (!filename_filter_text.empty())
+            {
+                int filename_filter_value = custom_stoi(filename_filter_text);
+                uint16_t id0 = filename_filter_value & 0xFFFF;
+                uint16_t id1 = (filename_filter_value >> 16) & 0xFFFF;
+
+                bool is_full_filename_hash = id0 > 0xFF && id1 > 0xFF;
+
+                if (!is_full_filename_hash) {
+                    if (file_id_0_index.contains(id0))
+                    {
+                        apply_filter(file_id_0_index[id0], intersection);
+                    }
+
+                    if (file_id_1_index.contains(id1))
+                    {
+                        apply_filter(file_id_1_index[id1], intersection);
+                    }
+                }
+                else {
+                    if (file_id_0_index.contains(id0) && file_id_1_index.contains(id1))
+                    {
+                        apply_filter(file_id_0_index[id0], intersection);
+                        apply_filter(file_id_1_index[id1], intersection);
+                    }
+                    else if (file_id_0_index.contains(id1) && file_id_1_index.contains(id0)) {
+                        apply_filter(file_id_0_index[id1], intersection);
+                        apply_filter(file_id_1_index[id0], intersection);
+                    }
+                }
+            }
+
+            if (type_filter_value != NONE)
+            {
+                if (id_filter_text.empty() && hash_filter_text.empty())
+                {
+                    intersection.insert(type_index[type_filter_value].begin(),
+                        type_index[type_filter_value].end());
                 }
                 else
                 {
                     std::unordered_set<int> new_intersection;
-                    for (int id : hash_index[hash_filter_value])
+                    for (int id : type_index[type_filter_value])
                     {
                         if (intersection.contains(id)) { new_intersection.insert(id); }
                     }
                     intersection = std::move(new_intersection);
                 }
             }
-        }
 
-        if (!filename_filter_text.empty())
-        {
-            int filename_filter_value = custom_stoi(filename_filter_text);
-            uint16_t id0 = filename_filter_value & 0xFFFF;
-            uint16_t id1 = (filename_filter_value >> 16) & 0xFFFF;
-
-            bool is_full_filename_hash = id0 > 0xFF && id1 > 0xFF;
-
-            if (!is_full_filename_hash) {
-                if (file_id_0_index.contains(id0))
+            if (!map_id_filter_text.empty())
+            {
+                int map_id_filter_value = custom_stoi(map_id_filter_text);
+                if (map_id_index.contains(map_id_filter_value))
                 {
-                    apply_filter(file_id_0_index[id0], intersection);
+                    apply_filter(map_id_index[map_id_filter_value], intersection);
                 }
+            }
 
-                if (file_id_1_index.contains(id1))
+            if (!name_filter_text.empty())
+            {
+                std::vector<int> matching_indices;
+                std::string name_filter_text_lower = to_lower(name_filter_text);
+
+                for (const auto& name_entry : name_index)
                 {
-                    apply_filter(file_id_1_index[id1], intersection);
+                    std::string name_entry_lower = to_lower(name_entry.first);
+                    if (name_entry_lower.find(name_filter_text_lower) != std::string::npos)
+                    {
+                        matching_indices.insert(matching_indices.end(), name_entry.second.begin(),
+                            name_entry.second.end());
+                    }
+                }
+                if (!matching_indices.empty()) { apply_filter(matching_indices, intersection); }
+            }
+
+            if (pvp_filter_value != -1)
+            {
+                bool pvp_filter_bool = pvp_filter_value == 1;
+                apply_filter(pvp_index[pvp_filter_bool], intersection);
+            }
+
+            if (id_filter_text.empty() && hash_filter_text.empty() && type_filter_value == NONE &&
+                map_id_filter_text.empty() && name_filter_text.empty() && pvp_filter_value == -1 && filename_filter_text.empty()) {
+                for (const auto& item : items) {
+                    if (dat_compare_filter_result.contains(item.hash) || dat_compare_filter_result.empty())
+                    {
+                        filtered_items.push_back(item);
+                    }
                 }
             }
             else {
-                if (file_id_0_index.contains(id0) && file_id_1_index.contains(id1))
+                for (const auto& id : intersection)
                 {
-                    apply_filter(file_id_0_index[id0], intersection);
-                    apply_filter(file_id_1_index[id1], intersection);
-                }
-                else if(file_id_0_index.contains(id1) && file_id_1_index.contains(id0)) {
-                    apply_filter(file_id_0_index[id1], intersection);
-                    apply_filter(file_id_1_index[id0], intersection);
+                    const auto& item = items[id];
+                    if (dat_compare_filter_result.contains(item.hash) || dat_compare_filter_result.empty()) {
+                        filtered_items.push_back(item);
+                    }
                 }
             }
+
+            // Set them equal so that the filter won't run again until the filter changes.
+            curr_id_filter = id_filter_text;
+            curr_hash_filter = hash_filter_text;
+            curr_type_filter = type_filter_value;
+            curr_map_id_filter = map_id_filter_text;
+            curr_name_filter = name_filter_text;
+            curr_pvp_filter = pvp_filter_value;
+            curr_filename_filter = filename_filter_text;
         }
 
-        if (type_filter_value != NONE)
+        // Filter table
+        // Render the filter inputs and the table
+        ImGui::Columns(6);
+        ImGui::Text("Id:");
+        ImGui::SameLine();
+        ImGui::InputText("##IdFilter", &id_filter_text);
+        ImGui::NextColumn();
+
+        ImGui::Text("File ID:");
+        ImGui::SameLine();
+        ImGui::InputText("##HashFilter", &hash_filter_text);
+        ImGui::NextColumn();
+
+        ImGui::Text("Filename");
+        ImGui::SameLine();
+        ImGui::InputText("##FilenameFilter", &filename_filter_text);
+        ImGui::NextColumn();
+
+        ImGui::Text("Name:");
+        ImGui::SameLine();
+        ImGui::InputText("##NameFilter", &name_filter_text);
+        ImGui::NextColumn();
+
+        ImGui::Text("Map ID:");
+        ImGui::SameLine();
+        ImGui::InputText("##MapID", &map_id_filter_text);
+        ImGui::NextColumn();
+
+        ImGui::Text("Type:");
+        ImGui::SameLine();
+        ImGui::Combo("##EnumFilter", reinterpret_cast<int*>(&type_filter_value), type_strings, 25);
+        ImGui::Columns(1);
+
+        ImGui::Separator();
+
+        ImGui::Text("Filtered items: %d", filtered_items.size());
+        ImGui::SameLine();
+        ImGui::Text("Total items: %d", items.size());
+
+        // Options
+        static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
+            ImGuiTableFlags_Hideable | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti |
+            ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
+            ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY;
+
+        if (ImGui::BeginTable("data browser", 10, flags))
         {
-            if (id_filter_text.empty() && hash_filter_text.empty())
-            {
-                intersection.insert(type_index[type_filter_value].begin(),
-                    type_index[type_filter_value].end());
-            }
-            else
-            {
-                std::unordered_set<int> new_intersection;
-                for (int id : type_index[type_filter_value])
-                {
-                    if (intersection.contains(id)) { new_intersection.insert(id); }
+            // Declare columns
+            // We use the "user_id" parameter of TableSetupColumn() to specify a user id that will be stored in the sort specifications.
+            // This is so our sort function can identify a column given our own identifier. We could also identify them based on their index!
+            // Demonstrate using a mixture of flags among available sort-related flags:
+            // - ImGuiTableColumnFlags_DefaultSort
+            // - ImGuiTableColumnFlags_NoSort / ImGuiTableColumnFlags_NoSortAscending / ImGuiTableColumnFlags_NoSortDescending
+            // - ImGuiTableColumnFlags_PreferSortAscending / ImGuiTableColumnFlags_PreferSortDescending
+            ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_DefaultSort, 0.0f, DatBrowserItemColumnID_id);
+            ImGui::TableSetupColumn("File ID", 0, 0.0f, DatBrowserItemColumnID_hash);
+            ImGui::TableSetupColumn("Filename", 0, 0.0f, DatBrowserItemColumnID_filename);
+            ImGui::TableSetupColumn("Name", 0, 0.0f, DatBrowserItemColumnID_name);
+            ImGui::TableSetupColumn("Type", 0, 0.0f, DatBrowserItemColumnID_type);
+            ImGui::TableSetupColumn("Size", 0, 0.0f, DatBrowserItemColumnID_size);
+            ImGui::TableSetupColumn("Decompressed size", 0, 0.0f, DatBrowserItemColumnID_decompressed_size);
+            ImGui::TableSetupColumn("Map id", 0, 0.0f, DatBrowserItemColumnID_map_id);
+            ImGui::TableSetupColumn("PvP", 0, 0.0f, DatBrowserItemColumnID_is_pvp);
+            ImGui::TableSetupColumn("murmur3", 0, 0.0f, DatBrowserItemColumnID_murmurhash3);
+            ImGui::TableSetupScrollFreeze(0, 1); // Make row always visible
+
+            ImGui::TableHeadersRow();
+
+            // Sort our data if sort specs have been changed!
+            ImGuiTableSortSpecs* sorts_specs = ImGui::TableGetSortSpecs();
+            if (sorts_specs)
+                if (dat_manager_changed || custom_file_info_changed || filter_updated) {
+                    sorts_specs->SpecsDirty = true;
                 }
-                intersection = std::move(new_intersection);
-            }
-        }
-
-        if (!map_id_filter_text.empty())
-        {
-            int map_id_filter_value = custom_stoi(map_id_filter_text);
-            if (map_id_index.contains(map_id_filter_value))
-            {
-                apply_filter(map_id_index[map_id_filter_value], intersection);
-            }
-        }
-
-        if (!name_filter_text.empty())
-        {
-            std::vector<int> matching_indices;
-            std::string name_filter_text_lower = to_lower(name_filter_text);
-
-            for (const auto& name_entry : name_index)
-            {
-                std::string name_entry_lower = to_lower(name_entry.first);
-                if (name_entry_lower.find(name_filter_text_lower) != std::string::npos)
-                {
-                    matching_indices.insert(matching_indices.end(), name_entry.second.begin(),
-                        name_entry.second.end());
-                }
-            }
-            if (!matching_indices.empty()) { apply_filter(matching_indices, intersection); }
-        }
-
-        if (pvp_filter_value != -1)
-        {
-            bool pvp_filter_bool = pvp_filter_value == 1;
-            apply_filter(pvp_index[pvp_filter_bool], intersection);
-        }
-
-        if (id_filter_text.empty() && hash_filter_text.empty() && type_filter_value == NONE &&
-            map_id_filter_text.empty() && name_filter_text.empty() && pvp_filter_value == -1 && filename_filter_text.empty()) {
-            for (const auto& item : items) {
-                if (dat_compare_filter_result.contains(item.hash) || dat_compare_filter_result.empty())
-                {
-                    filtered_items.push_back(item);
-                }
-            }
-        }
-        else { 
-            for (const auto& id : intersection) 
-            {
-                const auto& item = items[id];
-                if (dat_compare_filter_result.contains(item.hash) || dat_compare_filter_result.empty()) {
-                    filtered_items.push_back(item);
-                }
-            } 
-        }
-
-        // Set them equal so that the filter won't run again until the filter changes.
-        curr_id_filter = id_filter_text;
-        curr_hash_filter = hash_filter_text;
-        curr_type_filter = type_filter_value;
-        curr_map_id_filter = map_id_filter_text;
-        curr_name_filter = name_filter_text;
-        curr_pvp_filter = pvp_filter_value;
-        curr_filename_filter = filename_filter_text;
-    }
-
-    // Filter table
-    // Render the filter inputs and the table
-    ImGui::Columns(6);
-    ImGui::Text("Id:");
-    ImGui::SameLine();
-    ImGui::InputText("##IdFilter", &id_filter_text);
-    ImGui::NextColumn();
-
-    ImGui::Text("File ID:");
-    ImGui::SameLine();
-    ImGui::InputText("##HashFilter", &hash_filter_text);
-    ImGui::NextColumn();
-
-    ImGui::Text("Filename");
-    ImGui::SameLine();
-    ImGui::InputText("##FilenameFilter", &filename_filter_text);
-    ImGui::NextColumn();
-
-    ImGui::Text("Name:");
-    ImGui::SameLine();
-    ImGui::InputText("##NameFilter", &name_filter_text);
-    ImGui::NextColumn();
-
-    ImGui::Text("Map ID:");
-    ImGui::SameLine();
-    ImGui::InputText("##MapID", &map_id_filter_text);
-    ImGui::NextColumn();
-
-    ImGui::Text("Type:");
-    ImGui::SameLine();
-    ImGui::Combo("##EnumFilter", reinterpret_cast<int*>(&type_filter_value), type_strings, 25);
-    ImGui::Columns(1);
-
-    ImGui::Separator();
-
-    ImGui::Text("Filtered items: %d", filtered_items.size());
-    ImGui::SameLine();
-    ImGui::Text("Total items: %d", items.size());
-
-    // Options
-    static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
-        ImGuiTableFlags_Hideable | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti |
-        ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
-        ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY;
-
-    if (ImGui::BeginTable("data browser", 10, flags))
-    {
-        // Declare columns
-        // We use the "user_id" parameter of TableSetupColumn() to specify a user id that will be stored in the sort specifications.
-        // This is so our sort function can identify a column given our own identifier. We could also identify them based on their index!
-        // Demonstrate using a mixture of flags among available sort-related flags:
-        // - ImGuiTableColumnFlags_DefaultSort
-        // - ImGuiTableColumnFlags_NoSort / ImGuiTableColumnFlags_NoSortAscending / ImGuiTableColumnFlags_NoSortDescending
-        // - ImGuiTableColumnFlags_PreferSortAscending / ImGuiTableColumnFlags_PreferSortDescending
-        ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_DefaultSort, 0.0f, DatBrowserItemColumnID_id);
-        ImGui::TableSetupColumn("File ID", 0, 0.0f, DatBrowserItemColumnID_hash);
-        ImGui::TableSetupColumn("Filename", 0, 0.0f, DatBrowserItemColumnID_filename);
-        ImGui::TableSetupColumn("Name", 0, 0.0f, DatBrowserItemColumnID_name);
-        ImGui::TableSetupColumn("Type", 0, 0.0f, DatBrowserItemColumnID_type);
-        ImGui::TableSetupColumn("Size", 0, 0.0f, DatBrowserItemColumnID_size);
-        ImGui::TableSetupColumn("Decompressed size", 0, 0.0f, DatBrowserItemColumnID_decompressed_size);
-        ImGui::TableSetupColumn("Map id", 0, 0.0f, DatBrowserItemColumnID_map_id);
-        ImGui::TableSetupColumn("PvP", 0, 0.0f, DatBrowserItemColumnID_is_pvp);
-        ImGui::TableSetupColumn("murmur3", 0, 0.0f, DatBrowserItemColumnID_murmurhash3);
-        ImGui::TableSetupScrollFreeze(0, 1); // Make row always visible
-
-        ImGui::TableHeadersRow();
-
-        // Sort our data if sort specs have been changed!
-        ImGuiTableSortSpecs* sorts_specs = ImGui::TableGetSortSpecs();
-        if (sorts_specs)
-            if (dat_manager_changed || custom_file_info_changed || filter_updated) {
-                sorts_specs->SpecsDirty = true;
-            }
 
             if (sorts_specs->SpecsDirty)
             {
@@ -1301,187 +1308,152 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                 sorts_specs->SpecsDirty = false;
             }
 
-        // Demonstrate using clipper for large vertical lists
-        ImGuiListClipper clipper;
-        clipper.Begin(filtered_items.size());
+            // Demonstrate using clipper for large vertical lists
+            ImGuiListClipper clipper;
+            clipper.Begin(filtered_items.size());
 
-        static int selected_item_id = -1;
-        ImGuiSelectableFlags selectable_flags =
-            ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap;
+            static int selected_item_id = -1;
+            ImGuiSelectableFlags selectable_flags =
+                ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap;
 
-        while (clipper.Step())
-            for (int row_n = clipper.DisplayStart; row_n < clipper.DisplayEnd; row_n++)
-            {
-                DatBrowserItem& item = filtered_items[row_n];
-
-                const bool item_is_selected = selected_item_id == item.id;
-
-                auto label = std::format("{}", item.id);
-
-                // Display a data item
-                ImGui::PushID(item.id);
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-
-                // Check if this is the row to highlight
-                if (item.hash > 0 && item.hash == selected_item_hash) {
-                    // Set the background color for this row
-                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
-                }
-
-                if (ImGui::Selectable(label.c_str(), item_is_selected, selectable_flags))
+            while (clipper.Step())
+                for (int row_n = clipper.DisplayStart; row_n < clipper.DisplayEnd; row_n++)
                 {
-                    if (ImGui::GetIO().KeyCtrl) {}
-                    else
+                    DatBrowserItem& item = filtered_items[row_n];
+
+                    const bool item_is_selected = selected_item_id == item.id;
+
+                    auto label = std::format("{}", item.id);
+
+                    // Display a data item
+                    ImGui::PushID(item.id);
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+
+                    // Check if this is the row to highlight
+                    if (item.hash > 0 && item.hash == selected_item_hash) {
+                        // Set the background color for this row
+                        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
+                    }
+
+                    if (ImGui::Selectable(label.c_str(), item_is_selected, selectable_flags))
                     {
-                        parse_file(dat_manager, item.id, map_renderer, hash_index, items);
-                        selected_item_id = item.id;
-                        selected_item_hash = item.hash;
-                        selected_item_murmurhash3 = item.murmurhash3;
-                    }
-                }
-                // If the item is focused (highlighted by navigation), select it immediately
-                if (ImGui::IsItemFocused() && selected_item_id != item.id) {
-                    if (selected_item_id != item.id) {
-                        parse_file(dat_manager, item.id, map_renderer, hash_index, items);
-                        selected_item_id = item.id;
-                        selected_item_hash = item.hash;
-                        selected_item_murmurhash3 = item.murmurhash3;
-                    }
-
-                    // Check the direction of focus movement and adjust the scroll position
-                    if (last_focused_item_index != -1) {
-                        float row_height = ImGui::GetTextLineHeightWithSpacing();
-
-                        if (row_n < last_focused_item_index) {
-                            // Focus moved up, scroll up
-                            ImGui::SetScrollY(ImGui::GetScrollY() - row_height);
-                        }
-                        else if (row_n > last_focused_item_index) {
-                            // Focus moved down, scroll down
-                            ImGui::SetScrollY(ImGui::GetScrollY() + row_height);
+                        if (ImGui::GetIO().KeyCtrl) {}
+                        else
+                        {
+                            parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                            selected_item_id = item.id;
+                            selected_item_hash = item.hash;
+                            selected_item_murmurhash3 = item.murmurhash3;
                         }
                     }
-
-                    last_focused_item_index = row_n; // Update the last focused item index
-                }
-
-                if (dat_manager_changed || custom_file_info_changed) {
-                    // Find the index of the item with item.hash == selected_item_hash or item.murmurhash3 == selected_item_hash
-                    int item_index = -1;
-                    for (int i = 0; i < filtered_items.size(); ++i) {
-                        if (filtered_items[i].hash == selected_item_hash) {
-                            item_index = i;
-                            break;
+                    // If the item is focused (highlighted by navigation), select it immediately
+                    if (ImGui::IsItemFocused() && selected_item_id != item.id) {
+                        if (selected_item_id != item.id) {
+                            parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                            selected_item_id = item.id;
+                            selected_item_hash = item.hash;
+                            selected_item_murmurhash3 = item.murmurhash3;
                         }
+
+                        // Check the direction of focus movement and adjust the scroll position
+                        if (last_focused_item_index != -1) {
+                            float row_height = ImGui::GetTextLineHeightWithSpacing();
+
+                            if (row_n < last_focused_item_index) {
+                                // Focus moved up, scroll up
+                                ImGui::SetScrollY(ImGui::GetScrollY() - row_height);
+                            }
+                            else if (row_n > last_focused_item_index) {
+                                // Focus moved down, scroll down
+                                ImGui::SetScrollY(ImGui::GetScrollY() + row_height);
+                            }
+                        }
+
+                        last_focused_item_index = row_n; // Update the last focused item index
                     }
 
-                    if (item_index == -1) {
+                    if (dat_manager_changed || custom_file_info_changed) {
+                        // Find the index of the item with item.hash == selected_item_hash or item.murmurhash3 == selected_item_hash
+                        int item_index = -1;
                         for (int i = 0; i < filtered_items.size(); ++i) {
-                            if (filtered_items[i].murmurhash3 == selected_item_hash) { // note multiple files can share the same murmurhash3
+                            if (filtered_items[i].hash == selected_item_hash) {
                                 item_index = i;
                                 break;
                             }
                         }
+
+                        if (item_index == -1) {
+                            for (int i = 0; i < filtered_items.size(); ++i) {
+                                if (filtered_items[i].murmurhash3 == selected_item_hash) { // note multiple files can share the same murmurhash3
+                                    item_index = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // If the item was found
+                        if (item_index != -1) {
+                            // Calculate the height of a single row (this is an approximation)
+                            float row_height = ImGui::GetTextLineHeightWithSpacing();
+
+                            // Calculate the number of visible rows in the table
+                            float visible_rows = ImGui::GetWindowHeight() / row_height;
+
+                            // Calculate the position to scroll to
+                            // We want the selected row to be at the top of the table, so we scroll to its position minus half the visible rows
+                            float scroll_pos = (item_index - visible_rows / 2) * row_height;
+
+                            // Clamp the scroll position to the valid range
+                            scroll_pos = std::max(0.0f, std::min(scroll_pos, ImGui::GetScrollMaxY()));
+
+                            // Scroll to the item
+                            ImGui::SetScrollY(scroll_pos);
+                        }
                     }
 
-                    // If the item was found
-                    if (item_index != -1) {
-                        // Calculate the height of a single row (this is an approximation)
-                        float row_height = ImGui::GetTextLineHeightWithSpacing();
-
-                        // Calculate the number of visible rows in the table
-                        float visible_rows = ImGui::GetWindowHeight() / row_height;
-
-                        // Calculate the position to scroll to
-                        // We want the selected row to be at the top of the table, so we scroll to its position minus half the visible rows
-                        float scroll_pos = (item_index - visible_rows / 2) * row_height;
-
-                        // Clamp the scroll position to the valid range
-                        scroll_pos = std::max(0.0f, std::min(scroll_pos, ImGui::GetScrollMaxY()));
-
-                        // Scroll to the item
-                        ImGui::SetScrollY(scroll_pos);
-                    }
-                }
-
-                //Add context menu on right clicking item in table
-                if (ImGui::BeginPopupContextItem("ItemContextMenu"))
-                {
-                    if (ImGui::MenuItem("Save decompressed data to file"))
+                    //Add context menu on right clicking item in table
+                    if (ImGui::BeginPopupContextItem("ItemContextMenu"))
                     {
-                        std::wstring savePath = OpenFileDialog(std::format(L"0x{:X}", item.hash), L"gwraw");
-                        if (!savePath.empty()) { dat_manager->save_raw_decompressed_data_to_file(item.id, savePath); }
-                    }
-
-                    if (item.type == SOUND || item.type == AMP)
-                    {
-                        if (ImGui::MenuItem("Save to mp3"))
+                        if (ImGui::MenuItem("Save decompressed data to file"))
                         {
-                            std::wstring savePath = OpenFileDialog(std::format(L"0x{:X}", item.hash), L"mp3");
+                            std::wstring savePath = OpenFileDialog(std::format(L"0x{:X}", item.hash), L"gwraw");
                             if (!savePath.empty()) { dat_manager->save_raw_decompressed_data_to_file(item.id, savePath); }
                         }
-                    }
 
-                    if (item.type == FFNA_Type2)
-                    {
-                        if (ImGui::MenuItem("Export model as JSON"))
+                        if (item.type == SOUND || item.type == AMP)
                         {
-                            std::wstring saveDir = OpenDirectoryDialog();
-                            if (!saveDir.empty())
+                            if (ImGui::MenuItem("Save to mp3"))
                             {
-                                // Use std::format to create the filename
-                                std::string filename = std::format("model_0x{:X}_gwmb.json", item.hash);
-
-                                std::string savePath(saveDir.begin(), saveDir.end());
-                                
-                                // Export the model to the chosen path
-                                model_exporter::export_model(savePath, filename, item.id, dat_manager, hash_index, map_renderer->GetTextureManager());
-                            }
-                        }
-                        if (ImGui::MenuItem("Export Mesh"))
-                        {
-                            std::wstring savePath =
-                                OpenFileDialog(std::format(L"model_mesh_0x{:X}", item.hash), L"obj");
-                            if (!savePath.empty())
-                            {
-                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
-                                const auto obj_file_str = write_obj_str(prop_meshes);
-
-                                std::string savePathStr(savePath.begin(), savePath.end());
-
-                                std::ofstream outFile(savePathStr);
-                                if (outFile.is_open())
-                                {
-                                    outFile << obj_file_str;
-                                    outFile.close();
-                                }
-                                else
-                                {
-                                    // Error handling
-                                }
+                                std::wstring savePath = OpenFileDialog(std::format(L"0x{:X}", item.hash), L"mp3");
+                                if (!savePath.empty()) { dat_manager->save_raw_decompressed_data_to_file(item.id, savePath); }
                             }
                         }
 
-                        if (ImGui::MenuItem("Export Submeshes Individually"))
+                        if (item.type == FFNA_Type2)
                         {
-                            std::wstring saveDir = OpenDirectoryDialog();
-                            if (!saveDir.empty())
+                            if (ImGui::MenuItem("Export model as JSON"))
                             {
-                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
-                                for (size_t prop_mesh_index = 0; prop_mesh_index < prop_meshes.size();
-                                    ++prop_mesh_index)
+                                std::wstring saveDir = OpenDirectoryDialog();
+                                if (!saveDir.empty())
                                 {
-                                    const auto& prop_mesh = prop_meshes[prop_mesh_index];
-                                    const auto obj_file_str = write_obj_str(&prop_mesh);
+                                    // Use std::format to create the filename
+                                    std::string filename = std::format("model_0x{:X}_gwmb.json", item.hash);
 
-                                    // Generate unique file name
-                                    std::string filename =
-                                        std::format("model_mesh_0x{:X}_{}.obj", item.hash, prop_mesh_index);
+                                    std::string savePath(saveDir.begin(), saveDir.end());
 
-                                    // Append the filename to the saveDir
-                                    std::wstring savePath =
-                                        saveDir + L"\\" + std::wstring(filename.begin(), filename.end());
+                                    // Export the model to the chosen path
+                                    model_exporter::export_model(savePath, filename, item.id, dat_manager, hash_index, map_renderer->GetTextureManager());
+                                }
+                            }
+                            if (ImGui::MenuItem("Export Mesh"))
+                            {
+                                std::wstring savePath =
+                                    OpenFileDialog(std::format(L"model_mesh_0x{:X}", item.hash), L"obj");
+                                if (!savePath.empty())
+                                {
+                                    parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                    const auto obj_file_str = write_obj_str(prop_meshes);
 
                                     std::string savePathStr(savePath.begin(), savePath.end());
 
@@ -1497,305 +1469,341 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                     }
                                 }
                             }
+
+                            if (ImGui::MenuItem("Export Submeshes Individually"))
+                            {
+                                std::wstring saveDir = OpenDirectoryDialog();
+                                if (!saveDir.empty())
+                                {
+                                    parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                    for (size_t prop_mesh_index = 0; prop_mesh_index < prop_meshes.size();
+                                        ++prop_mesh_index)
+                                    {
+                                        const auto& prop_mesh = prop_meshes[prop_mesh_index];
+                                        const auto obj_file_str = write_obj_str(&prop_mesh);
+
+                                        // Generate unique file name
+                                        std::string filename =
+                                            std::format("model_mesh_0x{:X}_{}.obj", item.hash, prop_mesh_index);
+
+                                        // Append the filename to the saveDir
+                                        std::wstring savePath =
+                                            saveDir + L"\\" + std::wstring(filename.begin(), filename.end());
+
+                                        std::string savePathStr(savePath.begin(), savePath.end());
+
+                                        std::ofstream outFile(savePathStr);
+                                        if (outFile.is_open())
+                                        {
+                                            outFile << obj_file_str;
+                                            outFile.close();
+                                        }
+                                        else
+                                        {
+                                            // Error handling
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (ImGui::MenuItem("Export model textures"))
+                            {
+                                std::wstring saveDir = OpenDirectoryDialog();
+                                if (!saveDir.empty())
+                                {
+                                    parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+
+                                    for (int tex_index = 0; tex_index < selected_ffna_model_file.texture_filenames_chunk.
+                                        texture_filenames.
+                                        size(); tex_index++)
+                                    {
+                                        const auto& texture_filename = selected_ffna_model_file.texture_filenames_chunk.
+                                            texture_filenames[tex_index];
+
+                                        auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
+                                        int texture_id = map_renderer->GetTextureManager()->
+                                            GetTextureIdByHash(decoded_filename);
+
+                                        std::string filename = std::format("model_0x{:X}_tex_index{}_texture_0x{:X}.png",
+                                            item.hash, tex_index, decoded_filename);
+
+                                        // Append the filename to the saveDir
+                                        std::wstring savePath =
+                                            saveDir + L"\\" + std::wstring(filename.begin(), filename.end());
+
+                                        ID3D11ShaderResourceView* texture =
+                                            map_renderer->GetTextureManager()->GetTexture(texture_id);
+                                        if (SaveTextureToPng(texture, savePath, map_renderer->GetTextureManager()))
+                                        {
+                                            // Success
+                                        }
+                                        else
+                                        {
+                                            // Error handling }
+                                        }
+                                    }
+                                }
+                            }
                         }
 
-                        if (ImGui::MenuItem("Export model textures"))
+                        if (item.type == FFNA_Type3)
                         {
-                            std::wstring saveDir = OpenDirectoryDialog();
-                            if (!saveDir.empty())
+                            if (ImGui::MenuItem("Export full map"))
                             {
-                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
-
-                                for (int tex_index = 0; tex_index < selected_ffna_model_file.texture_filenames_chunk.
-                                    texture_filenames.
-                                    size(); tex_index++)
+                                std::wstring savePath = OpenDirectoryDialog();
+                                if (!savePath.empty())
                                 {
-                                    const auto& texture_filename = selected_ffna_model_file.texture_filenames_chunk.
-                                        texture_filenames[tex_index];
+                                    // Create a new directory name using the item's hash
+                                    std::wstring newDirName = L"gwmb_map_" + std::to_wstring(item.hash);
 
-                                    auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
-                                    int texture_id = map_renderer->GetTextureManager()->
-                                        GetTextureIdByHash(decoded_filename);
+                                    // Append the new directory name to the existing path
+                                    std::filesystem::path newDirPath = std::filesystem::path(savePath) / newDirName;
 
-                                    std::string filename = std::format("model_0x{:X}_tex_index{}_texture_0x{:X}.png",
-                                        item.hash, tex_index, decoded_filename);
-
-                                    // Append the filename to the saveDir
-                                    std::wstring savePath =
-                                        saveDir + L"\\" + std::wstring(filename.begin(), filename.end());
-
-                                    ID3D11ShaderResourceView* texture =
-                                        map_renderer->GetTextureManager()->GetTexture(texture_id);
-                                    if (SaveTextureToPng(texture, savePath, map_renderer->GetTextureManager()))
+                                    // Check if the directory exists and if not, create it
+                                    if (!exists(newDirPath))
                                     {
-                                        // Success
+                                        create_directory(newDirPath);
+                                    }
+
+                                    // Since the `export_map` function requires a std::string, we need to convert the path
+                                    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+                                    std::string newDirPathStr = converter.to_bytes(newDirPath.native());
+
+                                    map_exporter::export_map(newDirPathStr, item.hash, item.id, dat_manager, hash_index, map_renderer->GetTextureManager());
+                                }
+                            }
+                            if (ImGui::MenuItem("Export Terrain Mesh as .obj"))
+                            {
+                                std::wstring savePath =
+                                    OpenFileDialog(std::format(L"height_map_0x{:X}", item.hash), L"obj");
+                                if (!savePath.empty())
+                                {
+                                    parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                    const auto& terrain_mesh = terrain.get()->get_mesh();
+                                    const auto obj_file_str = write_obj_str(terrain_mesh);
+
+                                    std::string savePathStr(savePath.begin(), savePath.end());
+
+                                    std::ofstream outFile(savePathStr);
+                                    if (outFile.is_open())
+                                    {
+                                        outFile << obj_file_str;
+                                        outFile.close();
                                     }
                                     else
                                     {
-                                        // Error handling }
+                                        // Error handling
+                                    }
+                                }
+                            }
+                            else if (ImGui::MenuItem("Export heightmap as .tiff"))
+                            {
+                                std::wstring savePath = OpenFileDialog(std::format(L"terrain_height_map_0x{:X}", item.hash),
+                                    L"tiff");
+                                if (!savePath.empty())
+                                {
+                                    parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                    const auto& terrain_mesh = terrain.get()->get_heightmap_grid();
+                                    // Assuming the accessor function is available.
+
+                                    // Convert the savePath to a string
+                                    std::string save_path_str(savePath.begin(), savePath.end());
+
+                                    // Write the BMP file
+                                    if (!write_heightmap_tiff(terrain_mesh, save_path_str.c_str()))
+                                    {
+                                        // Error handling
+                                    }
+                                }
+                            }
+                            else if (ImGui::MenuItem("Export terrain texture indices as .tiff"))
+                            {
+                                std::wstring savePath = OpenFileDialog(std::format(L"terrain_tex_indices_0x{:X}", item.hash),
+                                    L"tiff");
+                                if (!savePath.empty())
+                                {
+                                    parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                    const auto& terrain_texture_indices = terrain.get()->get_texture_index_grid();
+                                    // Assuming the accessor function is available.
+
+                                    // Convert the savePath to a string
+                                    std::string save_path_str(savePath.begin(), savePath.end());
+
+                                    // Write the BMP file
+                                    if (!write_terrain_ints_tiff(terrain_texture_indices, save_path_str.c_str()))
+                                    {
+                                        // Error handling
+                                    }
+                                }
+                            }
+                            else if (ImGui::MenuItem("Export terrain shadow map as .tiff"))
+                            {
+                                std::wstring savePath = OpenFileDialog(std::format(L"terrain_shadow_map_0x{:X}", item.hash),
+                                    L"tiff");
+                                if (!savePath.empty())
+                                {
+                                    parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                    const auto& terrain_unknown = terrain.get()->get_terrain_shadow_map_grid();
+                                    // Assuming the accessor function is available.
+
+                                    // Convert the savePath to a string
+                                    std::string save_path_str(savePath.begin(), savePath.end());
+
+                                    // Write the BMP file
+                                    if (!write_terrain_ints_tiff(terrain_unknown, save_path_str.c_str()))
+                                    {
+                                        // Error handling
                                     }
                                 }
                             }
                         }
-                    }
 
+                        ImGui::EndPopup();
+                    }
+                    ImGui::TableNextColumn();
+
+                    const auto file_hash_text = std::format("0x{:X} ({})", item.hash, item.hash);
+                    ImGui::Text(file_hash_text.c_str());
+                    ImGui::TableNextColumn();
+
+                    const auto filename_text = std::format("0x{:X} 0x{:X}", item.file_id_0, item.file_id_1);
+                    ImGui::Text(filename_text.c_str());
+                    ImGui::TableNextColumn();
+
+
+                    if (!item.names.empty())
+                    {
+                        std::string name;
+                        for (int i = 0; i < item.names.size(); i++)
+                        {
+                            name += item.names[i];
+                            if (i < item.names.size() - 1) { name += " | "; }
+                        }
+
+                        // Check if the text would be clipped
+                        ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
+                        float availableWidth = ImGui::GetContentRegionAvail().x;
+
+                        if (textSize.x > availableWidth)
+                        {
+                            // Truncate the text to fit the available width
+                            std::string truncatedName = truncate_text_with_ellipsis(name, availableWidth);
+
+                            // Display the truncated text
+                            ImGui::TextUnformatted(truncatedName.c_str());
+
+                            // Check if the mouse is hovering over the text
+                            if (ImGui::IsItemHovered())
+                            {
+                                // Show a tooltip with the full list of names
+                                ImGui::BeginTooltip();
+                                ImGui::TextUnformatted(name.c_str());
+                                ImGui::EndTooltip();
+                            }
+                        }
+                        else
+                        {
+                            // Display the full text without truncation
+                            ImGui::TextUnformatted(name.c_str());
+                        }
+                    }
+                    else { ImGui::Text("-"); }
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text(typeToString(item.type).c_str());
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%04d", item.size);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%04d", item.decompressed_size);
+                    ImGui::TableNextColumn();
                     if (item.type == FFNA_Type3)
                     {
-                        if (ImGui::MenuItem("Export full map"))
+                        std::string map_ids_text;
+                        for (int i = 0; i < item.map_ids.size(); i++)
                         {
-                            std::wstring savePath = OpenDirectoryDialog();
-                            if (!savePath.empty())
+                            map_ids_text += std::format("{}", item.map_ids[i]);
+                            if (i < item.map_ids.size() - 1) { map_ids_text += ","; }
+                        }
+
+                        // Check if the text would be clipped
+                        ImVec2 textSize = ImGui::CalcTextSize(map_ids_text.c_str());
+                        float availableWidth = ImGui::GetContentRegionAvail().x;
+
+                        if (textSize.x > availableWidth)
+                        {
+                            // Truncate the text to fit the available width
+                            std::string truncatedMapIdsText =
+                                truncate_text_with_ellipsis(map_ids_text, availableWidth);
+
+                            // Display the truncated text
+                            ImGui::TextUnformatted(truncatedMapIdsText.c_str());
+
+                            // Check if the mouse is hovering over the text
+                            if (ImGui::IsItemHovered())
                             {
-                                // Create a new directory name using the item's hash
-                                std::wstring newDirName = L"gwmb_map_" + std::to_wstring(item.hash);
-
-                                // Append the new directory name to the existing path
-                                std::filesystem::path newDirPath = std::filesystem::path(savePath) / newDirName;
-
-                                // Check if the directory exists and if not, create it
-                                if (!exists(newDirPath))
-                                {
-                                    create_directory(newDirPath);
-                                }
-
-                                // Since the `export_map` function requires a std::string, we need to convert the path
-                                std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-                                std::string newDirPathStr = converter.to_bytes(newDirPath.native());
-
-                                map_exporter::export_map(newDirPathStr, item.hash, item.id, dat_manager, hash_index, map_renderer->GetTextureManager());
+                                // Show a tooltip with the full list of map_ids
+                                ImGui::BeginTooltip();
+                                ImGui::TextUnformatted(map_ids_text.c_str());
+                                ImGui::EndTooltip();
                             }
                         }
-                        if (ImGui::MenuItem("Export Terrain Mesh as .obj"))
+                        else
                         {
-                            std::wstring savePath =
-                                OpenFileDialog(std::format(L"height_map_0x{:X}", item.hash), L"obj");
-                            if (!savePath.empty())
-                            {
-                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
-                                const auto& terrain_mesh = terrain.get()->get_mesh();
-                                const auto obj_file_str = write_obj_str(terrain_mesh);
-
-                                std::string savePathStr(savePath.begin(), savePath.end());
-
-                                std::ofstream outFile(savePathStr);
-                                if (outFile.is_open())
-                                {
-                                    outFile << obj_file_str;
-                                    outFile.close();
-                                }
-                                else
-                                {
-                                    // Error handling
-                                }
-                            }
-                        }
-                        else if (ImGui::MenuItem("Export heightmap as .tiff"))
-                        {
-                            std::wstring savePath = OpenFileDialog(std::format(L"terrain_height_map_0x{:X}", item.hash),
-                                L"tiff");
-                            if (!savePath.empty())
-                            {
-                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
-                                const auto& terrain_mesh = terrain.get()->get_heightmap_grid();
-                                // Assuming the accessor function is available.
-
-                                // Convert the savePath to a string
-                                std::string save_path_str(savePath.begin(), savePath.end());
-
-                                // Write the BMP file
-                                if (!write_heightmap_tiff(terrain_mesh, save_path_str.c_str()))
-                                {
-                                    // Error handling
-                                }
-                            }
-                        }
-                        else if (ImGui::MenuItem("Export terrain texture indices as .tiff"))
-                        {
-                            std::wstring savePath = OpenFileDialog(std::format(L"terrain_tex_indices_0x{:X}", item.hash),
-                                L"tiff");
-                            if (!savePath.empty())
-                            {
-                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
-                                const auto& terrain_texture_indices = terrain.get()->get_texture_index_grid();
-                                // Assuming the accessor function is available.
-
-                                // Convert the savePath to a string
-                                std::string save_path_str(savePath.begin(), savePath.end());
-
-                                // Write the BMP file
-                                if (!write_terrain_ints_tiff(terrain_texture_indices, save_path_str.c_str()))
-                                {
-                                    // Error handling
-                                }
-                            }
-                        }
-                        else if (ImGui::MenuItem("Export terrain shadow map as .tiff"))
-                        {
-                            std::wstring savePath = OpenFileDialog(std::format(L"terrain_shadow_map_0x{:X}", item.hash),
-                                L"tiff");
-                            if (!savePath.empty())
-                            {
-                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
-                                const auto& terrain_unknown = terrain.get()->get_terrain_shadow_map_grid();
-                                // Assuming the accessor function is available.
-
-                                // Convert the savePath to a string
-                                std::string save_path_str(savePath.begin(), savePath.end());
-
-                                // Write the BMP file
-                                if (!write_terrain_ints_tiff(terrain_unknown, save_path_str.c_str()))
-                                {
-                                    // Error handling
-                                }
-                            }
-                        }
-                    }
-
-                    ImGui::EndPopup();
-                }
-                ImGui::TableNextColumn();
-
-                const auto file_hash_text = std::format("0x{:X} ({})", item.hash, item.hash);
-                ImGui::Text(file_hash_text.c_str());
-                ImGui::TableNextColumn();
-
-                const auto filename_text = std::format("0x{:X} 0x{:X}", item.file_id_0, item.file_id_1);
-                ImGui::Text(filename_text.c_str());
-                ImGui::TableNextColumn();
-
-
-                if (!item.names.empty())
-                {
-                    std::string name;
-                    for (int i = 0; i < item.names.size(); i++)
-                    {
-                        name += item.names[i];
-                        if (i < item.names.size() - 1) { name += " | "; }
-                    }
-
-                    // Check if the text would be clipped
-                    ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
-                    float availableWidth = ImGui::GetContentRegionAvail().x;
-
-                    if (textSize.x > availableWidth)
-                    {
-                        // Truncate the text to fit the available width
-                        std::string truncatedName = truncate_text_with_ellipsis(name, availableWidth);
-
-                        // Display the truncated text
-                        ImGui::TextUnformatted(truncatedName.c_str());
-
-                        // Check if the mouse is hovering over the text
-                        if (ImGui::IsItemHovered())
-                        {
-                            // Show a tooltip with the full list of names
-                            ImGui::BeginTooltip();
-                            ImGui::TextUnformatted(name.c_str());
-                            ImGui::EndTooltip();
-                        }
-                    }
-                    else
-                    {
-                        // Display the full text without truncation
-                        ImGui::TextUnformatted(name.c_str());
-                    }
-                }
-                else { ImGui::Text("-"); }
-
-                ImGui::TableNextColumn();
-                ImGui::Text(typeToString(item.type).c_str());
-                ImGui::TableNextColumn();
-                ImGui::Text("%04d", item.size);
-                ImGui::TableNextColumn();
-                ImGui::Text("%04d", item.decompressed_size);
-                ImGui::TableNextColumn();
-                if (item.type == FFNA_Type3)
-                {
-                    std::string map_ids_text;
-                    for (int i = 0; i < item.map_ids.size(); i++)
-                    {
-                        map_ids_text += std::format("{}", item.map_ids[i]);
-                        if (i < item.map_ids.size() - 1) { map_ids_text += ","; }
-                    }
-
-                    // Check if the text would be clipped
-                    ImVec2 textSize = ImGui::CalcTextSize(map_ids_text.c_str());
-                    float availableWidth = ImGui::GetContentRegionAvail().x;
-
-                    if (textSize.x > availableWidth)
-                    {
-                        // Truncate the text to fit the available width
-                        std::string truncatedMapIdsText =
-                            truncate_text_with_ellipsis(map_ids_text, availableWidth);
-
-                        // Display the truncated text
-                        ImGui::TextUnformatted(truncatedMapIdsText.c_str());
-
-                        // Check if the mouse is hovering over the text
-                        if (ImGui::IsItemHovered())
-                        {
-                            // Show a tooltip with the full list of map_ids
-                            ImGui::BeginTooltip();
+                            // Display the full text without truncation
                             ImGui::TextUnformatted(map_ids_text.c_str());
-                            ImGui::EndTooltip();
                         }
                     }
-                    else
-                    {
-                        // Display the full text without truncation
-                        ImGui::TextUnformatted(map_ids_text.c_str());
-                    }
-                }
-                else { ImGui::Text("-"); }
-                ImGui::TableNextColumn();
+                    else { ImGui::Text("-"); }
+                    ImGui::TableNextColumn();
 
-                // Display the checkboxes only if there is enough room for all of them.
-                // If there is not enough room, display a single checkbox if all checkboxes share the same value (either all true or all false), or display '...' otherwise.
-                if (item.type == FFNA_Type3 && item.is_pvp.size() > 0)
-                {
-                    ImVec2 checkboxSize = ImGui::CalcTextSize("[ ]");
-                    float availableWidth = ImGui::GetContentRegionAvail().x;
-                    float requiredWidth = checkboxSize.x * item.is_pvp.size() +
-                        (item.is_pvp.size() - 1) * ImGui::GetStyle().ItemSpacing.x;
+                    // Display the checkboxes only if there is enough room for all of them.
+                    // If there is not enough room, display a single checkbox if all checkboxes share the same value (either all true or all false), or display '...' otherwise.
+                    if (item.type == FFNA_Type3 && item.is_pvp.size() > 0)
+                    {
+                        ImVec2 checkboxSize = ImGui::CalcTextSize("[ ]");
+                        float availableWidth = ImGui::GetContentRegionAvail().x;
+                        float requiredWidth = checkboxSize.x * item.is_pvp.size() +
+                            (item.is_pvp.size() - 1) * ImGui::GetStyle().ItemSpacing.x;
 
-                    bool allTrue =
-                        std::all_of(item.is_pvp.begin(), item.is_pvp.end(), [](int v) { return v >= 1; });
-                    bool allFalse =
-                        std::all_of(item.is_pvp.begin(), item.is_pvp.end(), [](int v) { return v < 1; });
+                        bool allTrue =
+                            std::all_of(item.is_pvp.begin(), item.is_pvp.end(), [](int v) { return v >= 1; });
+                        bool allFalse =
+                            std::all_of(item.is_pvp.begin(), item.is_pvp.end(), [](int v) { return v < 1; });
 
-                    if (allTrue || allFalse)
-                    {
-                        ImGui::BeginDisabled(); // Disable the checkbox to make it non-editable
-                        ImGui::Checkbox("##IsPvp",
-                            &allTrue); // Show a single checkbox with the respective value
-                        ImGui::EndDisabled();
-                    }
-                    else if (requiredWidth > availableWidth)
-                    {
-                        ImGui::TextUnformatted("..."); // Not enough space and mixed values, show '...'
-                    }
-                    else
-                    {
-                        for (int i = 0; i < item.is_pvp.size(); i++)
+                        if (allTrue || allFalse)
                         {
-                            ImGui::PushID(i);
                             ImGui::BeginDisabled(); // Disable the checkbox to make it non-editable
-                            ImGui::Checkbox(("##IsPvp" + std::to_string(i)).c_str(), (bool*)&item.is_pvp[i]);
+                            ImGui::Checkbox("##IsPvp",
+                                &allTrue); // Show a single checkbox with the respective value
                             ImGui::EndDisabled();
-                            ImGui::PopID();
+                        }
+                        else if (requiredWidth > availableWidth)
+                        {
+                            ImGui::TextUnformatted("..."); // Not enough space and mixed values, show '...'
+                        }
+                        else
+                        {
+                            for (int i = 0; i < item.is_pvp.size(); i++)
+                            {
+                                ImGui::PushID(i);
+                                ImGui::BeginDisabled(); // Disable the checkbox to make it non-editable
+                                ImGui::Checkbox(("##IsPvp" + std::to_string(i)).c_str(), (bool*)&item.is_pvp[i]);
+                                ImGui::EndDisabled();
+                                ImGui::PopID();
 
-                            if (i < item.is_pvp.size() - 1) { ImGui::SameLine(); }
+                                if (i < item.is_pvp.size() - 1) { ImGui::SameLine(); }
+                            }
                         }
                     }
+                    else { ImGui::Text("-"); }
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%u", item.murmurhash3);
+
+                    ImGui::PopID();
                 }
-                else { ImGui::Text("-"); }
-
-                ImGui::TableNextColumn();
-                ImGui::Text("%u", item.murmurhash3);
-
-                ImGui::PopID();
-            }
-        ImGui::EndTable();
+            ImGui::EndTable();
+        }
     }
 
     ImGui::End();

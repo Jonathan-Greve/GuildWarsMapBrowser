@@ -12,6 +12,7 @@
 #include "draw_picking_info.h"
 #include "draw_dat_compare_panel.h"
 #include "draw_file_info_editor_panel.h"
+#include <draw_gui_window_controller.h>
 
 extern FileType selected_file_type;
 extern HSTREAM selected_audio_stream_handle;
@@ -33,6 +34,8 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
     }
     else
     {
+        draw_gui_window_controller();
+
         const auto& initialization_state = dat_managers[dat_manager_to_show]->m_initialization_state;
         const auto& dat_files_read = dat_managers[dat_manager_to_show]->get_num_files_type_read();
         const auto& dat_total_files = dat_managers[dat_manager_to_show]->get_num_files();
@@ -44,8 +47,14 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
         if (initialization_state == InitializationState::Completed)
         {
             draw_data_browser(dat_managers[dat_manager_to_show].get(), map_renderer, dat_manager_to_show_changed, dat_compare_filter_result, dat_compare_filter_result_changed, csv_data, custom_file_info_changed);
-            draw_left_panel(map_renderer);
-            draw_right_panel(map_renderer);
+            
+            if (GuiGlobalConstants::is_left_panel_open) {
+                draw_left_panel(map_renderer);
+            }
+            if (GuiGlobalConstants::is_right_panel_open) {
+                draw_right_panel(map_renderer);
+            }
+            
             dat_compare_filter_result_changed = false;
             draw_dat_compare_panel(dat_managers, dat_manager_to_show, dat_compare_filter_result, dat_compare_filter_result_changed);
             

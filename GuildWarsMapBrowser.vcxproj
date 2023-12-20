@@ -225,6 +225,7 @@
     <ClInclude Include="SourceFiles\DATManager.h" />
     <ClInclude Include="SourceFiles\draw_dat_compare_panel.h" />
     <ClInclude Include="SourceFiles\draw_file_info_editor_panel.h" />
+    <ClInclude Include="SourceFiles\draw_gui_window_controller.h" />
     <ClInclude Include="SourceFiles\json.hpp" />
     <ClInclude Include="SourceFiles\map_exporter.h" />
     <ClInclude Include="SourceFiles\model_exporter.h" />
@@ -397,6 +398,7 @@
     <ClCompile Include="SourceFiles\draw_dat_load_progress_bar.cpp" />
     <ClCompile Include="SourceFiles\draw_file_info_editor_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_gui_for_open_dat_file.cpp" />
+    <ClCompile Include="SourceFiles\draw_gui_window_controller.cpp" />
     <ClCompile Include="SourceFiles\draw_hex_editor_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_left_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_map_info_chunk.cpp" />
