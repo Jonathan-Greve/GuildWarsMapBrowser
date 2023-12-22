@@ -25,11 +25,27 @@ public:
         D3D11_BUFFER_DESC ibDesc = {};
         ibDesc.Usage = D3D11_USAGE_IMMUTABLE;
         ibDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-        ibDesc.ByteWidth = sizeof(uint32_t) * m_mesh.indices.size();
         ibDesc.StructureByteStride = sizeof(uint32_t);
+
+        // High LOD indices
+        ibDesc.ByteWidth = sizeof(uint32_t) * m_mesh.indices.size();
         D3D11_SUBRESOURCE_DATA ibData = {};
         ibData.pSysMem = m_mesh.indices.data();
-        device->CreateBuffer(&ibDesc, &ibData, &m_indexBuffer);
+        device->CreateBuffer(&ibDesc, &ibData, &m_indexBuffer_high);
+
+        // Medium LOD indices
+        if (m_mesh.indices1.size() > 0) {
+            ibDesc.ByteWidth = sizeof(uint32_t) * m_mesh.indices1.size();
+            ibData.pSysMem = m_mesh.indices1.data();
+            device->CreateBuffer(&ibDesc, &ibData, &m_indexBuffer_medium);
+        }
+
+        // Low LOD indices
+        if (m_mesh.indices2.size() > 0) {
+            ibDesc.ByteWidth = sizeof(uint32_t) * m_mesh.indices2.size();
+            ibData.pSysMem = m_mesh.indices2.data();
+            device->CreateBuffer(&ibDesc, &ibData, &m_indexBuffer_low);
+        }
     }
 
     ~MeshInstance() { }
@@ -58,23 +74,50 @@ public:
 
     const Mesh& GetMesh() { return m_mesh; }
 
-    void Draw(ID3D11DeviceContext* context)
+    void Draw(ID3D11DeviceContext* context, LODQuality lod_quality)
     {
         UINT stride = sizeof(GWVertex);
         UINT offset = 0;
         context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
-        context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+        int num_indices = 0;
+
+        switch (lod_quality)
+        {
+        case LODQuality::High:
+            context->IASetIndexBuffer(m_indexBuffer_high.Get(), DXGI_FORMAT_R32_UINT, 0);
+            num_indices = m_mesh.indices.size();
+            break;
+        case LODQuality::Medium:
+            // Fallthrough to next case if indices are empty
+            if (m_mesh.indices1.size() > 0) {
+                context->IASetIndexBuffer(m_indexBuffer_medium.Get(), DXGI_FORMAT_R32_UINT, 0);
+                num_indices = m_mesh.indices1.size();
+                break;
+            }
+        case LODQuality::Low:
+            // Fallthrough to next case if indices are empty
+            if (m_mesh.indices2.size() > 0) {
+                context->IASetIndexBuffer(m_indexBuffer_low.Get(), DXGI_FORMAT_R32_UINT, 0);
+                num_indices = m_mesh.indices2.size();
+                break;
+            }
+        default:
+            context->IASetIndexBuffer(m_indexBuffer_high.Get(), DXGI_FORMAT_R32_UINT, 0);
+            num_indices = m_mesh.indices.size();
+            break;
+        }
 
         for (int slot = 0; slot < 4; ++slot)
         {
             if (m_textures[slot].size() > 0)
             {
-				context->PSSetShaderResources(slot, m_textures[slot].size(),
-                                          m_textures[slot].data()->GetAddressOf());
+                context->PSSetShaderResources(slot, m_textures[slot].size(),
+                    m_textures[slot].data()->GetAddressOf());
             }
         }
 
-        context->DrawIndexed(m_mesh.indices.size(), 0, 0);
+        context->DrawIndexed(num_indices, 0, 0);
     }
 
 private:
@@ -83,6 +126,9 @@ private:
     PerObjectCB m_per_object_data;
 
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
-    Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer_high; // High LOD
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer_medium; // Medium LOD
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer_low; // Low LOD
+
     std::array<std::vector<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>, 4> m_textures;
 };

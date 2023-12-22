@@ -20,10 +20,16 @@ void draw_right_panel(MapRenderer* map_renderer)
     float window_height = 0;
     if (ImGui::Begin("Render settings", NULL, window_flags))
     {
-
         static float water_level = 0.0f;
         static float terrain_tex_pad_x = 0.03f;
         static float terrain_tex_pad_y = 0.03f;
+
+        int lod_quality = static_cast<uint8_t>(map_renderer->GetLODQuality());
+        if (ImGui::Combo("LOD Quality", &lod_quality,
+            "High\0Medium\0Low\0"))
+        {
+            map_renderer->SetLODQuality(static_cast<LODQuality>(lod_quality));
+        }
 
         auto terrain = map_renderer->GetTerrain();
         if (terrain)

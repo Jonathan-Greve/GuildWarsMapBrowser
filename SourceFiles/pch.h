@@ -187,3 +187,9 @@ inline std::optional<std::filesystem::path> save_last_filepath(const std::filesy
 
     return std::nullopt;
 }
+
+enum class LODQuality : uint8_t {
+    High, // Best quality
+    Medium, // Medium quality
+    Low, // Lowset quality
+};
