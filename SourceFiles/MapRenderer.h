@@ -420,6 +420,14 @@ public:
     TextureManager* GetTextureManager() { return m_texture_manager.get(); }
     MeshManager* GetMeshManager() { return m_mesh_manager.get(); }
 
+    void SetLODQuality(const LODQuality new_lod_quality) {
+        m_lod_quality = new_lod_quality;
+    }
+
+    LODQuality GetLODQuality() const {
+        return m_lod_quality;
+    }
+
     void Update(const float dt)
     {
         // Walk
@@ -468,7 +476,7 @@ public:
     void Render()
     {
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-                               m_stencil_state_manager.get(), m_user_camera->GetPosition3f());
+                               m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
     }
 
     void AddBox(float x, float y, float z, float size, 
@@ -528,4 +536,6 @@ private:
 
     DirectionalLight m_directionalLight;
     bool m_per_frame_cb_changed = true;
+
+    LODQuality m_lod_quality = LODQuality::High;
 };

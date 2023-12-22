@@ -247,7 +247,7 @@ public:
 
 	void Render(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
 	            BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
-	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position)
+	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality)
 	{
 		static D3D11_PRIMITIVE_TOPOLOGY currentTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
 		static auto current_ps_shader_type = PixelShaderType::OldModel;
@@ -301,7 +301,7 @@ public:
 			memcpy(mappedResource.pData, &transposedData, sizeof(PerObjectCB));
 			m_deviceContext->Unmap(m_perObjectCB.Get(), 0);
 
-			command.meshInstance->Draw(m_deviceContext);
+			command.meshInstance->Draw(m_deviceContext, lod_quality);
 		}
 	}
 
