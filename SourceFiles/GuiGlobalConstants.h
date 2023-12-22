@@ -9,8 +9,8 @@ public:
 
     inline static bool hide_all = false;
     inline static bool is_dat_browser_open = true;
-    inline static bool is_dat_browser_resizeable = true;
-    inline static bool is_dat_browser_movable = true;
+    inline static bool is_dat_browser_resizeable = false;
+    inline static bool is_dat_browser_movable = false;
     inline static bool is_left_panel_open = true;
     inline static bool is_right_panel_open = true;
     inline static bool is_hex_editor_open = true;

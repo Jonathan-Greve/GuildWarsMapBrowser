@@ -146,7 +146,7 @@ namespace nlohmann {
 class map_exporter
 {
 public:
-    static bool export_map(const std::string& save_directory, const int map_filehash, const int map_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
+    static bool export_map(const std::wstring& save_directory, const int map_filehash, const int map_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
         // Build model
         gwmb_map map;
         const bool success = generate_gwmb_map(save_directory, map, map_mft_index, dat_manager, hash_index, texture_manager, map_filehash);
@@ -169,7 +169,7 @@ public:
     }
 
 private:
-    static bool generate_gwmb_map(const std::string& save_directory, gwmb_map& map, int map_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, int map_filehash) {
+    static bool generate_gwmb_map(const std::wstring& save_directory, gwmb_map& map, int map_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, int map_filehash) {
         auto map_file = dat_manager->parse_ffna_map_file(map_mft_index);
 
         map.filehash = map_filehash;
@@ -212,10 +212,9 @@ private:
                         gwmb_texture_i.width = dat_texture.width;
                         gwmb_texture_i.texture_type = dat_texture.texture_type;
 
-                        ID3D11ShaderResourceView* texture =
-                            texture_manager->GetTexture(texture_id);
+                        ID3D11ShaderResourceView* texture = texture_manager->GetTexture(texture_id);
 
-                        std::string texture_save_path = save_directory + "\\" + std::to_string(gwmb_texture_i.file_hash) + ".png";
+                        std::wstring texture_save_path = save_directory + L"\\" + std::to_wstring(gwmb_texture_i.file_hash) + L".png";
                         std::wstring texture_save_pathw = std::wstring(texture_save_path.begin(), texture_save_path.end());
 
                         if (!SaveTextureToPng(texture, texture_save_pathw, texture_manager))
@@ -249,7 +248,7 @@ private:
             ID3D11ShaderResourceView* texture =
                 texture_manager->GetTexture(terrain_tex_atlas_tex_id);
 
-            std::string texture_save_path = save_directory + "\\" + "atlas_" + std::to_string(map_filehash) + ".png";
+            std::wstring texture_save_path = save_directory + L"\\" + L"atlas_" + std::to_wstring(map_filehash) + L".png";
             std::wstring texture_save_pathw = std::wstring(texture_save_path.begin(), texture_save_path.end());
 
             if (!SaveTextureToPng(texture, texture_save_pathw, texture_manager))
@@ -318,7 +317,7 @@ private:
                     const auto entry = dat_manager->get_MFT()[mft_entry_it->second.at(0)];
                     if (entry.type == FFNA_Type2) {
                         // Export model to map folder
-                        model_exporter::export_model(save_directory, std::format("model_0x{:X}_gwmb.json", decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
+                        model_exporter::export_model(save_directory, std::format(L"model_0x{:X}_gwmb.json", decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
                         model_hashes.push_back(decoded_filename);
                     }
                 }
@@ -335,7 +334,7 @@ private:
                     const auto entry = dat_manager->get_MFT()[mft_entry_it->second.at(0)];
                     if (entry.type == FFNA_Type2) {
                         // Export model to map folder
-                        model_exporter::export_model(save_directory, std::format("model_0x{:X}_gwmb.json", decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
+                        model_exporter::export_model(save_directory, std::format(L"model_0x{:X}_gwmb.json", decoded_filename), mft_entry_it->second.at(0), dat_manager, hash_index, texture_manager);
                         model_hashes.push_back(decoded_filename);
                     }
                 }
