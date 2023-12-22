@@ -472,8 +472,8 @@ void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                     decode_filename(selected_ffna_map_file.terrain_texture_filenames.array[i].filename.id0,
                         selected_ffna_map_file.terrain_texture_filenames.array[i].filename.id1);
 
-                // Jade Quarry, Island of Jade. Each on them uses a normal map as their first texture.
-                if (decoded_filename == 0x25e09 || decoded_filename == 0x00028615)
+                // Jade Quarry, Island of Jade and The Antechamber . Each on them uses a normal map as their first texture.
+                if (decoded_filename == 0x25e09 || decoded_filename == 0x00028615 || decoded_filename == 0x46db6)
                 {
                     continue;
                 }
