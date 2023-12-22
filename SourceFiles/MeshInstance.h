@@ -41,7 +41,7 @@ public:
 
     void SetTextures(const std::vector<ID3D11ShaderResourceView*>& textures, int slot)
     {
-        assert(slot < 4); // Ensure slot is 2 at most (increase if neccessary)
+        assert(slot < 4); // Ensure slot is 4 at most (increase if neccessary)
 
         if (textures.size() >= MAX_NUM_TEX_INDICES)
         {
