@@ -1438,12 +1438,11 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                 if (!saveDir.empty())
                                 {
                                     // Use std::format to create the filename
-                                    std::string filename = std::format("model_0x{:X}_gwmb.json", item.hash);
+                                    std::wstring filename = std::format(L"model_0x{:X}_gwmb.json", item.hash);
 
-                                    std::string savePath(saveDir.begin(), saveDir.end());
 
                                     // Export the model to the chosen path
-                                    model_exporter::export_model(savePath, filename, item.id, dat_manager, hash_index, map_renderer->GetTextureManager());
+                                    model_exporter::export_model(saveDir, filename, item.id, dat_manager, hash_index, map_renderer->GetTextureManager());
                                 }
                             }
                             if (ImGui::MenuItem("Export Mesh"))
@@ -1455,9 +1454,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                     parse_file(dat_manager, item.id, map_renderer, hash_index, items);
                                     const auto obj_file_str = write_obj_str(prop_meshes);
 
-                                    std::string savePathStr(savePath.begin(), savePath.end());
-
-                                    std::ofstream outFile(savePathStr);
+                                    std::ofstream outFile(savePath);
                                     if (outFile.is_open())
                                     {
                                         outFile << obj_file_str;
@@ -1483,16 +1480,12 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                         const auto obj_file_str = write_obj_str(&prop_mesh);
 
                                         // Generate unique file name
-                                        std::string filename =
-                                            std::format("model_mesh_0x{:X}_{}.obj", item.hash, prop_mesh_index);
+                                        std::wstring filename = std::format(L"model_mesh_0x{:X}_{}.obj", item.hash, prop_mesh_index);
 
                                         // Append the filename to the saveDir
-                                        std::wstring savePath =
-                                            saveDir + L"\\" + std::wstring(filename.begin(), filename.end());
+                                        std::wstring savePath = saveDir + L"\\" + filename;
 
-                                        std::string savePathStr(savePath.begin(), savePath.end());
-
-                                        std::ofstream outFile(savePathStr);
+                                        std::ofstream outFile(savePath);
                                         if (outFile.is_open())
                                         {
                                             outFile << obj_file_str;
@@ -1524,12 +1517,11 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                         int texture_id = map_renderer->GetTextureManager()->
                                             GetTextureIdByHash(decoded_filename);
 
-                                        std::string filename = std::format("model_0x{:X}_tex_index{}_texture_0x{:X}.png",
+                                        std::wstring filename = std::format(L"model_0x{:X}_tex_index{}_texture_0x{:X}.png",
                                             item.hash, tex_index, decoded_filename);
 
                                         // Append the filename to the saveDir
-                                        std::wstring savePath =
-                                            saveDir + L"\\" + std::wstring(filename.begin(), filename.end());
+                                        std::wstring savePath = saveDir + L"\\" + filename;
 
                                         ID3D11ShaderResourceView* texture =
                                             map_renderer->GetTextureManager()->GetTexture(texture_id);
@@ -1565,11 +1557,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                         create_directory(newDirPath);
                                     }
 
-                                    // Since the `export_map` function requires a std::string, we need to convert the path
-                                    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-                                    std::string newDirPathStr = converter.to_bytes(newDirPath.native());
-
-                                    map_exporter::export_map(newDirPathStr, item.hash, item.id, dat_manager, hash_index, map_renderer->GetTextureManager());
+                                    map_exporter::export_map(newDirPath, item.hash, item.id, dat_manager, hash_index, map_renderer->GetTextureManager());
                                 }
                             }
                             if (ImGui::MenuItem("Export Terrain Mesh as .obj"))
