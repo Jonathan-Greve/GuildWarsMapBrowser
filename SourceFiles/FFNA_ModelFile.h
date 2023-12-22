@@ -1202,6 +1202,8 @@ struct FFNA_ModelFile
     {
         std::vector<GWVertex> vertices;
         std::vector<uint32_t> indices;
+        std::vector<uint32_t> indices1;
+        std::vector<uint32_t> indices2;
 
         auto sub_model = geometry_chunk.models[model_index];
 
@@ -1293,7 +1295,8 @@ struct FFNA_ModelFile
             vertices.push_back(vertex);
         }
 
-        for (int i = 0; i < sub_model.indices.size(); i += 3)
+        // Highest quality LOD indices
+        for (int i = 0; i < sub_model.num_indices0; i += 3)
         {
             int index0 = sub_model.indices[i];
             int index1 = sub_model.indices[i + 1];
@@ -1307,6 +1310,53 @@ struct FFNA_ModelFile
             indices.push_back(index0);
             indices.push_back(index1);
             indices.push_back(index2);
+        }
+
+        // Medium quality LOD indices
+        bool has_med_lod = false;
+        if (sub_model.num_indices0 != sub_model.num_indices1) {
+            has_med_lod = true;
+            for (int i = sub_model.num_indices0; i < sub_model.num_indices0 + sub_model.num_indices1; i += 3)
+            {
+                int index0 = sub_model.indices[i];
+                int index1 = sub_model.indices[i + 1];
+                int index2 = sub_model.indices[i + 2];
+
+                if (index0 >= vertices.size() || index1 >= vertices.size() || index2 >= vertices.size())
+                {
+                    return Mesh();
+                }
+
+                indices1.push_back(index0);
+                indices1.push_back(index1);
+                indices1.push_back(index2);
+            }
+        }
+        else {
+            indices1 = indices;
+        }
+
+        // Low quality LOD indices
+        if (sub_model.num_indices0 != sub_model.num_indices2 && sub_model.num_indices1 != sub_model.num_indices2) {
+            int indices_offset = has_med_lod ? sub_model.num_indices0 + sub_model.num_indices1 : sub_model.num_indices0;
+            for (int i = indices_offset; i < indices_offset + sub_model.num_indices2; i += 3)
+            {
+                int index0 = sub_model.indices[i];
+                int index1 = sub_model.indices[i + 1];
+                int index2 = sub_model.indices[i + 2];
+
+                if (index0 >= vertices.size() || index1 >= vertices.size() || index2 >= vertices.size())
+                {
+                    return Mesh();
+                }
+
+                indices2.push_back(index0);
+                indices2.push_back(index1);
+                indices2.push_back(index2);
+            }
+        }
+        else {
+            indices2 = indices1;
         }
 
         std::vector<uint8_t> uv_coords_indices;
@@ -1518,7 +1568,7 @@ struct FFNA_ModelFile
             }
         }
 
-        return Mesh(vertices, indices, uv_coords_indices, tex_indices, blend_flags, texture_types, should_cull, blend_state,
+        return Mesh(vertices, indices, indices1, indices2, uv_coords_indices, tex_indices, blend_flags, texture_types, should_cull, blend_state,
                     tex_indices.size());
     }
 };
