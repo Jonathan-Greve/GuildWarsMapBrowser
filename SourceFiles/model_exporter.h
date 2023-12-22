@@ -238,8 +238,8 @@ namespace nlohmann {
 // Step 2) Write the data to a .gwmb file. A custom data format to be used when importing into other programs like Blender.
 class model_exporter {
 public:
-    static bool export_model(const std::string& save_dir, const std::string& filename, const int model_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
-        std::string saveFilePath = save_dir + "\\" + filename;
+    static bool export_model(const std::wstring& save_dir, const std::wstring& filename, const int model_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
+        std::wstring saveFilePath = save_dir + L"\\" + filename;
 
         if (std::filesystem::exists(saveFilePath)) {
             return true; // Return immediately if the file already exists
@@ -270,7 +270,7 @@ public:
     }
 
 private:
-    static bool generate_gwmb_model(gwmb_model& model_out, int model_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const std::string& save_dir) {
+    static bool generate_gwmb_model(gwmb_model& model_out, int model_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const std::wstring& save_dir) {
         auto model_file = dat_manager->parse_ffna_model_file(model_mft_index);
 
         if (!model_file.parsed_correctly)
@@ -322,10 +322,9 @@ private:
                 ID3D11ShaderResourceView* texture =
                     texture_manager->GetTexture(texture_id);
 
-                std::string texture_save_path = save_dir + "\\" + std::to_string(gwmb_texture_i.file_hash) + ".png";
-                std::wstring texture_save_pathw = std::wstring(texture_save_path.begin(), texture_save_path.end());
+                std::wstring texture_save_path = save_dir + L"\\" + std::to_wstring(gwmb_texture_i.file_hash) + L".png";
 
-                if (!SaveTextureToPng(texture, texture_save_pathw, texture_manager))
+                if (!SaveTextureToPng(texture, texture_save_path, texture_manager))
                 {
                     throw "Unable to save texture to png while exporting model";
                 }
