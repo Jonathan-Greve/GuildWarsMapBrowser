@@ -1,9 +1,12 @@
 # Guild Wars Map Browser
 Browse the Guild Wars .dat file. Included features:
-- Searching and filtering the internal files in the dat.
-- Rendering 3D terrains for all maps.
-- Fly around in and explore the maps in first person.
+- Search and filter the internal files in the dat.
+- Render all maps + maps not accesible in-game.
+- Fly around and explore the maps in first person.
 - Export and import full maps and models to Blender.
+- View and export different model/mesh LODs (level of detail): High, Medium Low.
+- Compare and switch between multiple .dat files easily.
+- Give each file inside the .dat a custom name for easy reference. Or load the data provided by other users (shared through csv files).
 - Hex editor viewer of files.
 - Playback of audio files.
 - Extract 3D models and textures.
