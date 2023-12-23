@@ -67,8 +67,16 @@ struct gwmb_submodel {
 
     // Faces are in counter-clockwise order.
     // Each consecutive 3 indices represents a face so: indices.size() % 3 == 0 and indices.size() > 0.
+    // These indices are used for the "High" (best quality) LOD.
     std::vector<int> indices;
 
+    // Indices for medium and low quality LODs.
+    std::vector<int> indices_med;
+    std::vector<int> indices_low;
+
+    // Flags telling us if the model has medium or low LOD indices.
+    bool has_med_lod;
+    bool has_low_lod;
 
     // The index of the texture to use for each UV map. The vector has length: num_texcoords
     std::vector<int> texture_indices;
@@ -198,6 +206,10 @@ namespace nlohmann {
             j = json{
                 {"vertices", s.vertices},
                 {"indices", s.indices},
+                {"indices_med", s.indices_med},
+                {"indices_low", s.indices_low},
+                {"has_med_lod", s.has_med_lod},
+                {"has_low_lod", s.has_low_lod},
                 {"texture_indices", s.texture_indices},
                 {"texture_uv_map_index", s.texture_uv_map_index},
                 {"texture_blend_flags", s.texture_blend_flags},
@@ -208,6 +220,10 @@ namespace nlohmann {
         static void from_json(const json& j, gwmb_submodel& s) {
             j.at("vertices").get_to(s.vertices);
             j.at("indices").get_to(s.indices);
+            j.at("indices_med").get_to(s.indices_med);
+            j.at("indices_low").get_to(s.indices_low);
+            j.at("has_med_lod").get_to(s.has_med_lod);
+            j.at("has_low_lod").get_to(s.has_low_lod);
             j.at("texture_indices").get_to(s.texture_indices);
             j.at("texture_uv_map_index").get_to(s.texture_uv_map_index);
             j.at("texture_blend_flags").get_to(s.texture_blend_flags);
@@ -364,11 +380,39 @@ private:
                 gwmb_submodel_i.vertices[j] = new_gwmb_vertex;
             }
 
-            // Add indices to gwmb_submodel
-            gwmb_submodel_i.indices.resize(submodel.indices.size());
-            for (int j = 0; j < submodel.indices.size(); j++) {
+            // Add High LOD indices to gwmb_submodel
+            gwmb_submodel_i.indices.resize(submodel.num_indices0);
+            for (int j = 0; j < submodel.num_indices0; j++) {
                 const auto index = submodel.indices[j];
                 gwmb_submodel_i.indices[j] = index;
+            }
+
+            if (submodel.num_indices0 != submodel.num_indices1) {
+                gwmb_submodel_i.has_med_lod = true;
+
+                gwmb_submodel_i.indices_med.resize(submodel.num_indices1);
+                int index_offset = submodel.num_indices0;
+                for (int j = 0; j < submodel.num_indices1; j++) {
+                    const auto index = submodel.indices[index_offset+j];
+                    gwmb_submodel_i.indices_med[j] = index;
+                }
+            }
+            else {
+                gwmb_submodel_i.has_med_lod = false;
+            }
+
+            if (submodel.num_indices0 != submodel.num_indices2 && submodel.num_indices1 != submodel.num_indices2) {
+                gwmb_submodel_i.has_low_lod = true;
+
+                int index_offset = gwmb_submodel_i.has_med_lod ? submodel.num_indices0 + submodel.num_indices1 : submodel.num_indices0;
+                gwmb_submodel_i.indices_low.resize(submodel.num_indices2);
+                for (int j = 0; j < submodel.num_indices2; j++) {
+                    const auto index = submodel.indices[index_offset + j];
+                    gwmb_submodel_i.indices_low[j] = index;
+                }
+            }
+            else {
+                gwmb_submodel_i.has_low_lod = false;
             }
 
             AMAT_file amat_file;

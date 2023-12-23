@@ -3,6 +3,24 @@ import json
 import os
 import numpy as np
 
+
+def hide_collection_in_view_layer(collection, view_layer):
+    # Recursively search for the matching LayerCollection
+    def recurse(layer_collections, target_collection):
+        for layer_collection in layer_collections.children:
+            if layer_collection.collection == target_collection:
+                return layer_collection
+            found = recurse(layer_collection, target_collection)
+            if found:
+                return found
+        return None
+
+    layer_collection = recurse(view_layer.layer_collection, collection)
+    if layer_collection:
+        layer_collection.hide_viewport = True
+
+
+
 def set_metric_space():
     bpy.context.scene.unit_settings.system = 'METRIC'
     bpy.context.scene.unit_settings.length_unit = 'METERS'
@@ -437,34 +455,53 @@ def create_mesh_from_json(context, directory, filename):
 
     # Ensure a collection for the model hash exists under the GWMB_Models collection
     model_collection = ensure_collection(context, model_hash, parent_collection=gwmb_collection)
+    high_collection = ensure_collection(context, "LOD_HIGH", parent_collection=model_collection)
 
     # Set the model's hash collection as the active collection
     layer_collection = bpy.context.view_layer.layer_collection.children[gwmb_collection.name].children[
         model_collection.name]
+        
     bpy.context.view_layer.active_layer_collection = layer_collection
 
     for idx, submodel in enumerate(data.get('submodels', [])):
         pixel_shader_type = submodel['pixel_shader_type']
         vertices_data = submodel.get('vertices', [])
-        indices = submodel.get('indices', [])
-
-        # Swap axis to match Blenders coordinate system.
-        # Also scale the vertices to be inches rather than meters. 1 Inch = 0.0254m. (Guild Wars uses GW Inches)
         vertices = [swap_axes(v['pos']) for v in vertices_data]
+        
+        has_med_lod = submodel['has_med_lod']
+        has_low_lod = submodel['has_low_lod']
+        
+        if (has_low_lod):
+            low_collection = ensure_collection(context, "LOD_LOW", parent_collection=model_collection)
+            indices_low = submodel.get('indices_low', [])
+            faces_low = [tuple(reversed(indices_low[i:i + 3])) for i in range(0, len(indices_low), 3)]
+            
+        if (has_med_lod):
+            med_collection = ensure_collection(context, "LOD_MEDIUM", parent_collection=model_collection)
+            indices_med = submodel.get('indices_med', [])
+            faces_med = [tuple(reversed(indices_med[i:i + 3])) for i in range(0, len(indices_med), 3)]
+        
+        indices_high = submodel.get('indices', [])
+        faces_high = [tuple(reversed(indices_high[i:i + 3])) for i in range(0, len(indices_high), 3)]        
 
         texture_blend_flags = submodel.get('texture_blend_flags', [])
 
         # Normals
         normals = [swap_axes(v['normal']) if v['has_normal'] else (0, 0, 1) for v in vertices_data]
 
-        # Faces
-        faces = [tuple(reversed(indices[i:i + 3])) for i in range(0, len(indices), 3)]
-
-        mesh = bpy.data.meshes.new(name="{}_submodel_{}".format(model_hash, idx))
-        mesh.from_pydata(vertices, [], faces)
-
-        # Set Normals
-        mesh.normals_split_custom_set_from_vertices(normals)
+        mesh_high = bpy.data.meshes.new(name="{}_submodel_{}_highLOD".format(model_hash, idx))
+        mesh_high.from_pydata(vertices, [], faces_high)
+        mesh_high.normals_split_custom_set_from_vertices(normals)
+        
+        if (has_med_lod):
+            mesh_med = bpy.data.meshes.new(name="{}_submodel_{}_mediumLOD".format(model_hash, idx))
+            mesh_med.from_pydata(vertices, [], faces_med)
+            mesh_med.normals_split_custom_set_from_vertices(normals)
+        
+        if (has_low_lod):
+            mesh_low = bpy.data.meshes.new(name="{}_submodel_{}_lowLOD".format(model_hash, idx))
+            mesh_low.from_pydata(vertices, [], faces_low)
+            mesh_low.normals_split_custom_set_from_vertices(normals)
 
         # Create material for the submodel
         texture_indices = submodel.get('texture_indices', [])
@@ -475,21 +512,36 @@ def create_mesh_from_json(context, directory, filename):
         # We also get the correct texture types for the selected textures above
         texture_types = [all_texture_types[i] for i in texture_indices]
 
-        uv_map_names = []
+        UVs = []
         for uv_index, tex_index in enumerate(uv_map_indices):
-            uv_layer_name = f"UV_{uv_index}"
-            uv_map_names.append(uv_layer_name)
-            uv_layer = mesh.uv_layers.new(name=uv_layer_name)
             uvs = []
             for vertex in vertices_data:
                 # In DirectX 11 (DX11), used by the Guild Wars Map Browser, the UV coordinate system originates at the top left with (0,0), meaning the V coordinate increases downwards.
                 # In Blender, however, the UV coordinate system originates at the bottom left with (0,0), so the V coordinate increases upwards.
                 # Therefore, to correctly map DX11 UVs to Blender's UV system, we subtract the V value from 1, effectively flipping the texture on the vertical axis.
-                uvs.append(
-                    (vertex['texture_uv_coords'][tex_index]['x'], 1 - vertex['texture_uv_coords'][tex_index]['y']))
-
-            for i, loop in enumerate(mesh.loops):
-                uv_layer.data[i].uv = uvs[loop.vertex_index]
+                uvs.append((vertex['texture_uv_coords'][tex_index]['x'], 1 - vertex['texture_uv_coords'][tex_index]['y']))
+            UVs.append(uvs)
+                
+        uv_map_names = []
+        for uv_index in range(len(uv_map_indices)):
+            uv_layer_name = f"UV_{uv_index}"
+            uv_map_names.append(uv_layer_name)
+            uvs = UVs[uv_index]
+            
+            uv_layer_high = mesh_high.uv_layers.new(name=uv_layer_name)
+            
+            for i, loop in enumerate(mesh_high.loops):
+                uv_layer_high.data[i].uv = uvs[loop.vertex_index]
+                
+            if (has_med_lod):
+                uv_layer_med = mesh_med.uv_layers.new(name=uv_layer_name)
+                for i, loop in enumerate(mesh_med.loops):
+                    uv_layer_med.data[i].uv = uvs[loop.vertex_index]
+                    
+            if (has_low_lod):
+                uv_layer_low = mesh_low.uv_layers.new(name=uv_layer_name)
+                for i, loop in enumerate(mesh_low.loops):
+                    uv_layer_low.data[i].uv = uvs[loop.vertex_index]
 
         material = None
         if pixel_shader_type == 6:
@@ -503,18 +555,38 @@ def create_mesh_from_json(context, directory, filename):
         else:
             raise "Unknown pixel_shader_type"
 
-        mesh.update()
-
-        obj_name = "{}_{}".format(model_hash, idx)
-        obj = bpy.data.objects.new(obj_name, mesh)
-        obj.data.materials.append(material)
+        mesh_high.update()
+        obj_high_name = "{}_{}_highLOD".format(model_hash, idx)
+        obj_high = bpy.data.objects.new(obj_high_name, mesh_high)
+        obj_high.data.materials.append(material)
 
         # Link the object to the model's collection directly
-        model_collection.objects.link(obj)
+        high_collection.objects.link(obj_high)
+        
+        view_layer = bpy.context.view_layer
+        if (has_med_lod):
+            mesh_med.update()
+            
+            obj_med_name = "{}_{}_medLOD".format(model_hash, idx)
+            obj_med = bpy.data.objects.new(obj_med_name, mesh_med)
+            obj_med.data.materials.append(material)
 
-        # Make sure the object is also in the scene collection for visibility
-        context.view_layer.objects.active = obj
-        obj.select_set(True)
+            # Link the object to the model's collection directly
+            med_collection.objects.link(obj_med)
+            
+            hide_collection_in_view_layer(med_collection, view_layer)
+        
+        if (has_med_lod):
+            mesh_med.update()
+            
+            obj_low_name = "{}_{}_lowLOD".format(model_hash, idx)
+            obj_low = bpy.data.objects.new(obj_low_name, mesh_low)
+            obj_low.data.materials.append(material)
+
+            # Link the object to the model's collection directly
+            low_collection.objects.link(obj_low)
+            
+            hide_collection_in_view_layer(low_collection, view_layer)
 
     return {'FINISHED'}
 
@@ -524,12 +596,6 @@ class IMPORT_OT_JSONMesh(bpy.types.Operator):
     bl_label = "Import JSON model file"
     bl_description = "Import a Guild Wars Map Browser model file (.json)"
     bl_options = {'REGISTER', 'UNDO'}
-
-#    directory: bpy.props.StringProperty(
-#        subtype='DIR_PATH',
-#        default="",
-#        description="Directory used for importing the GWMB model"
-#    )
 
     # Use a CollectionProperty to store multiple file paths
     files: bpy.props.CollectionProperty(type=bpy.types.OperatorFileListElement)
