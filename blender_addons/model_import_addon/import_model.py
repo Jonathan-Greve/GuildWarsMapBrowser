@@ -455,7 +455,7 @@ def create_mesh_from_json(context, directory, filename):
 
     # Ensure a collection for the model hash exists under the GWMB_Models collection
     model_collection = ensure_collection(context, model_hash, parent_collection=gwmb_collection)
-    high_collection = ensure_collection(context, "LOD_HIGH", parent_collection=model_collection)
+    high_collection = ensure_collection(context, f"{model_hash}_LOD_HIGH", parent_collection=model_collection)
 
     # Set the model's hash collection as the active collection
     layer_collection = bpy.context.view_layer.layer_collection.children[gwmb_collection.name].children[
@@ -472,12 +472,12 @@ def create_mesh_from_json(context, directory, filename):
         has_low_lod = submodel['has_low_lod']
         
         if (has_low_lod):
-            low_collection = ensure_collection(context, "LOD_LOW", parent_collection=model_collection)
+            low_collection = ensure_collection(context, f"{model_hash}_LOD_LOW", parent_collection=model_collection)
             indices_low = submodel.get('indices_low', [])
             faces_low = [tuple(reversed(indices_low[i:i + 3])) for i in range(0, len(indices_low), 3)]
             
         if (has_med_lod):
-            med_collection = ensure_collection(context, "LOD_MEDIUM", parent_collection=model_collection)
+            med_collection = ensure_collection(context, f"{model_hash}_LOD_MEDIUM", parent_collection=model_collection)
             indices_med = submodel.get('indices_med', [])
             faces_med = [tuple(reversed(indices_med[i:i + 3])) for i in range(0, len(indices_med), 3)]
         
