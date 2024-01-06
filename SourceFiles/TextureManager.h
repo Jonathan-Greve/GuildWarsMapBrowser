@@ -62,7 +62,7 @@ public:
 		if (!autoGenerateMipMaps)
 		{
 			initData.pSysMem = data;
-			UINT bytesPerPixel = BytesPerPixel(format); // Assuming you have this function
+			UINT bytesPerPixel = BytesPerPixel(format);
 			initData.SysMemPitch = width * bytesPerPixel;
 			initData.SysMemSlicePitch = width * height * bytesPerPixel;
 			pInitData = &initData;
@@ -74,7 +74,7 @@ public:
 
 		if (autoGenerateMipMaps)
 		{
-			UINT bytesPerPixel = BytesPerPixel(format); // Assuming you have this function
+			UINT bytesPerPixel = BytesPerPixel(format);
 			m_deviceContext->UpdateSubresource(texture2D.Get(), 0, nullptr, data, width * bytesPerPixel, 0);
 		}
 
@@ -99,6 +99,22 @@ public:
 			textureData.textureID = textureID;
 			textureData.width = width;
 			textureData.height = height;
+
+			UINT bytesPerPixel = BytesPerPixel(format);
+			textureData.rgba_data.reserve(width * height); // Reserve space for efficiency
+
+			const unsigned char* byteData = static_cast<const unsigned char*>(data);
+
+			for (int i = 0; i < width * height * bytesPerPixel; i += bytesPerPixel)
+			{
+				RGBA color;
+				color.r = byteData[i];
+				color.g = byteData[i + 1];
+				color.b = byteData[i + 2];
+				color.a = byteData[i + 3];
+				textureData.rgba_data.push_back(color);
+			}
+
 			cached_textures[file_hash] = textureData;
 		}
 
@@ -194,6 +210,14 @@ public:
 
 		if (it != m_textures.end()) { return it->second.Get(); }
 		return nullptr;
+	}
+
+	std::optional<TextureData> GetTextureDataByHash(int file_hash) const
+	{
+		auto it = cached_textures.find(file_hash);
+
+		if (it != cached_textures.end()) { return it->second; }
+		return std::nullopt;
 	}
 
 	int GetTextureIdByHash(int file_hash) const
@@ -312,4 +336,27 @@ inline bool SaveTextureToPng(ID3D11ShaderResourceView* texture, std::wstring& fi
 	}
 
 	return true;
+}
+
+inline bool SaveTextureToDDS(const TextureData& textureData, const std::wstring& filename)
+{
+	// Assuming each RGBA value is stored as 4 consecutive bytes
+	size_t totalSize = textureData.rgba_data.size() * sizeof(RGBA);
+	std::vector<uint8_t> pixelData(totalSize);
+
+	// Copy the pixel data
+	std::memcpy(pixelData.data(), textureData.rgba_data.data(), totalSize);
+
+	// Create the Image structure
+	DirectX::Image image;
+	image.width = static_cast<size_t>(textureData.width);
+	image.height = static_cast<size_t>(textureData.height);
+	image.format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	image.rowPitch = textureData.width * sizeof(RGBA);
+	image.slicePitch = image.rowPitch * textureData.height;
+	image.pixels = pixelData.data();
+
+	HRESULT hr = DirectX::SaveToDDSFile(image, DirectX::DDS_FLAGS_NONE, filename.c_str());
+
+	return SUCCEEDED(hr);
 }
