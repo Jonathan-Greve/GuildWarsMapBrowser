@@ -26,7 +26,10 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
 
         ImGui::Text(std::format("Current FPS: {}", timer.GetFramesPerSecond()).c_str());
 
-        if (ImGui::InputInt("FPS Target", &FPS_target)) {
+        if (ImGui::InputInt("Max FPS", &FPS_target)) {
+            if (FPS_target < 1) {
+                FPS_target = 1;
+            }
         }
 
         int lod_quality = static_cast<uint8_t>(map_renderer->GetLODQuality());
