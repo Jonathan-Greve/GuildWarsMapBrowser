@@ -472,7 +472,9 @@
     <ClInclude Include="SourceFiles\draw_gui_window_controller.h">
       <Filter>GUI\gui_window_controller</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\draw_extract_panel.h" />
+    <ClInclude Include="SourceFiles\draw_extract_panel.h">
+      <Filter>GUI\Extract Panel</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -745,7 +747,9 @@
     <ClCompile Include="SourceFiles\draw_gui_window_controller.cpp">
       <Filter>GUI\gui_window_controller</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\draw_extract_panel.cpp" />
+    <ClCompile Include="SourceFiles\draw_extract_panel.cpp">
+      <Filter>GUI\Extract Panel</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SourceFiles\resource.rc" />

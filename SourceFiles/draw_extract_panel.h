@@ -1,5 +1,3 @@
 #pragma once
-class draw_extract_panel
-{
-};
 
+void draw_extract_panel();
