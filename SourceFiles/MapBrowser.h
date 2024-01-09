@@ -62,6 +62,9 @@ private:
     // Rendering loop timer.
     DX::StepTimer m_timer;
 
+    int m_FPS_target = 60;
+    std::chrono::time_point<std::chrono::high_resolution_clock> last_frame_time;
+
     // Input manager
     InputManager* m_input_manager;
 
