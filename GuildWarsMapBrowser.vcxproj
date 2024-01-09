@@ -224,6 +224,7 @@
     <ClInclude Include="SourceFiles\ConstantBufferManager.h" />
     <ClInclude Include="SourceFiles\DATManager.h" />
     <ClInclude Include="SourceFiles\draw_dat_compare_panel.h" />
+    <ClInclude Include="SourceFiles\draw_extract_panel.h" />
     <ClInclude Include="SourceFiles\draw_file_info_editor_panel.h" />
     <ClInclude Include="SourceFiles\draw_gui_window_controller.h" />
     <ClInclude Include="SourceFiles\json.hpp" />
@@ -396,6 +397,7 @@
     <ClCompile Include="SourceFiles\draw_dat_browser.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_compare_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_load_progress_bar.cpp" />
+    <ClCompile Include="SourceFiles\draw_extract_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_file_info_editor_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_gui_for_open_dat_file.cpp" />
     <ClCompile Include="SourceFiles\draw_gui_window_controller.cpp" />

@@ -234,6 +234,10 @@ void DeviceResources::CreateDeviceResources()
     ThrowIfFailed(context.As(&m_d3dAnnotation));
 }
 
+void DeviceResources::CreateOffscreenRenderTarget(int width, int height) {
+
+}
+
 // These resources need to be recreated every time the window size is changed.
 void DeviceResources::CreateWindowSizeDependentResources()
 {

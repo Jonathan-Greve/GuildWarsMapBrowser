@@ -28,6 +28,8 @@ MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
     m_dat_managers.emplace(0, std::make_unique<DATManager>()); // Dat manager to store first dat file (more can be loaded later in comparison panel)
 
     m_deviceResources->RegisterDeviceNotify(this);
+
+    last_frame_time = std::chrono::high_resolution_clock::now();
 }
 
 // Initialize the Direct3D resources required to run.
@@ -48,11 +50,9 @@ void MapBrowser::Initialize(HWND window, int width, int height)
 
     // TODO: Change the timer settings if you want something other than the default variable timestep mode.
     // e.g. for 60 FPS fixed timestep update logic, call:
-    /*
-    m_timer.SetFixedTimeStep(true);
-    m_timer.SetTargetElapsedSeconds(1.0 / 60);
-    */
-
+    //m_timer.SetFixedTimeStep(true);
+    //m_timer.SetTargetElapsedSeconds(1.0 / m_FPS_target);
+    
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -82,9 +82,30 @@ void MapBrowser::Initialize(HWND window, int width, int height)
 // Executes the basic render loop.
 void MapBrowser::Tick()
 {
-    m_timer.Tick([&]() { Update(m_timer); });
 
-    Render();
+    using namespace std::chrono;
+
+    // Calculate the desired frame duration
+    milliseconds frame_duration(1000 / m_FPS_target);
+
+    // Get the current time
+    auto now = high_resolution_clock::now();
+
+    // Calculate the duration since the last frame
+    duration<double, std::milli> elapsed = now - last_frame_time;
+
+    // Check if the elapsed time is less than the frame duration
+    if (elapsed < frame_duration) {
+        return;
+    }
+
+    // Update the last frame time
+    last_frame_time = high_resolution_clock::now();
+
+    m_timer.Tick([&]() {
+        Update(m_timer);
+        Render();
+     });
 }
 
 // Updates the world.
@@ -150,7 +171,7 @@ void MapBrowser::Render()
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data);
+    draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer);
 
     static bool show_demo_window = false;
     if (show_demo_window)

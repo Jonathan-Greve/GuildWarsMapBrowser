@@ -140,6 +140,9 @@
     <Filter Include="GUI\gui_window_controller">
       <UniqueIdentifier>{5d2ebe63-2f91-426e-948e-bc732047a3e6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GUI\Extract Panel">
+      <UniqueIdentifier>{2caf87f3-0ca3-4864-8170-dd73bd9393a1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -469,6 +472,7 @@
     <ClInclude Include="SourceFiles\draw_gui_window_controller.h">
       <Filter>GUI\gui_window_controller</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\draw_extract_panel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -741,6 +745,7 @@
     <ClCompile Include="SourceFiles\draw_gui_window_controller.cpp">
       <Filter>GUI\gui_window_controller</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\draw_extract_panel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SourceFiles\resource.rc" />

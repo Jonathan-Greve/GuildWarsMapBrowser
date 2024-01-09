@@ -4,7 +4,7 @@
 
 extern FileType selected_file_type;
 
-void draw_right_panel(MapRenderer* map_renderer)
+void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer& timer)
 {
     constexpr auto window_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoFocusOnAppearing;
 
@@ -23,6 +23,11 @@ void draw_right_panel(MapRenderer* map_renderer)
         static float water_level = 0.0f;
         static float terrain_tex_pad_x = 0.03f;
         static float terrain_tex_pad_y = 0.03f;
+
+        ImGui::Text(std::format("Current FPS: {}", timer.GetFramesPerSecond()).c_str());
+
+        if (ImGui::InputInt("FPS Target", &FPS_target)) {
+        }
 
         int lod_quality = static_cast<uint8_t>(map_renderer->GetLODQuality());
         if (ImGui::Combo("LOD Quality", &lod_quality,
