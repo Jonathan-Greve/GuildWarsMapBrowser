@@ -65,6 +65,11 @@ private:
     int m_FPS_target = 60;
     std::chrono::time_point<std::chrono::high_resolution_clock> last_frame_time;
 
+    // Used for resizing the offscreen buffer when extracting arbitrary sized render of map to png or dds (Extract Panel GUI)
+    int m_pixels_per_tile_x = 1;
+    int m_pixels_per_tile_y = 1;
+    bool m_pixels_per_tile_changed = false;
+
     // Input manager
     InputManager* m_input_manager;
 
