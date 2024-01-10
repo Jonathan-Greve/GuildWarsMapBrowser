@@ -54,7 +54,8 @@ struct CustomFileInfoEntry
     bool is_pvp;
 };
 
-void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer);
+bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
+    std::unordered_map<int, std::vector<int>>& hash_index);
 
 void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, bool dat_manager_changed, const std::unordered_set<uint32_t>& dat_compare_filter_result, const bool dat_compare_filter_result_changed,
     std::vector<std::vector<std::string>>& csv_data, bool custom_file_info_changed);

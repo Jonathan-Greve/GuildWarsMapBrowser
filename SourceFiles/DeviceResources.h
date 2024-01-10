@@ -70,6 +70,7 @@ namespace DX
         DXGI_FORMAT             GetBackBufferFormat() const noexcept    { return m_backBufferFormat; }
         DXGI_FORMAT             GetDepthBufferFormat() const noexcept   { return m_depthBufferFormat; }
         D3D11_VIEWPORT          GetScreenViewport() const noexcept      { return m_screenViewport; }
+        D3D11_VIEWPORT          GetOffscreenViewport() const noexcept { return m_offscreenViewport; }
         UINT                    GetBackBufferCount() const noexcept     { return m_backBufferCount; }
         DXGI_COLOR_SPACE_TYPE   GetColorSpace() const noexcept          { return m_colorSpace; }
         unsigned int            GetDeviceOptions() const noexcept       { return m_options; }
@@ -113,6 +114,7 @@ namespace DX
         Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_d3dOffscreenRenderTargetView;
         Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  m_d3dDepthStencilView;
         D3D11_VIEWPORT                                  m_screenViewport;
+        D3D11_VIEWPORT                                  m_offscreenViewport;
 
         // Direct3D properties.
         DXGI_FORMAT                                     m_backBufferFormat;
