@@ -78,16 +78,18 @@ void apply_filter(const std::vector<int>& new_filter, std::unordered_set<int>& i
     }
 }
 
-void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
-    std::unordered_map<int, std::vector<int>>& hash_index, std::vector<DatBrowserItem>& items)
+bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
+    std::unordered_map<int, std::vector<int>>& hash_index)
 {
+    bool success = false;
+
     const auto MFT = dat_manager->get_MFT();
     if (index >= MFT.size())
-        return;
+        return false;
 
     const auto* entry = &MFT[index];
     if (!entry)
-        return;
+        return false;
 
     selected_file_type = static_cast<FileType>(entry->type);
 
@@ -113,6 +115,7 @@ void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
     {
         std::string text_str(reinterpret_cast<char*>(selected_raw_data.data()));
         selected_text_file_str = text_str;
+        success = true;
     }
     break;
     case SOUND:
@@ -160,6 +163,8 @@ void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             lpfnBassChannelSetAttribute(selected_audio_stream_handle, BASS_ATTRIB_VOL, volume_level);
 
             lpfnBassChannelPlay(selected_audio_stream_handle, TRUE);
+
+            success = true;
         }
     }
 
@@ -188,6 +193,8 @@ void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 selected_dat_texture.dat_texture.rgba_data.
                 data(), &selected_dat_texture.texture_id,
                 entry->Hash);
+
+            success = true;
         }
     }
     break;
@@ -202,6 +209,9 @@ void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         if (FAILED(hr))
         {
             // Handle the error
+        }
+        else {
+            success = true;
         }
     }
     break;
@@ -305,7 +315,7 @@ void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                         const auto* entry = &MFT[file_index];
 
                         if (!entry)
-                            return;
+                            return false;
 
                         DatTexture dat_texture;
                         if (entry->type == DDS)
@@ -444,6 +454,7 @@ void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                         GetTextures(mesh_texture_ids), 3);
                 }
             }
+            success = true;
         }
 
         break;
@@ -533,6 +544,8 @@ void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 terrain_texture_indices, terrain_shadow_map,
                 selected_ffna_map_file.map_info_chunk.map_bounds);
             map_renderer->SetTerrain(terrain.get(), terrain_texture_id);
+
+            success = true;
         }
 
         // Load models
@@ -545,7 +558,7 @@ void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             auto mft_entry_it = hash_index.find(decoded_filename);
             if (mft_entry_it != hash_index.end())
             {
-                auto type = items[mft_entry_it->second.at(0)].type;
+                auto type = dat_manager->get_MFT()[mft_entry_it->second.at(0)].type;
                 if (type == FFNA_Type2)
                 {
                     selected_map_files.emplace_back(
@@ -563,7 +576,7 @@ void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             auto mft_entry_it = hash_index.find(decoded_filename);
             if (mft_entry_it != hash_index.end())
             {
-                auto type = items[mft_entry_it->second.at(0)].type;
+                auto type = dat_manager->get_MFT()[mft_entry_it->second.at(0)].type;
                 if (type == FFNA_Type2)
                 {
                     auto map_model = dat_manager->parse_ffna_model_file(mft_entry_it->second.at(0));
@@ -836,6 +849,8 @@ void parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
     default:
         break;
     }
+
+    return success;
 }
 
 std::string truncate_text_with_ellipsis(const std::string& text, float maxWidth);
@@ -1342,7 +1357,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                             if (ImGui::GetIO().KeyCtrl) {}
                             else
                             {
-                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                parse_file(dat_manager, item.id, map_renderer, hash_index);
                                 selected_item_id = item.id;
                                 selected_item_hash = item.hash;
                                 selected_item_murmurhash3 = item.murmurhash3;
@@ -1351,7 +1366,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                         // If the item is focused (highlighted by navigation), select it immediately
                         if (ImGui::IsItemFocused() && selected_item_id != item.id) {
                             if (selected_item_id != item.id) {
-                                parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                parse_file(dat_manager, item.id, map_renderer, hash_index);
                                 selected_item_id = item.id;
                                 selected_item_hash = item.hash;
                                 selected_item_murmurhash3 = item.murmurhash3;
@@ -1451,7 +1466,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                         OpenFileDialog(std::format(L"model_mesh_0x{:X}", item.hash), L"obj");
                                     if (!savePath.empty())
                                     {
-                                        parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                        parse_file(dat_manager, item.id, map_renderer, hash_index);
                                         const auto obj_file_str = write_obj_str(prop_meshes);
 
                                         std::ofstream outFile(savePath);
@@ -1472,7 +1487,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                     std::wstring saveDir = OpenDirectoryDialog();
                                     if (!saveDir.empty())
                                     {
-                                        parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                        parse_file(dat_manager, item.id, map_renderer, hash_index);
                                         for (size_t prop_mesh_index = 0; prop_mesh_index < prop_meshes.size();
                                             ++prop_mesh_index)
                                         {
@@ -1504,7 +1519,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                     std::wstring saveDir = OpenDirectoryDialog();
                                     if (!saveDir.empty())
                                     {
-                                        parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                        parse_file(dat_manager, item.id, map_renderer, hash_index);
 
                                         for (int tex_index = 0; tex_index < selected_ffna_model_file.texture_filenames_chunk.
                                             texture_filenames.
@@ -1541,7 +1556,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                     std::wstring saveDir = OpenDirectoryDialog();
                                     if (!saveDir.empty())
                                     {
-                                        parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                        parse_file(dat_manager, item.id, map_renderer, hash_index);
 
                                         for (int tex_index = 0; tex_index < selected_ffna_model_file.texture_filenames_chunk.
                                             texture_filenames.
@@ -1602,7 +1617,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                         OpenFileDialog(std::format(L"height_map_0x{:X}", item.hash), L"obj");
                                     if (!savePath.empty())
                                     {
-                                        parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                        parse_file(dat_manager, item.id, map_renderer, hash_index);
                                         const auto& terrain_mesh = terrain.get()->get_mesh();
                                         const auto obj_file_str = write_obj_str(terrain_mesh);
 
@@ -1626,7 +1641,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                         L"tiff");
                                     if (!savePath.empty())
                                     {
-                                        parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                        parse_file(dat_manager, item.id, map_renderer, hash_index);
                                         const auto& terrain_mesh = terrain.get()->get_heightmap_grid();
                                         // Assuming the accessor function is available.
 
@@ -1646,7 +1661,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                         L"tiff");
                                     if (!savePath.empty())
                                     {
-                                        parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                        parse_file(dat_manager, item.id, map_renderer, hash_index);
                                         const auto& terrain_texture_indices = terrain.get()->get_texture_index_grid();
                                         // Assuming the accessor function is available.
 
@@ -1666,7 +1681,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                         L"tiff");
                                     if (!savePath.empty())
                                     {
-                                        parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                        parse_file(dat_manager, item.id, map_renderer, hash_index);
                                         const auto& terrain_unknown = terrain.get()->get_terrain_shadow_map_grid();
                                         // Assuming the accessor function is available.
 
@@ -1685,7 +1700,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                 item.type != ATEXDXTA && item.type != ATTXDXTA || item.type == DDS)
                             {
                                 if (ImGui::MenuItem("Export texture as DDS")) {
-                                    parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                    parse_file(dat_manager, item.id, map_renderer, hash_index);
                                     std::wstring savePath = OpenFileDialog(std::format(L"terrain_tex_indices_0x{:X}", item.hash),
                                         L"dds");
                                     if (!savePath.empty())
@@ -1713,7 +1728,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                 }
                                 else if (ImGui::MenuItem("Export texture as png")) {
 
-                                    parse_file(dat_manager, item.id, map_renderer, hash_index, items);
+                                    parse_file(dat_manager, item.id, map_renderer, hash_index);
                                     std::wstring savePath = OpenFileDialog(std::format(L"terrain_tex_indices_0x{:X}", item.hash),
                                         L"png");
                                     if (!savePath.empty())
