@@ -174,11 +174,27 @@ void MapBrowser::Render()
     draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer,
         m_pixels_per_tile_x, m_pixels_per_tile_y, m_pixels_per_tile_changed);
 
-    if (m_pixels_per_tile_changed) {
-        m_deviceResources->UpdateOffscreenResources(m_pixels_per_tile_x, m_pixels_per_tile_y);
-    }
+    
 
-    m_pixels_per_tile_changed = false;
+    if (m_pixels_per_tile_changed) {
+        m_pixels_per_tile_changed = false;
+        m_mft_indices_to_extract.clear();
+
+        const auto& mft = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT();
+
+        for (int i = 0; i < mft.size(); i++) {
+            // We only support extracting map files for now.
+            if (mft[i].type == FFNA_Type3) {
+                m_mft_indices_to_extract.emplace(i);
+            }
+
+            if (!m_hash_index_initialized) {
+                m_hash_index[mft[i].Hash].push_back(i);
+            }
+        }
+
+        m_hash_index_initialized = true;
+    }
 
     static bool show_demo_window = false;
     if (show_demo_window)
@@ -192,6 +208,58 @@ void MapBrowser::Render()
 
     // Show the new frame.
     m_deviceResources->Present();
+
+    if (!m_mft_indices_to_extract.empty()) {
+        const auto index = *m_mft_indices_to_extract.begin();
+        m_mft_indices_to_extract.erase(index);
+
+        if (parse_file(m_dat_managers[m_dat_manager_to_show_in_dat_browser].get(), index, m_map_renderer.get(), m_hash_index)) {
+
+            const auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
+            const auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
+            const auto terrain_bounds = m_map_renderer->GetTerrain()->m_bounds;
+
+            m_map_renderer->SetFrustumAsOrthographic(terrain_bounds.map_max_x - terrain_bounds.map_min_x, terrain_bounds.map_max_z - terrain_bounds.map_min_z, 100, 100000);
+            m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
+            m_map_renderer->GetCamera()->SetPosition((terrain_bounds.map_max_x + terrain_bounds.map_min_x) / 2.0, 80000, (terrain_bounds.map_max_z + terrain_bounds.map_min_z) / 2.0);
+
+            m_deviceResources->UpdateOffscreenResources(dim_x * m_pixels_per_tile_x - 96, dim_z * m_pixels_per_tile_y-96);
+
+            ClearOffscreen();
+
+            m_map_renderer->Render();
+
+            //m_deviceResources->GetD3DDeviceContext()->CopyResource(
+            //    m_deviceResources->GetOffscreenStagingTexture(),
+            //    m_deviceResources->GetOffscreenRenderTarget());
+
+            ID3D11ShaderResourceView* shaderResourceView = nullptr;
+            ID3D11Texture2D* texture = m_deviceResources->GetOffscreenRenderTarget();
+
+            D3D11_TEXTURE2D_DESC textureDesc;
+            texture->GetDesc(&textureDesc);
+
+            D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+            ZeroMemory(&srvDesc, sizeof(srvDesc));
+            srvDesc.Format = textureDesc.Format;
+            srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+            srvDesc.Texture2D.MostDetailedMip = 0;
+            srvDesc.Texture2D.MipLevels = -1;
+
+            // Create the shader resource view.
+            HRESULT hr = m_deviceResources->GetD3DDevice()->CreateShaderResourceView(
+                texture, &srvDesc, &shaderResourceView);
+
+            if (FAILED(hr))
+            {
+                // Handle the error, e.g., by logging or asserting.
+            }
+            else {
+                auto filename = std::format(L"C:\\Users\\jonag\\Downloads\\map_texture_{}.png", index);
+                SaveTextureToPng(shaderResourceView, filename, m_map_renderer->GetTextureManager());
+            }
+        }
+    }
 }
 
 // Helper method to clear the back buffers.
@@ -218,6 +286,17 @@ void MapBrowser::Clear()
     m_deviceResources->PIXEndEvent();
 }
 #pragma endregion
+
+void MapBrowser::ClearOffscreen() {
+    auto context = m_deviceResources->GetD3DDeviceContext();
+    auto renderTarget = m_deviceResources->GetOffscreenRenderTargetView();
+
+    context->ClearRenderTargetView(renderTarget, Colors::CornflowerBlue);
+    context->OMSetRenderTargets(1, &renderTarget, nullptr);
+
+    auto const viewport = m_deviceResources->GetOffscreenViewport();
+    context->RSSetViewports(1, &viewport);
+}
 
 #pragma region Message Handlers
 // Message handlers
