@@ -171,7 +171,14 @@ void MapBrowser::Render()
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer);
+    draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer,
+        m_pixels_per_tile_x, m_pixels_per_tile_y, m_pixels_per_tile_changed);
+
+    if (m_pixels_per_tile_changed) {
+        m_deviceResources->UpdateOffscreenResources(m_pixels_per_tile_x, m_pixels_per_tile_y);
+    }
+
+    m_pixels_per_tile_changed = false;
 
     static bool show_demo_window = false;
     if (show_demo_window)

@@ -234,9 +234,45 @@ void DeviceResources::CreateDeviceResources()
     ThrowIfFailed(context.As(&m_d3dAnnotation));
 }
 
-void DeviceResources::CreateOffscreenRenderTarget(int width, int height) {
+void DeviceResources::UpdateOffscreenResources(int width, int height) {
+    m_d3dOffscreenRenderTargetView.Reset();
+    m_offscreenRenderTarget.Reset();
+    m_offscreenStagingTexture.Reset();
 
+    m_d3dContext->OMSetRenderTargets(0, nullptr, nullptr);
+
+    // Create the offscreen render target texture
+    CD3D11_TEXTURE2D_DESC offscreenTextureDesc(
+        DXGI_FORMAT_R8G8B8A8_UNORM, // This format should match your requirements
+        width,                      // Texture width
+        height,                     // Texture height
+        1,                          // Mip levels
+        1,                          // Array size
+        D3D11_BIND_RENDER_TARGET    // Bind flags
+    );
+    ThrowIfFailed(m_d3dDevice->CreateTexture2D(&offscreenTextureDesc, nullptr, &m_offscreenRenderTarget));
+
+    // Create a render target view for the offscreen render target
+    CD3D11_RENDER_TARGET_VIEW_DESC offscreenRTVDesc(D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM);
+    ThrowIfFailed(m_d3dDevice->CreateRenderTargetView(m_offscreenRenderTarget.Get(), &offscreenRTVDesc, &m_d3dOffscreenRenderTargetView));
+
+    // Create the staging texture description
+    CD3D11_TEXTURE2D_DESC stagingTextureDesc(
+        DXGI_FORMAT_R8G8B8A8_UNORM, // This format should match your render target
+        width,                      // Texture width
+        height,                     // Texture height
+        1,                          // Mip levels
+        1,                          // Array size
+        0,                          // No bind flags for a staging texture
+        D3D11_USAGE_STAGING,        // Usage
+        D3D11_CPU_ACCESS_READ       // CPU Access flags
+    );
+
+    // Create the staging texture
+    // This texture is used for reading back the render target content to the CPU
+    ThrowIfFailed(m_d3dDevice->CreateTexture2D(&stagingTextureDesc, nullptr, &m_offscreenStagingTexture));
 }
+
 
 // These resources need to be recreated every time the window size is changed.
 void DeviceResources::CreateWindowSizeDependentResources()
