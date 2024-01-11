@@ -171,13 +171,10 @@ void MapBrowser::Render()
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer,
-        m_pixels_per_tile_x, m_pixels_per_tile_y, m_pixels_per_tile_changed);
+    draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer, m_extract_panel_info);
 
-    
-
-    if (m_pixels_per_tile_changed) {
-        m_pixels_per_tile_changed = false;
+    if (m_extract_panel_info.pixels_per_tile_changed) {
+        m_extract_panel_info.pixels_per_tile_changed = false;
         m_mft_indices_to_extract.clear();
 
         const auto& mft = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT();
@@ -232,7 +229,7 @@ void MapBrowser::Render()
 
             m_map_renderer->Update(0); // Update camera
 
-            m_deviceResources->UpdateOffscreenResources((dim_x - 1) * m_pixels_per_tile_x, (dim_z -1) * m_pixels_per_tile_y);
+            m_deviceResources->UpdateOffscreenResources(dim_x * m_extract_panel_info.pixels_per_tile_x, dim_z * m_extract_panel_info.pixels_per_tile_y);
 
             ClearOffscreen();
 
@@ -268,7 +265,7 @@ void MapBrowser::Render()
                 // Handle the error, e.g., by logging or asserting.
             }
             else {
-                auto filename = std::format(L"C:\\Users\\jonag\\Downloads\\map_texture_{}.png", index);
+                auto filename = std::format(L"{}\\map_texture_{}.png", m_extract_panel_info.save_directory,index);
                 SaveTextureToPng(shaderResourceView, filename, m_map_renderer->GetTextureManager());
             }
 
