@@ -2,6 +2,8 @@
 #include "draw_extract_panel.h"
 #include "GuiGlobalConstants.h"
 
+constexpr int max_pixel_per_tile_dir = 20;
+
 void draw_extract_panel(ExtractPanelInfo& extract_panel_info)
 {
     if (GuiGlobalConstants::is_extract_panel_open) {
@@ -11,11 +13,11 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info)
 
                 // Input for pixels per tile in the x-direction
                 ImGui::InputInt("Pixels per Tile X", &extract_panel_info.pixels_per_tile_x, 1, 5, ImGuiInputTextFlags_CharsDecimal);
-                extract_panel_info.pixels_per_tile_x = (extract_panel_info.pixels_per_tile_x > 128) ? 128 : (extract_panel_info.pixels_per_tile_x < 1) ? 1 : extract_panel_info.pixels_per_tile_x; // Clamping value between 1 and 128
+                extract_panel_info.pixels_per_tile_x = (extract_panel_info.pixels_per_tile_x > max_pixel_per_tile_dir) ? max_pixel_per_tile_dir : (extract_panel_info.pixels_per_tile_x < 1) ? 1 : extract_panel_info.pixels_per_tile_x; // Clamping value between 1 and max_pixel_per_tile_dir
 
                 // Input for pixels per tile in the y-direction
                 ImGui::InputInt("Pixels per Tile Y", &extract_panel_info.pixels_per_tile_y, 1, 5, ImGuiInputTextFlags_CharsDecimal);
-                extract_panel_info.pixels_per_tile_y = (extract_panel_info.pixels_per_tile_y > 128) ? 128 : (extract_panel_info.pixels_per_tile_y < 1) ? 1 : extract_panel_info.pixels_per_tile_y; // Clamping value between 1 and 128
+                extract_panel_info.pixels_per_tile_y = (extract_panel_info.pixels_per_tile_y > max_pixel_per_tile_dir) ? max_pixel_per_tile_dir : (extract_panel_info.pixels_per_tile_y < 1) ? 1 : extract_panel_info.pixels_per_tile_y; // Clamping value between 1 and max_pixel_per_tile_dir
 
                 // Buttons for extraction
                 if (ImGui::Button("Extract as DDS")) {
