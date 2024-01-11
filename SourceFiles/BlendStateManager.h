@@ -73,24 +73,30 @@ public:
 
 private:
     HRESULT CreateBlendState(ID3D11Device* device, D3D11_BLEND srcBlend, D3D11_BLEND destBlend,
-                             Microsoft::WRL::ComPtr<ID3D11BlendState>* blendState,
-                             D3D11_BLEND_OP blendOp = D3D11_BLEND_OP_ADD)
+        Microsoft::WRL::ComPtr<ID3D11BlendState>* blendState,
+        D3D11_BLEND_OP blendOp = D3D11_BLEND_OP_ADD)
     {
         D3D11_BLEND_DESC blendDesc;
         ZeroMemory(&blendDesc, sizeof(blendDesc));
 
         blendDesc.RenderTarget[0].BlendEnable =
-          (srcBlend != D3D11_BLEND_ONE) || (destBlend != D3D11_BLEND_ZERO);
+            (srcBlend != D3D11_BLEND_ONE) || (destBlend != D3D11_BLEND_ZERO);
+
+        // For color.
         blendDesc.RenderTarget[0].SrcBlend = srcBlend;
         blendDesc.RenderTarget[0].DestBlend = destBlend;
         blendDesc.RenderTarget[0].BlendOp = blendOp;
-        blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-        blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+
+        // For alpha.
+        blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_SRC_ALPHA; // Use source alpha
+        blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA; // Use inverse of source alpha
         blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+
         blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
         return device->CreateBlendState(&blendDesc, blendState->GetAddressOf());
     }
+
 
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_deviceContext;

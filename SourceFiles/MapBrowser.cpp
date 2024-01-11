@@ -237,10 +237,6 @@ void MapBrowser::Render()
 
             m_deviceResources->GetD3DDeviceContext()->Flush();
 
-            //m_deviceResources->GetD3DDeviceContext()->CopyResource(
-            //    m_deviceResources->GetOffscreenStagingTexture(),
-            //    m_deviceResources->GetOffscreenRenderTarget());
-
             ID3D11ShaderResourceView* shaderResourceView = nullptr;
             ID3D11Texture2D* texture = m_deviceResources->GetOffscreenRenderTarget();
 
@@ -303,9 +299,12 @@ void MapBrowser::Clear()
 void MapBrowser::ClearOffscreen() {
     auto context = m_deviceResources->GetD3DDeviceContext();
     auto renderTarget = m_deviceResources->GetOffscreenRenderTargetView();
+    auto depthStencil = m_deviceResources->GetOffscreenDepthStencilView();
 
     context->ClearRenderTargetView(renderTarget, Colors::CornflowerBlue);
-    context->OMSetRenderTargets(1, &renderTarget, nullptr);
+    context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+    context->OMSetRenderTargets(1, &renderTarget, depthStencil);
 
     auto const viewport = m_deviceResources->GetOffscreenViewport();
     context->RSSetViewports(1, &viewport);

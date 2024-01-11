@@ -62,11 +62,13 @@ namespace DX
         ID3D11Texture2D*        GetPickingStagingTexture() const noexcept        { return m_pickingStagingTexture.Get(); }
         ID3D11Texture2D*        GetOffscreenRenderTarget() const noexcept { return m_offscreenRenderTarget.Get(); }
         ID3D11Texture2D*        GetOffscreenStagingTexture() const noexcept { return m_offscreenStagingTexture.Get(); }
-        ID3D11Texture2D*        GetDepthStencil() const noexcept        { return m_depthStencil.Get(); }
+        ID3D11Texture2D*        GetDepthStencil() const noexcept { return m_depthStencil.Get(); }
+        ID3D11Texture2D*        GetOffscreenDepthStencil() const noexcept { return m_offscreenDepthStencil.Get(); }
         ID3D11RenderTargetView*	GetRenderTargetView() const noexcept    { return m_d3dRenderTargetView.Get(); }
         ID3D11RenderTargetView* GetPickingRenderTargetView() const noexcept { return m_d3dPickingRenderTargetView.Get(); }
         ID3D11RenderTargetView* GetOffscreenRenderTargetView() const noexcept { return m_d3dOffscreenRenderTargetView.Get(); }
-        ID3D11DepthStencilView* GetDepthStencilView() const noexcept    { return m_d3dDepthStencilView.Get(); }
+        ID3D11DepthStencilView* GetDepthStencilView() const noexcept { return m_d3dDepthStencilView.Get(); }
+        ID3D11DepthStencilView* GetOffscreenDepthStencilView() const noexcept { return m_d3dOffscreenDepthStencilView.Get(); }
         DXGI_FORMAT             GetBackBufferFormat() const noexcept    { return m_backBufferFormat; }
         DXGI_FORMAT             GetDepthBufferFormat() const noexcept   { return m_depthBufferFormat; }
         D3D11_VIEWPORT          GetScreenViewport() const noexcept      { return m_screenViewport; }
@@ -109,10 +111,12 @@ namespace DX
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_offscreenRenderTarget;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_offscreenStagingTexture;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_depthStencil;
+        Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_offscreenDepthStencil;
         Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_d3dRenderTargetView;
         Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_d3dPickingRenderTargetView;
         Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_d3dOffscreenRenderTargetView;
         Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  m_d3dDepthStencilView;
+        Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  m_d3dOffscreenDepthStencilView;
         D3D11_VIEWPORT                                  m_screenViewport;
         D3D11_VIEWPORT                                  m_offscreenViewport;
 
