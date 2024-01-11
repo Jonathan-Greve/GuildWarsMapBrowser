@@ -254,15 +254,45 @@ void MapBrowser::Render()
             HRESULT hr = m_deviceResources->GetD3DDevice()->CreateShaderResourceView(
                 texture, &srvDesc, &shaderResourceView);
 
-            m_deviceResources->GetD3DDeviceContext()->Flush();
-
             if (FAILED(hr))
             {
                 // Handle the error, e.g., by logging or asserting.
             }
             else {
-                auto filename = std::format(L"{}\\map_texture_{}.png", m_extract_panel_info.save_directory,index);
+                const auto file_id = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT()[index].Hash;
+                auto filename = std::format(L"{}\\map_texture_{}.png", m_extract_panel_info.save_directory, file_id);
                 SaveTextureToPng(shaderResourceView, filename, m_map_renderer->GetTextureManager());
+
+                // Capture texture data into a DirectX::Image
+                DirectX::Image image;
+                DirectX::ScratchImage scratchImg;
+                HRESULT hrCapture = DirectX::CaptureTexture(m_deviceResources->GetD3DDevice(), m_deviceResources->GetD3DDeviceContext(), texture, scratchImg);
+
+                if (SUCCEEDED(hrCapture)) {
+                    image = *scratchImg.GetImage(0, 0, 0); // Assuming one image
+
+                    // Create TexMetadata from the Image
+                    TexMetadata mdata = {};
+                    mdata.width = image.width;
+                    mdata.height = image.height;
+                    mdata.depth = 1;
+                    mdata.arraySize = 1;
+                    mdata.mipLevels = 1;
+                    mdata.format = image.format;
+                    mdata.dimension = TEX_DIMENSION_TEXTURE2D;
+
+                    // Save to DDS file
+                    const auto file_id = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT()[index].Hash;
+                    auto filename = std::format(L"{}\\map_texture_{}.dds", m_extract_panel_info.save_directory, file_id);
+
+                    HRESULT hrSave = DirectX::SaveToDDSFile(image, DDS_FLAGS_NONE, filename.c_str());
+                    if (FAILED(hrSave)) {
+                        // Handle the error
+                    }
+                }
+                else {
+                    // Handle capture error
+                }
             }
 
             shaderResourceView->Release();
