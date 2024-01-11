@@ -346,6 +346,15 @@ public:
         return mesh_ids;
     }
 
+    void ClearProps() {
+        for (const auto mesh_ids : m_prop_mesh_ids) {
+            for (const auto mesh_id : mesh_ids.second) {
+                m_mesh_manager->RemoveMesh(mesh_id);
+
+            }
+        }
+    }
+
     int GetObjectId(ID3D11Texture2D* picking_target, const int x, const int y) const
     {
         return m_mesh_manager->GetPickedObjectId(m_deviceContext, picking_target, x, y);
