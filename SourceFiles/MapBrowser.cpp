@@ -217,17 +217,28 @@ void MapBrowser::Render()
 
             const auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
             const auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
+
+            const float map_width = (dim_x - 1) * 96;
+            const float map_height = (dim_z - 1) * 96;
+
             const auto terrain_bounds = m_map_renderer->GetTerrain()->m_bounds;
 
-            m_map_renderer->SetFrustumAsOrthographic(terrain_bounds.map_max_x - terrain_bounds.map_min_x, terrain_bounds.map_max_z - terrain_bounds.map_min_z, 100, 100000);
-            m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
-            m_map_renderer->GetCamera()->SetPosition((terrain_bounds.map_max_x + terrain_bounds.map_min_x) / 2.0, 80000, (terrain_bounds.map_max_z + terrain_bounds.map_min_z) / 2.0);
+            const float cam_pos_x = terrain_bounds.map_min_x + map_width / 2;
+            const float cam_pos_z = terrain_bounds.map_min_z + map_height / 2;
 
-            m_deviceResources->UpdateOffscreenResources(dim_x * m_pixels_per_tile_x - 96, dim_z * m_pixels_per_tile_y-96);
+            m_map_renderer->SetFrustumAsOrthographic(map_width, map_height, 100, 100000);
+            m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
+            m_map_renderer->GetCamera()->SetPosition(cam_pos_x, 80000, cam_pos_z - 48);
+
+            m_map_renderer->Update(0); // Update camera
+
+            m_deviceResources->UpdateOffscreenResources((dim_x - 1) * m_pixels_per_tile_x, (dim_z -1) * m_pixels_per_tile_y);
 
             ClearOffscreen();
 
             m_map_renderer->Render();
+
+            m_deviceResources->GetD3DDeviceContext()->Flush();
 
             //m_deviceResources->GetD3DDeviceContext()->CopyResource(
             //    m_deviceResources->GetOffscreenStagingTexture(),
@@ -244,11 +255,13 @@ void MapBrowser::Render()
             srvDesc.Format = textureDesc.Format;
             srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
             srvDesc.Texture2D.MostDetailedMip = 0;
-            srvDesc.Texture2D.MipLevels = -1;
+            srvDesc.Texture2D.MipLevels = 1;
 
             // Create the shader resource view.
             HRESULT hr = m_deviceResources->GetD3DDevice()->CreateShaderResourceView(
                 texture, &srvDesc, &shaderResourceView);
+
+            m_deviceResources->GetD3DDeviceContext()->Flush();
 
             if (FAILED(hr))
             {
@@ -258,6 +271,9 @@ void MapBrowser::Render()
                 auto filename = std::format(L"C:\\Users\\jonag\\Downloads\\map_texture_{}.png", index);
                 SaveTextureToPng(shaderResourceView, filename, m_map_renderer->GetTextureManager());
             }
+
+            shaderResourceView->Release();
+            texture->Release();
         }
     }
 }
