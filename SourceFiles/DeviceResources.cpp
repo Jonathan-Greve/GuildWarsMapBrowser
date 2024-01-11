@@ -237,10 +237,16 @@ void DeviceResources::CreateDeviceResources()
 void DeviceResources::UpdateOffscreenResources(int width, int height) {
     m_d3dOffscreenRenderTargetView.Reset();
     m_offscreenRenderTarget.Reset();
+    m_d3dOffscreenDepthStencilView.Reset();
+    m_offscreenDepthStencil.Reset();
+
+    const DXGI_FORMAT backBufferFormat = (m_options & (c_FlipPresent | c_AllowTearing | c_EnableHDR))
+        ? NoSRGB(m_backBufferFormat)
+        : m_backBufferFormat;
 
     // Create the offscreen render target texture
     CD3D11_TEXTURE2D_DESC offscreenTextureDesc(
-        DXGI_FORMAT_R8G8B8A8_UNORM, // This format should match your requirements
+        backBufferFormat, // This format should match your requirements
         width,                      // Texture width
         height,                     // Texture height
         1,                          // Mip levels
@@ -252,6 +258,18 @@ void DeviceResources::UpdateOffscreenResources(int width, int height) {
     // Create a render target view for the offscreen render target
     CD3D11_RENDER_TARGET_VIEW_DESC offscreenRTVDesc(D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM);
     ThrowIfFailed(m_d3dDevice->CreateRenderTargetView(m_offscreenRenderTarget.Get(), &offscreenRTVDesc, &m_d3dOffscreenRenderTargetView));
+
+    // Create a depth stencil view for use with 3D rendering if needed.
+    CD3D11_TEXTURE2D_DESC depthStencilDesc(m_depthBufferFormat, width, height,
+        1, // This depth stencil view has only one texture.
+        1, // Use a single mipmap level.
+        D3D11_BIND_DEPTH_STENCIL);
+
+    ThrowIfFailed(
+        m_d3dDevice->CreateTexture2D(&depthStencilDesc, nullptr, m_offscreenDepthStencil.ReleaseAndGetAddressOf()));
+
+    ThrowIfFailed(m_d3dDevice->CreateDepthStencilView(m_offscreenDepthStencil.Get(), nullptr,
+        m_d3dOffscreenDepthStencilView.ReleaseAndGetAddressOf()));
 
     m_offscreenViewport = { 0.0f, 0.0f, static_cast<float>(offscreenTextureDesc.Width), static_cast<float>(offscreenTextureDesc.Height),
                         0.f,  1.f };

@@ -281,12 +281,12 @@ public:
 				current_should_cull = command.should_cull;
 			}
 
-			if (command.blend_state != current_blend_state)
-			{
+			/*if (command.blend_state != current_blend_state)
+			{*/
 				blend_state_manager->SetBlendState(BlendState::AlphaBlend);
 
-				current_blend_state = command.blend_state;
-			}
+			//	current_blend_state = command.blend_state;
+			//}
 
 			PerObjectCB transposedData = command.meshInstance->GetPerObjectData();
 

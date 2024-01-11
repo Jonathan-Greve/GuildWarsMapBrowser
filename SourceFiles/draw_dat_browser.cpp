@@ -89,10 +89,6 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
     if (!entry)
         return false;
 
-    // Clear up some GPU memory (especially important for GPUs with little VRAM)
-    map_renderer->GetTextureManager()->Clear();
-    map_renderer->ClearProps();
-
     selected_file_type = static_cast<FileType>(entry->type);
 
     if (selected_audio_stream_handle != 0)
@@ -219,6 +215,10 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
     break;
     break;
     case FFNA_Type2:
+        // Clear up some GPU memory (especially important for GPUs with little VRAM)
+        map_renderer->GetTextureManager()->Clear();
+        map_renderer->ClearProps();
+
         selected_ffna_model_file = dat_manager->parse_ffna_model_file(index);
         if (selected_ffna_model_file.parsed_correctly)
         {
@@ -466,6 +466,9 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         {
             break;
         }
+
+        
+
         selected_map_file_index = index;
 
         object_id_to_prop_index.clear();
@@ -477,6 +480,10 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             selected_ffna_map_file.terrain_chunk.terrain_x_dims *
             selected_ffna_map_file.terrain_chunk.terrain_y_dims)
         {
+            // Clear up some GPU memory (especially important for GPUs with little VRAM)
+            map_renderer->GetTextureManager()->Clear();
+            map_renderer->ClearProps();
+
             auto& terrain_texture_filenames = selected_ffna_map_file.terrain_texture_filenames.array;
             std::vector<DatTexture> terrain_dat_textures;
             for (int i = 0; i < terrain_texture_filenames.size(); i++)
