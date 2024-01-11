@@ -25,8 +25,10 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info)
                     if (!saveDir.empty())
                     {
                         extract_panel_info.save_directory = saveDir;
+                        extract_panel_info.map_render_extract_file_type = ExtractPanel::DDS;
+                        extract_panel_info.pixels_per_tile_changed = true;
                     }
-                    extract_panel_info.pixels_per_tile_changed = true;
+
                 }
 
                 ImGui::SameLine();
@@ -36,8 +38,9 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info)
                     if (!saveDir.empty())
                     {
                         extract_panel_info.save_directory = saveDir;
+                        extract_panel_info.map_render_extract_file_type = ExtractPanel::PNG;
+                        extract_panel_info.pixels_per_tile_changed = true;
                     }
-                    extract_panel_info.pixels_per_tile_changed = true;
                 }
             }
 
