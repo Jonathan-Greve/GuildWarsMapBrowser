@@ -173,6 +173,19 @@ void MapBrowser::Render()
 
     draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer, m_extract_panel_info);
 
+    static bool show_demo_window = false;
+    if (show_demo_window)
+        ImGui::ShowDemoWindow(&show_demo_window);
+
+    // Dear ImGui Render
+    ImGui::Render();
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+    m_deviceResources->PIXEndEvent();
+
+    // Show the new frame.
+    m_deviceResources->Present();
+
     if (m_extract_panel_info.pixels_per_tile_changed) {
         m_extract_panel_info.pixels_per_tile_changed = false;
         m_mft_indices_to_extract.clear();
@@ -192,19 +205,6 @@ void MapBrowser::Render()
 
         m_hash_index_initialized = true;
     }
-
-    static bool show_demo_window = false;
-    if (show_demo_window)
-        ImGui::ShowDemoWindow(&show_demo_window);
-
-    // Dear ImGui Render
-    ImGui::Render();
-    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
-    m_deviceResources->PIXEndEvent();
-
-    // Show the new frame.
-    m_deviceResources->Present();
 
     if (!m_mft_indices_to_extract.empty()) {
         const auto index = *m_mft_indices_to_extract.begin();
@@ -274,12 +274,19 @@ void MapBrowser::Render()
                     DirectX::ScratchImage mipmappedImage;
                     HRESULT hrMip = DirectX::GenerateMipMaps(*capturedImage.GetImage(0, 0, 0), DirectX::TEX_FILTER_DEFAULT, 0, mipmappedImage);
                     if (SUCCEEDED(hrMip)) {
-                        const auto file_id = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT()[index].Hash;
-                        auto filename = std::format(L"{}\\map_texture_{}.dds", m_extract_panel_info.save_directory, file_id);
+                        DirectX::ScratchImage compressedImage;
+                        HRESULT hrCompress = DirectX::Compress(mipmappedImage.GetImages(), mipmappedImage.GetImageCount(), mipmappedImage.GetMetadata(), DXGI_FORMAT_BC3_UNORM, DirectX::TEX_COMPRESS_DEFAULT, 0.5f, compressedImage);
+                        if (SUCCEEDED(hrCompress)) {
+                            const auto file_id = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT()[index].Hash;
+                            auto filename = std::format(L"{}\\map_texture_{}.dds", m_extract_panel_info.save_directory, file_id);
 
-                        HRESULT hrSave = DirectX::SaveToDDSFile(mipmappedImage.GetImages(), mipmappedImage.GetImageCount(), mipmappedImage.GetMetadata(), DDS_FLAGS_NONE, filename.c_str());
-                        if (FAILED(hrSave)) {
-                            // Handle the error
+                            HRESULT hrSave = DirectX::SaveToDDSFile(compressedImage.GetImages(), compressedImage.GetImageCount(), compressedImage.GetMetadata(), DDS_FLAGS_NONE, filename.c_str());
+                            if (FAILED(hrSave)) {
+                                // Handle the error
+                            }
+                        }
+                        else {
+                            // Handle compression error
                         }
                     }
                     else {

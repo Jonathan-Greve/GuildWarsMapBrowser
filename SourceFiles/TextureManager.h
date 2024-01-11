@@ -341,9 +341,16 @@ inline bool SaveTextureToPng(ID3D11ShaderResourceView* texture, std::wstring& fi
 	return true;
 }
 
-inline bool SaveTextureToDDS(const TextureData& textureData, const std::wstring& filename)
+enum class CompressionFormat {
+	None,
+	BC1, // DXGI_FORMAT_BC1_UNORM
+	BC3, // DXGI_FORMAT_BC3_UNORM
+	BC5, // DXGI_FORMAT_BC5_UNORM
+};
+
+
+inline bool SaveTextureToDDS(const TextureData& textureData, const std::wstring& filename, CompressionFormat compressionFormat)
 {
-	// Assuming each RGBA value is stored as 4 consecutive bytes
 	size_t totalSize = textureData.rgba_data.size() * sizeof(RGBA);
 	std::vector<uint8_t> pixelData(totalSize);
 
@@ -359,7 +366,44 @@ inline bool SaveTextureToDDS(const TextureData& textureData, const std::wstring&
 	image.slicePitch = image.rowPitch * textureData.height;
 	image.pixels = pixelData.data();
 
-	HRESULT hr = DirectX::SaveToDDSFile(image, DirectX::DDS_FLAGS_NONE, filename.c_str());
+	// Create a ScratchImage to hold the initial texture
+	DirectX::ScratchImage scratchImage;
+	HRESULT hr = scratchImage.InitializeFromImage(image);
+	if (FAILED(hr)) {
+		return false;
+	}
 
+	// Generate mipmaps
+	DirectX::ScratchImage mipmappedImage;
+	hr = DirectX::GenerateMipMaps(*scratchImage.GetImage(0, 0, 0), DirectX::TEX_FILTER_DEFAULT, 0, mipmappedImage);
+	if (FAILED(hr)) {
+		return false;
+	}
+
+	DirectX::ScratchImage finalImage;
+	switch (compressionFormat) {
+	case CompressionFormat::None:
+		finalImage = std::move(mipmappedImage);
+		break;
+	case CompressionFormat::BC1:
+		hr = DirectX::Compress(mipmappedImage.GetImages(), mipmappedImage.GetImageCount(), mipmappedImage.GetMetadata(), DXGI_FORMAT_BC1_UNORM, DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, finalImage);
+		break;
+	case CompressionFormat::BC3:
+		hr = DirectX::Compress(mipmappedImage.GetImages(), mipmappedImage.GetImageCount(), mipmappedImage.GetMetadata(), DXGI_FORMAT_BC3_UNORM, DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, finalImage);
+		break;
+	case CompressionFormat::BC5:
+		hr = DirectX::Compress(mipmappedImage.GetImages(), mipmappedImage.GetImageCount(), mipmappedImage.GetMetadata(), DXGI_FORMAT_BC5_UNORM, DirectX::TEX_COMPRESS_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, finalImage);
+		break;
+
+	default:
+		return false;
+	}
+
+	if (FAILED(hr)) {
+		return false;
+	}
+
+	// Save the final texture (compressed or uncompressed) to a DDS file
+	hr = DirectX::SaveToDDSFile(finalImage.GetImages(), finalImage.GetImageCount(), finalImage.GetMetadata(), DirectX::DDS_FLAGS_NONE, filename.c_str());
 	return SUCCEEDED(hr);
 }
