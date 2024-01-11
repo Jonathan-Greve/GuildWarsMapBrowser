@@ -1558,42 +1558,27 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                         }
                                     }
                                 }
-                                if (ImGui::MenuItem("Export model textures (.dds)"))
+                                if (ImGui::MenuItem("Export model textures (.dds) BC1"))
                                 {
-                                    std::wstring saveDir = OpenDirectoryDialog();
-                                    if (!saveDir.empty())
-                                    {
-                                        parse_file(dat_manager, item.id, map_renderer, hash_index);
+                                    const auto compression_format = CompressionFormat::BC1;
+                                    ExportDDS(dat_manager, item, map_renderer, hash_index, compression_format);
+                                }
+                                if (ImGui::MenuItem("Export model textures (.dds) BC3"))
+                                {
+                                    const auto compression_format = CompressionFormat::BC3;
+                                    ExportDDS(dat_manager, item, map_renderer, hash_index, compression_format);
+                                }
 
-                                        for (int tex_index = 0; tex_index < selected_ffna_model_file.texture_filenames_chunk.
-                                            texture_filenames.
-                                            size(); tex_index++)
-                                        {
-                                            const auto& texture_filename = selected_ffna_model_file.texture_filenames_chunk.
-                                                texture_filenames[tex_index];
+                                if(ImGui::MenuItem("Export model textures (.dds) BC5"))
+                                {
+                                    const auto compression_format = CompressionFormat::BC5;
+                                    ExportDDS(dat_manager, item, map_renderer, hash_index, compression_format);
+                                }
 
-                                            auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
-                                            const auto texture_data = map_renderer->GetTextureManager()->GetTextureDataByHash(decoded_filename);
-
-                                            if (texture_data.has_value()) {
-
-                                                std::wstring filename = std::format(L"model_0x{:X}_tex_index{}_texture_0x{:X}.dds",
-                                                    item.hash, tex_index, decoded_filename);
-
-                                                // Append the filename to the saveDir
-                                                std::wstring savePath = saveDir + L"\\" + filename;
-
-                                                if (SaveTextureToDDS(texture_data.value(), savePath))
-                                                {
-                                                    // Success
-                                                }
-                                                else
-                                                {
-                                                    // Error handling }
-                                                }
-                                            }
-                                        }
-                                    }
+                                if (ImGui::MenuItem("Export model textures (.dds) no compression"))
+                                {
+                                    const auto compression_format = CompressionFormat::None;
+                                    ExportDDS(dat_manager, item, map_renderer, hash_index, compression_format);
                                 }
                             }
                             else if (item.type == FFNA_Type3)
@@ -1703,35 +1688,57 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                     }
                                 }
                             }
-                            else if (item.type >= ATEXDXT1 && item.type <= ATTXDXTL &&
-                                item.type != ATEXDXTA && item.type != ATTXDXTA || item.type == DDS)
-                            {
+                            else if (item.type == DDS) {
                                 if (ImGui::MenuItem("Export texture as DDS")) {
                                     parse_file(dat_manager, item.id, map_renderer, hash_index);
                                     std::wstring savePath = OpenFileDialog(std::format(L"terrain_tex_indices_0x{:X}", item.hash),
                                         L"dds");
                                     if (!savePath.empty())
                                     {
-                                        if (item.type == DDS) {
-                                            dat_manager->save_raw_decompressed_data_to_file(item.id, savePath);
+                                         dat_manager->save_raw_decompressed_data_to_file(item.id, savePath);
+                                    }
+                                }
+                                else if (ImGui::MenuItem("Export texture as png")) {
+                                    parse_file(dat_manager, item.id, map_renderer, hash_index);
+                                    std::wstring savePath = OpenFileDialog(std::format(L"terrain_tex_indices_0x{:X}", item.hash),
+                                        L"png");
+                                    if (!savePath.empty())
+                                    {
+                                        int texture_id = map_renderer->GetTextureManager()->GetTextureIdByHash(item.hash);
+
+                                        std::wstring filename = std::format(L"texture_0x{:X}.png", item.hash);
+
+                                        ID3D11ShaderResourceView* texture =
+                                            map_renderer->GetTextureManager()->GetTexture(texture_id);
+                                        if (SaveTextureToPng(texture, savePath, map_renderer->GetTextureManager()))
+                                        {
+                                            // Success
                                         }
-                                        else {
-                                            const auto texture_data = map_renderer->GetTextureManager()->GetTextureDataByHash(item.hash);
-                                            if (texture_data.has_value()) {
-                                                std::wstring filename = std::format(L"texture_0x{:X}.dds", item.hash);
-
-
-                                                if (SaveTextureToDDS(texture_data.value(), savePath))
-                                                {
-                                                    // Success
-                                                }
-                                                else
-                                                {
-                                                    // Error handling }
-                                                }
-                                            }
+                                        else
+                                        {
+                                            // Error handling }
                                         }
                                     }
+                                }
+                            }
+                            else if (item.type >= ATEXDXT1 && item.type <= ATTXDXTL &&
+                                item.type != ATEXDXTA && item.type != ATTXDXTA)
+                            {
+                                if (ImGui::MenuItem("Export texture as DDS (BC1)")) {
+                                    const auto compression_format = CompressionFormat::BC1;
+                                    ExportDDS2(dat_manager, item, map_renderer, hash_index, compression_format);
+                                }
+                                else if (ImGui::MenuItem("Export texture as DDS (BC3)")) {
+                                    const auto compression_format = CompressionFormat::BC3;
+                                    ExportDDS2(dat_manager, item, map_renderer, hash_index, compression_format);
+                                }
+                                else if (ImGui::MenuItem("Export texture as DDS (BC5)")) {
+                                    const auto compression_format = CompressionFormat::BC5;
+                                    ExportDDS2(dat_manager, item, map_renderer, hash_index, compression_format);
+                                }
+                                else if (ImGui::MenuItem("Export texture as DDS (No compression)")) {
+                                    const auto compression_format = CompressionFormat::None;
+                                    ExportDDS2(dat_manager, item, map_renderer, hash_index, compression_format);
                                 }
                                 else if (ImGui::MenuItem("Export texture as png")) {
 
@@ -1756,9 +1763,8 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                         }
                                     }
                                 }
-
-                                ImGui::EndPopup();
                             }
+                            ImGui::EndPopup();
                         }
 
                         ImGui::TableNextColumn();
@@ -1903,11 +1909,72 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 
                         ImGui::PopID();
                     }
-                ImGui::EndTable();
+                    ImGui::EndTable();
             }
         }
 
         ImGui::End();
+    }
+}
+
+void ExportDDS2(DATManager* dat_manager, DatBrowserItem& item, MapRenderer* map_renderer, std::unordered_map<int, std::vector<int>>& hash_index, const CompressionFormat& compression_format)
+{
+    parse_file(dat_manager, item.id, map_renderer, hash_index);
+    std::wstring savePath = OpenFileDialog(std::format(L"texture_0x{:X}", item.hash),
+        L"dds");
+    if (!savePath.empty())
+    {
+        const auto texture_data = map_renderer->GetTextureManager()->GetTextureDataByHash(item.hash);
+        if (texture_data.has_value()) {
+            std::wstring filename = std::format(L"texture_0x{:X}.dds", item.hash);
+
+            if (SaveTextureToDDS(texture_data.value(), savePath, compression_format))
+            {
+                // Success
+            }
+            else
+            {
+                // Error handling }
+            }
+        }
+    }
+}
+
+void ExportDDS(DATManager* dat_manager, DatBrowserItem& item, MapRenderer* map_renderer, std::unordered_map<int, std::vector<int>>& hash_index, const CompressionFormat& compression_format)
+{
+    std::wstring saveDir = OpenDirectoryDialog();
+    if (!saveDir.empty())
+    {
+        parse_file(dat_manager, item.id, map_renderer, hash_index);
+
+        for (int tex_index = 0; tex_index < selected_ffna_model_file.texture_filenames_chunk.
+            texture_filenames.
+            size(); tex_index++)
+        {
+            const auto& texture_filename = selected_ffna_model_file.texture_filenames_chunk.
+                texture_filenames[tex_index];
+
+            auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
+            const auto texture_data = map_renderer->GetTextureManager()->GetTextureDataByHash(decoded_filename);
+
+            if (texture_data.has_value()) {
+
+                std::wstring filename = std::format(L"model_0x{:X}_tex_index{}_texture_0x{:X}.dds",
+                    item.hash, tex_index, decoded_filename);
+
+                // Append the filename to the saveDir
+                std::wstring savePath = saveDir + L"\\" + filename;
+
+                if (SaveTextureToDDS(texture_data.value(), savePath, compression_format))
+                {
+                    // Success
+                }
+                else
+                {
+                    // Error handling }
+                }
+            }
+        }
     }
 }
 
