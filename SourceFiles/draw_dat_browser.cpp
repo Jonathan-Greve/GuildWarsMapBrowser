@@ -91,6 +91,10 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
     if (!entry)
         return false;
 
+    // Clear up some GPU memory (especially important for GPUs with little VRAM)
+    map_renderer->GetTextureManager()->Clear();
+    map_renderer->ClearProps();
+
     selected_file_type = static_cast<FileType>(entry->type);
 
     if (selected_audio_stream_handle != 0)

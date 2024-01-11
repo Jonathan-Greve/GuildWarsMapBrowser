@@ -265,7 +265,10 @@ public:
 	DatTexture BuildTextureAtlas(const std::vector<DatTexture>& terrain_dat_textures, int num_cols,
 	                             int num_rows);
 
-	void Clear() { m_textures.clear(); }
+	void Clear() { 
+		m_textures.clear(); 
+		cached_textures.clear();
+	}
 
 private:
 	ID3D11Device* m_device;
