@@ -21,7 +21,7 @@ extern std::unordered_map<uint32_t, uint32_t> object_id_to_prop_index;
 
 MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
     : m_input_manager(input_manager),
-      m_dat_manager_to_show_in_dat_browser(0)
+    m_dat_manager_to_show_in_dat_browser(0)
 {
     m_deviceResources = std::make_unique<DX::DeviceResources>(DXGI_FORMAT_R8G8B8A8_UNORM);
 
@@ -44,15 +44,15 @@ void MapBrowser::Initialize(HWND window, int width, int height)
     CreateWindowSizeDependentResources();
 
     m_map_renderer = std::make_unique<MapRenderer>(m_deviceResources->GetD3DDevice(),
-                                                   m_deviceResources->GetD3DDeviceContext(), m_input_manager);
+        m_deviceResources->GetD3DDeviceContext(), m_input_manager);
     m_map_renderer->Initialize(m_deviceResources->GetScreenViewport().Width,
-                               m_deviceResources->GetScreenViewport().Height);
+        m_deviceResources->GetScreenViewport().Height);
 
     // TODO: Change the timer settings if you want something other than the default variable timestep mode.
     // e.g. for 60 FPS fixed timestep update logic, call:
     //m_timer.SetFixedTimeStep(true);
     //m_timer.SetTargetElapsedSeconds(1.0 / m_FPS_target);
-    
+
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -105,7 +105,7 @@ void MapBrowser::Tick()
     m_timer.Tick([&]() {
         Update(m_timer);
         Render();
-     });
+        });
 }
 
 // Updates the world.
@@ -114,7 +114,7 @@ void MapBrowser::Update(DX::StepTimer const& timer)
     if (gw_dat_path_set && m_dat_managers[0]->m_initialization_state == InitializationState::NotStarted)
     {
         bool succeeded = m_dat_managers[0]->Init(gw_dat_path);
-        if (! succeeded)
+        if (!succeeded)
         {
             gw_dat_path_set = false;
             gw_dat_path = L"";
@@ -146,17 +146,17 @@ void MapBrowser::Render()
 
     // Copy picking texture to staging texture for CPU access
     m_deviceResources->GetD3DDeviceContext()->CopyResource(
-        m_deviceResources->GetPickingStagingTexture(), 
+        m_deviceResources->GetPickingStagingTexture(),
         m_deviceResources->GetPickingRenderTarget());
 
-	auto mouse_client_coords = m_input_manager->GetClientCoords(m_deviceResources->GetWindow());
-	int hovered_object_id = m_map_renderer->GetObjectId(m_deviceResources->GetPickingStagingTexture(), mouse_client_coords.x,mouse_client_coords.y);
+    auto mouse_client_coords = m_input_manager->GetClientCoords(m_deviceResources->GetWindow());
+    int hovered_object_id = m_map_renderer->GetObjectId(m_deviceResources->GetPickingStagingTexture(), mouse_client_coords.x, mouse_client_coords.y);
 
     // Get prop_index id
     int prop_index = -1;
     if (const auto it = object_id_to_prop_index.find(hovered_object_id); it != object_id_to_prop_index.end())
     {
-	    prop_index = it->second;
+        prop_index = it->second;
     }
 
     PickingInfo picking_info;
@@ -240,54 +240,50 @@ void MapBrowser::Render()
             ID3D11ShaderResourceView* shaderResourceView = nullptr;
             ID3D11Texture2D* texture = m_deviceResources->GetOffscreenRenderTarget();
 
-            D3D11_TEXTURE2D_DESC textureDesc;
-            texture->GetDesc(&textureDesc);
+            if (m_extract_panel_info.map_render_extract_file_type == ExtractPanel::PNG) {
+                D3D11_TEXTURE2D_DESC textureDesc;
+                texture->GetDesc(&textureDesc);
 
-            D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-            ZeroMemory(&srvDesc, sizeof(srvDesc));
-            srvDesc.Format = textureDesc.Format;
-            srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-            srvDesc.Texture2D.MostDetailedMip = 0;
-            srvDesc.Texture2D.MipLevels = 1;
+                D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+                ZeroMemory(&srvDesc, sizeof(srvDesc));
+                srvDesc.Format = textureDesc.Format;
+                srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+                srvDesc.Texture2D.MostDetailedMip = 0;
+                srvDesc.Texture2D.MipLevels = 1;
 
-            // Create the shader resource view.
-            HRESULT hr = m_deviceResources->GetD3DDevice()->CreateShaderResourceView(
-                texture, &srvDesc, &shaderResourceView);
+                // Create the shader resource view.
+                HRESULT hr = m_deviceResources->GetD3DDevice()->CreateShaderResourceView(
+                    texture, &srvDesc, &shaderResourceView);
+                if (SUCCEEDED(hr))
+                {
+                    const auto file_id = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT()[index].Hash;
+                    auto filename = std::format(L"{}\\map_texture_{}.png", m_extract_panel_info.save_directory, file_id);
+                    SaveTextureToPng(shaderResourceView, filename, m_map_renderer->GetTextureManager());
 
-            if (FAILED(hr))
-            {
-                // Handle the error, e.g., by logging or asserting.
+                    shaderResourceView->Release();
+                }
+                else {
+                    // Handle error (unable to save to png)
+                }
             }
             else {
-                const auto file_id = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT()[index].Hash;
-                auto filename = std::format(L"{}\\map_texture_{}.png", m_extract_panel_info.save_directory, file_id);
-                SaveTextureToPng(shaderResourceView, filename, m_map_renderer->GetTextureManager());
-
-                // Capture texture data into a DirectX::Image
-                DirectX::Image image;
-                DirectX::ScratchImage scratchImg;
-                HRESULT hrCapture = DirectX::CaptureTexture(m_deviceResources->GetD3DDevice(), m_deviceResources->GetD3DDeviceContext(), texture, scratchImg);
+                DirectX::ScratchImage capturedImage;
+                HRESULT hrCapture = DirectX::CaptureTexture(m_deviceResources->GetD3DDevice(), m_deviceResources->GetD3DDeviceContext(), texture, capturedImage);
 
                 if (SUCCEEDED(hrCapture)) {
-                    image = *scratchImg.GetImage(0, 0, 0); // Assuming one image
+                    DirectX::ScratchImage mipmappedImage;
+                    HRESULT hrMip = DirectX::GenerateMipMaps(*capturedImage.GetImage(0, 0, 0), DirectX::TEX_FILTER_DEFAULT, 0, mipmappedImage);
+                    if (SUCCEEDED(hrMip)) {
+                        const auto file_id = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT()[index].Hash;
+                        auto filename = std::format(L"{}\\map_texture_{}.dds", m_extract_panel_info.save_directory, file_id);
 
-                    // Create TexMetadata from the Image
-                    TexMetadata mdata = {};
-                    mdata.width = image.width;
-                    mdata.height = image.height;
-                    mdata.depth = 1;
-                    mdata.arraySize = 1;
-                    mdata.mipLevels = 1;
-                    mdata.format = image.format;
-                    mdata.dimension = TEX_DIMENSION_TEXTURE2D;
-
-                    // Save to DDS file
-                    const auto file_id = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT()[index].Hash;
-                    auto filename = std::format(L"{}\\map_texture_{}.dds", m_extract_panel_info.save_directory, file_id);
-
-                    HRESULT hrSave = DirectX::SaveToDDSFile(image, DDS_FLAGS_NONE, filename.c_str());
-                    if (FAILED(hrSave)) {
-                        // Handle the error
+                        HRESULT hrSave = DirectX::SaveToDDSFile(mipmappedImage.GetImages(), mipmappedImage.GetImageCount(), mipmappedImage.GetMetadata(), DDS_FLAGS_NONE, filename.c_str());
+                        if (FAILED(hrSave)) {
+                            // Handle the error
+                        }
+                    }
+                    else {
+                        // Handle mipmap generation error
                     }
                 }
                 else {
@@ -295,7 +291,6 @@ void MapBrowser::Render()
                 }
             }
 
-            shaderResourceView->Release();
             texture->Release();
         }
     }
@@ -374,7 +369,7 @@ void MapBrowser::OnDisplayChange() { m_deviceResources->UpdateColorSpace(); }
 
 void MapBrowser::OnWindowSizeChanged(int width, int height)
 {
-    if (! m_deviceResources->WindowSizeChanged(width, height))
+    if (!m_deviceResources->WindowSizeChanged(width, height))
         return;
 
     CreateWindowSizeDependentResources();
