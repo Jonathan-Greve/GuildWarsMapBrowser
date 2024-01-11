@@ -193,3 +193,82 @@ enum class LODQuality : uint8_t {
     Medium, // Medium quality
     Low, // Lowset quality
 };
+#include <commdlg.h>
+#include <shobjidl.h>
+
+inline std::wstring OpenFileDialog(std::wstring filename, std::wstring fileType)
+{
+    OPENFILENAME ofn;
+    wchar_t fileName[MAX_PATH];
+    wcsncpy(fileName, filename.c_str(), MAX_PATH);
+    fileName[MAX_PATH - 1] = L'\0'; // Ensure null termination
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(OPENFILENAME);
+    ofn.hwndOwner = nullptr;
+
+    // prepare the filter string
+    std::wstring filter =
+        fileType + L" Files (*." + fileType + L")\0*." + fileType + L"\0All Files (*.*)\0*.*\0";
+    std::vector<wchar_t> filterNullTerm(filter.begin(), filter.end());
+    filterNullTerm.push_back('\0'); // Ensure null termination
+
+    ofn.lpstrFilter = &filterNullTerm[0];
+    ofn.lpstrFile = fileName;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+    ofn.lpstrDefExt = fileType.c_str();
+
+    if (GetSaveFileName(&ofn))
+    {
+        std::wstring wFileName(fileName);
+        return wFileName;
+    }
+
+    return L"";
+}
+
+inline std::wstring OpenDirectoryDialog()
+{
+    IFileDialog* pfd;
+    std::wstring wDirName;
+
+    // CoCreate the dialog object.
+    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pfd));
+
+    if (SUCCEEDED(hr))
+    {
+        DWORD dwOptions;
+        // Get the options for the dialog.
+        hr = pfd->GetOptions(&dwOptions);
+        if (SUCCEEDED(hr))
+        {
+            // Set the options to pick folders only.
+            hr = pfd->SetOptions(dwOptions | FOS_PICKFOLDERS);
+            if (SUCCEEDED(hr))
+            {
+                // Show the dialog.
+                hr = pfd->Show(nullptr);
+                if (SUCCEEDED(hr))
+                {
+                    // Get the folder selected by the user.
+                    IShellItem* psi;
+                    hr = pfd->GetFolder(&psi);
+                    if (SUCCEEDED(hr))
+                    {
+                        PWSTR pszPath;
+                        hr = psi->GetDisplayName(SIGDN_FILESYSPATH, &pszPath);
+
+                        if (SUCCEEDED(hr))
+                        {
+                            wDirName = pszPath;
+                            CoTaskMemFree(pszPath);
+                        }
+                        psi->Release();
+                    }
+                }
+            }
+        }
+        pfd->Release();
+    }
+    return wDirName;
+}
