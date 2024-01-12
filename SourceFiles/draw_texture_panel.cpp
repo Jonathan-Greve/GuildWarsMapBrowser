@@ -40,9 +40,9 @@ void draw_texture_panel(MapRenderer* map_renderer)
                 ImGui::Image((ImTextureID)texture, scaled_size);
 
                 // Export texture functionality
-                if (ImGui::Button("Export Texture"))
+                if (ImGui::Button("Export Texture as PNG"))
                 {
-                    std::wstring savePath = OpenPngFileDialog();
+                    std::wstring savePath = OpenFileDialog(std::format(L"texture_{}", selected_dat_texture.file_id), L"png");
                     if (!savePath.empty())
                     {
                         if (SaveTextureToPng(texture, savePath, map_renderer->GetTextureManager()))
@@ -55,6 +55,46 @@ void draw_texture_panel(MapRenderer* map_renderer)
                         }
                     }
                 }
+                ImGui::SameLine();
+                if (ImGui::Button("Export Texture as DDS (BC1)")) {
+                    const auto texture_data = map_renderer->GetTextureManager()->GetTextureDataByHash(selected_dat_texture.file_id);
+                    if (texture_data.has_value()) {
+                        std::wstring savePath = OpenFileDialog(std::format(L"texture_{}", selected_dat_texture.file_id), L"dds");
+
+                        const auto compression_format = CompressionFormat::BC1;
+                        TexPanelExportDDS(texture_data, savePath, compression_format);
+                    }
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Export Texture as DDS (BC3)")) {
+                    const auto texture_data = map_renderer->GetTextureManager()->GetTextureDataByHash(selected_dat_texture.file_id);
+                    if (texture_data.has_value()) {
+                        std::wstring savePath = OpenFileDialog(std::format(L"texture_{}", selected_dat_texture.file_id), L"dds");
+
+                        const auto compression_format = CompressionFormat::BC3;
+                        TexPanelExportDDS(texture_data, savePath, compression_format);
+                    }
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Export Texture as DDS (BC5)")) {
+                    const auto texture_data = map_renderer->GetTextureManager()->GetTextureDataByHash(selected_dat_texture.file_id);
+                    if (texture_data.has_value()) {
+                        std::wstring savePath = OpenFileDialog(std::format(L"texture_{}", selected_dat_texture.file_id), L"dds");
+
+                        const auto compression_format = CompressionFormat::BC5;
+                        TexPanelExportDDS(texture_data, savePath, compression_format);
+                    }
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Export Texture as DDS (No compression)")) {
+                    const auto texture_data = map_renderer->GetTextureManager()->GetTextureDataByHash(selected_dat_texture.file_id);
+                    if (texture_data.has_value()) {
+                        std::wstring savePath = OpenFileDialog(std::format(L"texture_{}", selected_dat_texture.file_id), L"dds");
+
+                        const auto compression_format = CompressionFormat::None;
+                        TexPanelExportDDS(texture_data, savePath, compression_format);
+                    }
+                }
             }
 
             ImGui::End();
@@ -62,24 +102,14 @@ void draw_texture_panel(MapRenderer* map_renderer)
     }
 }
 
-std::wstring OpenPngFileDialog()
+void TexPanelExportDDS(const std::optional<TextureData>& texture_data, std::wstring& savePath, const CompressionFormat compression_format)
 {
-    OPENFILENAME ofn;
-    wchar_t fileName[MAX_PATH] = L"";
-    ZeroMemory(&ofn, sizeof(ofn));
-    ofn.lStructSize = sizeof(OPENFILENAME);
-    ofn.hwndOwner = NULL;
-    ofn.lpstrFilter = L"PNG Files (*.png)\0*.png\0All Files (*.*)\0*.*\0";
-    ofn.lpstrFile = fileName;
-    ofn.nMaxFile = MAX_PATH;
-    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
-    ofn.lpstrDefExt = L"png";
-
-    if (GetSaveFileName(&ofn))
+    if (SaveTextureToDDS(texture_data.value(), savePath, compression_format))
     {
-        std::wstring wFileName(fileName);
-        return wFileName;
+        // Success
     }
-
-    return L"";
+    else
+    {
+        // Error handling }
+    }
 }
