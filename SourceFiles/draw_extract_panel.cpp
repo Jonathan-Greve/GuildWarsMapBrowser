@@ -9,7 +9,7 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info)
     if (GuiGlobalConstants::is_extract_panel_open) {
         if (ImGui::Begin("Extract Panel", NULL, ImGuiWindowFlags_NoFocusOnAppearing)) {
 
-            if (ImGui::CollapsingHeader("Extract map render to image file")) {
+            if (ImGui::CollapsingHeader("Extract map render to image file", ImGuiTreeNodeFlags_DefaultOpen)) {
 
                 // Input for pixels per tile in the x-direction
                 ImGui::InputInt("Pixels per Tile X", &extract_panel_info.pixels_per_tile_x, 1, 5, ImGuiInputTextFlags_CharsDecimal);
@@ -44,7 +44,7 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info)
                 }
             }
 
-            if (ImGui::CollapsingHeader("Extract decompressed files")) {
+            if (ImGui::CollapsingHeader("Extract decompressed files", ImGuiTreeNodeFlags_DefaultOpen)) {
             }
 
         }
