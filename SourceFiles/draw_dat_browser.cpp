@@ -183,6 +183,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
     case ATTXDXTL:
     {
         selected_dat_texture.dat_texture = dat_manager->parse_ffna_texture_file(index);
+        selected_dat_texture.file_id = entry->Hash;
         if (selected_dat_texture.dat_texture.width > 0 && selected_dat_texture.dat_texture.height > 0)
         {
             map_renderer->GetTextureManager()->CreateTextureFromRGBA(
@@ -198,6 +199,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
     break;
     case DDS:
     {
+        selected_dat_texture.file_id = entry->Hash;
         const std::vector<uint8_t> ddsData = dat_manager->parse_dds_file(index);
         size_t ddsDataSize = ddsData.size();
         HRESULT hr = map_renderer->GetTextureManager()->CreateTextureFromDDSInMemory(

@@ -8,6 +8,7 @@ struct SelectedDatTexture
 {
     DatTexture dat_texture;
     int texture_id = -1;
+    int file_id = -1; // Also called hash in many places
 };
 
 enum DatBrowserItemColumnID
