@@ -131,3 +131,4 @@ protected:
 };
 
 std::string typeToString(int type);
+std::wstring typeToWString(int type);

@@ -1,4 +1,5 @@
 #pragma once
+#include "DATManager.h"
 
 namespace ExtractPanel {
     enum ExtractPanelMapFileType {
@@ -15,4 +16,4 @@ struct ExtractPanelInfo {
     ExtractPanel::ExtractPanelMapFileType map_render_extract_file_type = ExtractPanel::DDS;
 };
 
-void draw_extract_panel(ExtractPanelInfo& extract_panel_info);
+void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_manager);
