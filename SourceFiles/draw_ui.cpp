@@ -56,7 +56,7 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
                 draw_right_panel(map_renderer, FPS_target, timer);
             }
             
-            draw_extract_panel(extract_panel_info);
+            draw_extract_panel(extract_panel_info, dat_managers[dat_manager_to_show].get());
 
             dat_compare_filter_result_changed = false;
             draw_dat_compare_panel(dat_managers, dat_manager_to_show, dat_compare_filter_result, dat_compare_filter_result_changed);

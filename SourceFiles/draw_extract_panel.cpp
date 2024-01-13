@@ -1,10 +1,17 @@
 #include "pch.h"
 #include "draw_extract_panel.h"
 #include "GuiGlobalConstants.h"
+#include "GWUnpacker.h"
+
+std::vector<FileType> GetAllFileTypes() {
+    return { NONE, AMAT, AMP, ATEXDXT1, ATEXDXT2, ATEXDXT3, ATEXDXT4, ATEXDXT5, ATEXDXTN, ATEXDXTA, ATEXDXTL,
+            ATTXDXT1, ATTXDXT3, ATTXDXT5, ATTXDXTN, ATTXDXTA, ATTXDXTL, DDS, FFNA_Type2, FFNA_Type3, FFNA_Unknown,
+            MFTBASE, NOTREAD, SOUND, TEXT, UNKNOWN };
+}
 
 constexpr int max_pixel_per_tile_dir = 20;
 
-void draw_extract_panel(ExtractPanelInfo& extract_panel_info)
+void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_manager)
 {
     if (GuiGlobalConstants::is_extract_panel_open) {
         if (ImGui::Begin("Extract Panel", NULL, ImGuiWindowFlags_NoFocusOnAppearing)) {
@@ -45,8 +52,43 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info)
             }
 
             if (ImGui::CollapsingHeader("Extract decompressed files", ImGuiTreeNodeFlags_DefaultOpen)) {
-            }
+                const auto& mft = dat_manager->get_MFT();
 
+                static std::map<int, bool> fileTypeSelections;
+
+                static bool initialized = false;
+                if (!initialized) {
+                    for (FileType type : GetAllFileTypes()) {
+                        fileTypeSelections[static_cast<int>(type)] = true;
+                    }
+                    initialized = true;
+                }
+
+                int checkboxCounter = 0;
+                for (FileType type : GetAllFileTypes()) {
+                    std::string typeName = typeToString(type);
+                    if (typeName.empty()) continue;
+
+                    if (checkboxCounter > 0) ImGui::SameLine();
+                    ImGui::Checkbox(typeName.c_str(), &fileTypeSelections[static_cast<int>(type)]);
+                    checkboxCounter++;
+
+                    if (checkboxCounter % 5 == 0) checkboxCounter = 0;
+                }
+
+                if (ImGui::Button("Extract selected file types")) {
+                    std::wstring saveDir = OpenDirectoryDialog();
+                    if (!saveDir.empty()) {
+                        for (int i = 0; i < mft.size(); i++) {
+                            const auto& entry = mft[i];
+                            if (fileTypeSelections[entry.type]) {
+                                const auto filename = std::format(L"{}_{}_{}_{}.gwraw", i, entry.Hash, entry.murmurhash3, typeToWString(entry.type));
+                                dat_manager->save_raw_decompressed_data_to_file(i, std::filesystem::path(saveDir) / filename);
+                            }
+                        }
+                    }
+                }
+            }
         }
         ImGui::End();
     }

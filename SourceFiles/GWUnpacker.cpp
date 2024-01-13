@@ -91,6 +91,67 @@ std::string typeToString(int type)
     }
 }
 
+std::wstring typeToWString(int type)
+{
+    switch (type)
+    {
+    case NONE:
+        return L" ";
+    case AMAT:
+        return L"AMAT";
+    case AMP:
+        return L"Amp";
+    case ATEXDXT1:
+        return L"ATEXDXT1";
+    case ATEXDXT2:
+        return L"ATEXDXT2";
+    case ATEXDXT3:
+        return L"ATEXDXT3";
+    case ATEXDXT4:
+        return L"ATEXDXT4";
+    case ATEXDXT5:
+        return L"ATEXDXT5";
+    case ATEXDXTL:
+        return L"ATEXDXTL";
+    case ATEXDXTN:
+        return L"ATEXDXTN";
+    case ATEXDXTA:
+        return L"ATEXDXTA";
+    case ATTXDXT1:
+        return L"ATTXDXT1";
+    case ATTXDXT3:
+        return L"ATTXDXT3";
+    case ATTXDXT5:
+        return L"ATTXDXT5";
+    case ATTXDXTN:
+        return L"ATTXDXTN";
+    case ATTXDXTA:
+        return L"ATTXDXTA";
+    case ATTXDXTL:
+        return L"ATTXDXTL";
+    case DDS:
+        return L"DDS";
+    case FFNA_Type2:
+        return L"FFNA - Model";
+    case FFNA_Type3:
+        return L"FFNA - Map";
+    case FFNA_Unknown:
+        return L"FFNA - Unknown";
+    case MFTBASE:
+        return L"MFTBase";
+    case NOTREAD:
+        return L"";
+    case SOUND:
+        return L"Sound";
+    case TEXT:
+        return L"Text";
+    case UNKNOWN:
+        return L"Unknown";
+    default:
+        return L"Unknown";
+    }
+}
+
 HANDLE GWDat::get_dat_filehandle(const TCHAR* file)
 {
     auto file_handle = CreateFile(file, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
