@@ -104,6 +104,11 @@ private:
 
         std::vector<GWVertex> vertices;
         std::vector<uint32_t> indices;
+        vertices.resize(m_grid_dim_x * m_grid_dim_z);
+        indices.resize((m_grid_dim_x - 1) * (m_grid_dim_z - 1) * 6);
+
+        uint32_t vcount = 0;
+        uint32_t icount = 0;
 
         // Loop over the grid and generate the vertices and normals using ComputeTriangleNormal
         for (uint32_t z = 0; z < m_grid_dim_z; z++)
@@ -114,44 +119,53 @@ private:
                 float yPos = grid[z][x];
                 float zPos = m_bounds.map_min_z + z * delta_z;
 
-                vertices.push_back({{xPos, yPos, zPos},
-                                    {0.0f, 0.0f, 0.0f},
-                                    {(float)x / (m_grid_dim_x ), 1.0f - (float)z / (m_grid_dim_z )},
-                                    {0.0f, 0.0f},
-                                    {0.0f, 0.0f},
-                                    {0.0f, 0.0f},
-                                    {0.0f, 0.0f},
-                                    {0.0f, 0.0f},
-                                    {0.0f, 0.0f},
-                                    {0.0f, 0.0f},
-									{0,0,0},
-									{0,0,0}
-                });
+                vertices[vcount++] = GWVertex({ {xPos, yPos, zPos},
+                            {0.0f, 0.0f, 0.0f},
+                            {(float)x / (m_grid_dim_x), 1.0f - (float)z / (m_grid_dim_z)},
+                            {0.0f, 0.0f},
+                            {0.0f, 0.0f},
+                            {0.0f, 0.0f},
+                            {0.0f, 0.0f},
+                            {0.0f, 0.0f},
+                            {0.0f, 0.0f},
+                            {0.0f, 0.0f},
+                            {0,0,0},
+                            {0,0,0}
+                    });
 
                 if (x < m_grid_dim_x - 1 && z < m_grid_dim_z - 1)
                 {
                     uint32_t currentIndex = z * m_grid_dim_x + x;
-                    indices.push_back(currentIndex);
-                    indices.push_back(currentIndex + m_grid_dim_x + 1);
-                    indices.push_back(currentIndex + 1);
 
-                    indices.push_back(currentIndex);
-                    indices.push_back(currentIndex + m_grid_dim_x);
-                    indices.push_back(currentIndex + m_grid_dim_x + 1);
+                    // First triangle
+                    indices[icount++] = currentIndex;
+                    indices[icount++] = currentIndex + m_grid_dim_x + 1;
+                    indices[icount++] = currentIndex + 1;
+
+                    // Second triangle
+                    indices[icount++] = currentIndex;
+                    indices[icount++] = currentIndex + m_grid_dim_x;
+                    indices[icount++] = currentIndex + m_grid_dim_x + 1;
                 }
             }
         }
 
-        for (size_t i = 0; i < indices.size(); i += 3)
-        {
+        // Accumulate normals for each vertex
+        for (size_t i = 0; i < indices.size(); i += 3) {
             GWVertex& v0 = vertices[indices[i]];
             GWVertex& v1 = vertices[indices[i + 1]];
             GWVertex& v2 = vertices[indices[i + 2]];
 
             XMFLOAT3 normal = compute_normal(v0.position, v1.position, v2.position);
-            v0.normal = normal;
-            v1.normal = normal;
-            v2.normal = normal;
+
+            v0.normal = AddXMFLOAT3(v0.normal, normal);
+            v1.normal = AddXMFLOAT3(v1.normal, normal);
+            v2.normal = AddXMFLOAT3(v2.normal, normal);
+        }
+
+        // Normalize the accumulated normals
+        for (auto& vertex : vertices) {
+            vertex.normal = NormalizeXMFLOAT3(vertex.normal);
         }
 
         m_per_terrain_cb =
