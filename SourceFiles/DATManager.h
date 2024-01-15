@@ -58,12 +58,18 @@ public:
         return m_dat.readFile(file_handle, index, true);
     }
 
+    int get_num_files_for_type(FileType type) {
+        return num_files_per_type[type];
+    }
+
 private:
     std::wstring m_dat_filepath;
     GWDat m_dat;
 
     std::atomic<int> m_num_types_read{0};
     std::atomic<int> m_num_running_dat_reader_threads{0};
+
+    std::unordered_map<FileType, int> num_files_per_type;
 
     void read_all_files();
 

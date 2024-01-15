@@ -3,18 +3,12 @@
 #include "GuiGlobalConstants.h"
 #include "GWUnpacker.h"
 
-std::vector<FileType> GetAllFileTypes() {
-    return { NONE, AMAT, AMP, ATEXDXT1, ATEXDXT2, ATEXDXT3, ATEXDXT4, ATEXDXT5, ATEXDXTN, ATEXDXTA, ATEXDXTL,
-            ATTXDXT1, ATTXDXT3, ATTXDXT5, ATTXDXTN, ATTXDXTA, ATTXDXTL, DDS, FFNA_Type2, FFNA_Type3, FFNA_Unknown,
-            MFTBASE, NOTREAD, SOUND, TEXT, UNKNOWN };
-}
-
 constexpr int max_pixel_per_tile_dir = 20;
 
 void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_manager)
 {
     if (GuiGlobalConstants::is_extract_panel_open) {
-        if (ImGui::Begin("Extract Panel", NULL, ImGuiWindowFlags_NoFocusOnAppearing)) {
+        if (ImGui::Begin("Extract Panel", &GuiGlobalConstants::is_extract_panel_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
 
             if (ImGui::CollapsingHeader("Extract map render to image file", ImGuiTreeNodeFlags_DefaultOpen)) {
 
@@ -57,24 +51,41 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_ma
                 static std::map<int, bool> fileTypeSelections;
 
                 static bool initialized = false;
+                static int num_files_to_extract = 0;
+
                 if (!initialized) {
                     for (FileType type : GetAllFileTypes()) {
                         fileTypeSelections[static_cast<int>(type)] = true;
+                        if (fileTypeSelections[type]) {
+                            num_files_to_extract += dat_manager->get_num_files_for_type(type);
+                        }
                     }
                     initialized = true;
                 }
 
+                static std::string num_files_to_extract_ui_str = std::format("Number of files to extract : {}", num_files_to_extract);
                 int checkboxCounter = 0;
                 for (FileType type : GetAllFileTypes()) {
                     std::string typeName = typeToString(type);
-                    if (typeName.empty()) continue;
+                    if (typeName.empty() || type == NONE) continue;
 
                     if (checkboxCounter > 0) ImGui::SameLine();
-                    ImGui::Checkbox(typeName.c_str(), &fileTypeSelections[static_cast<int>(type)]);
+                    if (ImGui::Checkbox(typeName.c_str(), &fileTypeSelections[static_cast<int>(type)])) {
+                        num_files_to_extract = 0;
+                        for (FileType type : GetAllFileTypes()) {
+                            if (fileTypeSelections[type]) {
+                                num_files_to_extract += dat_manager->get_num_files_for_type(type);
+                            }
+                        }
+
+                        num_files_to_extract_ui_str = std::format("Number of files to extract : {}", num_files_to_extract);
+                    }
                     checkboxCounter++;
 
                     if (checkboxCounter % 5 == 0) checkboxCounter = 0;
                 }
+
+                ImGui::Text(num_files_to_extract_ui_str.c_str());
 
                 if (ImGui::Button("Extract selected file types")) {
                     std::wstring saveDir = OpenDirectoryDialog();
