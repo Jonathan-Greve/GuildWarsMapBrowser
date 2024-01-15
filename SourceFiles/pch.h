@@ -193,6 +193,13 @@ enum class LODQuality : uint8_t {
     Medium, // Medium quality
     Low, // Lowset quality
 };
+
+inline std::vector<FileType> GetAllFileTypes() {
+    return { NONE, AMAT, AMP, ATEXDXT1, ATEXDXT2, ATEXDXT3, ATEXDXT4, ATEXDXT5, ATEXDXTN, ATEXDXTA, ATEXDXTL,
+            ATTXDXT1, ATTXDXT3, ATTXDXT5, ATTXDXTN, ATTXDXTA, ATTXDXTL, DDS, FFNA_Type2, FFNA_Type3, FFNA_Unknown,
+            MFTBASE, NOTREAD, SOUND, TEXT, UNKNOWN };
+}
+
 #include <commdlg.h>
 #include <shobjidl.h>
 

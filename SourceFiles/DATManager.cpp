@@ -144,6 +144,17 @@ void DATManager::read_all_files()
     {
         thread.join();
     }
+
+    const auto& mft = get_MFT();
+    for (const auto& entry : mft) {
+        const auto num_files_for_type_it = num_files_per_type.find(static_cast<FileType>(entry.type));
+        if (num_files_for_type_it != num_files_per_type.end()) {
+            num_files_for_type_it->second += 1;
+        }
+        else {
+            num_files_per_type.emplace(static_cast<FileType>(entry.type), 1);
+        }
+    }
 }
 
 void DATManager::read_files_thread(Concurrency::concurrent_queue<int>& file_indices_queue)
