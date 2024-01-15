@@ -16,7 +16,8 @@ void CheckAndResetHideAll()
             GuiGlobalConstants::is_texture_panel_open ||
             GuiGlobalConstants::is_picking_panel_open ||
             GuiGlobalConstants::is_compare_panel_open ||
-            GuiGlobalConstants::is_custom_file_info_editor_open))
+            GuiGlobalConstants::is_custom_file_info_editor_open ||
+            GuiGlobalConstants::is_extract_panel_open))
     {
         GuiGlobalConstants::hide_all = false;
     }
@@ -48,6 +49,7 @@ void draw_gui_window_controller()
             GuiGlobalConstants::is_picking_panel_open = !GuiGlobalConstants::hide_all;
             GuiGlobalConstants::is_compare_panel_open = !GuiGlobalConstants::hide_all;
             GuiGlobalConstants::is_custom_file_info_editor_open = !GuiGlobalConstants::hide_all;
+            GuiGlobalConstants::is_extract_panel_open = !GuiGlobalConstants::hide_all;
         }
         else
         {
@@ -67,10 +69,12 @@ void draw_gui_window_controller()
     ImGui::Checkbox("Picking Panel", &GuiGlobalConstants::is_picking_panel_open);
     ImGui::Checkbox("Compare Panel", &GuiGlobalConstants::is_compare_panel_open);
     ImGui::Checkbox("Custom File Info Editor", &GuiGlobalConstants::is_custom_file_info_editor_open);
+    ImGui::Checkbox("Extract Panel", &GuiGlobalConstants::is_extract_panel_open);
 
     ImGui::Separator();
-    ImGui::Checkbox("DAT Browser movable", &GuiGlobalConstants::is_dat_browser_movable);
-    ImGui::Checkbox("DAT Browser resizeable", &GuiGlobalConstants::is_dat_browser_resizeable);
+    if (ImGui::Checkbox("DAT Browser movable and resizeable", &GuiGlobalConstants::is_dat_browser_movable)) {
+        GuiGlobalConstants::is_dat_browser_resizeable = GuiGlobalConstants::is_dat_browser_movable;
+    }
 
 
     // End the ImGui window
