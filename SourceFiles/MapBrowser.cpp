@@ -173,6 +173,11 @@ void MapBrowser::Render()
 
     draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer, m_extract_panel_info);
 
+    if (!m_mft_indices_to_extract.empty()) {
+        draw_dat_load_progress_bar(m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3) - m_mft_indices_to_extract.size(),
+            m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3));
+    }
+
     static bool show_demo_window = false;
     if (show_demo_window)
         ImGui::ShowDemoWindow(&show_demo_window);
@@ -285,20 +290,10 @@ void MapBrowser::Render()
                                 // Handle the error
                             }
                         }
-                        else {
-                            // Handle compression error
-                        }
                     }
-                    else {
-                        // Handle mipmap generation error
-                    }
-                }
-                else {
-                    // Handle capture error
                 }
             }
 
-            texture->Release();
         }
     }
 }
@@ -329,6 +324,7 @@ void MapBrowser::Clear()
 #pragma endregion
 
 void MapBrowser::ClearOffscreen() {
+    m_deviceResources->PIXBeginEvent(L"ClearOffscreen");
     auto context = m_deviceResources->GetD3DDeviceContext();
     auto renderTarget = m_deviceResources->GetOffscreenRenderTargetView();
     auto depthStencil = m_deviceResources->GetOffscreenDepthStencilView();
@@ -340,6 +336,7 @@ void MapBrowser::ClearOffscreen() {
 
     auto const viewport = m_deviceResources->GetOffscreenViewport();
     context->RSSetViewports(1, &viewport);
+    m_deviceResources->PIXEndEvent();
 }
 
 #pragma region Message Handlers
