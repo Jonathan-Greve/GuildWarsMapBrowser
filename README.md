@@ -9,7 +9,7 @@ Browse the Guild Wars .dat file. Included features:
 - Give each file inside the .dat a custom name for easy reference. Or load the data provided by other users (shared through csv files).
 - Hex editor viewer of files.
 - Playback of audio files.
-- Extract 3D models and textures.
+- Extract 3D models, textures and more.
 - And more
 
 ## How to use
@@ -37,6 +37,10 @@ Viewing textures in Guild Wars Map Browser:
 
 Audio playback and controls
 ![Blender Golem](images/v5_0_audio_playback.png)
+
+Export all maps to png or dds in any resolution (up to 16384x16384)
+![image](https://github.com/Jonathan-Greve/GuildWarsMapBrowser/assets/16852003/9abbeafe-18c8-4427-ab20-85b043cbefa9)
+
 
 ## Building
 To build just clone the repository and open the .Sln in Visual Studio. Build in x86 mode (release or debug). Cannot build 64-bit.
