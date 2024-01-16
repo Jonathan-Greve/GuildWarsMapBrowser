@@ -170,17 +170,22 @@ void MapBrowser::Render()
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
-
-    draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer, m_extract_panel_info);
-
-    if (!m_mft_indices_to_extract.empty()) {
-        draw_dat_load_progress_bar(m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3) - m_mft_indices_to_extract.size(),
-            m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3));
+    if (m_show_error_msg) {
+        ShowErrorMessage();
     }
+    else {
 
-    static bool show_demo_window = false;
-    if (show_demo_window)
-        ImGui::ShowDemoWindow(&show_demo_window);
+        draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer, m_extract_panel_info);
+
+        if (!m_mft_indices_to_extract.empty()) {
+            draw_dat_load_progress_bar(m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3) - m_mft_indices_to_extract.size(),
+                m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3));
+        }
+
+        static bool show_demo_window = false;
+        if (show_demo_window)
+            ImGui::ShowDemoWindow(&show_demo_window);
+    }
 
     // Dear ImGui Render
     ImGui::Render();
@@ -287,10 +292,31 @@ void MapBrowser::Render()
 
                             HRESULT hrSave = DirectX::SaveToDDSFile(compressedImage.GetImages(), compressedImage.GetImageCount(), compressedImage.GetMetadata(), DDS_FLAGS_NONE, filename.c_str());
                             if (FAILED(hrSave)) {
-                                // Handle the error
+                                m_mft_indices_to_extract.clear();
+
+                                m_error_msg = std::format("SaveToDDSFile failed. Try lowering the resolution (i.e. use less pixels per tile).");
+                                m_show_error_msg = true;
                             }
                         }
+                        else {
+                            m_mft_indices_to_extract.clear();
+
+                            m_error_msg = std::format("Compress failed. Try lowering the resolution (i.e. use less pixels per tile).");
+                            m_show_error_msg = true;
+                        }
                     }
+                    else {
+                        m_mft_indices_to_extract.clear();
+
+                        m_error_msg = std::format("GenerateMipMaps failed. Try lowering the resolution (i.e. use less pixels per tile).");
+                        m_show_error_msg = true;
+                    }
+                }
+                else {
+                    m_mft_indices_to_extract.clear();
+                    
+                    m_error_msg = std::format("CaptureTexture failed. Not enough VRAM, try lowering the resolution (i.e. use less pixels per tile).");
+                    m_show_error_msg = true;
                 }
             }
 
@@ -337,6 +363,35 @@ void MapBrowser::ClearOffscreen() {
     auto const viewport = m_deviceResources->GetOffscreenViewport();
     context->RSSetViewports(1, &viewport);
     m_deviceResources->PIXEndEvent();
+}
+
+void MapBrowser::ShowErrorMessage() {
+    if (m_show_error_msg) {
+        // Set the window to be centered
+        ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f,
+            ImGui::GetIO().DisplaySize.y * 0.5f),
+            ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+        // Set the window to have a red border
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+
+        // Create a window that is not resizable, not movable and with a title bar
+        ImGui::Begin("Error", &m_show_error_msg, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+
+        // Display the error message
+        ImGui::Text("%s", m_error_msg.c_str());
+
+        // Close button
+        if (ImGui::Button("Close")) {
+            m_show_error_msg = false;
+        }
+
+        // End the window
+        ImGui::End();
+
+        // Pop the style color for the border
+        ImGui::PopStyleColor();
+    }
 }
 
 #pragma region Message Handlers
