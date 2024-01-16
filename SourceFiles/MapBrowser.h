@@ -55,6 +55,8 @@ private:
     void Clear();
     void ClearOffscreen();
 
+    void ShowErrorMessage();
+
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
 
@@ -83,4 +85,7 @@ private:
     std::vector<std::vector<std::string>> m_csv_data;
 
     std::unique_ptr<MapRenderer> m_map_renderer;
+
+    std::string m_error_msg = "";
+    bool m_show_error_msg = false;
 };

@@ -3,7 +3,7 @@
 #include "GuiGlobalConstants.h"
 #include "GWUnpacker.h"
 
-constexpr int max_pixel_per_tile_dir = 20;
+constexpr int max_pixel_per_tile_dir = 16384;
 
 void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_manager)
 {

@@ -240,6 +240,11 @@ void DeviceResources::UpdateOffscreenResources(int width, int height) {
     m_d3dOffscreenDepthStencilView.Reset();
     m_offscreenDepthStencil.Reset();
 
+    const int maxWidth = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION; // Dx11 maximum texture dimension
+    const int maxHeight = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION; // Dx11 maximum texture dimension
+    width = std::min(width, maxWidth);
+    height = std::min(height, maxHeight);
+
     const DXGI_FORMAT backBufferFormat = (m_options & (c_FlipPresent | c_AllowTearing | c_EnableHDR))
         ? NoSRGB(m_backBufferFormat)
         : m_backBufferFormat;
