@@ -56,9 +56,7 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_ma
                 if (!initialized) {
                     for (FileType type : GetAllFileTypes()) {
                         fileTypeSelections[static_cast<int>(type)] = true;
-                        if (fileTypeSelections[type]) {
-                            num_files_to_extract += dat_manager->get_num_files_for_type(type);
-                        }
+                        num_files_to_extract += dat_manager->get_num_files_for_type(type);
                     }
                     initialized = true;
                 }
