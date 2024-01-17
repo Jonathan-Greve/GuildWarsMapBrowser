@@ -9,7 +9,7 @@ Browse the Guild Wars .dat file. Included features:
 - Give each file inside the .dat a custom name for easy reference. Or load the data provided by other users (shared through csv files).
 - Hex editor viewer of files.
 - Playback of audio files.
-- Extract 3D models and textures.
+- Extract 3D models, textures and more.
 - And more
 
 ## How to use
@@ -18,8 +18,9 @@ Browse the Guild Wars .dat file. Included features:
 
 ## Preview
  
- Here is an preview of Monastery Overlook as seen rendered in GuildWarsMapBrowser and pre-searing Ascalon City
+ Here is an preview of Monastery Overlook as seen rendered in GuildWarsMapBrowser:
 ![Monastery Overlook](images/v5_0_monastery_overlook.png)
+and pre-Searing Ascalon City:
 ![Ascalon City](images/v5_0_pre_ascalon_city.png)
 And here is an example of rendering some models:
 ![A Golem](images/v5_0_view_model_golem.png)
@@ -29,14 +30,18 @@ And imported Pre-searing Ascalon City in Blender:
 ![Blender Ascalon City](images/v5_0_pre_ascalon_city_blender.png)
 ![Blender Ascalon City Solid](images/v5_0_pre_ascalon_city_blender_1.png)
 
-Golem imported in Blender
+Golem imported in Blender:
 ![Blender Golem](images/v5_0_view_model_golem_blender.png)
 
 Viewing textures in Guild Wars Map Browser:
 ![Blender Golem](images/v5_0_view_texture_file.png)
 
-Audio playback and controls
+Audio playback and controls:
 ![Blender Golem](images/v5_0_audio_playback.png)
+
+Export all maps to png or dds in any resolution (up to 16384x16384):
+![image](https://github.com/Jonathan-Greve/GuildWarsMapBrowser/assets/16852003/9abbeafe-18c8-4427-ab20-85b043cbefa9)
+
 
 ## Building
 To build just clone the repository and open the .Sln in Visual Studio. Build in x86 mode (release or debug). Cannot build 64-bit.
