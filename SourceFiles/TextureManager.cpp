@@ -164,7 +164,7 @@ HRESULT TextureManager::SaveTextureToFile(ID3D11ShaderResourceView* srv, const w
     image.pixels = static_cast<uint8_t*>(mappedResource.pData);
 
     // Save the image to a file
-    hr = DirectX::SaveToWICFile(image, DirectX::WIC_FLAGS_NONE, DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG),
+    hr = DirectX::SaveToWICFile(image, DirectX::WIC_FLAGS_FORCE_SRGB, DirectX::GetWICCodec(DirectX::WIC_CODEC_PNG),
                                 filename);
 
     // Unmap and release the staging texture
