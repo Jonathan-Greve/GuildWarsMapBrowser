@@ -21,7 +21,6 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer)
     static int selected_prop_submodel_index = -1;
 
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) {
-        //if (info.prop_index >= 0) { // This check is neccessary otherwise clicking anywhere on the screen without a prop will deselect the current prop because info.prop_index would be -1.
         RemoveHighlightFromProp(map_renderer, selected_prop_index);
 
         if (selected_prop_index == info.prop_index && selected_prop_submodel_index == info.prop_submodel_index) {
@@ -34,7 +33,6 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer)
 
             HightlightProp(map_renderer, selected_prop_index, selected_prop_submodel_index);
         }
-        //}
     }
 
     const auto& props_mesh_ids = map_renderer->GetPropsMeshIds();
