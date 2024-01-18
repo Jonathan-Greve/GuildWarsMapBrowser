@@ -8,6 +8,9 @@ struct OldModelPixelShader
 sampler ss : register(s0);
 Texture2D shaderTextures[8] : register(t3);
 
+#define DARKGREEN float3(0.4, 1.0, 0.4)
+#define LIGHTGREEN float3(0.0, 0.5, 0.0)
+
 struct DirectionalLight
 {
     float4 ambient;
@@ -31,7 +34,8 @@ cbuffer PerObjectCB : register(b1)
     uint4 texture_types[8];
     uint num_uv_texture_pairs;
     uint object_id;
-    float pad1[2];
+    uint highlight_state; // 0 is not hightlight, 1 is dark green, 2 is lightgreen
+    float pad1[1];
 };
 
 cbuffer PerCameraCB : register(b2)
@@ -171,6 +175,15 @@ PSOutput main(PixelInputType input)
     }
 
     finalColor.a = a;
+    
+    if (highlight_state == 1)
+    {
+        finalColor.rgb = lerp(finalColor.rgb, DARKGREEN, 0.7);
+    }
+    else if (highlight_state == 2)
+    {
+        finalColor.rgb = lerp(finalColor.rgb, LIGHTGREEN, 0.4);
+    }
 
     PSOutput output;
     output.rt_0_output = finalColor;
@@ -184,5 +197,6 @@ PSOutput main(PixelInputType input)
     output.rt_1_output = colorId;
 
     return output;
-})";
+}
+)";
 };

@@ -27,7 +27,8 @@ cbuffer PerObjectCB : register(b1)
     uint4 texture_types[8];
     uint num_uv_texture_pairs;
     uint object_id;
-    float pad1[2];
+    uint highlight_state; // 0 is not hightlight, 1 is dark green, 2 is lightgreen
+    float pad1[1];
 };
 
 cbuffer PerCameraCB : register(b2)
@@ -86,5 +87,6 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // Return the result
     return outputColor;
-})";
+}
+)";
 };
