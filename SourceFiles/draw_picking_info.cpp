@@ -20,20 +20,33 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer)
     static int selected_prop_index = -1; // Index of the selected object
     static int selected_prop_submodel_index = -1;
 
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-        if (info.prop_index >= 0) { // This check is neccessary otherwise clicking anywhere on the screen without a prop will deselect the current prop because info.prop_index would be -1.
-            RemoveHighlightFromProp(map_renderer, selected_prop_index);
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) {
+        //if (info.prop_index >= 0) { // This check is neccessary otherwise clicking anywhere on the screen without a prop will deselect the current prop because info.prop_index would be -1.
+        RemoveHighlightFromProp(map_renderer, selected_prop_index);
 
-            if (selected_prop_index == info.prop_index && selected_prop_submodel_index == info.prop_submodel_index) {
+        if (selected_prop_index == info.prop_index && selected_prop_submodel_index == info.prop_submodel_index) {
+            selected_prop_index = -1;
+            selected_prop_submodel_index = -1;
+        }
+        else {
+            selected_prop_index = info.prop_index;
+            selected_prop_submodel_index = info.prop_submodel_index;
 
-                selected_prop_index = -1;
-                selected_prop_submodel_index = -1;
-            }
-            else {
-                selected_prop_index = info.prop_index;
-                selected_prop_submodel_index = info.prop_submodel_index;
+            HightlightProp(map_renderer, selected_prop_index, selected_prop_submodel_index);
+        }
+        //}
+    }
 
-                HightlightProp(map_renderer, selected_prop_index, selected_prop_submodel_index);
+    const auto& props_mesh_ids = map_renderer->GetPropsMeshIds();
+    const auto prop_mesh_ids_it = props_mesh_ids.find(selected_prop_index);
+
+    if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
+        if (prop_mesh_ids_it != props_mesh_ids.end()) {
+            ImGui::SameLine();
+
+            if (selected_prop_submodel_index < prop_mesh_ids_it->second.size()) {
+                const auto mesh_id = prop_mesh_ids_it->second[selected_prop_submodel_index];
+                map_renderer->GetMeshManager()->SetMeshShouldRender(mesh_id, false);
             }
         }
     }
@@ -48,6 +61,7 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer)
     if (GuiGlobalConstants::is_picking_panel_open) {
         if (ImGui::Begin("Picking Info", &GuiGlobalConstants::is_picking_panel_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
             if (selected_prop_index >= 0 && ImGui::Button("Deselect")) {
+                RemoveHighlightFromProp(map_renderer, selected_prop_index);
                 selected_prop_index = -1;
                 selected_prop_submodel_index = -1;
             }
@@ -110,12 +124,11 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer)
                     {
                         const auto& model = models[i];
 
-                        auto flags = ImGuiTreeNodeFlags_None;
-                        if (i == submodel_index) {
-                            flags = ImGuiTreeNodeFlags_DefaultOpen;
-                        }
+                        auto flags = ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_SpanAvailWidth;
 
-                        if (ImGui::TreeNodeEx(("Model " + std::to_string(i)).c_str(), flags))
+                        std::string treeNodeLabel = "Model " + std::to_string(i);
+
+                        if (ImGui::TreeNodeEx(treeNodeLabel.c_str(), flags))
                         {
                             const auto uts1 = ffna_model_file_ptr->geometry_chunk.uts1;
                             if (uts1.size() > 0)
@@ -136,7 +149,7 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer)
                             {
                                 const auto& first_vertex = model.vertices[0];
 
-                                if (ImGui::TreeNodeEx("First Vertex Info", ImGuiTreeNodeFlags_DefaultOpen))
+                                if (ImGui::TreeNodeEx("First Vertex Info", ImGuiTreeNodeFlags_None))
                                 {
                                     ImGui::Text("Has Position: %s", first_vertex.has_position ? "True" : "False");
                                     ImGui::Text("Has Group: %s", first_vertex.has_group ? "True" : "False");
@@ -191,6 +204,37 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer)
                             }
 
                             ImGui::TreePop();
+                        }
+
+                        if (selected_prop_submodel_index >= 0) {
+                            ImGui::SameLine();
+                            if (selected_prop_submodel_index != i && ImGui::Button(("Set focus##" + std::to_string(i)).c_str()))
+                            {
+                                RemoveHighlightFromProp(map_renderer, selected_prop_index);
+                                selected_prop_submodel_index = i;
+                                HightlightProp(map_renderer, selected_prop_index, selected_prop_submodel_index);
+                            }
+                            else if (selected_prop_submodel_index == i && ImGui::Button(("Deselect##" + std::to_string(i)).c_str())) {
+                                RemoveHighlightFromProp(map_renderer, selected_prop_index);
+                                selected_prop_index = -1;
+                                selected_prop_submodel_index = -1;
+                            }
+
+                            if (prop_mesh_ids_it != props_mesh_ids.end()) {
+                                if (i < prop_mesh_ids_it->second.size()) {
+                                    ImGui::SameLine();
+
+                                    const auto mesh_id = prop_mesh_ids_it->second[i];
+                                    bool should_render = map_renderer->GetMeshManager()->GetMeshShouldRender(mesh_id);
+
+                                    if (should_render && ImGui::Button(("Hide##" + std::to_string(i)).c_str())) {
+                                        map_renderer->GetMeshManager()->SetMeshShouldRender(mesh_id, false);
+                                    }
+                                    else if (!should_render && ImGui::Button(("Show##" + std::to_string(i)).c_str())) {
+                                        map_renderer->GetMeshManager()->SetMeshShouldRender(mesh_id, true);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
