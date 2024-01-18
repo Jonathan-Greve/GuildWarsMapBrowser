@@ -41,12 +41,19 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer)
     const auto prop_mesh_ids_it = props_mesh_ids.find(selected_prop_index);
 
     if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
-        if (prop_mesh_ids_it != props_mesh_ids.end()) {
-            ImGui::SameLine();
-
-            if (selected_prop_submodel_index < prop_mesh_ids_it->second.size()) {
-                const auto mesh_id = prop_mesh_ids_it->second[selected_prop_submodel_index];
-                map_renderer->GetMeshManager()->SetMeshShouldRender(mesh_id, false);
+        if (ImGui::GetIO().KeyShift || ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeyAlt) { // Hide all submodels if shift, ctrl or alt is held down.
+            if (prop_mesh_ids_it != props_mesh_ids.end()) {
+                for (const auto& mesh_id : prop_mesh_ids_it->second) {
+                    map_renderer->GetMeshManager()->SetMeshShouldRender(mesh_id, false);
+                }
+            }
+        }
+        else {
+            if (prop_mesh_ids_it != props_mesh_ids.end()) {
+                if (selected_prop_submodel_index < prop_mesh_ids_it->second.size()) {
+                    const auto mesh_id = prop_mesh_ids_it->second[selected_prop_submodel_index];
+                    map_renderer->GetMeshManager()->SetMeshShouldRender(mesh_id, false);
+                }
             }
         }
     }
