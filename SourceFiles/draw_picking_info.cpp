@@ -14,21 +14,64 @@ extern std::vector<FileData> selected_map_files;
 
 void draw_picking_info(const PickingInfo& info)
 {
+    static int selected_prop_index = -1; // Index of the selected object
+    static int selected_prop_submodel_index = -1;
+
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        if (info.prop_index >= 0) { // This check is neccessary otherwise clicking anywhere on the screen without a prop will deselect the current prop because info.prop_index would be -1.
+            if (selected_prop_index == info.prop_index) {
+                selected_prop_index = -1;
+                selected_prop_submodel_index = -1;
+            }
+            else {
+                selected_prop_index = info.prop_index;
+                selected_prop_submodel_index = info.prop_submodel_index;
+            }
+        }
+    }
+
     static int last_hovered_prop_index = -1;
-    if (info.prop_index >= 0) { last_hovered_prop_index = info.prop_index; }
+    static int last_hovered_prop_submodel_index = -1;
+    if (info.prop_index >= 0) {
+        last_hovered_prop_index = info.prop_index;
+        last_hovered_prop_submodel_index = info.prop_submodel_index;
+    }
 
     if (GuiGlobalConstants::is_picking_panel_open) {
         if (ImGui::Begin("Picking Info", &GuiGlobalConstants::is_picking_panel_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
+            if (selected_prop_index >= 0 && ImGui::Button("Deselect")) {
+                selected_prop_index = -1;
+                selected_prop_submodel_index = -1;
+            }
+            else {
+                ImGui::Text("Left click a prop (3D model) to lock the selection.");
+                ImGui::Text("When selected left click the object again to deselect.");
+            }
+            ImGui::Separator();
+
+            int prop_index = last_hovered_prop_index;
+            int submodel_index = last_hovered_prop_submodel_index;
+            if (selected_prop_index >= 0) {
+                prop_index = selected_prop_index;
+                submodel_index = selected_prop_submodel_index;
+            }
 
             ImGui::Text("Mouse Coordinates: (%d, %d)", info.client_x, info.client_y);
 
-            if (last_hovered_prop_index >= 0) { ImGui::Text("Picked Prop Index: %d", last_hovered_prop_index); }
+            if (prop_index >= 0) {
+                ImGui::Text("Picked Prop Index: %d", prop_index);
+                ImGui::Text("Submodel index: %d", submodel_index);
+            }
             else { ImGui::Text("Picked Object ID: None"); }
 
-            if (last_hovered_prop_index < selected_ffna_map_file.props_info_chunk.prop_array.props_info.size())
+            if (prop_index >= 0 && prop_index < selected_ffna_map_file.props_info_chunk.prop_array.props_info.size())
             {
-                const PropInfo prop_info = selected_ffna_map_file.props_info_chunk.prop_array.props_info[
-                    last_hovered_prop_index];
+                int prop_index = last_hovered_prop_index;
+                if (selected_prop_index >= 0) {
+                    prop_index = selected_prop_index;
+                }
+
+                const PropInfo prop_info = selected_ffna_map_file.props_info_chunk.prop_array.props_info[prop_index];
                 draw_prop_info(prop_info, true);
 
 
@@ -59,7 +102,12 @@ void draw_picking_info(const PickingInfo& info)
                     {
                         const auto& model = models[i];
 
-                        if (ImGui::TreeNodeEx(("Model " + std::to_string(i)).c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+                        auto flags = ImGuiTreeNodeFlags_None;
+                        if (i == submodel_index) {
+                            flags = ImGuiTreeNodeFlags_DefaultOpen;
+                        }
+
+                        if (ImGui::TreeNodeEx(("Model " + std::to_string(i)).c_str(), flags))
                         {
                             const auto uts1 = ffna_model_file_ptr->geometry_chunk.uts1;
                             if (uts1.size() > 0)
