@@ -18,6 +18,7 @@ using namespace DirectX;
 using Microsoft::WRL::ComPtr;
 
 extern std::unordered_map<uint32_t, uint32_t> object_id_to_prop_index;
+extern std::unordered_map<uint32_t, uint32_t> object_id_to_submodel_index;
 
 MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
     : m_input_manager(input_manager),
@@ -154,9 +155,15 @@ void MapBrowser::Render()
 
     // Get prop_index id
     int prop_index = -1;
+    int submodel_index = -1;
     if (const auto it = object_id_to_prop_index.find(hovered_object_id); it != object_id_to_prop_index.end())
     {
         prop_index = it->second;
+    }
+
+    if (const auto it = object_id_to_submodel_index.find(hovered_object_id); it != object_id_to_submodel_index.end())
+    {
+        submodel_index = it->second;
     }
 
     PickingInfo picking_info;
@@ -164,6 +171,7 @@ void MapBrowser::Render()
     picking_info.client_y = mouse_client_coords.y;
     picking_info.object_id = hovered_object_id;
     picking_info.prop_index = prop_index;
+    picking_info.prop_submodel_index = submodel_index;
     picking_info.camera_pos = m_map_renderer->GetCamera()->GetPosition3f();
 
     // Start the Dear ImGui frame

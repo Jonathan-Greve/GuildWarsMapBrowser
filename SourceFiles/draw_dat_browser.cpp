@@ -47,6 +47,7 @@ inline extern SelectedDatTexture selected_dat_texture{};
 inline extern std::vector<uint8_t> selected_raw_data{};
 
 inline extern std::unordered_map<uint32_t, uint32_t> object_id_to_prop_index{};
+inline extern std::unordered_map<uint32_t, uint32_t> object_id_to_submodel_index{};
 inline extern std::unordered_map<uint32_t, uint32_t> prop_index_to_selected_map_files_index{};
 
 inline extern HSTREAM selected_audio_stream_handle{};
@@ -474,6 +475,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         selected_map_file_index = index;
 
         object_id_to_prop_index.clear();
+        object_id_to_submodel_index.clear();
         selected_map_files.clear();
         selected_ffna_map_file = dat_manager->parse_ffna_map_file(index);
 
@@ -828,6 +830,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                             int prop_index = i;
 
                             object_id_to_prop_index.insert({ object_id, prop_index });
+                            object_id_to_submodel_index.emplace(object_id, l);
                         }
                     }
                 }
