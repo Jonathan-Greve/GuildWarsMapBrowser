@@ -664,9 +664,9 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                     std::vector<Mesh> sorted_prop_meshes(prop_meshes.size());
                     std::vector<int> sorted_sort_orders(sort_orders.size());
 
-                    for (size_t i = 0; i < indices.size(); ++i) {
-                        sorted_prop_meshes[i] = prop_meshes[indices[i]];
-                        sorted_sort_orders[i] = sort_orders[indices[i]];
+                    for (size_t j = 0; j < indices.size(); ++j) {
+                        sorted_prop_meshes[j] = prop_meshes[indices[j]];
+                        sorted_sort_orders[j] = sort_orders[indices[j]];
                     }
 
                     prop_meshes.swap(sorted_prop_meshes);

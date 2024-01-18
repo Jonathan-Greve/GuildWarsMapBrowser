@@ -12,20 +12,28 @@
 extern FFNA_MapFile selected_ffna_map_file;
 extern std::vector<FileData> selected_map_files;
 
-void draw_picking_info(const PickingInfo& info)
+void HightlightProp(MapRenderer* map_renderer, int selected_prop_index, int selected_prop_submodel_index);
+void RemoveHighlightFromProp(MapRenderer* map_renderer, int selected_prop_index);
+
+void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer)
 {
     static int selected_prop_index = -1; // Index of the selected object
     static int selected_prop_submodel_index = -1;
 
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
         if (info.prop_index >= 0) { // This check is neccessary otherwise clicking anywhere on the screen without a prop will deselect the current prop because info.prop_index would be -1.
-            if (selected_prop_index == info.prop_index) {
+            RemoveHighlightFromProp(map_renderer, selected_prop_index);
+
+            if (selected_prop_index == info.prop_index && selected_prop_submodel_index == info.prop_submodel_index) {
+
                 selected_prop_index = -1;
                 selected_prop_submodel_index = -1;
             }
             else {
                 selected_prop_index = info.prop_index;
                 selected_prop_submodel_index = info.prop_submodel_index;
+
+                HightlightProp(map_renderer, selected_prop_index, selected_prop_submodel_index);
             }
         }
     }
@@ -191,3 +199,44 @@ void draw_picking_info(const PickingInfo& info)
         ImGui::End();
     }
 }
+
+void HightlightProp(MapRenderer* map_renderer, int selected_prop_index, int selected_prop_submodel_index)
+{
+    const auto& props_mesh_ids = map_renderer->GetPropsMeshIds();
+    const auto prop_mesh_ids_it = props_mesh_ids.find(selected_prop_index);
+    if (prop_mesh_ids_it != props_mesh_ids.end()) {
+        for (int i = 0; i < prop_mesh_ids_it->second.size(); i++) {
+            const auto mesh_id = prop_mesh_ids_it->second[i];
+            const auto object_data = map_renderer->GetMeshManager()->GetMeshPerObjectData(mesh_id);
+            if (object_data.has_value()) {
+                auto new_object_data = object_data.value();
+                if (i == selected_prop_submodel_index) {
+                    new_object_data.highlight_state = 1;
+                }
+                else {
+                    new_object_data.highlight_state = 2;
+                }
+
+                map_renderer->GetMeshManager()->UpdateMeshPerObjectData(mesh_id, new_object_data);
+            }
+        }
+    }
+}
+
+void RemoveHighlightFromProp(MapRenderer* map_renderer, int selected_prop_index)
+{
+    const auto& props_mesh_ids = map_renderer->GetPropsMeshIds();
+    const auto prop_mesh_ids_it = props_mesh_ids.find(selected_prop_index);
+    if (prop_mesh_ids_it != props_mesh_ids.end()) {
+        for (int i = 0; i < prop_mesh_ids_it->second.size(); i++) {
+            const auto mesh_id = prop_mesh_ids_it->second[i];
+            const auto object_data = map_renderer->GetMeshManager()->GetMeshPerObjectData(mesh_id);
+            if (object_data.has_value()) {
+                auto new_object_data = object_data.value();
+                new_object_data.highlight_state = 0;
+                map_renderer->GetMeshManager()->UpdateMeshPerObjectData(mesh_id, new_object_data);
+            }
+        }
+    }
+}
+

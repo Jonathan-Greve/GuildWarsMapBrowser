@@ -341,7 +341,13 @@ public:
             mesh_ids.push_back(mesh_id);
         }
 
-        m_prop_mesh_ids.push_back({model_id, mesh_ids});
+        const auto it = m_prop_mesh_ids.find(model_id);
+        if (it != m_prop_mesh_ids.end()) {
+            it->second.insert(it->second.end(), mesh_ids.begin(), mesh_ids.end());
+        }
+        else {
+            m_prop_mesh_ids.emplace(model_id, mesh_ids);
+        }
 
         return mesh_ids;
     }
@@ -350,9 +356,10 @@ public:
         for (const auto mesh_ids : m_prop_mesh_ids) {
             for (const auto mesh_id : mesh_ids.second) {
                 m_mesh_manager->RemoveMesh(mesh_id);
-
             }
         }
+
+        m_prop_mesh_ids.clear();
     }
 
     int GetObjectId(ID3D11Texture2D* picking_target, const int x, const int y) const
@@ -360,7 +367,7 @@ public:
         return m_mesh_manager->GetPickedObjectId(m_deviceContext, picking_target, x, y);
     }
 
-    std::vector<std::pair<uint32_t, std::vector<int>>>& GetPropsMeshIds() { return m_prop_mesh_ids; }
+    std::unordered_map<uint32_t, std::vector<int>>& GetPropsMeshIds() { return m_prop_mesh_ids; }
 
     PixelShaderType GetTerrainPixelShaderType() { return m_terrain_current_pixel_shader_type; }
     void SetTerrainPixelShaderType(PixelShaderType pixel_shader_type)
@@ -533,7 +540,7 @@ private:
     Terrain* m_terrain = nullptr;
     PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainTexturedWithShadows;
 
-    std::vector<std::pair<uint32_t, std::vector<int>>> m_prop_mesh_ids;
+    std::unordered_map<uint32_t, std::vector<int>> m_prop_mesh_ids;
     std::vector<int> extra_mesh_ids; // For stuff like spheres and boxes.
 
     bool m_is_terrain_mesh_set = false;

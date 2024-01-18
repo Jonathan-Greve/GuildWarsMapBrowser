@@ -1,6 +1,9 @@
 sampler ss : register(s0);
 Texture2D shaderTextures[8] : register(t3);
 
+#define DARKGREEN float3(0.4, 1.0, 0.4)
+#define LIGHTGREEN float3(0.0, 0.5, 0.0)
+
 struct DirectionalLight
 {
 	float4 ambient;
@@ -17,14 +20,15 @@ cbuffer PerFrameCB : register(b0)
 
 cbuffer PerObjectCB : register(b1)
 {
-	matrix World;
-	uint4 uv_indices[8];
-	uint4 texture_indices[8];
-	uint4 blend_flags[8];
-	uint4 texture_types[8];
-	uint num_uv_texture_pairs;
-	uint object_id;
-	float pad1[2];
+    matrix World;
+    uint4 uv_indices[8];
+    uint4 texture_indices[8];
+    uint4 blend_flags[8];
+    uint4 texture_types[8];
+    uint num_uv_texture_pairs;
+    uint object_id;
+    uint highlight_state; // 0 is not hightlight, 1 is dark green, 2 is lightgreen
+    float pad1[1];
 };
 
 cbuffer PerCameraCB : register(b2)
@@ -155,6 +159,15 @@ PSOutput main(PixelInputType input)
     }
 
     float3 final_color = lighting_color * sampled_texture_color.rgb;
+    
+    if (highlight_state == 1)
+    {
+        final_color.rgb = lerp(final_color.rgb, DARKGREEN, 0.7);
+    }
+    else if (highlight_state == 2)
+    {
+        final_color.rgb = lerp(final_color.rgb, LIGHTGREEN, 0.4);
+    }
 
     PSOutput output;
     output.rt_0_output = float4(final_color, sampled_texture_color.a);

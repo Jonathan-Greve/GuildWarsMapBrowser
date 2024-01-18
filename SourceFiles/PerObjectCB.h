@@ -7,10 +7,11 @@ struct PerObjectCB
     uint32_t texture_types[8][4];
     uint32_t num_uv_texture_pairs;
     uint32_t object_id;
-    float pad[2];
+    uint32_t highlight_state;
+    float pad[1];
 
     PerObjectCB()
-        : num_uv_texture_pairs(0)
+        : num_uv_texture_pairs(0), object_id(0), highlight_state(0)
     {
         DirectX::XMStoreFloat4x4(&world, DirectX::XMMatrixIdentity());
 

@@ -162,6 +162,16 @@ public:
 		if (it != m_lineMeshes.end()) { it->second->SetPerObjectData(data); }
 	}
 
+	std::optional<PerObjectCB> GetMeshPerObjectData(int mesh_id) {
+		auto it = m_triangleMeshes.find(mesh_id);
+		if (it != m_triangleMeshes.end())
+		{
+			return it->second->GetPerObjectData();
+		}
+
+		return std::nullopt;
+	}
+
 	bool SetMeshShouldRender(int mesh_id, bool should_render)
 	{
 		bool found = false;

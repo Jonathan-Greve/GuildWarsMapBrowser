@@ -64,7 +64,7 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
             custom_file_info_changed = false;
             custom_file_info_changed = draw_file_info_editor_panel(csv_data);
 
-            draw_picking_info(picking_info);
+            draw_picking_info(picking_info, map_renderer);
 
             if (selected_file_type >= ATEXDXT1 && selected_file_type <= ATTXDXTL &&
                   selected_file_type != ATEXDXTA && selected_file_type != ATTXDXTA ||
