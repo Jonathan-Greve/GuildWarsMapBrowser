@@ -17,7 +17,7 @@ void RemoveHighlightFromProp(MapRenderer* map_renderer, int selected_prop_index)
 
 void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer)
 {
-    static int selected_prop_index = -1; // Index of the selected object
+    static int selected_prop_index = -1;
     static int selected_prop_submodel_index = -1;
 
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) {
