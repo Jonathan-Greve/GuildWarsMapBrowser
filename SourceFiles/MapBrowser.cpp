@@ -146,10 +146,25 @@ void MapBrowser::Render()
 
     m_map_renderer->Render();
 
-    // Copy picking texture to staging texture for CPU access
-    m_deviceResources->GetD3DDeviceContext()->CopyResource(
-        m_deviceResources->GetPickingStagingTexture(),
-        m_deviceResources->GetPickingRenderTarget());
+    // Resolve multisampled picking texture if neccessary
+    if (m_deviceResources->GetMsaaLevelIndex() > 0) {
+        m_deviceResources->GetD3DDeviceContext()->ResolveSubresource(
+            m_deviceResources->GetPickingNonMsaaTexture(),
+            0,
+            m_deviceResources->GetPickingRenderTarget(),
+            0,
+            m_deviceResources->GetBackBufferFormat());
+
+        // Copy picking texture to staging texture for CPU access
+        m_deviceResources->GetD3DDeviceContext()->CopyResource(
+            m_deviceResources->GetPickingStagingTexture(),
+            m_deviceResources->GetPickingNonMsaaTexture());
+    }
+    else {
+        m_deviceResources->GetD3DDeviceContext()->CopyResource(
+            m_deviceResources->GetPickingStagingTexture(),
+            m_deviceResources->GetPickingRenderTarget());
+    }
 
     auto mouse_client_coords = m_input_manager->GetClientCoords(m_deviceResources->GetWindow());
     int hovered_object_id = m_map_renderer->GetObjectId(m_deviceResources->GetPickingStagingTexture(), mouse_client_coords.x, mouse_client_coords.y);
@@ -175,6 +190,10 @@ void MapBrowser::Render()
     picking_info.prop_submodel_index = submodel_index;
     picking_info.camera_pos = m_map_renderer->GetCamera()->GetPosition3f();
 
+    bool msaa_changed = false;
+    int msaa_level_index = m_deviceResources->GetMsaaLevelIndex();
+    const auto& msaa_levels = m_deviceResources->GetMsaaLevels();
+
     // Start the Dear ImGui frame
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
@@ -183,8 +202,8 @@ void MapBrowser::Render()
         ShowErrorMessage();
     }
     else {
-
-        draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer, m_extract_panel_info);
+        draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer, m_extract_panel_info,
+                msaa_changed, msaa_level_index, msaa_levels);
 
         if (!m_mft_indices_to_extract.empty()) {
             draw_dat_load_progress_bar(m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3) - m_mft_indices_to_extract.size(),
@@ -204,6 +223,10 @@ void MapBrowser::Render()
 
     // Show the new frame.
     m_deviceResources->Present();
+
+    if (msaa_changed) {
+        m_deviceResources->SetMsaaLevel(msaa_level_index);
+    }
 
     if (m_extract_panel_info.pixels_per_tile_changed) {
         m_extract_panel_info.pixels_per_tile_changed = false;
@@ -312,6 +335,8 @@ void MapBrowser::Render()
                 0,  // Source subresource
                 m_deviceResources->GetBackBufferFormat()  // Format
             );
+
+            texture->Release();
 
             if (m_extract_panel_info.map_render_extract_file_type == ExtractPanel::PNG) {
                 D3D11_TEXTURE2D_DESC textureDesc;

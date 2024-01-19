@@ -59,7 +59,8 @@ namespace DX
         D3D_FEATURE_LEVEL       GetDeviceFeatureLevel() const noexcept  { return m_d3dFeatureLevel; }
         ID3D11Texture2D*        GetRenderTarget() const noexcept        { return m_renderTarget.Get(); }
         ID3D11Texture2D*        GetPickingRenderTarget() const noexcept        { return m_pickingRenderTarget.Get(); }
-        ID3D11Texture2D*        GetPickingStagingTexture() const noexcept        { return m_pickingStagingTexture.Get(); }
+        ID3D11Texture2D*        GetPickingStagingTexture() const noexcept { return m_pickingStagingTexture.Get(); }
+        ID3D11Texture2D*        GetPickingNonMsaaTexture() const noexcept { return m_pickingNonMsaaTexture.Get(); }
         ID3D11Texture2D*        GetOffscreenRenderTarget() const noexcept { return m_offscreenRenderTarget.Get(); }
         ID3D11Texture2D*        GetOffscreenNonMsaaRenderTarget() const noexcept { return m_offscreenNonMsaaTexture.Get(); }
         ID3D11Texture2D*        GetDepthStencil() const noexcept { return m_depthStencil.Get(); }
@@ -93,6 +94,23 @@ namespace DX
             m_d3dAnnotation->SetMarker(name);
         }
 
+        std::vector<std::pair<int, int>> GetMsaaLevels() {
+            return m_mssa_levels;
+        }
+
+        int GetMsaaLevelIndex() {
+            return m_current_mssa_level_index;
+        }
+
+        void SetMsaaLevel(int mssa_level_index) {
+            if (mssa_level_index < m_mssa_levels.size()) {
+                m_swapChain.Reset();
+                m_current_mssa_level_index = mssa_level_index;
+            }
+
+            CreateWindowSizeDependentResources();
+        }
+
     private:
         void CreateFactory();
         void GetHardwareAdapter(IDXGIAdapter1** ppAdapter);
@@ -104,10 +122,14 @@ namespace DX
         Microsoft::WRL::ComPtr<IDXGISwapChain1>             m_swapChain;
         Microsoft::WRL::ComPtr<ID3DUserDefinedAnnotation>   m_d3dAnnotation;
 
+        std::vector<std::pair<int, int>> m_mssa_levels; // pair(sampleCount, maxQualityLevel)
+        int m_current_mssa_level_index = 0;
+
         // Direct3D rendering objects. Required for 3D.
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_renderTarget;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_pickingRenderTarget;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_pickingStagingTexture;
+        Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_pickingNonMsaaTexture;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_offscreenRenderTarget;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_offscreenStagingTexture;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_offscreenNonMsaaTexture;
