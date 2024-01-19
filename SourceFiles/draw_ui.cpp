@@ -25,7 +25,8 @@ bool custom_file_info_changed = false;
 std::unordered_set<uint32_t> dat_compare_filter_result;
 
 void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show, MapRenderer* map_renderer, PickingInfo picking_info, 
-    std::vector<std::vector<std::string>>& csv_data, int& FPS_target, DX::StepTimer& timer, ExtractPanelInfo& extract_panel_info)
+    std::vector<std::vector<std::string>>& csv_data, int& FPS_target, DX::StepTimer& timer, ExtractPanelInfo& extract_panel_info, bool& msaa_changed,
+    int& msaa_level_index, const std::vector<std::pair<int, int>>& msaa_levels)
 {
     int initial_dat_manager_to_show = dat_manager_to_show;
 
@@ -53,7 +54,7 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
                 draw_left_panel(map_renderer);
             }
             if (GuiGlobalConstants::is_right_panel_open) {
-                draw_right_panel(map_renderer, FPS_target, timer);
+                draw_right_panel(map_renderer, FPS_target, timer, msaa_changed, msaa_level_index, msaa_levels);
             }
             
             draw_extract_panel(extract_panel_info, dat_managers[dat_manager_to_show].get());

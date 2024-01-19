@@ -232,6 +232,22 @@ void DeviceResources::CreateDeviceResources()
     ThrowIfFailed(device.As(&m_d3dDevice));
     ThrowIfFailed(context.As(&m_d3dContext));
     ThrowIfFailed(context.As(&m_d3dAnnotation));
+
+    const DXGI_FORMAT backBufferFormat = (m_options & (c_FlipPresent | c_AllowTearing | c_EnableHDR))
+        ? NoSRGB(m_backBufferFormat)
+        : m_backBufferFormat;
+
+    UINT sampleCounts[] = { 1, 2, 4, 8, 16 };
+    for (UINT count : sampleCounts) {
+        UINT qualityLevels = 0;
+        m_d3dDevice->CheckMultisampleQualityLevels(backBufferFormat,
+            count,
+            &qualityLevels);
+
+        if (qualityLevels > 0) {
+            m_mssa_levels.push_back({count, qualityLevels - 1});
+        }
+    }
 }
 
 void DeviceResources::UpdateOffscreenResources(int width, int height) {
@@ -291,7 +307,6 @@ void DeviceResources::UpdateOffscreenResources(int width, int height) {
     
     ThrowIfFailed(m_d3dDevice->CreateTexture2D(&nonMsaaDesc, nullptr, &m_offscreenNonMsaaTexture));
 
-
     // Create a render target view for the offscreen render target
     CD3D11_RENDER_TARGET_VIEW_DESC offscreenRTVDesc(D3D11_RTV_DIMENSION_TEXTURE2DMS, backBufferFormat);
     ThrowIfFailed(m_d3dDevice->CreateRenderTargetView(m_offscreenRenderTarget.Get(), &offscreenRTVDesc, &m_d3dOffscreenRenderTargetView));
@@ -349,6 +364,10 @@ void DeviceResources::CreateWindowSizeDependentResources()
       ? NoSRGB(m_backBufferFormat)
       : m_backBufferFormat;
 
+    const auto& msaaSettings = m_mssa_levels[m_current_mssa_level_index];
+    UINT msaaSampleCount = msaaSettings.first;
+    UINT msaaQualityLevel = msaaSettings.second;
+
     if (m_swapChain)
     {
         // If the swap chain already exists, resize it.
@@ -385,8 +404,8 @@ void DeviceResources::CreateWindowSizeDependentResources()
         swapChainDesc.Format = backBufferFormat;
         swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         swapChainDesc.BufferCount = m_backBufferCount;
-        swapChainDesc.SampleDesc.Count = 1;
-        swapChainDesc.SampleDesc.Quality = 0;
+        swapChainDesc.SampleDesc.Count = msaaSampleCount;
+        swapChainDesc.SampleDesc.Quality = msaaQualityLevel;
         swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
         swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
         swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
@@ -410,18 +429,29 @@ void DeviceResources::CreateWindowSizeDependentResources()
     // Create a render target view of the swap chain back buffer.
     ThrowIfFailed(m_swapChain->GetBuffer(0, IID_PPV_ARGS(m_renderTarget.ReleaseAndGetAddressOf())));
 
-    CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(D3D11_RTV_DIMENSION_TEXTURE2D, m_backBufferFormat);
+    CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(
+        msaaSampleCount > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D,m_backBufferFormat);
     ThrowIfFailed(m_d3dDevice->CreateRenderTargetView(m_renderTarget.Get(), &renderTargetViewDesc,
-                                                      m_d3dRenderTargetView.ReleaseAndGetAddressOf()));
+        m_d3dRenderTargetView.ReleaseAndGetAddressOf()));
 
-    CD3D11_TEXTURE2D_DESC pickingTextureDesc(DXGI_FORMAT_R8G8B8A8_UNORM, backBufferWidth, backBufferHeight,
-                                             1, 1, D3D11_BIND_RENDER_TARGET);
+
+    CD3D11_TEXTURE2D_DESC pickingTextureDesc(
+        DXGI_FORMAT_R8G8B8A8_UNORM, backBufferWidth, backBufferHeight,
+        1, 1,
+        D3D11_BIND_RENDER_TARGET,
+        D3D11_USAGE_DEFAULT, 0,
+        msaaSampleCount,
+        msaaQualityLevel);
+
     ThrowIfFailed(
-        m_d3dDevice->CreateTexture2D(&pickingTextureDesc, nullptr, m_pickingRenderTarget.ReleaseAndGetAddressOf())
-    );
-    CD3D11_RENDER_TARGET_VIEW_DESC pickingTargetViewDesc(D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM);
+        m_d3dDevice->CreateTexture2D(&pickingTextureDesc, nullptr, m_pickingRenderTarget.ReleaseAndGetAddressOf()));
+
+    CD3D11_RENDER_TARGET_VIEW_DESC pickingTargetViewDesc(
+        msaaSampleCount > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D,
+        DXGI_FORMAT_R8G8B8A8_UNORM);
+
     ThrowIfFailed(m_d3dDevice->CreateRenderTargetView(m_pickingRenderTarget.Get(), &pickingTargetViewDesc,
-                                                      m_d3dPickingRenderTargetView.ReleaseAndGetAddressOf()));
+        m_d3dPickingRenderTargetView.ReleaseAndGetAddressOf()));
 
     // Staging texture to copy data from pickingRenderTarget to the staging texture on the GPU.
     // Then I can access the data on the CPU through the staging texture. I must do this because the CPU cannot access a render targets data.
@@ -432,20 +462,42 @@ void DeviceResources::CreateWindowSizeDependentResources()
 	  // Use Microsoft::WRL::ComPtr or your own ComPtr implementation
 	ThrowIfFailed(m_d3dDevice->CreateTexture2D(&stagingTextureDesc, nullptr, &m_pickingStagingTexture));
 
+    // When using multisampling (MSAA > 1x) we need to resolve the multisampled texture before we can copy it to the staging texture
+    // So we create this texture for that purpose.
+    CD3D11_TEXTURE2D_DESC resolvedTextureDesc(
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        backBufferWidth,
+        backBufferHeight,
+        1, 1,
+        D3D11_BIND_RENDER_TARGET,
+        D3D11_USAGE_DEFAULT,
+        0,
+        1, // No multisampling
+        0  // Default quality level
+    );
+
+    ThrowIfFailed(
+        m_d3dDevice->CreateTexture2D(&resolvedTextureDesc, nullptr, &m_pickingNonMsaaTexture));
 
     if (m_depthBufferFormat != DXGI_FORMAT_UNKNOWN)
     {
-        // Create a depth stencil view for use with 3D rendering if needed.
-        CD3D11_TEXTURE2D_DESC depthStencilDesc(m_depthBufferFormat, backBufferWidth, backBufferHeight,
-                                               1, // This depth stencil view has only one texture.
-                                               1, // Use a single mipmap level.
-                                               D3D11_BIND_DEPTH_STENCIL);
+        CD3D11_TEXTURE2D_DESC depthStencilDesc(
+            m_depthBufferFormat, backBufferWidth, backBufferHeight,
+            1, // This depth stencil view has only one texture.
+            1, // Use a single mipmap level.
+            D3D11_BIND_DEPTH_STENCIL,
+            D3D11_USAGE_DEFAULT, 0,
+            msaaSampleCount,
+            msaaQualityLevel);
 
         ThrowIfFailed(
-          m_d3dDevice->CreateTexture2D(&depthStencilDesc, nullptr, m_depthStencil.ReleaseAndGetAddressOf()));
+            m_d3dDevice->CreateTexture2D(&depthStencilDesc, nullptr, m_depthStencil.ReleaseAndGetAddressOf()));
 
-        ThrowIfFailed(m_d3dDevice->CreateDepthStencilView(m_depthStencil.Get(), nullptr,
-                                                          m_d3dDepthStencilView.ReleaseAndGetAddressOf()));
+        // Update depthStencilViewDesc for MSAA
+        CD3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc(
+            msaaSampleCount > 1 ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D);
+        ThrowIfFailed(m_d3dDevice->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilViewDesc,
+            m_d3dDepthStencilView.ReleaseAndGetAddressOf()));
     }
 
     // Set the 3D rendering viewport to target the entire window.
@@ -494,10 +546,16 @@ void DeviceResources::HandleDeviceLost()
     m_d3dDepthStencilView.Reset();
     m_d3dRenderTargetView.Reset();
     m_d3dPickingRenderTargetView.Reset();
+    m_d3dOffscreenDepthStencilView.Reset();
+    m_d3dOffscreenRenderTargetView.Reset();
     m_renderTarget.Reset();
     m_pickingRenderTarget.Reset();
     m_pickingStagingTexture.Reset();
     m_depthStencil.Reset();
+    m_offscreenDepthStencil.Reset();
+    m_offscreenNonMsaaTexture.Reset();
+    m_offscreenRenderTarget.Reset();
+    m_offscreenStagingTexture.Reset();
     m_swapChain.Reset();
     m_d3dContext.Reset();
     m_d3dAnnotation.Reset();
