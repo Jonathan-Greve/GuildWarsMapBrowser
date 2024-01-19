@@ -19,6 +19,7 @@ using Microsoft::WRL::ComPtr;
 
 extern std::unordered_map<uint32_t, uint32_t> object_id_to_prop_index;
 extern std::unordered_map<uint32_t, uint32_t> object_id_to_submodel_index;
+extern int selected_map_file_index;
 
 MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
     : m_input_manager(input_manager),
@@ -210,16 +211,32 @@ void MapBrowser::Render()
 
         const auto& mft = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT();
 
-        for (int i = 0; i < mft.size(); i++) {
-            // We only support extracting map files for now.
-            if (mft[i].type == FFNA_Type3) {
-                m_mft_indices_to_extract.emplace(i);
-            }
+        if (!m_hash_index_initialized) {
 
-            if (!m_hash_index_initialized) {
+            for (int i = 0; i < mft.size(); i++) {
                 m_hash_index[mft[i].Hash].push_back(i);
             }
         }
+
+        switch (m_extract_panel_info.map_render_extract_map_type) {
+        case ExtractPanel::AllMapsTopDownOrthographic:
+            for (int i = 0; i < mft.size(); i++) {
+                if (mft[i].type == FFNA_Type3) {
+                    m_mft_indices_to_extract.emplace(i);
+                }
+            }
+            break;
+        case ExtractPanel::CurrentMapTopDownOrthographic:
+        case ExtractPanel::CurrentMapNoViewChange:
+            // Add the indice for the current map
+            if (selected_map_file_index >= 0) {
+                m_mft_indices_to_extract.emplace(selected_map_file_index);
+            }
+            break;
+        default:
+            break;
+        }
+
 
         m_hash_index_initialized = true;
     }
@@ -228,26 +245,54 @@ void MapBrowser::Render()
         const auto index = *m_mft_indices_to_extract.begin();
         m_mft_indices_to_extract.erase(index);
 
-        if (parse_file(m_dat_managers[m_dat_manager_to_show_in_dat_browser].get(), index, m_map_renderer.get(), m_hash_index)) {
+        auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
+        auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
 
-            const auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
-            const auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
+        bool should_save = true;
 
-            const float map_width = (dim_x - 1) * 96;
-            const float map_height = (dim_z - 1) * 96;
+        if ((m_extract_panel_info.map_render_extract_map_type == ExtractPanel::AllMapsTopDownOrthographic || 
+            m_extract_panel_info.map_render_extract_map_type == ExtractPanel::CurrentMapTopDownOrthographic)) {
+            if (m_extract_panel_info.map_render_extract_map_type == ExtractPanel::CurrentMapTopDownOrthographic || parse_file(m_dat_managers[m_dat_manager_to_show_in_dat_browser].get(), index, m_map_renderer.get(), m_hash_index)) {
 
-            const auto terrain_bounds = m_map_renderer->GetTerrain()->m_bounds;
+                dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
+                dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
 
-            const float cam_pos_x = terrain_bounds.map_min_x + map_width / 2;
-            const float cam_pos_z = terrain_bounds.map_min_z + map_height / 2;
+                const float map_width = (dim_x - 1) * 96;
+                const float map_height = (dim_z - 1) * 96;
 
-            m_map_renderer->SetFrustumAsOrthographic(map_width, map_height, 100, 100000);
-            m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
-            m_map_renderer->GetCamera()->SetPosition(cam_pos_x, 80000, cam_pos_z - 48);
+                const auto terrain_bounds = m_map_renderer->GetTerrain()->m_bounds;
 
-            m_map_renderer->Update(0); // Update camera
+                const float cam_pos_x = terrain_bounds.map_min_x + map_width / 2;
+                const float cam_pos_z = terrain_bounds.map_min_z + map_height / 2;
 
-            m_deviceResources->UpdateOffscreenResources(dim_x * m_extract_panel_info.pixels_per_tile_x, dim_z * m_extract_panel_info.pixels_per_tile_y);
+                m_map_renderer->SetFrustumAsOrthographic(map_width-48, map_height-48, 100, 100000);
+                m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
+                m_map_renderer->GetCamera()->SetPosition(cam_pos_x, 80000, cam_pos_z - 48);
+
+                m_map_renderer->Update(0); // Update camera
+            }
+            else {
+                should_save = false;
+            }
+        }
+
+        if (should_save) {
+            switch (m_extract_panel_info.map_render_extract_map_type) {
+            case ExtractPanel::AllMapsTopDownOrthographic:
+            case ExtractPanel::CurrentMapTopDownOrthographic:
+                m_deviceResources->UpdateOffscreenResources(dim_x * m_extract_panel_info.pixels_per_tile_x, dim_z * m_extract_panel_info.pixels_per_tile_y);
+                break;
+            case ExtractPanel::CurrentMapNoViewChange:
+            {
+                int res_x = dim_x * m_extract_panel_info.pixels_per_tile_x;
+                int res_y = res_x / m_map_renderer->GetCamera()->GetAspectRatio();
+                m_deviceResources->UpdateOffscreenResources(res_x, res_y);
+                break;
+            }
+            default:
+                break;
+            }
+
 
             ClearOffscreen();
 
@@ -322,7 +367,7 @@ void MapBrowser::Render()
                 }
                 else {
                     m_mft_indices_to_extract.clear();
-                    
+
                     m_error_msg = std::format("CaptureTexture failed. Not enough VRAM, try lowering the resolution (i.e. use less pixels per tile).");
                     m_show_error_msg = true;
                 }

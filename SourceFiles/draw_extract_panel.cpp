@@ -10,7 +10,22 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_ma
     if (GuiGlobalConstants::is_extract_panel_open) {
         if (ImGui::Begin("Extract Panel", &GuiGlobalConstants::is_extract_panel_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
 
-            if (ImGui::CollapsingHeader("Extract map render to image file", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ImGui::CollapsingHeader("Extract maps to image file", ImGuiTreeNodeFlags_DefaultOpen)) {
+                static int selected_option = 0;
+                const char* options[] = { "Save all maps - top down view", "Save current map - top down view", "Save current map - current view" };
+
+                // Display the combo box with the options
+                if (ImGui::Combo("View Options", &selected_option, options, IM_ARRAYSIZE(options))) {
+                    if (selected_option == 0) {
+                        extract_panel_info.map_render_extract_map_type = ExtractPanel::AllMapsTopDownOrthographic;
+                    }
+                    else if (selected_option == 1) {
+                        extract_panel_info.map_render_extract_map_type = ExtractPanel::CurrentMapTopDownOrthographic;
+                    }
+                    else if (selected_option == 2) {
+                        extract_panel_info.map_render_extract_map_type = ExtractPanel::CurrentMapNoViewChange;
+                    }
+                }
 
                 // Input for pixels per tile in the x-direction
                 ImGui::InputInt("Pixels per Tile X", &extract_panel_info.pixels_per_tile_x, 1, 5, ImGuiInputTextFlags_CharsDecimal);

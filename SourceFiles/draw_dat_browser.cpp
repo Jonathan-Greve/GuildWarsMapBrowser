@@ -34,7 +34,7 @@ extern float volume_level;
 
 extern std::string selected_text_file_str = "";
 
-inline int selected_map_file_index = -1;
+inline extern int selected_map_file_index = -1;
 
 inline extern uint32_t selected_item_hash = -1;
 inline extern uint32_t selected_item_murmurhash3 = -1;
