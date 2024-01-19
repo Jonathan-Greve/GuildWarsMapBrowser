@@ -303,9 +303,19 @@ void MapBrowser::Render()
             ID3D11ShaderResourceView* shaderResourceView = nullptr;
             ID3D11Texture2D* texture = m_deviceResources->GetOffscreenRenderTarget();
 
+            ID3D11Texture2D* resolvedTexture = m_deviceResources->GetOffscreenNonMsaaRenderTarget();
+
+            m_deviceResources->GetD3DDeviceContext()->ResolveSubresource(
+                resolvedTexture,  // Destination texture
+                0,  // Destination subresource
+                texture,  // Source texture (MSAA)
+                0,  // Source subresource
+                m_deviceResources->GetBackBufferFormat()  // Format
+            );
+
             if (m_extract_panel_info.map_render_extract_file_type == ExtractPanel::PNG) {
                 D3D11_TEXTURE2D_DESC textureDesc;
-                texture->GetDesc(&textureDesc);
+                resolvedTexture->GetDesc(&textureDesc);
 
                 D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
                 ZeroMemory(&srvDesc, sizeof(srvDesc));
@@ -316,7 +326,7 @@ void MapBrowser::Render()
 
                 // Create the shader resource view.
                 HRESULT hr = m_deviceResources->GetD3DDevice()->CreateShaderResourceView(
-                    texture, &srvDesc, &shaderResourceView);
+                    resolvedTexture, &srvDesc, &shaderResourceView);
                 if (SUCCEEDED(hr))
                 {
                     const auto file_id = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT()[index].Hash;

@@ -240,41 +240,81 @@ void DeviceResources::UpdateOffscreenResources(int width, int height) {
     m_d3dOffscreenDepthStencilView.Reset();
     m_offscreenDepthStencil.Reset();
 
+    const DXGI_FORMAT backBufferFormat = (m_options & (c_FlipPresent | c_AllowTearing | c_EnableHDR))
+        ? NoSRGB(m_backBufferFormat)
+        : m_backBufferFormat;
+
+    std::vector<UINT> sampleCounts = { 16, 8, 4, 2, 1 };
+    UINT msaaLevel = 1;
+    UINT msaaQuality = 0;
+
+    // Find the best supported MSAA level
+    for (auto& count : sampleCounts) {
+        UINT qualityLevels;
+        m_d3dDevice->CheckMultisampleQualityLevels(backBufferFormat, count, &qualityLevels);
+        if (qualityLevels > 0) {
+            msaaLevel = count;
+            msaaQuality = qualityLevels - 1; // Highest quality level
+            break;
+        }
+    }
+
     const int maxWidth = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION; // Dx11 maximum texture dimension
     const int maxHeight = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION; // Dx11 maximum texture dimension
     width = std::min(width, maxWidth);
     height = std::min(height, maxHeight);
 
-    const DXGI_FORMAT backBufferFormat = (m_options & (c_FlipPresent | c_AllowTearing | c_EnableHDR))
-        ? NoSRGB(m_backBufferFormat)
-        : m_backBufferFormat;
-
     // Create the offscreen render target texture
     CD3D11_TEXTURE2D_DESC offscreenTextureDesc(
         backBufferFormat, // This format should match your requirements
-        width,                      // Texture width
-        height,                     // Texture height
-        1,                          // Mip levels
-        1,                          // Array size
-        D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE   // Bind flags
+        width,            // Texture width
+        height,           // Texture height
+        1,                // Mip levels
+        1,                // Array size
+        D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE, // Bind flags
+        D3D11_USAGE_DEFAULT,
+        0,
+        msaaLevel,        // MSAA sample count
+        msaaQuality,      // MSAA quality
+        0                 // Misc flags
     );
     ThrowIfFailed(m_d3dDevice->CreateTexture2D(&offscreenTextureDesc, nullptr, &m_offscreenRenderTarget));
 
+    CD3D11_TEXTURE2D_DESC nonMsaaDesc(
+        backBufferFormat,
+        width,
+        height,
+        1,
+        1,
+        D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE
+    );
+    
+    ThrowIfFailed(m_d3dDevice->CreateTexture2D(&nonMsaaDesc, nullptr, &m_offscreenNonMsaaTexture));
+
+
     // Create a render target view for the offscreen render target
-    CD3D11_RENDER_TARGET_VIEW_DESC offscreenRTVDesc(D3D11_RTV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM);
+    CD3D11_RENDER_TARGET_VIEW_DESC offscreenRTVDesc(D3D11_RTV_DIMENSION_TEXTURE2DMS, backBufferFormat);
     ThrowIfFailed(m_d3dDevice->CreateRenderTargetView(m_offscreenRenderTarget.Get(), &offscreenRTVDesc, &m_d3dOffscreenRenderTargetView));
 
-    // Create a depth stencil view for use with 3D rendering if needed.
-    CD3D11_TEXTURE2D_DESC depthStencilDesc(m_depthBufferFormat, width, height,
+    CD3D11_TEXTURE2D_DESC depthStencilDesc(
+        m_depthBufferFormat,
+        width,
+        height,
         1, // This depth stencil view has only one texture.
         1, // Use a single mipmap level.
-        D3D11_BIND_DEPTH_STENCIL);
+        D3D11_BIND_DEPTH_STENCIL,
+        D3D11_USAGE_DEFAULT,
+        0,
+        msaaLevel, // MSAA sample count
+        msaaQuality, // MSAA quality
+        0
+    );
 
-    ThrowIfFailed(
-        m_d3dDevice->CreateTexture2D(&depthStencilDesc, nullptr, m_offscreenDepthStencil.ReleaseAndGetAddressOf()));
+    ThrowIfFailed(m_d3dDevice->CreateTexture2D(&depthStencilDesc, nullptr, &m_offscreenDepthStencil));
 
-    ThrowIfFailed(m_d3dDevice->CreateDepthStencilView(m_offscreenDepthStencil.Get(), nullptr,
-        m_d3dOffscreenDepthStencilView.ReleaseAndGetAddressOf()));
+    // Create the depth stencil view
+    CD3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc(D3D11_DSV_DIMENSION_TEXTURE2DMS);
+    ThrowIfFailed(m_d3dDevice->CreateDepthStencilView(m_offscreenDepthStencil.Get(), &dsvDesc, &m_d3dOffscreenDepthStencilView));
 
     m_offscreenViewport = { 0.0f, 0.0f, static_cast<float>(offscreenTextureDesc.Width), static_cast<float>(offscreenTextureDesc.Height),
                         0.f,  1.f };
