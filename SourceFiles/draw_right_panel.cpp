@@ -4,7 +4,7 @@
 
 extern FileType selected_file_type;
 
-void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer& timer)
+void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer& timer, bool& msaa_changed, int& msaa_level_index, const std::vector<std::pair<int, int>>& msaa_levels)
 {
     constexpr auto window_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoFocusOnAppearing;
 
@@ -29,6 +29,26 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
         if (ImGui::InputInt("Max FPS", &FPS_target)) {
             if (FPS_target < 1) {
                 FPS_target = 1;
+            }
+        }
+
+        if (msaa_levels.size() > 0)
+        {
+            std::vector<std::string> msaaOptions;
+            for (const auto& level : msaa_levels) {
+                msaaOptions.push_back(std::to_string(level.first) + "x MSAA");
+            }
+
+            // Convert vector of strings to vector of char pointers
+            std::vector<const char*> msaaCharPtrs;
+            for (const auto& str : msaaOptions) {
+                msaaCharPtrs.push_back(str.c_str());
+            }
+
+            // Create a combo box with MSAA options
+            if (ImGui::Combo("MSAA Level", &msaa_level_index, msaaCharPtrs.data(), msaaCharPtrs.size()))
+            {
+                msaa_changed = true; // Set flag to indicate MSAA level change
             }
         }
 
