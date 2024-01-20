@@ -103,12 +103,21 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_ma
                 if (ImGui::Button("Extract selected file types")) {
                     std::wstring saveDir = OpenDirectoryDialog();
                     if (!saveDir.empty()) {
-                        for (int i = 0; i < mft.size(); i++) {
-                            const auto& entry = mft[i];
-                            if (fileTypeSelections[entry.type]) {
-                                const auto filename = std::format(L"{}_{}_{}_{}.gwraw", i, entry.Hash, entry.murmurhash3, typeToWString(entry.type));
-                                dat_manager->save_raw_decompressed_data_to_file(i, std::filesystem::path(saveDir) / filename);
-                            }
+                        const auto num_threads = std::thread::hardware_concurrency();
+                        std::vector<std::jthread> threads(num_threads);
+
+                        for (std::size_t t = 0; t < num_threads; ++t) {
+                            threads[t] = std::jthread([&, t]() {
+                                for (std::size_t i = t; i < mft.size(); i += num_threads) {
+                                    const auto& entry = mft[i];
+                                    if (fileTypeSelections[entry.type]) {
+                                        const auto filename = std::format(L"{}_{}_{}_{}.gwraw", i, entry.Hash, entry.murmurhash3, typeToWString(entry.type));
+                                        if (!std::filesystem::exists(std::filesystem::path(saveDir) / filename)) {
+                                            dat_manager->save_raw_decompressed_data_to_file(i, std::filesystem::path(saveDir) / filename);
+                                        }
+                                    }
+                                }
+                                });
                         }
                     }
                 }
