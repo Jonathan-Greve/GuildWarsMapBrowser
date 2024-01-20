@@ -475,6 +475,9 @@
     <ClInclude Include="SourceFiles\draw_extract_panel.h">
       <Filter>GUI\Extract Panel</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\Dome.h">
+      <Filter>Render\Basic shapes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -749,6 +752,9 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\draw_extract_panel.cpp">
       <Filter>GUI\Extract Panel</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\Dome.cpp">
+      <Filter>Render\Basic shapes</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
