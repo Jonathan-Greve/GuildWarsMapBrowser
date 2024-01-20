@@ -60,6 +60,7 @@ inline bool items_to_parse = false;
 inline bool items_parsed = false;
 
 inline std::unordered_map<int, TextureType> model_texture_types;
+inline int skydome_mesh_id = -1;
 
 std::unique_ptr<Terrain> terrain;
 std::vector<Mesh> prop_meshes;
@@ -487,6 +488,49 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             // Clear up some GPU memory (especially important for GPUs with little VRAM)
             map_renderer->GetTextureManager()->Clear();
             map_renderer->ClearProps();
+            map_renderer->GetMeshManager()->RemoveMesh(skydome_mesh_id);
+
+
+            // Set skydome. First find main skydome texture
+            const auto& skydome_chunk = selected_ffna_map_file.skydome_chunk;
+            for (int i = 0; i < skydome_chunk.filenames.size(); i++) {
+                const auto& filename = skydome_chunk.filenames[i];
+                auto decoded_filename = decode_filename(filename.filename.id0, filename.filename.id1);
+
+                auto mft_entry_it = hash_index.find(decoded_filename);
+                if (mft_entry_it != hash_index.end())
+                {
+                    auto type = dat_manager->get_MFT()[mft_entry_it->second.at(0)].type;
+                    if (type == ATEXDXTL) {
+                        const DatTexture dat_texture = dat_manager->parse_ffna_texture_file(mft_entry_it->second.at(0));
+                        if (dat_texture.width > 0 && dat_texture.height > 0) {
+                            int texture_id = -1;
+                            auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                                dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
+                                &texture_id, decoded_filename);
+                            if (SUCCEEDED(HR) && texture_id >= 0) {
+                                skydome_mesh_id = map_renderer->GetMeshManager()->AddDome(30000, 600, 600);
+
+                                const auto& map_bounds = selected_ffna_map_file.map_info_chunk.map_bounds;
+
+                                const float map_center_x = (map_bounds.map_min_x + map_bounds.map_max_x) / 2.0f;
+                                const float map_center_z = (map_bounds.map_min_z + map_bounds.map_max_z) / 2.0f;
+
+                                DirectX::XMFLOAT4X4 sphereWorldMatrix;
+                                DirectX::XMStoreFloat4x4(&sphereWorldMatrix, DirectX::XMMatrixTranslation(map_center_x, -500, map_center_z));
+                                PerObjectCB spherePerObjectData;
+                                spherePerObjectData.world = sphereWorldMatrix;
+                                spherePerObjectData.num_uv_texture_pairs = 1;
+                                map_renderer->GetMeshManager()->UpdateMeshPerObjectData(skydome_mesh_id, spherePerObjectData);
+
+                                map_renderer->GetMeshManager()->SetTexturesForMesh(skydome_mesh_id, { map_renderer->GetTextureManager()->GetTexture(texture_id)}, 3);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
 
             auto& terrain_texture_filenames = selected_ffna_map_file.terrain_texture_filenames.array;
             std::vector<DatTexture> terrain_dat_textures;

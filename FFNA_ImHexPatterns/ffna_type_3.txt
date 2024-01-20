@@ -192,12 +192,6 @@ struct Chunk5 {
 };
 
 
-struct Chunk7 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
 struct Chunk8 {
   u32 chunk_id;
   u32 chunk_size;
@@ -242,88 +236,18 @@ struct Chunk8 {
     -sizeof(some_data7_1)];
 };
 
-struct Chunk9 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
+struct FileNameWith2Zeros{
+  FileName file_name;
+  u16 zero;
 };
 
-struct Chunk10 {
+struct SkydomeChunk {
   u32 chunk_id;
   u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
-struct Chunk11 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
-struct Chunk12 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
-struct Chunk13 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
-struct Chunk14 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
-struct Chunk15 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
-struct Chunk16 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
-struct Chunk17 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
-struct Chunk18 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
-struct Chunk19 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
-struct Chunk20 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
-struct Chunk21 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
-};
-
-struct Chunk22 {
-  u32 chunk_id;
-  u32 chunk_size;
-  u8 chunk_data[chunk_size];
+  u16 unknown0;
+  u16 unknown1;
+  u8 unknown2;
+  FileNameWith2Zeros filenames[(chunk_size - 5)  / sizeof(FileNameWith2Zeros)];
 };
 
 enum FFNAType : u8 {
@@ -372,6 +296,9 @@ struct Chunk {
  else if (chunk_id == 0x2000000C){
    Chunk2 chunk2;
  }
+ else if (chunk_id == 0x21000009){
+   SkydomeChunk skydome_chunk;
+ }
  else{
    UnknownChunk unknown_chunk;
  }
@@ -385,4 +312,3 @@ struct MapFile {
  };
  
  MapFile mapfile @ 0;
- 
