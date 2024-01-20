@@ -1,7 +1,7 @@
 # Guild Wars Map Browser
 Browse the Guild Wars .dat file. Included features:
 - Search and filter the internal files in the dat.
-- Render all maps + maps not accesible in-game.
+- Render all maps (including maps not accesible in-game).
 - Fly around and explore the maps in first person.
 - Export and import full maps and models to Blender.
 - View and export different model/mesh LODs (level of detail): High, Medium Low.
@@ -9,8 +9,8 @@ Browse the Guild Wars .dat file. Included features:
 - Give each file inside the .dat a custom name for easy reference. Or load the data provided by other users (shared through csv files).
 - Hex editor viewer of files.
 - Playback of audio files.
-- Extract 3D models, textures and more.
-- And more
+- Extract 3D models, textures, rendered maps and more.
+- And more.
 
 ## How to use
 - Download GuildWarsMapBrowser.exe from [releases](https://github.com/Jonathan-Greve/GuildWarsMapBrowser/releases) and run it.
@@ -41,6 +41,10 @@ Audio playback and controls:
 
 Export all maps to png or dds in any resolution (up to 16384x16384):
 ![image](https://github.com/Jonathan-Greve/GuildWarsMapBrowser/assets/16852003/9abbeafe-18c8-4427-ab20-85b043cbefa9)
+
+Select props and get info about them, hide/show them or cleanup maps to your preference before extracting to dds or png:
+![image](https://github.com/Jonathan-Greve/GuildWarsMapBrowser/assets/16852003/899d97b9-2c11-49ee-8733-81b88d26329d)
+![Lakeside_extract_before_after_cleanup](https://github.com/Jonathan-Greve/GuildWarsMapBrowser/assets/16852003/5d4c2980-4841-4747-84a3-0928492bd8ec)
 
 
 ## Building
