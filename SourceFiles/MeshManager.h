@@ -12,6 +12,7 @@
 #include "BlendStateManager.h"
 #include "RasterizerStateManager.h"
 #include "DepthStencilStateManager.h"
+#include <Dome.h>
 
 class MeshManager
 {
@@ -50,6 +51,16 @@ public:
 	{
 		int meshID = m_nextMeshID++;
 		auto mesh_instance = std::make_shared<Sphere>(m_device, radius, numSlices, numStacks, meshID);
+		add_to_triangle_meshes(mesh_instance, pixel_shader_type);
+		m_needsUpdate = true;
+		return meshID;
+	}
+
+	int AddDome(float radius, uint32_t numSlices, uint32_t numStacks,
+		PixelShaderType pixel_shader_type = PixelShaderType::OldModel)
+	{
+		int meshID = m_nextMeshID++;
+		auto mesh_instance = std::make_shared<Dome>(m_device, radius, numSlices, numStacks, meshID);
 		add_to_triangle_meshes(mesh_instance, pixel_shader_type);
 		m_needsUpdate = true;
 		return meshID;

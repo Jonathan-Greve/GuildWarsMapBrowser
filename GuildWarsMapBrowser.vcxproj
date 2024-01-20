@@ -223,6 +223,7 @@
     <ClInclude Include="SourceFiles\comparer_dsl.h" />
     <ClInclude Include="SourceFiles\ConstantBufferManager.h" />
     <ClInclude Include="SourceFiles\DATManager.h" />
+    <ClInclude Include="SourceFiles\Dome.h" />
     <ClInclude Include="SourceFiles\draw_dat_compare_panel.h" />
     <ClInclude Include="SourceFiles\draw_extract_panel.h" />
     <ClInclude Include="SourceFiles\draw_file_info_editor_panel.h" />
@@ -391,6 +392,7 @@
     <ClCompile Include="SourceFiles\DepthStencilStateManager.cpp" />
     <ClCompile Include="SourceFiles\DeviceResources.cpp" />
     <ClCompile Include="SourceFiles\DirectionalLight.cpp" />
+    <ClCompile Include="SourceFiles\Dome.cpp" />
     <ClCompile Include="SourceFiles\draw_audio_controller_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_chunk_20000000.cpp" />
     <ClCompile Include="SourceFiles\draw_chunk_20000003.cpp" />
