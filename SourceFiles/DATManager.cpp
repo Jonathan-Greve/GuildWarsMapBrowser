@@ -101,15 +101,18 @@ bool DATManager::save_raw_decompressed_data_to_file(int index, std::wstring file
     }
 
     HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
-    unsigned char* data;
-    data = m_dat.readFile(file_handle, index, true);
+    std::unique_ptr<unsigned char[]> data(m_dat.readFile(file_handle, index, true));
+    if (!data)
+    {
+        // Handle error in reading file
+        return false;
+    }
 
     std::ofstream output_file(filepath, std::ios::out | std::ios::binary);
     if (output_file.is_open())
     {
-        output_file.write(reinterpret_cast<char*>(data), mft_entry->uncompressedSize);
+        output_file.write(reinterpret_cast<char*>(data.get()), mft_entry->uncompressedSize);
         output_file.close();
-
         return true;
     }
     else
