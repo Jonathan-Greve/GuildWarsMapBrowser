@@ -333,6 +333,14 @@ public:
         m_prop_mesh_ids.clear();
     }
 
+    void SetSkyMeshId(int sky_mesh_id) {
+        m_sky_mesh_id = sky_mesh_id;
+    }
+
+    int GetSkyMeshId() {
+        return m_sky_mesh_id;
+    }
+
     // A prop consists of 1+ sub models/meshes.
     std::vector<int> AddProp(std::vector<Mesh> meshes, std::vector<PerObjectCB>& per_object_cbs,
                              uint32_t model_id, PixelShaderType pixel_shader_type)
@@ -468,6 +476,17 @@ public:
 
         m_user_camera->Update(dt);
 
+        // Center sky around camera (not height, only x and z, leave height as is)
+        const auto sky_cb_opt = m_mesh_manager->GetMeshPerObjectData(m_sky_mesh_id);
+        if (sky_cb_opt.has_value()) {
+            auto sky_per_object_data = sky_cb_opt.value();
+
+            DirectX::XMFLOAT4X4 sky_world_matrix;
+            DirectX::XMStoreFloat4x4(&sky_world_matrix, DirectX::XMMatrixTranslation(m_user_camera->GetPosition3f().x, -3000, m_user_camera->GetPosition3f().z));
+            sky_per_object_data.world = sky_world_matrix;
+            m_mesh_manager->UpdateMeshPerObjectData(m_sky_mesh_id, sky_per_object_data);
+        }
+
         // Update per frame CB
         if (m_per_frame_cb_changed)
         {
@@ -557,6 +576,8 @@ private:
     int m_terrain_texture_indices_id = -1;
     int m_terrain_shadow_map_id = -1;
     int m_terrain_texture_atlas_id = -1;
+
+    int m_sky_mesh_id = -1;
 
     DirectionalLight m_directionalLight;
     bool m_per_frame_cb_changed = true;
