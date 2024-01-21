@@ -512,6 +512,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                                 sky_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCylinder();
                                 map_renderer->SetSkyMeshId(sky_mesh_id);
                                 map_renderer->GetMeshManager()->SetMeshShouldCull(sky_mesh_id, false);
+                                map_renderer->GetMeshManager()->SetMeshShouldRender(sky_mesh_id, false); // we will manually render it first before any other meshes.
 
                                 const auto& map_bounds = selected_ffna_map_file.map_info_chunk.map_bounds;
 

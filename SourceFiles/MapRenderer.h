@@ -516,8 +516,19 @@ public:
         m_mesh_manager->Update(dt);
     }
 
-    void Render()
+    void Render(ID3D11DepthStencilState* disable_depth_stencil_state)
     {
+        // Render sky before anything else
+        if (m_sky_mesh_id >= 0) {
+            m_deviceContext->OMSetDepthStencilState(disable_depth_stencil_state, 1);
+            m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_sky_mesh_id);
+
+            // Reenable depth write.
+            m_deviceContext->OMSetDepthStencilState(nullptr, 1);
+        }
+
+
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
                                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
     }
