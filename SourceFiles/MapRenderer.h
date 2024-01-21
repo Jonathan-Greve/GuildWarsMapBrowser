@@ -460,6 +460,12 @@ public:
         return m_lod_quality;
     }
 
+    void SetShouldRenderSky(bool should_render_sky) { m_should_render_sky = should_render_sky; }
+    bool GetShouldRenderSky() { return m_should_render_sky; }
+
+    void SetSkyHeight(float sky_height) { m_sky_height = sky_height; }
+    float GetSkyHeight() { return m_sky_height;  }
+
     void Update(const float dt)
     {
         // Walk
@@ -482,7 +488,7 @@ public:
             auto sky_per_object_data = sky_cb_opt.value();
 
             DirectX::XMFLOAT4X4 sky_world_matrix;
-            DirectX::XMStoreFloat4x4(&sky_world_matrix, DirectX::XMMatrixTranslation(m_user_camera->GetPosition3f().x, -3000, m_user_camera->GetPosition3f().z));
+            DirectX::XMStoreFloat4x4(&sky_world_matrix, DirectX::XMMatrixTranslation(m_user_camera->GetPosition3f().x, m_sky_height, m_user_camera->GetPosition3f().z));
             sky_per_object_data.world = sky_world_matrix;
             m_mesh_manager->UpdateMeshPerObjectData(m_sky_mesh_id, sky_per_object_data);
         }
@@ -519,7 +525,7 @@ public:
     void Render(ID3D11DepthStencilState* disable_depth_stencil_state)
     {
         // Render sky before anything else
-        if (m_sky_mesh_id >= 0) {
+        if (m_sky_mesh_id >= 0 && m_should_render_sky) {
             m_deviceContext->OMSetDepthStencilState(disable_depth_stencil_state, 1);
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
                 m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_sky_mesh_id);
@@ -594,4 +600,7 @@ private:
     bool m_per_frame_cb_changed = true;
 
     LODQuality m_lod_quality = LODQuality::High;
+
+    bool m_should_render_sky = true;
+    float m_sky_height = -1000;
 };
