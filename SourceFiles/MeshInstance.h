@@ -74,6 +74,10 @@ public:
 
     const Mesh& GetMesh() { return m_mesh; }
 
+    void SetShouldCull(const bool should_cull) {
+        m_mesh.should_cull = should_cull;
+    }
+
     void Draw(ID3D11DeviceContext* context, LODQuality lod_quality)
     {
         UINT stride = sizeof(GWVertex);
