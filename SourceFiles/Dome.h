@@ -9,7 +9,8 @@ public:
     {
     }
 
-    static Mesh GenerateDomeMesh(float radius, uint32_t numSlices, uint32_t numStacks)
+private:
+    Mesh GenerateDomeMesh(float radius, uint32_t numSlices, uint32_t numStacks)
     {
         std::vector<GWVertex> vertices;
         std::vector<uint32_t> indices;
