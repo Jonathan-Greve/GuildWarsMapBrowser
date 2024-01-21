@@ -13,6 +13,7 @@
 #include "RasterizerStateManager.h"
 #include "DepthStencilStateManager.h"
 #include <Dome.h>
+#include <Cylinder.h>
 
 class MeshManager
 {
@@ -61,6 +62,16 @@ public:
 	{
 		int meshID = m_nextMeshID++;
 		auto mesh_instance = std::make_shared<Dome>(m_device, radius, numSlices, numStacks, meshID);
+		add_to_triangle_meshes(mesh_instance, pixel_shader_type);
+		m_needsUpdate = true;
+		return meshID;
+	}
+
+	int AddCylinder(float radius, float height, uint32_t numSlices, uint32_t numStacks,
+		PixelShaderType pixel_shader_type = PixelShaderType::OldModel)
+	{
+		int meshID = m_nextMeshID++;
+		auto mesh_instance = std::make_shared<Cylinder>(m_device, radius, height, numSlices, numStacks, meshID);
 		add_to_triangle_meshes(mesh_instance, pixel_shader_type);
 		m_needsUpdate = true;
 		return meshID;
@@ -210,6 +221,38 @@ public:
 	{
 		auto* command = m_renderBatch.GetCommand(mesh_id);
 		if (command) { return command->should_render; }
+
+		return false;
+	}
+
+	bool SetMeshShouldCull(int mesh_id, bool should_cull)
+	{
+		bool found = false;
+
+		// Iterate over the triangle meshes
+		auto it = m_triangleMeshes.find(mesh_id);
+		if (it != m_triangleMeshes.end()) { found = true; }
+		else
+		{
+			// If not found in triangle meshes, search in line meshes
+			it = m_lineMeshes.find(mesh_id);
+			if (it != m_lineMeshes.end()) { found = true; }
+		}
+
+		if (found)
+		{
+			// Call SetShouldRender function in the RenderBatch
+			it->second->SetShouldCull(should_cull);
+			m_renderBatch.SetShouldCull(mesh_id, should_cull);
+		}
+
+		return found;
+	}
+
+	bool GetMeshShouldCull(int mesh_id)
+	{
+		auto* command = m_renderBatch.GetCommand(mesh_id);
+		if (command) { return command->should_cull; }
 
 		return false;
 	}

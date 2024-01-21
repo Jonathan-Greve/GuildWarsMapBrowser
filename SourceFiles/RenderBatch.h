@@ -76,6 +76,15 @@ public:
 		}
 	}
 
+	void SetShouldCull(int mesh_id, bool should_cull) {
+		auto it = m_commands.find(mesh_id);
+		if (it != m_commands.end())
+		{
+			it->second.should_cull = should_cull;
+			m_needsSorting = true;
+		}
+	}
+
 	void Clear()
 	{
 		m_commands.clear();
