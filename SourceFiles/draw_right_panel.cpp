@@ -72,6 +72,20 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
                 map_renderer->UpdateTerrainWaterLevel(water_level);
             }
 
+            bool should_render_sky = map_renderer->GetShouldRenderSky();
+            if (ImGui::Checkbox("Show sky", &should_render_sky)) {
+                map_renderer->SetShouldRenderSky(should_render_sky);
+            }
+
+            if (should_render_sky) {
+                float sky_height = map_renderer->GetSkyHeight();
+                if (ImGui::SliderFloat("Sky height", &sky_height, -40000.0f, 40000.0f, "%.2f", 0))
+                {
+                    water_level = std::clamp(sky_height, -40000.0f, 40000.0f);
+                    map_renderer->SetSkyHeight(sky_height);
+                }
+            }
+
             if (ImGui::SliderFloat("Terrain tex pad x", &terrain_tex_pad_x, 0, 0.5, "%.2f", 0))
             {
                 terrain_tex_pad_x = ImClamp(terrain_tex_pad_x, 0.0f, 0.5f);
