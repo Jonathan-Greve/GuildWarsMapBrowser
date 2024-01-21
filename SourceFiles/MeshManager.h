@@ -14,6 +14,7 @@
 #include "DepthStencilStateManager.h"
 #include <Dome.h>
 #include <Cylinder.h>
+#include <GWSkyCylinder.h>
 
 class MeshManager
 {
@@ -86,6 +87,15 @@ public:
 		RenderCommand command = {m_lineMeshes[meshID], D3D11_PRIMITIVE_TOPOLOGY_LINELIST, pixel_shader_type};
 		m_renderBatch.AddCommand(command);
 
+		m_needsUpdate = true;
+		return meshID;
+	}
+
+	int AddGwSkyCylinder(PixelShaderType pixel_shader_type = PixelShaderType::Sky)
+	{
+		int meshID = m_nextMeshID++;
+		auto mesh_instance = std::make_shared<GWSkyCylinder>(m_device, meshID);
+		add_to_triangle_meshes(mesh_instance, pixel_shader_type);
 		m_needsUpdate = true;
 		return meshID;
 	}
