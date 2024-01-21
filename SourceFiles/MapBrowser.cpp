@@ -203,7 +203,7 @@ void MapBrowser::Render()
     }
     else {
         draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer, m_extract_panel_info,
-                msaa_changed, msaa_level_index, msaa_levels);
+            msaa_changed, msaa_level_index, msaa_levels);
 
         if (!m_mft_indices_to_extract.empty()) {
             draw_dat_load_progress_bar(m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3) - m_mft_indices_to_extract.size(),
@@ -255,6 +255,10 @@ void MapBrowser::Render()
             if (selected_map_file_index >= 0) {
                 m_mft_indices_to_extract.emplace(selected_map_file_index);
             }
+            else {
+                m_error_msg = "No map selected. Make sure to select a map before extracting or select extract all maps.";
+                m_show_error_msg = true;
+            }
             break;
         default:
             break;
@@ -268,17 +272,15 @@ void MapBrowser::Render()
         const auto index = *m_mft_indices_to_extract.begin();
         m_mft_indices_to_extract.erase(index);
 
-        auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
-        auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
-
         bool should_save = true;
 
-        if ((m_extract_panel_info.map_render_extract_map_type == ExtractPanel::AllMapsTopDownOrthographic || 
+        if ((m_extract_panel_info.map_render_extract_map_type == ExtractPanel::AllMapsTopDownOrthographic ||
             m_extract_panel_info.map_render_extract_map_type == ExtractPanel::CurrentMapTopDownOrthographic)) {
-            if (m_extract_panel_info.map_render_extract_map_type == ExtractPanel::CurrentMapTopDownOrthographic || parse_file(m_dat_managers[m_dat_manager_to_show_in_dat_browser].get(), index, m_map_renderer.get(), m_hash_index)) {
-
-                dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
-                dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
+            if ((m_extract_panel_info.map_render_extract_map_type == ExtractPanel::CurrentMapTopDownOrthographic ||
+                parse_file(m_dat_managers[m_dat_manager_to_show_in_dat_browser].get(), index, m_map_renderer.get(), m_hash_index)
+                ) && m_map_renderer->GetTerrain()) {
+                const auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
+                const auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
 
                 const float map_width = (dim_x - 1) * 96;
                 const float map_height = (dim_z - 1) * 96;
@@ -288,7 +290,7 @@ void MapBrowser::Render()
                 const float cam_pos_x = terrain_bounds.map_min_x + map_width / 2;
                 const float cam_pos_z = terrain_bounds.map_min_z + map_height / 2;
 
-                m_map_renderer->SetFrustumAsOrthographic(map_width-48, map_height-48, 100, 100000);
+                m_map_renderer->SetFrustumAsOrthographic(map_width - 48, map_height - 48, 100, 100000);
                 m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
                 m_map_renderer->GetCamera()->SetPosition(cam_pos_x, 80000, cam_pos_z - 48);
 
@@ -299,17 +301,28 @@ void MapBrowser::Render()
             }
         }
 
+        if (m_map_renderer->GetTerrain() == nullptr) {
+            should_save = false;
+            m_error_msg = "Terrain data not found.";
+            m_show_error_msg = true;
+        }
+
         if (should_save) {
             // We might disable sky rendering for top down orthographic extraction.
             // Save the current state here so we can restore it after.
             bool should_render_sky = m_map_renderer->GetShouldRenderSky();
 
+            auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
+            auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
+
             switch (m_extract_panel_info.map_render_extract_map_type) {
             case ExtractPanel::AllMapsTopDownOrthographic:
             case ExtractPanel::CurrentMapTopDownOrthographic:
+            {
                 m_deviceResources->UpdateOffscreenResources(dim_x * m_extract_panel_info.pixels_per_tile_x, dim_z * m_extract_panel_info.pixels_per_tile_y);
                 m_map_renderer->SetShouldRenderSky(false);
-                break;
+            }
+            break;
             case ExtractPanel::CurrentMapNoViewChange:
             {
                 int res_x = dim_x * m_extract_panel_info.pixels_per_tile_x;
