@@ -140,6 +140,13 @@ public:
             m_pixel_shaders[PixelShaderType::TerrainDefault]->Initialize(PixelShaderType::TerrainDefault);
         }
 
+        if (!m_pixel_shaders.contains(PixelShaderType::Sky))
+        {
+            m_pixel_shaders[PixelShaderType::Sky] =
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::Sky]->Initialize(PixelShaderType::Sky);
+        }
+
         // Set up the constant buffer for the camera
         D3D11_BUFFER_DESC buffer_desc = {};
         buffer_desc.Usage = D3D11_USAGE_DYNAMIC;

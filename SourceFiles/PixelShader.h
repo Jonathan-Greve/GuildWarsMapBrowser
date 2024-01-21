@@ -7,6 +7,7 @@
 #include "TerrainDefaultPixelShader.h"
 #include "TerrainTexturedPixelShader.h"
 #include "TerrainTexturedWithShadowsPixelShader.h"
+#include <SkyPixelShader.h>
 
 enum class PixelShaderType
 {
@@ -17,7 +18,8 @@ enum class PixelShaderType
     TerrainTexturedWithShadows,
     PickingShader,
     OldModel, // Primarily Prophecies and Factions
-    NewModel // Primarily Nightfall and EotN
+    NewModel, // Primarily Nightfall and EotN
+    Sky
 };
 
 class PixelShader
@@ -78,6 +80,11 @@ public:
             hr = D3DCompile(PickingPixelShader::shader_ps,
                             strlen(PickingPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
                             "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
+            break;
+        case PixelShaderType::Sky:
+            hr = D3DCompile(SkydPixelShader::shader_ps,
+                strlen(SkydPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         default:
             hr = D3DCompile(PickingPixelShader::shader_ps,

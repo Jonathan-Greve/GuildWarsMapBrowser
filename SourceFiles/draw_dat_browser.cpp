@@ -509,7 +509,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                                 dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
                                 &texture_id, decoded_filename);
                             if (SUCCEEDED(HR) && texture_id >= 0) {
-                                skydome_mesh_id = map_renderer->GetMeshManager()->AddDome(30000, 600, 600);
+                                skydome_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCylinder();
+                                map_renderer->GetMeshManager()->SetMeshShouldCull(skydome_mesh_id, false);
 
                                 const auto& map_bounds = selected_ffna_map_file.map_info_chunk.map_bounds;
 
@@ -517,13 +518,16 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                                 const float map_center_z = (map_bounds.map_min_z + map_bounds.map_max_z) / 2.0f;
 
                                 DirectX::XMFLOAT4X4 sphereWorldMatrix;
-                                DirectX::XMStoreFloat4x4(&sphereWorldMatrix, DirectX::XMMatrixTranslation(map_center_x, -500, map_center_z));
+                                DirectX::XMStoreFloat4x4(&sphereWorldMatrix, DirectX::XMMatrixTranslation(map_center_x, 0, map_center_z));
                                 PerObjectCB spherePerObjectData;
                                 spherePerObjectData.world = sphereWorldMatrix;
                                 spherePerObjectData.num_uv_texture_pairs = 1;
                                 map_renderer->GetMeshManager()->UpdateMeshPerObjectData(skydome_mesh_id, spherePerObjectData);
 
                                 map_renderer->GetMeshManager()->SetTexturesForMesh(skydome_mesh_id, { map_renderer->GetTextureManager()->GetTexture(texture_id)}, 3);
+
+
+
                                 break;
                             }
                         }

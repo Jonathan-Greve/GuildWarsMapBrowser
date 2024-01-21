@@ -222,12 +222,14 @@
     <ClInclude Include="SourceFiles\CheckerboardTexture.h" />
     <ClInclude Include="SourceFiles\comparer_dsl.h" />
     <ClInclude Include="SourceFiles\ConstantBufferManager.h" />
+    <ClInclude Include="SourceFiles\Cylinder.h" />
     <ClInclude Include="SourceFiles\DATManager.h" />
     <ClInclude Include="SourceFiles\Dome.h" />
     <ClInclude Include="SourceFiles\draw_dat_compare_panel.h" />
     <ClInclude Include="SourceFiles\draw_extract_panel.h" />
     <ClInclude Include="SourceFiles\draw_file_info_editor_panel.h" />
     <ClInclude Include="SourceFiles\draw_gui_window_controller.h" />
+    <ClInclude Include="SourceFiles\GWSkyCylinder.h" />
     <ClInclude Include="SourceFiles\json.hpp" />
     <ClInclude Include="SourceFiles\map_exporter.h" />
     <ClInclude Include="SourceFiles\model_exporter.h" />
@@ -285,6 +287,7 @@
     <ClInclude Include="SourceFiles\RenderCommand.h" />
     <ClInclude Include="SourceFiles\RenderConstants.h" />
     <ClInclude Include="SourceFiles\resource.h" />
+    <ClInclude Include="SourceFiles\SkyPixelShader.h" />
     <ClInclude Include="SourceFiles\Sphere.h" />
     <ClInclude Include="SourceFiles\stb_image_write.h" />
     <ClInclude Include="SourceFiles\StepTimer.h" />
@@ -388,6 +391,7 @@
     <ClCompile Include="SourceFiles\CheckerboardTexture.cpp" />
     <ClCompile Include="SourceFiles\comparer_dsl.cpp" />
     <ClCompile Include="SourceFiles\ConstantBufferManager.cpp" />
+    <ClCompile Include="SourceFiles\Cylinder.cpp" />
     <ClCompile Include="SourceFiles\DATManager.cpp" />
     <ClCompile Include="SourceFiles\DepthStencilStateManager.cpp" />
     <ClCompile Include="SourceFiles\DeviceResources.cpp" />
@@ -420,6 +424,7 @@
     <ClCompile Include="SourceFiles\FFNA_MapFile.cpp" />
     <ClCompile Include="SourceFiles\FFNA_ModelFile.cpp" />
     <ClCompile Include="SourceFiles\GuiGlobalConstants.cpp" />
+    <ClCompile Include="SourceFiles\GWSkyCylinder.cpp" />
     <ClCompile Include="SourceFiles\GWUnpacker.cpp" />
     <ClCompile Include="SourceFiles\InputManager.cpp" />
     <ClCompile Include="SourceFiles\Line.cpp" />
@@ -465,6 +470,10 @@
     <FxCompile Include="SourceFiles\PickingPixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\SkyPixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
     </FxCompile>
