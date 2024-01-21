@@ -300,10 +300,15 @@ void MapBrowser::Render()
         }
 
         if (should_save) {
+            // We might disable sky rendering for top down orthographic extraction.
+            // Save the current state here so we can restore it after.
+            bool should_render_sky = m_map_renderer->GetShouldRenderSky();
+
             switch (m_extract_panel_info.map_render_extract_map_type) {
             case ExtractPanel::AllMapsTopDownOrthographic:
             case ExtractPanel::CurrentMapTopDownOrthographic:
                 m_deviceResources->UpdateOffscreenResources(dim_x * m_extract_panel_info.pixels_per_tile_x, dim_z * m_extract_panel_info.pixels_per_tile_y);
+                m_map_renderer->SetShouldRenderSky(false);
                 break;
             case ExtractPanel::CurrentMapNoViewChange:
             {
@@ -320,6 +325,8 @@ void MapBrowser::Render()
             ClearOffscreen();
 
             m_map_renderer->Render(disable_depth_write_stencil_state);
+
+            m_map_renderer->SetShouldRenderSky(should_render_sky);
 
             m_deviceResources->GetD3DDeviceContext()->Flush();
 

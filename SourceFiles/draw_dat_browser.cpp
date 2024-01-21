@@ -520,7 +520,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                                 const float map_center_z = (map_bounds.map_min_z + map_bounds.map_max_z) / 2.0f;
 
                                 DirectX::XMFLOAT4X4 sky_world_matrix;
-                                DirectX::XMStoreFloat4x4(&sky_world_matrix, DirectX::XMMatrixTranslation(map_center_x, -3000, map_center_z));
+                                DirectX::XMStoreFloat4x4(&sky_world_matrix, DirectX::XMMatrixTranslation(map_center_x, map_renderer->GetSkyHeight(), map_center_z));
                                 PerObjectCB sky_per_object_data;
                                 sky_per_object_data.world = sky_world_matrix;
                                 sky_per_object_data.num_uv_texture_pairs = 1;
