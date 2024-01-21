@@ -248,6 +248,8 @@ void DeviceResources::CreateDeviceResources()
             m_mssa_levels.push_back({count, qualityLevels - 1});
         }
     }
+
+    CreateDisableDepthWriteStencilState();
 }
 
 void DeviceResources::UpdateOffscreenResources(int width, int height) {
@@ -733,6 +735,22 @@ void DeviceResources::GetHardwareAdapter(IDXGIAdapter1** ppAdapter)
     }
 
     *ppAdapter = adapter.Detach();
+}
+
+void DeviceResources::CreateDisableDepthWriteStencilState()
+{
+    D3D11_DEPTH_STENCIL_DESC dsDesc = {};
+    dsDesc.DepthEnable = true;
+    dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO; // Disable depth write
+    dsDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;      // Depth test function
+
+    // Create the depth stencil state
+    HRESULT hr = m_d3dDevice->CreateDepthStencilState(&dsDesc, &m_DisableDepthWriteStencilState);
+    if (FAILED(hr))
+    {
+        // Handle error
+        throw std::runtime_error("Failed to create skydome depth stencil state");
+    }
 }
 
 // Sets the color space for the swap chain in order to handle HDR output.

@@ -319,6 +319,42 @@ public:
 		if (m_needsUpdate) { m_needsUpdate = false; }
 	}
 
+	// Render only a specific mesh. Ignores should_render.
+	void RenderMesh(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
+		BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
+		DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, int mesh_id) {
+		
+		auto command = m_renderBatch.GetCommand(mesh_id);
+
+		m_deviceContext->IASetPrimitiveTopology(command->primitiveTopology);
+
+		m_deviceContext->PSSetShader(pixel_shaders[command->pixelShaderType]->GetShader(), nullptr, 0);
+		m_deviceContext->PSSetSamplers(0, 1,pixel_shaders[command->pixelShaderType]->GetSamplerState());
+
+
+		if (command->should_cull) { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid); }
+		else { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid_NoCull); }
+
+
+		blend_state_manager->SetBlendState(BlendState::AlphaBlend);
+
+		PerObjectCB transposedData = command->meshInstance->GetPerObjectData();
+
+		// Load World matrix into an XMMATRIX, transpose it, and store it back into an XMFLOAT4X4
+		XMMATRIX worldMatrix = XMLoadFloat4x4(&transposedData.world);
+		worldMatrix = XMMatrixTranspose(worldMatrix);
+		XMStoreFloat4x4(&transposedData.world, worldMatrix);
+
+		// Update the per object constant buffer
+		D3D11_MAPPED_SUBRESOURCE mappedResource;
+		m_deviceContext->Map(m_perObjectCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		memcpy(mappedResource.pData, &transposedData, sizeof(PerObjectCB));
+		m_deviceContext->Unmap(m_perObjectCB.Get(), 0);
+
+		command->meshInstance->Draw(m_deviceContext, lod_quality);
+	}
+		
+
 	void Render(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
 	            BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
 	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality)
