@@ -11,7 +11,7 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_ma
         if (ImGui::Begin("Extract Panel", &GuiGlobalConstants::is_extract_panel_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
 
             if (ImGui::CollapsingHeader("Extract maps to image file", ImGuiTreeNodeFlags_DefaultOpen)) {
-                static int selected_option = 0;
+                static int selected_option = 2;
                 const char* options[] = { "Save all maps - top down view", "Save current map - top down view", "Save current map - current view" };
 
                 // Display the combo box with the options
