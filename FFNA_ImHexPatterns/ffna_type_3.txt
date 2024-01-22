@@ -1,5 +1,5 @@
 #include <std/core.pat>
-
+#pragma pattern_limit 1000000
 struct MapBounds {
   float map_min_x;
   float map_min_y;
@@ -274,6 +274,59 @@ struct ShoreChunk {
  u8 zero;
 };
 
+struct BigChunkSub0 {
+  u8 unknown[20];
+  Vertex2 vertices[3];
+};
+
+struct BigChunk {
+  u32 chunk_id;
+  u32 chunk_size;
+  u32 magicnum_BE_0x4c70feee;
+  u32 magicnum_0xC;
+  u32 unknown1;
+  u8 tag;
+  u32 next_subdata_size0;
+  u16 vertex_count;
+  Vertex2 vertices0[vertex_count];
+  u8 tag0;
+  u32 some_size;
+  u8 unknown2;
+  u32 unknown3;
+  u32 unknown4;
+  u32 vertex_count1;
+  u32 unknown5;
+  u32 unknown6;
+  u32 unknown7;
+  u32 unknown8;
+  u32 unknown9;
+  u32 unknown10;
+  u32 unknown11;
+  u32 unknown12;
+  u8 unknown13;
+  Vertex2 vertices1[vertex_count1];
+  u8 unknown14;
+  u32 vertices_data_size;
+  Vertex2 vertices2[vertices_data_size/(2*sizeof(float))];
+  u8 unknown15;
+  u32 bcs0_size;
+  BigChunkSub0 bcs0[bcs0_size/sizeof(BigChunkSub0)];
+  u8 some_data[some_size-1-4*11-1-sizeof(vertices1)-1-4-sizeof(vertices2)
+               -1-4-sizeof(bcs0)];
+  u8 tag1;
+  u32 some_size1;
+  u8 some_data1[some_size1];
+  u8 tag2;
+  u32 some_size2;
+  u8 some_data2[some_size2];
+  u8 tag3;
+  u32 some_size3;
+  u8 some_data3[some_size3];
+  u32 unknown33;
+  u8 zero;
+};
+
+
 enum FFNAType : u8 {
   Type0,
   Type1,
@@ -296,7 +349,7 @@ struct Chunk {
  if (chunk_id == 0x20000000){
    Chunk1 chunk1;
  }
- else if (chunk_id == 0x20000002){
+ else if (chunk_id == 0x20000002){ 
    Chunk8 terrain_chunk;
  }
  else if (chunk_id == 0x20000003){
@@ -325,6 +378,9 @@ struct Chunk {
  }
  else if (chunk_id == 0x20000010){
    ShoreChunk shore_chunk;
+ }
+ else if (chunk_id == 0x20000008){
+   BigChunk big_chunk;
  }
  else{
    UnknownChunk unknown_chunk;
