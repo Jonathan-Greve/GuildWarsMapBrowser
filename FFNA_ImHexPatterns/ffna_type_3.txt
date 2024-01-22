@@ -241,13 +241,37 @@ struct FileNameWith2Zeros{
   u16 zero;
 };
 
-struct SkydomeChunk {
+struct WaterAndSkyFilenamesChunk {
   u32 chunk_id;
   u32 chunk_size;
   u16 unknown0;
   u16 unknown1;
   u8 unknown2;
   FileNameWith2Zeros filenames[(chunk_size - 5)  / sizeof(FileNameWith2Zeros)];
+};
+
+struct ShoreSubChunk {
+  float float0;
+  float float1;
+  float float2;
+  float float3;
+  u32 vertices_count;
+  Vertex2 vertices[vertices_count];
+  u32 integer0;
+};
+
+struct ShoreChunk {
+  u32 chunk_id;
+  u32 chunk_size;
+  char name[4];
+  u32 unknown1;
+  u32 subchunk_count;
+  ShoreSubChunk subchunks[subchunk_count];
+  
+ u8 rem_data[chunk_size - 12 - 5 - sizeof(subchunks)];
+  
+ u32 unknown9;
+ u8 zero;
 };
 
 enum FFNAType : u8 {
@@ -297,7 +321,10 @@ struct Chunk {
    Chunk2 chunk2;
  }
  else if (chunk_id == 0x21000009){
-   SkydomeChunk skydome_chunk;
+   WaterAndSkyFilenamesChunk water_and_sky_chunk;
+ }
+ else if (chunk_id == 0x20000010){
+   ShoreChunk shore_chunk;
  }
  else{
    UnknownChunk unknown_chunk;
