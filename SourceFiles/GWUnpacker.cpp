@@ -226,13 +226,14 @@ unsigned char* GWDat::readFile(HANDLE file_handle, unsigned int n, bool translat
         OutSize = m.Size;
     }
 
-    // Use murmurhash3 for comparing files
-    MurmurHash3_x86_32(Output, OutSize, 0, &m.murmurhash3);
 
     delete[] Input;
 
     if (Output)
     {
+        // Use murmurhash3 for comparing files
+        MurmurHash3_x86_32(Output, OutSize, 0, &m.murmurhash3);
+
         if (m.type == NOTREAD)
         {
             int type = 0;
