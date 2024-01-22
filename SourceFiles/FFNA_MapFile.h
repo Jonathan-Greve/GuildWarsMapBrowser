@@ -801,6 +801,7 @@ constexpr uint32_t CHUNK_ID_20000000 = 0x20000000;
 constexpr uint32_t CHUNK_ID_TERRAIN = 0x20000002;
 constexpr uint32_t CHUNK_ID_PROPS_INFO = 0x20000004;
 constexpr uint32_t CHUNK_ID_MAP_INFO = 0x2000000C;
+constexpr uint32_t CHUNK_ID_ZONES_STUFF = 0x20000003;
 constexpr uint32_t CHUNK_ID_TERRAIN_FILENAMES = 0x21000002;
 constexpr uint32_t CHUNK_ID_PROPS_FILENAMES0 = 0x21000003;
 constexpr uint32_t CHUNK_ID_PROPS_FILENAMES = 0x21000004;
@@ -814,7 +815,7 @@ struct FFNA_MapFile
     Chunk2 map_info_chunk;
     Chunk3 props_info_chunk;
     Chunk4 prop_filenames_chunk;
-    Chunk1 chunk5; // The actual chunk 5 doesn't work for all files. Haven't figured out the format yet.
+    Chunk5 chunk5; // The actual chunk 5 doesn't work for all files. Haven't figured out the format yet.
     Chunk4 more_filnames_chunk; // same structure as chunk 4
     Chunk7 chunk7;
     Chunk8 terrain_chunk;
@@ -908,5 +909,13 @@ struct FFNA_MapFile
             int offset = it->second;
             skydome_chunk = SkydomeChunk(offset, data.data());
         }
+
+        // Check if the CHUNK_ID_SKYDOME is in the riff_chunks map
+        //it = riff_chunks.find(CHUNK_ID_ZONES_STUFF);
+        //if (it != riff_chunks.end())
+        //{
+        //    int offset = it->second;
+        //    chunk5 = Chunk5(offset, data.data());
+        //}
     }
 };
