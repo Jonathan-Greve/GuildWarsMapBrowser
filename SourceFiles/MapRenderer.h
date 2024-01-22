@@ -53,39 +53,6 @@ public:
         m_directionalLight.direction = XMFLOAT3(1.0f, -1.0f, 0.0f);
         m_directionalLight.pad = 0.0f;
 
-        // Add a sphere at (0,0,0) in world coordinates. For testing the renderer.
-        auto box_id = m_mesh_manager->AddSphere(300, 300, 300);
-        auto sphere_id = m_mesh_manager->AddDome(300, 300, 300);
-
-        // Move the sphere and box next to eachother
-        // Move the box to the left of the sphere (e.g., -250 units on the X-axis)
-        DirectX::XMFLOAT4X4 boxWorldMatrix;
-        DirectX::XMStoreFloat4x4(&boxWorldMatrix, DirectX::XMMatrixTranslation(30000, 0, 0));
-        PerObjectCB boxPerObjectData;
-        boxPerObjectData.world = boxWorldMatrix;
-        boxPerObjectData.num_uv_texture_pairs = 1;
-        m_mesh_manager->UpdateMeshPerObjectData(box_id, boxPerObjectData);
-
-        // Move the sphere to the right of the box (e.g., 250 units on the X-axis)
-        DirectX::XMFLOAT4X4 sphereWorldMatrix;
-        DirectX::XMStoreFloat4x4(&sphereWorldMatrix, DirectX::XMMatrixTranslation(31000, 0, 0));
-        PerObjectCB spherePerObjectData;
-        spherePerObjectData.world = sphereWorldMatrix;
-        boxPerObjectData.num_uv_texture_pairs = 1;
-        m_mesh_manager->UpdateMeshPerObjectData(sphere_id, spherePerObjectData);
-
-        // Create and set texture. Just make it 2x2 checkered tiles. It will be repeated in the pixel shader.
-        int texture_tile_size = 96;
-        int texture_width = texture_tile_size * 2;
-        int texture_height = texture_tile_size * 2;
-        CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size);
-        m_terrain_checkered_texture_id =
-          m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
-                                        texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 3214972);
-
-        m_mesh_manager->SetTexturesForMesh(box_id, {m_texture_manager->GetTexture(m_terrain_checkered_texture_id)}, 3);
-        m_mesh_manager->SetTexturesForMesh(sphere_id, { m_texture_manager->GetTexture(m_terrain_checkered_texture_id) }, 3);
-
         // Create and initialize the VertexShader
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
         m_vertex_shader->Initialize(L"VertexShader.hlsl");

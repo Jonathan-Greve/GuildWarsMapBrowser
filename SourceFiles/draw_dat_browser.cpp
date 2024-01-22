@@ -891,17 +891,25 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
         //for (int i = 0; i < selected_ffna_map_file.props_info_chunk.some_data1.array.size(); i++) {
         //    const auto vertex = selected_ffna_map_file.props_info_chunk.some_data1.array[i];
-        //    map_renderer->AddBox(vertex.x, 2000, vertex.y, 50);
+        //    map_renderer->AddBox(vertex.x, terrain->get_height_at(vertex.x, vertex.y) + 200, vertex.y, 50);
         //}
 
-        //for (int i = 0; i < selected_ffna_map_file.chunk5.some_array.size(); i++) {
-        //    auto color1 = CheckerboardTexture::GetColorForIndex(i);
-        //    auto color2 = CheckerboardTexture::GetColorForIndex(i + 1);
+        /*for (int i = 0; i < selected_ffna_map_file.chunk5.some_array.size(); i++) {
+            auto color1 = CheckerboardTexture::GetColorForIndex(i);
+            auto color2 = CheckerboardTexture::GetColorForIndex(i);
 
-        //    const auto& vertices = selected_ffna_map_file.chunk5.some_array[i].vertices;
-        //    for (int j = 0; j < vertices.size(); j++) {
-        //        const auto& vertex = vertices[j];
-        //        map_renderer->AddBox(vertex.x, 2000, vertex.y, 200, color1, color2);
+            const auto& vertices = selected_ffna_map_file.chunk5.some_array[i].vertices;
+            for (int j = 0; j < vertices.size(); j++) {
+                const auto& vertex = vertices[j];
+                map_renderer->AddBox(vertex.x, terrain->get_height_at(vertex.x, vertex.y) + 200, vertex.y, 300, color1, color2);
+            }
+        }*/
+
+        //for (int i = 0; i < selected_ffna_map_file.chunk5.unknown2.size(); i += 2) {
+        //    if (i + 1 < selected_ffna_map_file.chunk5.unknown2.size()) {
+        //        const auto x = selected_ffna_map_file.chunk5.unknown2[i];
+        //        const auto z = selected_ffna_map_file.chunk5.unknown2[i+1];
+        //        map_renderer->AddBox(x, terrain->get_height_at(x, z) + 200, z, 300);
         //    }
         //}
     }
