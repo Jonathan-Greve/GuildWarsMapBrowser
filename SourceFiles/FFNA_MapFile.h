@@ -797,11 +797,87 @@ struct SkydomeChunk {
     }
 };
 
+struct ShoreSubChunk {
+    float float0;
+    float float1;
+    float float2;
+    float float3;
+    uint32_t vertices_count;
+    std::vector<Vertex2> vertices;
+    uint32_t integer0;
+
+    ShoreSubChunk() = default;
+    ShoreSubChunk(int& offset, const unsigned char* data) {
+        std::memcpy(&float0, &data[offset], sizeof(float0));
+        offset += sizeof(float0);
+
+        std::memcpy(&float1, &data[offset], sizeof(float1));
+        offset += sizeof(float1);
+
+        std::memcpy(&float2, &data[offset], sizeof(float2));
+        offset += sizeof(float2);
+
+        std::memcpy(&float3, &data[offset], sizeof(float3));
+        offset += sizeof(float3);
+
+        std::memcpy(&vertices_count, &data[offset], sizeof(vertices_count));
+        offset += sizeof(vertices_count);
+
+        vertices.resize(vertices_count);
+        std::memcpy(vertices.data(), &data[offset], vertices_count * sizeof(Vertex2));
+        offset += vertices_count * sizeof(Vertex2);
+
+        std::memcpy(&integer0, &data[offset], sizeof(integer0));
+        offset += sizeof(integer0);
+    }
+};
+
+struct ShoreChunk {
+    uint32_t chunk_id;
+    uint32_t chunk_size;
+    char name[4];
+    uint32_t unknown1;
+    uint32_t subchunk_count;
+    std::vector<ShoreSubChunk> subchunks;
+    uint32_t unknown9;
+    uint8_t zero;
+
+    ShoreChunk() = default;
+    ShoreChunk(int& offset, const unsigned char* data) {
+        std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
+        offset += sizeof(chunk_id);
+
+        std::memcpy(&chunk_size, &data[offset], sizeof(chunk_size));
+        offset += sizeof(chunk_size);
+
+        std::memcpy(name, &data[offset], sizeof(name));
+        offset += sizeof(name);
+
+        std::memcpy(&unknown1, &data[offset], sizeof(unknown1));
+        offset += sizeof(unknown1);
+
+        std::memcpy(&subchunk_count, &data[offset], sizeof(subchunk_count));
+        offset += sizeof(subchunk_count);
+
+        subchunks.reserve(subchunk_count);
+        for (uint32_t i = 0; i < subchunk_count; ++i) {
+            subchunks.emplace_back(ShoreSubChunk(offset, data));
+        }
+
+        std::memcpy(&unknown9, &data[offset], sizeof(unknown9));
+        offset += sizeof(unknown9);
+
+        std::memcpy(&zero, &data[offset], sizeof(zero));
+        offset += sizeof(zero);
+    }
+};
+
 constexpr uint32_t CHUNK_ID_20000000 = 0x20000000;
 constexpr uint32_t CHUNK_ID_TERRAIN = 0x20000002;
+constexpr uint32_t CHUNK_ID_ZONES_STUFF = 0x20000003;
 constexpr uint32_t CHUNK_ID_PROPS_INFO = 0x20000004;
 constexpr uint32_t CHUNK_ID_MAP_INFO = 0x2000000C;
-constexpr uint32_t CHUNK_ID_ZONES_STUFF = 0x20000003;
+constexpr uint32_t CHUNK_ID_SHOR = 0x20000010;
 constexpr uint32_t CHUNK_ID_TERRAIN_FILENAMES = 0x21000002;
 constexpr uint32_t CHUNK_ID_PROPS_FILENAMES0 = 0x21000003;
 constexpr uint32_t CHUNK_ID_PROPS_FILENAMES = 0x21000004;
@@ -821,6 +897,7 @@ struct FFNA_MapFile
     Chunk8 terrain_chunk;
     Chunk4 terrain_texture_filenames; // same structure as chunk 4
     SkydomeChunk skydome_chunk;
+    ShoreChunk shore_chunk;
 
     std::unordered_map<uint32_t, int> riff_chunks;
 
@@ -911,6 +988,14 @@ struct FFNA_MapFile
         }
 
         // Check if the CHUNK_ID_SKYDOME is in the riff_chunks map
+        it = riff_chunks.find(CHUNK_ID_SHOR);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            shore_chunk = ShoreChunk(offset, data.data());
+        }
+
+        // Check if the CHUNK_ID_ZONES_STUFF is in the riff_chunks map
         //it = riff_chunks.find(CHUNK_ID_ZONES_STUFF);
         //if (it != riff_chunks.end())
         //{

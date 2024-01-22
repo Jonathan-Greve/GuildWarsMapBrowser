@@ -912,6 +912,17 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         //        map_renderer->AddBox(x, terrain->get_height_at(x, z) + 200, z, 300);
         //    }
         //}
+
+        for (int i = 0; i < selected_ffna_map_file.shore_chunk.subchunks.size(); i++) {
+            auto color1 = CheckerboardTexture::GetColorForIndex(i % 20);
+            auto color2 = CheckerboardTexture::GetColorForIndex(i % 20);
+
+            const auto& vertices = selected_ffna_map_file.shore_chunk.subchunks[i].vertices;
+            for (int j = 0; j < vertices.size(); j++) {
+                const auto& vertex = vertices[j];
+                map_renderer->AddBox(vertex.x, terrain->get_height_at(vertex.x, vertex.y) + 200, vertex.y, 300, color1, color2);
+            }
+        }
     }
 
     break;
