@@ -31,6 +31,8 @@ public:
         return grid;
     }
 
+    float get_height_at(float world_x, float world_z) const;
+
     uint32_t m_grid_dim_x;
     uint32_t m_grid_dim_z;
     MapBounds m_bounds;
