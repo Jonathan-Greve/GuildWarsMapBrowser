@@ -15,6 +15,7 @@
 #include <Dome.h>
 #include <Cylinder.h>
 #include <GWSkyCylinder.h>
+#include <Trapezoid3D.h>
 
 class MeshManager
 {
@@ -77,6 +78,17 @@ public:
 		m_needsUpdate = true;
 		return meshID;
 	}
+
+	int AddTrapezoid3D(const Vertex3& a, const Vertex3& b, const Vertex3& c, const Vertex3& d,
+		float height, PixelShaderType pixel_shader_type = PixelShaderType::OldModel)
+	{
+		int meshID = m_nextMeshID++;
+		auto mesh_instance = std::make_shared<Trapezoid3D>(m_device, a, b, c, d, height, meshID);
+		add_to_triangle_meshes(mesh_instance, pixel_shader_type);
+		m_needsUpdate = true;
+		return meshID;
+	}
+
 
 	int AddLine(const XMFLOAT3& start, const XMFLOAT3& end,
 	            PixelShaderType pixel_shader_type = PixelShaderType::OldModel)

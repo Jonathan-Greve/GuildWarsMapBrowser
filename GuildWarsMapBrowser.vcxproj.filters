@@ -490,6 +490,9 @@
     <ClInclude Include="SourceFiles\GWSkyCylinder.h">
       <Filter>Render\Basic shapes</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\Trapezoid3D.h">
+      <Filter>Render\Basic shapes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -772,6 +775,9 @@
       <Filter>Render\Basic shapes</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\GWSkyCylinder.cpp">
+      <Filter>Render\Basic shapes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\Trapezoid3D.cpp">
       <Filter>Render\Basic shapes</Filter>
     </ClCompile>
   </ItemGroup>

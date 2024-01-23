@@ -297,6 +297,7 @@
     <ClInclude Include="SourceFiles\TerrainTexturedPixelShader.h" />
     <ClInclude Include="SourceFiles\TerrainTexturedWithShadowsPixelShader.h" />
     <ClInclude Include="SourceFiles\TextureManager.h" />
+    <ClInclude Include="SourceFiles\Trapezoid3D.h" />
     <ClInclude Include="SourceFiles\Vertex.h" />
     <ClInclude Include="SourceFiles\VertexShader.h" />
     <ClInclude Include="SourceFiles\writeHeighMapBMP.h" />
@@ -462,6 +463,7 @@
     <ClCompile Include="SourceFiles\Sphere.cpp" />
     <ClCompile Include="SourceFiles\Terrain.cpp" />
     <ClCompile Include="SourceFiles\TextureManager.cpp" />
+    <ClCompile Include="SourceFiles\Trapezoid3D.cpp" />
     <ClCompile Include="SourceFiles\Vertex.cpp" />
     <ClCompile Include="SourceFiles\VertexShader.cpp" />
     <ClCompile Include="SourceFiles\writeHeighMapBMP.cpp" />
