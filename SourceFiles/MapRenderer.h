@@ -531,6 +531,28 @@ public:
         m_mesh_manager->SetTexturesForMesh(mesh_id, { m_texture_manager->GetTexture(checkered_tex_id) }, 3);
     }
 
+    void AddTrapezoid3D(const Vertex3& a, const Vertex3& b, const Vertex3& c, const Vertex3& d, float height,
+        CheckerboardTexture::ColorChoice color_choice1 = CheckerboardTexture::ColorChoice::White,
+        CheckerboardTexture::ColorChoice color_choice2 = CheckerboardTexture::ColorChoice::Silver)
+    {
+        auto mesh_id = m_mesh_manager->AddTrapezoid3D(a, b, c, d, height);
+        extra_mesh_ids.push_back(mesh_id);
+
+        PerObjectCB meshPerObjectData;
+        meshPerObjectData.num_uv_texture_pairs = 1;
+        m_mesh_manager->UpdateMeshPerObjectData(mesh_id, meshPerObjectData);
+
+        int texture_tile_size = 96;
+        int texture_width = texture_tile_size * 2;
+        int texture_height = texture_tile_size * 2;
+        CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size, color_choice1, color_choice2);
+        const auto checkered_tex_id =
+            m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
+                texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 3214972 + (int)color_choice1 * 20 + (int)color_choice2);
+
+        m_mesh_manager->SetTexturesForMesh(mesh_id, { m_texture_manager->GetTexture(checkered_tex_id) }, 3);
+    }
+
 private:
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_deviceContext;

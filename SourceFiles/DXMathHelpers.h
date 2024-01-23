@@ -1,6 +1,10 @@
 #pragma once
 using namespace DirectX;
 
+struct Vertex3 {
+    float x, y, z;
+};
+
 static inline XMFLOAT3 compute_normal(const XMFLOAT3& v0, const XMFLOAT3& v1, const XMFLOAT3& v2)
 {
     XMVECTOR vEdge1 = XMVectorSubtract(XMLoadFloat3(&v1), XMLoadFloat3(&v0));
@@ -29,4 +33,8 @@ inline float LengthXMFLOAT3(const XMFLOAT3& v) {
 inline XMFLOAT3 NormalizeXMFLOAT3(const XMFLOAT3& v) {
     float len = LengthXMFLOAT3(v);
     return XMFLOAT3(v.x / len, v.y / len, v.z / len);
+}
+
+inline XMFLOAT3 Vertex3ToXMFLOAT3(const Vertex3& vertex) {
+    return XMFLOAT3(vertex.x, vertex.y, vertex.z);
 }
