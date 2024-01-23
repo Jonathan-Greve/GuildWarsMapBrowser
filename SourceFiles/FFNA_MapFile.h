@@ -872,10 +872,213 @@ struct ShoreChunk {
     }
 };
 
+struct BigChunkSub0 {
+    uint8_t unknown[20];
+    Vertex2 vertices[3];
+
+    BigChunkSub0() = default;
+    BigChunkSub0(const unsigned char* data) {
+        std::memcpy(unknown, data, sizeof(unknown));
+        std::memcpy(vertices, data + sizeof(unknown), sizeof(vertices));
+    }
+};
+
+struct BigChunk {
+    uint32_t chunk_id;
+    uint32_t chunk_size;
+    uint32_t magicnum_BE_0x4c70feee;
+    uint32_t magicnum_0xC;
+    uint32_t unknown1;
+    uint8_t tag;
+    uint32_t next_subdata_size0;
+    uint16_t vertex_count;
+    std::vector<Vertex2> vertices0;
+    uint8_t tag0;
+    uint32_t some_size;
+    uint8_t unknown2;
+    uint32_t unknown3;
+    uint32_t unknown4;
+    uint32_t vertex_count1;
+    uint32_t unknown5;
+    uint32_t unknown6;
+    uint32_t unknown7;
+    uint32_t unknown8;
+    uint32_t unknown9;
+    uint32_t unknown10;
+    uint32_t unknown11;
+    uint32_t unknown12;
+    uint8_t unknown13;
+    std::vector<Vertex2> vertices1;
+    uint8_t unknown14;
+    uint32_t vertices_data_size;
+    std::vector<Vertex2> vertices2;
+    uint8_t unknown15;
+    uint32_t bcs0_size;
+    std::vector<BigChunkSub0> bcs0;
+    std::vector<uint8_t> some_data;
+    uint8_t tag1;
+    uint32_t some_size1;
+    std::vector<uint8_t> some_data1;
+    uint8_t tag2;
+    uint32_t some_size2;
+    std::vector<uint8_t> some_data2;
+    uint8_t tag3;
+    uint32_t some_size3;
+    std::vector<uint8_t> some_data3;
+    uint32_t unknown33;
+    uint8_t zero;
+
+    BigChunk() = default;
+    BigChunk(int& offset, const unsigned char* data) {
+        std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
+        offset += sizeof(chunk_id);
+
+        std::memcpy(&chunk_size, &data[offset], sizeof(chunk_size));
+        offset += sizeof(chunk_size);
+
+        std::memcpy(&magicnum_BE_0x4c70feee, &data[offset], sizeof(magicnum_BE_0x4c70feee));
+        offset += sizeof(magicnum_BE_0x4c70feee);
+
+        std::memcpy(&magicnum_0xC, &data[offset], sizeof(magicnum_0xC));
+        offset += sizeof(magicnum_0xC);
+
+        std::memcpy(&unknown1, &data[offset], sizeof(unknown1));
+        offset += sizeof(unknown1);
+
+        std::memcpy(&tag, &data[offset], sizeof(tag));
+        offset += sizeof(tag);
+
+        std::memcpy(&next_subdata_size0, &data[offset], sizeof(next_subdata_size0));
+        offset += sizeof(next_subdata_size0);
+
+        std::memcpy(&vertex_count, &data[offset], sizeof(vertex_count));
+        offset += sizeof(vertex_count);
+
+        vertices0.resize(vertex_count);
+        std::memcpy(vertices0.data(), &data[offset], vertex_count * sizeof(Vertex2));
+        offset += vertex_count * sizeof(Vertex2);
+
+        std::memcpy(&tag0, &data[offset], sizeof(tag0));
+        offset += sizeof(tag0);
+
+        std::memcpy(&some_size, &data[offset], sizeof(some_size));
+        offset += sizeof(some_size);
+
+        std::memcpy(&unknown2, &data[offset], sizeof(unknown2));
+        offset += sizeof(unknown2);
+
+        std::memcpy(&unknown3, &data[offset], sizeof(unknown3));
+        offset += sizeof(unknown3);
+
+        std::memcpy(&unknown4, &data[offset], sizeof(unknown4));
+        offset += sizeof(unknown4);
+
+        std::memcpy(&vertex_count1, &data[offset], sizeof(vertex_count1));
+        offset += sizeof(vertex_count1);
+
+        std::memcpy(&unknown5, &data[offset], sizeof(unknown5));
+        offset += sizeof(unknown5);
+
+        std::memcpy(&unknown6, &data[offset], sizeof(unknown6));
+        offset += sizeof(unknown6);
+
+        std::memcpy(&unknown7, &data[offset], sizeof(unknown7));
+        offset += sizeof(unknown7);
+
+        std::memcpy(&unknown8, &data[offset], sizeof(unknown8));
+        offset += sizeof(unknown8);
+
+        std::memcpy(&unknown9, &data[offset], sizeof(unknown9));
+        offset += sizeof(unknown9);
+
+        std::memcpy(&unknown10, &data[offset], sizeof(unknown10));
+        offset += sizeof(unknown10);
+
+        std::memcpy(&unknown11, &data[offset], sizeof(unknown11));
+        offset += sizeof(unknown11);
+
+        std::memcpy(&unknown12, &data[offset], sizeof(unknown12));
+        offset += sizeof(unknown12);
+
+        std::memcpy(&unknown13, &data[offset], sizeof(unknown13));
+        offset += sizeof(unknown13);
+
+        vertices1.resize(vertex_count1);
+        std::memcpy(vertices1.data(), &data[offset], vertex_count1 * sizeof(Vertex2));
+        offset += vertex_count1 * sizeof(Vertex2);
+
+        std::memcpy(&unknown14, &data[offset], sizeof(unknown14));
+        offset += sizeof(unknown14);
+
+        std::memcpy(&vertices_data_size, &data[offset], sizeof(vertices_data_size));
+        offset += sizeof(vertices_data_size);
+
+        size_t vertices2_count = vertices_data_size / (2 * sizeof(float));
+        vertices2.resize(vertices2_count);
+        std::memcpy(vertices2.data(), &data[offset], vertices2_count * sizeof(Vertex2));
+        offset += vertices2_count * sizeof(Vertex2);
+
+        std::memcpy(&unknown15, &data[offset], sizeof(unknown15));
+        offset += sizeof(unknown15);
+
+        std::memcpy(&bcs0_size, &data[offset], sizeof(bcs0_size));
+        offset += sizeof(bcs0_size);
+
+        size_t bcs0_count = bcs0_size / sizeof(BigChunkSub0);
+        bcs0.resize(bcs0_count);
+        for (size_t i = 0; i < bcs0_count; ++i) {
+            bcs0[i] = BigChunkSub0(&data[offset]);
+            offset += sizeof(BigChunkSub0);
+        }
+
+        /*int some_data_size = some_size - 1 - 4 * 11 - 1 - sizeof(vertices1) - 1 - 4 - sizeof(vertices2) - 1 - 4 - sizeof(bcs0);
+        some_data.resize(some_data_size);
+        std::memcpy(some_data.data(), &data[offset], some_data_size);
+        offset += some_data_size;
+
+        std::memcpy(&tag1, &data[offset], sizeof(tag1));
+        offset += sizeof(tag1);
+
+        std::memcpy(&some_size1, &data[offset], sizeof(some_size1));
+        offset += sizeof(some_size1);
+
+        some_data1.resize(some_size1);
+        std::memcpy(some_data1.data(), &data[offset], some_size1);
+        offset += some_size1;
+
+        std::memcpy(&tag2, &data[offset], sizeof(tag2));
+        offset += sizeof(tag2);
+
+        std::memcpy(&some_size2, &data[offset], sizeof(some_size2));
+        offset += sizeof(some_size2);
+
+        some_data2.resize(some_size2);
+        std::memcpy(some_data2.data(), &data[offset], some_size2);
+        offset += some_size2;
+
+        std::memcpy(&tag3, &data[offset], sizeof(tag3));
+        offset += sizeof(tag3);
+
+        std::memcpy(&some_size3, &data[offset], sizeof(some_size3));
+        offset += sizeof(some_size3);
+
+        some_data3.resize(some_size3);
+        std::memcpy(some_data3.data(), &data[offset], some_size3);
+        offset += some_size3;
+
+        std::memcpy(&unknown33, &data[offset], sizeof(unknown33));
+        offset += sizeof(unknown33);
+
+        std::memcpy(&zero, &data[offset], sizeof(zero));
+        offset += sizeof(zero);*/
+    }
+};
+
 constexpr uint32_t CHUNK_ID_20000000 = 0x20000000;
 constexpr uint32_t CHUNK_ID_TERRAIN = 0x20000002;
 constexpr uint32_t CHUNK_ID_ZONES_STUFF = 0x20000003;
 constexpr uint32_t CHUNK_ID_PROPS_INFO = 0x20000004;
+constexpr uint32_t CHUNK_ID_PATH_INFO = 0x20000008;
 constexpr uint32_t CHUNK_ID_MAP_INFO = 0x2000000C;
 constexpr uint32_t CHUNK_ID_SHOR = 0x20000010;
 constexpr uint32_t CHUNK_ID_TERRAIN_FILENAMES = 0x21000002;
@@ -898,6 +1101,7 @@ struct FFNA_MapFile
     Chunk4 terrain_texture_filenames; // same structure as chunk 4
     SkydomeChunk skydome_chunk;
     ShoreChunk shore_chunk;
+    BigChunk big_chunk;
 
     std::unordered_map<uint32_t, int> riff_chunks;
 
@@ -993,6 +1197,14 @@ struct FFNA_MapFile
         {
             int offset = it->second;
             shore_chunk = ShoreChunk(offset, data.data());
+        }
+
+        // Check if the CHUNK_ID_PATH_INFO is in the riff_chunks map
+        it = riff_chunks.find(CHUNK_ID_PATH_INFO);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            big_chunk = BigChunk(offset, data.data());
         }
 
         // Check if the CHUNK_ID_ZONES_STUFF is in the riff_chunks map

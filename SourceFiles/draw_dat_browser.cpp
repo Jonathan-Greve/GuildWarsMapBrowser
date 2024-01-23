@@ -913,14 +913,43 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         //    }
         //}
 
-        for (int i = 0; i < selected_ffna_map_file.shore_chunk.subchunks.size(); i++) {
-            auto color1 = CheckerboardTexture::GetColorForIndex(i % 20);
-            auto color2 = CheckerboardTexture::GetColorForIndex(i % 20);
+        //for (int i = 0; i < selected_ffna_map_file.shore_chunk.subchunks.size(); i++) {
+        //    auto color1 = CheckerboardTexture::GetColorForIndex(i % 20);
+        //    auto color2 = CheckerboardTexture::GetColorForIndex(i % 20);
 
-            const auto& vertices = selected_ffna_map_file.shore_chunk.subchunks[i].vertices;
-            for (int j = 0; j < vertices.size(); j++) {
-                const auto& vertex = vertices[j];
-                map_renderer->AddBox(vertex.x, terrain->get_height_at(vertex.x, vertex.y) + 200, vertex.y, 300, color1, color2);
+        //    const auto& vertices = selected_ffna_map_file.shore_chunk.subchunks[i].vertices;
+        //    for (int j = 0; j < vertices.size(); j++) {
+        //        const auto& vertex = vertices[j];
+        //        map_renderer->AddBox(vertex.x, terrain->get_height_at(vertex.x, vertex.y) + 200, vertex.y, 300, color1, color2);
+        //    }
+        //}
+
+        for (int i = 0; i < selected_ffna_map_file.big_chunk.bcs0.size(); i++) {
+            const auto* vertices = selected_ffna_map_file.big_chunk.bcs0[i].vertices;
+            if (vertices) {
+                auto color = CheckerboardTexture::GetColorForIndex(i);
+
+                const auto v0 = vertices[0]; // y values
+                const auto v1 = vertices[1]; // x values 1
+                const auto v2 = vertices[2]; // x values 2
+
+                map_renderer->AddBox(v1.x, terrain->get_height_at(v1.x, v0.x) + 200, v0.x, 200, color, color);
+                map_renderer->AddBox(v1.y, terrain->get_height_at(v1.y, v0.x) + 200, v0.x, 200, color, color);
+
+                map_renderer->AddBox(v2.x, terrain->get_height_at(v2.x, v0.y) + 200, v0.y, 200, color, color);
+                map_renderer->AddBox(v2.y, terrain->get_height_at(v2.y, v0.y) + 200, v0.y, 200, color, color);
+
+                //map_renderer->AddBox(v0.x, terrain->get_height_at(v0.x, v1.x) + 200, v1.x, 300);
+                //map_renderer->AddBox(v0.x, terrain->get_height_at(v0.x, v1.y) + 200, v1.y, 300);
+
+                //map_renderer->AddBox(v0.y, terrain->get_height_at(v0.y, v2.x) + 200, v2.x, 300);
+                //map_renderer->AddBox(v0.y, terrain->get_height_at(v0.y, v2.y) + 200, v2.y, 300);
+
+
+                //for (int j = 0; j < 3; j++) {
+                //    const auto vertex = vertices[i];
+                //    map_renderer->AddBox(vertex.x, terrain->get_height_at(vertex.x, vertex.y) + 200, vertex.y, 300);
+                //}
             }
         }
     }
