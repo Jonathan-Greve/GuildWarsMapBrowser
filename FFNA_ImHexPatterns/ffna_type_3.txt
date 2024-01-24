@@ -215,14 +215,11 @@ struct Chunk5_0 {
     u8 unknown1[5];
     u8 tag;
     u32 some_size1;
-    u8 some_data1[some_size1/2];
-    u8 d;
     //u32 unknown1;
     //float unknown2[unknown1 * 2];
     //Chunk5Element2 some_array[13];
     u8 chunk_data[chunk_size-8-sizeof(element_0)-sizeof(element_1)-
-      sizeof(element_2)-sizeof(element_3)-8-sizeof(unknown0)-sizeof(sub0)-sizeof(unknown1)
-      -4-sizeof(some_data1)];
+      sizeof(element_2)-sizeof(element_3)-8-sizeof(unknown0)-sizeof(sub0)-sizeof(unknown1)-5];
   }
   else {
     u8 chunk_data[chunk_size-8-sizeof(element_0)-sizeof(element_1)-sizeof(element_2)-sizeof(element_3)];
@@ -391,7 +388,7 @@ struct Chunk {
    Chunk8 terrain_chunk;
  }
  else if (chunk_id == 0x20000003){
-   Chunk5 chunk5;
+   Chunk5_0 chunk5;
  }
  else if (chunk_id == 0x20000004){
    Chunk3 chunk3;
