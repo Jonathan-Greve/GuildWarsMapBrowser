@@ -66,16 +66,6 @@ void draw_chunk_20000003(const Chunk5& chunk)
         if (chunk.element_2.num_zones > 0)
         {
             ImGui::Text("Unknown0: %u", chunk.unknown0);
-            ImGui::Text("Unknown1: %u", chunk.unknown1);
-
-            if (ImGui::TreeNode("Unknown2"))
-            {
-                for (size_t i = 0; i < chunk.unknown2.size(); ++i)
-                {
-                    ImGui::Text("Unknown2[%zu]: %f", i, chunk.unknown2[i]);
-                }
-                ImGui::TreePop();
-            }
 
             if (ImGui::TreeNode("Some Array"))
             {
