@@ -16,6 +16,7 @@
 #include <Cylinder.h>
 #include <GWSkyCylinder.h>
 #include <Trapezoid3D.h>
+#include <Triangle3D.h>
 
 class MeshManager
 {
@@ -89,6 +90,15 @@ public:
 		return meshID;
 	}
 
+	int AddTriangle3D(const Vertex3& a, const Vertex3& b, const Vertex3& c,
+		float height, PixelShaderType pixel_shader_type = PixelShaderType::OldModel)
+	{
+		int meshID = m_nextMeshID++;
+		auto mesh_instance = std::make_shared<Triangle3D>(m_device, a, b, c, height, meshID);
+		add_to_triangle_meshes(mesh_instance, pixel_shader_type);
+		m_needsUpdate = true;
+		return meshID;
+	}
 
 	int AddLine(const XMFLOAT3& start, const XMFLOAT3& end,
 	            PixelShaderType pixel_shader_type = PixelShaderType::OldModel)
