@@ -77,7 +77,12 @@ struct PSOutput
 
 float4 main(PixelInputType input) : SV_TARGET
 {
-    float4 sampledTextureColor = shaderTextures[0].Sample(ss, input.tex_coords0);
+    float4 final_color = float4(0, 0, 0, 1);
+    for (int i = 0; i < num_uv_texture_pairs; i++)
+    {
+        float4 sampledTextureColor = shaderTextures[0].Sample(ss, input.tex_coords0);
+        final_color.rgb += saturate(sampledTextureColor.rgb * sampledTextureColor.a);
+    }
 
-    return sampledTextureColor;
+    return final_color;
 }

@@ -492,6 +492,10 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 
             // Set sky. First find main skydome texture
+            bool main_sky_tex_found = false;
+            bool clouds_tex_found = false;
+
+            std::vector<ID3D11ShaderResourceView*> sky_textures;
             const auto& skydome_chunk = selected_ffna_map_file.skydome_chunk;
             for (int i = 0; i < skydome_chunk.filenames.size(); i++) {
                 const auto& filename = skydome_chunk.filenames[i];
@@ -501,37 +505,62 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 if (mft_entry_it != hash_index.end())
                 {
                     auto type = dat_manager->get_MFT()[mft_entry_it->second.at(0)].type;
+                    const DatTexture dat_texture = dat_manager->parse_ffna_texture_file(mft_entry_it->second.at(0));
+                    int texture_id = -1;
                     if (type == ATEXDXTL) {
-                        const DatTexture dat_texture = dat_manager->parse_ffna_texture_file(mft_entry_it->second.at(0));
                         if (dat_texture.width > 0 && dat_texture.height > 0) {
+                            
+                            auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                                dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
+                                &texture_id, decoded_filename);
+                            if (SUCCEEDED(HR) && texture_id >= 0) {
+                                sky_textures.push_back(map_renderer->GetTextureManager()->GetTexture(texture_id));
+                                main_sky_tex_found = true;
+                            }
+                        }
+                    }
+                    else {
+                        if (dat_texture.width == 1024 && dat_texture.height == 256) {
                             int texture_id = -1;
                             auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
                                 dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
                                 &texture_id, decoded_filename);
                             if (SUCCEEDED(HR) && texture_id >= 0) {
-                                sky_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCylinder();
-                                map_renderer->SetSkyMeshId(sky_mesh_id);
-                                map_renderer->GetMeshManager()->SetMeshShouldCull(sky_mesh_id, false);
-                                map_renderer->GetMeshManager()->SetMeshShouldRender(sky_mesh_id, false); // we will manually render it first before any other meshes.
-
-                                const auto& map_bounds = selected_ffna_map_file.map_info_chunk.map_bounds;
-
-                                const float map_center_x = (map_bounds.map_min_x + map_bounds.map_max_x) / 2.0f;
-                                const float map_center_z = (map_bounds.map_min_z + map_bounds.map_max_z) / 2.0f;
-
-                                DirectX::XMFLOAT4X4 sky_world_matrix;
-                                DirectX::XMStoreFloat4x4(&sky_world_matrix, DirectX::XMMatrixTranslation(map_center_x, map_renderer->GetSkyHeight(), map_center_z));
-                                PerObjectCB sky_per_object_data;
-                                sky_per_object_data.world = sky_world_matrix;
-                                sky_per_object_data.num_uv_texture_pairs = 1;
-                                map_renderer->GetMeshManager()->UpdateMeshPerObjectData(sky_mesh_id, sky_per_object_data);
-
-                                map_renderer->GetMeshManager()->SetTexturesForMesh(sky_mesh_id, { map_renderer->GetTextureManager()->GetTexture(texture_id)}, 3);
-                                break;
+                                sky_textures.push_back(map_renderer->GetTextureManager()->GetTexture(texture_id));
+                                clouds_tex_found = true;
                             }
                         }
                     }
                 }
+
+                if (main_sky_tex_found && clouds_tex_found) {
+                    break;
+                }
+            }
+
+            if (sky_textures.size() > 0) {
+                sky_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCylinder();
+                map_renderer->SetSkyMeshId(sky_mesh_id);
+                map_renderer->GetMeshManager()->SetMeshShouldCull(sky_mesh_id, false);
+                map_renderer->GetMeshManager()->SetMeshShouldRender(sky_mesh_id, false); // we will manually render it first before any other meshes.
+
+                const auto& map_bounds = selected_ffna_map_file.map_info_chunk.map_bounds;
+
+                const float map_center_x = (map_bounds.map_min_x + map_bounds.map_max_x) / 2.0f;
+                const float map_center_z = (map_bounds.map_min_z + map_bounds.map_max_z) / 2.0f;
+
+                DirectX::XMFLOAT4X4 sky_world_matrix;
+                DirectX::XMStoreFloat4x4(&sky_world_matrix, DirectX::XMMatrixTranslation(map_center_x, map_renderer->GetSkyHeight(), map_center_z));
+                PerObjectCB sky_per_object_data;
+                sky_per_object_data.world = sky_world_matrix;
+                for (int i = 0; i < sky_textures.size(); i++) {
+                    sky_per_object_data.texture_indices[i / 4][i % 4] = i;
+                }
+
+                sky_per_object_data.num_uv_texture_pairs = sky_textures.size();
+                map_renderer->GetMeshManager()->UpdateMeshPerObjectData(sky_mesh_id, sky_per_object_data);
+
+                map_renderer->GetMeshManager()->SetTexturesForMesh(sky_mesh_id, sky_textures, 3);
             }
 
 
@@ -894,16 +923,45 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         //    map_renderer->AddBox(vertex.x, terrain->get_height_at(vertex.x, vertex.y) + 200, vertex.y, 50);
         //}
 
-        /*for (int i = 0; i < selected_ffna_map_file.chunk5.some_array.size(); i++) {
-            auto color1 = CheckerboardTexture::GetColorForIndex(i);
-            auto color2 = CheckerboardTexture::GetColorForIndex(i);
+        for (int i = 9; i < selected_ffna_map_file.chunk5.some_array.size(); i++) {
+            auto color1 = CheckerboardTexture::GetColorForIndex(i + 21);
+            auto color2 = CheckerboardTexture::GetColorForIndex(i + 21);
 
             const auto& vertices = selected_ffna_map_file.chunk5.some_array[i].vertices;
-            for (int j = 0; j < vertices.size(); j++) {
-                const auto& vertex = vertices[j];
-                map_renderer->AddBox(vertex.x, terrain->get_height_at(vertex.x, vertex.y) + 200, vertex.y, 300, color1, color2);
+            if (vertices.size() < 3) {
+                // Skip this iteration if there are fewer than 3 vertices.
+                continue;
             }
-        }*/
+
+            // Create the base Vertex3 using the first vertex and terrain height
+            const auto& baseVertex2D = vertices[0];
+            Vertex3 baseVertex3D = {
+                baseVertex2D.x,
+                terrain->get_height_at(baseVertex2D.x, baseVertex2D.y) + 20000,
+                baseVertex2D.y
+            };
+
+            for (int j = 1; j < vertices.size() - 1; j++) {
+                // Create Vertex3 for the two other vertices of the triangle
+                const auto& vertex1_2D = vertices[j];
+                Vertex3 vertex1_3D = {
+                    vertex1_2D.x,
+                    terrain->get_height_at(vertex1_2D.x, vertex1_2D.y) + 20000,
+                    vertex1_2D.y
+                };
+
+                const auto& vertex2_2D = vertices[j + 1];
+                Vertex3 vertex2_3D = {
+                    vertex2_2D.x,
+                    terrain->get_height_at(vertex2_2D.x, vertex2_2D.y) + 20000,
+                    vertex2_2D.y
+                };
+
+                // Use AddTriangle3D to draw the triangle
+                map_renderer->AddTriangle3D(baseVertex3D, vertex1_3D, vertex2_3D, 200, color1, color2);
+            }
+        }
+
 
         //for (int i = 0; i < selected_ffna_map_file.chunk5.unknown2.size(); i += 2) {
         //    if (i + 1 < selected_ffna_map_file.chunk5.unknown2.size()) {
@@ -914,8 +972,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         //}
 
         //for (int i = 0; i < selected_ffna_map_file.shore_chunk.subchunks.size(); i++) {
-        //    auto color1 = CheckerboardTexture::GetColorForIndex(i % 20);
-        //    auto color2 = CheckerboardTexture::GetColorForIndex(i % 20);
+        //    auto color1 = CheckerboardTexture::GetColorForIndex(i);
+        //    auto color2 = CheckerboardTexture::GetColorForIndex(i);
 
         //    const auto& vertices = selected_ffna_map_file.shore_chunk.subchunks[i].vertices;
         //    for (int j = 0; j < vertices.size(); j++) {
@@ -948,31 +1006,31 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         //    map_renderer->AddBox(vertex.x, terrain->get_height_at(vertex.x, vertex.y) + 35000, vertex.y, 100, color1, color2);
         //}
 
-        for (int i = 0; i < selected_ffna_map_file.big_chunk.bcs0.size(); i++) {
-            const auto* vertices = selected_ffna_map_file.big_chunk.bcs0[i].vertices;
-            if (vertices) {
-                auto color = CheckerboardTexture::GetColorForIndex(i % 20);
+        //for (int i = 0; i < selected_ffna_map_file.big_chunk.bcs0.size(); i++) {
+        //    const auto* vertices = selected_ffna_map_file.big_chunk.bcs0[i].vertices;
+        //    if (vertices) {
+        //        auto color = CheckerboardTexture::GetColorForIndex(i);
 
-                const auto v0 = vertices[0]; // y values
-                const auto v1 = vertices[1]; // x values 1
-                const auto v2 = vertices[2]; // x values 2
+        //        const auto v0 = vertices[0]; // y values
+        //        const auto v1 = vertices[1]; // x values 1
+        //        const auto v2 = vertices[2]; // x values 2
 
-                Vertex3 TL{ v1.x, terrain->get_height_at(v1.x, v0.x) + 25000, v0.x };
-                Vertex3 TR{ v1.y, terrain->get_height_at(v1.y, v0.x) + 25000, v0.x };
+        //        Vertex3 TL{ v1.x, terrain->get_height_at(v1.x, v0.x) + 25000, v0.x };
+        //        Vertex3 TR{ v1.y, terrain->get_height_at(v1.y, v0.x) + 25000, v0.x };
 
-                Vertex3 BL{ v2.x, terrain->get_height_at(v2.x, v0.y) + 25000, v0.y };
-                Vertex3 BR{ v2.y, terrain->get_height_at(v2.y, v0.y) + 25000, v0.y };
+        //        Vertex3 BL{ v2.x, terrain->get_height_at(v2.x, v0.y) + 25000, v0.y };
+        //        Vertex3 BR{ v2.y, terrain->get_height_at(v2.y, v0.y) + 25000, v0.y };
 
-                map_renderer->AddTrapezoid3D(TL, TR, BL, BR, 100, color, color);
+        //        map_renderer->AddTrapezoid3D(TL, TR, BL, BR, 100, color, color);
 
-                //color = CheckerboardTexture::GetColorForIndex(0);
-                //map_renderer->AddBox(v1.x, terrain->get_height_at(v1.x, v0.x) + 4000, v0.x, 200, color, color);
-                //map_renderer->AddBox(v1.y, terrain->get_height_at(v1.y, v0.x) + 4000, v0.x, 200, color, color);
+        //        //color = CheckerboardTexture::GetColorForIndex(0);
+        //        //map_renderer->AddBox(v1.x, terrain->get_height_at(v1.x, v0.x) + 4000, v0.x, 200, color, color);
+        //        //map_renderer->AddBox(v1.y, terrain->get_height_at(v1.y, v0.x) + 4000, v0.x, 200, color, color);
 
-                //map_renderer->AddBox(v2.x, terrain->get_height_at(v2.x, v0.y) + 4000, v0.y, 200, color, color);
-                //map_renderer->AddBox(v2.y, terrain->get_height_at(v2.y, v0.y) + 4000, v0.y, 200, color, color);
-            }
-        }
+        //        //map_renderer->AddBox(v2.x, terrain->get_height_at(v2.x, v0.y) + 4000, v0.y, 200, color, color);
+        //        //map_renderer->AddBox(v2.y, terrain->get_height_at(v2.y, v0.y) + 4000, v0.y, 200, color, color);
+        //    }
+        //}
     }
 
     break;

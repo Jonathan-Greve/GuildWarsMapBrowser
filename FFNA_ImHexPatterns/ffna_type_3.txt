@@ -1,5 +1,6 @@
 #include <std/core.pat>
 #pragma pattern_limit 1000000
+#pragma array_limit 1000000
 struct MapBounds {
   float map_min_x;
   float map_min_y;
@@ -168,6 +169,13 @@ struct Chunk5Element2{
   }
 };
 
+struct Chunk5Sub0 {
+  u32 num_vertices;
+  Vertex2 vertices[num_vertices];
+  u8 some_data[28];
+  u8 zero;
+};
+
 struct Chunk5 {
   u32 chunk_id;
   u32 chunk_size;
@@ -185,6 +193,36 @@ struct Chunk5 {
     Chunk5Element2 some_array[element_2.num_zones];
     u8 chunk_data[chunk_size-8-sizeof(element_0)-sizeof(element_1)-
       sizeof(element_2)-sizeof(element_3)-8-sizeof(unknown2)-sizeof(some_array)];
+  }
+  else {
+    u8 chunk_data[chunk_size-8-sizeof(element_0)-sizeof(element_1)-sizeof(element_2)-sizeof(element_3)];
+  }
+};
+
+struct Chunk5_0 {
+  u32 chunk_id;
+  u32 chunk_size;
+  // Data start
+  u32 magic_num; // 0x59220329
+  u32 magic_num1; // 0xA0
+  Chunk5Element element_0;
+  Chunk5Element element_1;
+  Chunk5Element1 element_2;
+  Chunk5Element element_3;
+  if (element_2.num_zones > 0){
+    u32 unknown0;
+    Chunk5Sub0 sub0[element_2.num_zones];
+    u8 unknown1[5];
+    u8 tag;
+    u32 some_size1;
+    u8 some_data1[some_size1/2];
+    u8 d;
+    //u32 unknown1;
+    //float unknown2[unknown1 * 2];
+    //Chunk5Element2 some_array[13];
+    u8 chunk_data[chunk_size-8-sizeof(element_0)-sizeof(element_1)-
+      sizeof(element_2)-sizeof(element_3)-8-sizeof(unknown0)-sizeof(sub0)-sizeof(unknown1)
+      -4-sizeof(some_data1)];
   }
   else {
     u8 chunk_data[chunk_size-8-sizeof(element_0)-sizeof(element_1)-sizeof(element_2)-sizeof(element_3)];
@@ -394,4 +432,4 @@ struct MapFile {
  Chunk chunks[while($ < sizeof($))];
  };
  
- MapFile mapfile @ 0;
+MapFile mapfile @ 0;

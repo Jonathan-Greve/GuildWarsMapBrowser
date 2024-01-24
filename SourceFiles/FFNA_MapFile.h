@@ -408,11 +408,11 @@ struct Chunk4
         std::memcpy(chunk_data.data(), &data[offset], chunk_data.size());
     }
 };
-
 struct Chunk5Element
 {
     uint8_t tag;
-    uint32_t size;
+    uint16_t size;
+    uint16_t unknown;
     std::vector<uint8_t> data;
 
     Chunk5Element() = default;
@@ -424,6 +424,9 @@ struct Chunk5Element
 
         std::memcpy(&size, &data[offset], sizeof(size));
         offset += sizeof(size);
+
+        std::memcpy(&unknown, &data[offset], sizeof(unknown));
+        offset += sizeof(unknown);
 
         this->data.resize(size);
         std::memcpy(this->data.data(), &data[offset], size);
@@ -454,52 +457,29 @@ struct Chunk5Element1
 
 struct Chunk5Element2
 {
-    uint8_t unknown[20];
-    uint8_t unknown1;
-    uint16_t some_size;
-    uint16_t unknown2;
-    std::vector<uint8_t> some_data;
-    uint32_t unknown3;
-    uint32_t count2;
+    uint32_t num_vertices;
     std::vector<Vertex2> vertices;
+    std::array<uint8_t, 28> some_data;
+    uint8_t zero;
 
     Chunk5Element2() = default;
-
     Chunk5Element2(int& offset, const unsigned char* data)
     {
-        std::memcpy(unknown, &data[offset], sizeof(unknown));
-        offset += sizeof(unknown);
+        std::memcpy(&num_vertices, &data[offset], sizeof(num_vertices));
+        offset += sizeof(num_vertices);
 
-        std::memcpy(&unknown1, &data[offset], sizeof(unknown1));
-        offset += sizeof(unknown1);
-
-        std::memcpy(&some_size, &data[offset], sizeof(some_size));
-        offset += sizeof(some_size);
-
-        std::memcpy(&unknown2, &data[offset], sizeof(unknown2));
-        offset += sizeof(unknown2);
-
-        if (some_size <= 0)
+        vertices.reserve(num_vertices);
+        for (uint32_t i = 0; i < num_vertices; ++i)
         {
-            std::memcpy(&unknown3, &data[offset], sizeof(unknown3));
-            offset += sizeof(unknown3);
-
-            std::memcpy(&count2, &data[offset], sizeof(count2));
-            offset += sizeof(count2);
-
-            vertices.reserve(count2);
-            for (uint32_t i = 0; i < count2; ++i)
-            {
-                vertices.emplace_back(offset, data);
-                offset += sizeof(Vertex2);
-            }
+            vertices.emplace_back(offset, data);
+            offset += sizeof(Vertex2);
         }
-        else
-        {
-            some_data.resize(some_size);
-            std::memcpy(some_data.data(), &data[offset], some_size);
-            offset += some_size;
-        }
+
+        std::memcpy(some_data.data(), &data[offset], sizeof(some_data));
+        offset += sizeof(some_data);
+
+        std::memcpy(&zero, &data[offset], sizeof(zero));
+        offset += sizeof(zero);
     }
 };
 
@@ -514,8 +494,6 @@ struct Chunk5
     Chunk5Element1 element_2;
     Chunk5Element element_3;
     uint32_t unknown0;
-    uint32_t unknown1;
-    std::array<float, 8> unknown2;
     std::vector<Chunk5Element2> some_array;
     std::vector<uint8_t> chunk_data;
 
@@ -545,15 +523,6 @@ struct Chunk5
         {
             std::memcpy(&unknown0, &data[offset], sizeof(unknown0));
             offset += sizeof(unknown0);
-
-            std::memcpy(&unknown1, &data[offset], sizeof(unknown1));
-            offset += sizeof(unknown1);
-
-            for (size_t i = 0; i < unknown2.size(); ++i)
-            {
-                std::memcpy(&unknown2[i], &data[offset], sizeof(float));
-                offset += sizeof(float);
-            }
 
             some_array.reserve(element_2.num_zones);
             for (uint32_t i = 0; i < element_2.num_zones; ++i)
@@ -1192,22 +1161,22 @@ struct FFNA_MapFile
         }
 
         // Check if the CHUNK_ID_SKYDOME is in the riff_chunks map
-        it = riff_chunks.find(CHUNK_ID_SHOR);
-        if (it != riff_chunks.end())
-        {
-            int offset = it->second;
-            shore_chunk = ShoreChunk(offset, data.data());
-        }
+        //it = riff_chunks.find(CHUNK_ID_SHOR);
+        //if (it != riff_chunks.end())
+        //{
+        //    int offset = it->second;
+        //    shore_chunk = ShoreChunk(offset, data.data());
+        //}
 
-        // Check if the CHUNK_ID_PATH_INFO is in the riff_chunks map
-        it = riff_chunks.find(CHUNK_ID_PATH_INFO);
-        if (it != riff_chunks.end())
-        {
-            int offset = it->second;
-            big_chunk = BigChunk(offset, data.data());
-        }
+        //// Check if the CHUNK_ID_PATH_INFO is in the riff_chunks map
+        //it = riff_chunks.find(CHUNK_ID_PATH_INFO);
+        //if (it != riff_chunks.end())
+        //{
+        //    int offset = it->second;
+        //    big_chunk = BigChunk(offset, data.data());
+        //}
 
-        // Check if the CHUNK_ID_ZONES_STUFF is in the riff_chunks map
+        //// Check if the CHUNK_ID_ZONES_STUFF is in the riff_chunks map
         //it = riff_chunks.find(CHUNK_ID_ZONES_STUFF);
         //if (it != riff_chunks.end())
         //{

@@ -493,6 +493,9 @@
     <ClInclude Include="SourceFiles\Trapezoid3D.h">
       <Filter>Render\Basic shapes</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\Triangle3D.h">
+      <Filter>Render\Basic shapes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -778,6 +781,9 @@
       <Filter>Render\Basic shapes</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\Trapezoid3D.cpp">
+      <Filter>Render\Basic shapes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\Triangle3D.cpp">
       <Filter>Render\Basic shapes</Filter>
     </ClCompile>
   </ItemGroup>
