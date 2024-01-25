@@ -143,8 +143,7 @@ void MapBrowser::Render()
     Clear();
 
     m_deviceResources->PIXBeginEvent(L"Render");
-    auto disable_depth_write_stencil_state = m_deviceResources->GetDisableDepthWriteStencilState();
-    m_map_renderer->Render(disable_depth_write_stencil_state);
+    m_map_renderer->Render(m_deviceResources->GetRenderTargetView(), m_deviceResources->GetPickingRenderTargetView(), m_deviceResources->GetDepthStencilView());
 
     // Resolve multisampled picking texture if neccessary
     if (m_deviceResources->GetMsaaLevelIndex() > 0) {
@@ -337,7 +336,7 @@ void MapBrowser::Render()
 
             ClearOffscreen();
 
-            m_map_renderer->Render(disable_depth_write_stencil_state);
+            m_map_renderer->Render(m_deviceResources->GetOffscreenRenderTargetView(), nullptr, m_deviceResources->GetOffscreenDepthStencilView());
 
             m_map_renderer->SetShouldRenderSky(should_render_sky);
 

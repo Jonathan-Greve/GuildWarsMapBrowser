@@ -490,7 +490,6 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             map_renderer->ClearProps();
             map_renderer->GetMeshManager()->RemoveMesh(sky_mesh_id);
 
-
             // Set sky. First find main skydome texture
             bool main_sky_tex_found = false;
             bool clouds_tex_found = false;

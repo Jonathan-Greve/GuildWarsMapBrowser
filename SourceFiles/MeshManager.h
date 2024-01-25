@@ -251,8 +251,8 @@ public:
 
 	bool GetMeshShouldRender(int mesh_id)
 	{
-		auto* command = m_renderBatch.GetCommand(mesh_id);
-		if (command) { return command->should_render; }
+		auto command = m_renderBatch.GetCommand(mesh_id);
+		if (command.has_value()) { return command->should_render; }
 
 		return false;
 	}
@@ -283,8 +283,8 @@ public:
 
 	bool GetMeshShouldCull(int mesh_id)
 	{
-		auto* command = m_renderBatch.GetCommand(mesh_id);
-		if (command) { return command->should_cull; }
+		auto command = m_renderBatch.GetCommand(mesh_id);
+		if (command.has_value()) { return command->should_cull; }
 
 		return false;
 	}
@@ -345,35 +345,36 @@ public:
 	void RenderMesh(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
 		BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
 		DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, int mesh_id) {
-		
+
 		auto command = m_renderBatch.GetCommand(mesh_id);
+		if (command.has_value()) {
+			m_deviceContext->IASetPrimitiveTopology(command->primitiveTopology);
 
-		m_deviceContext->IASetPrimitiveTopology(command->primitiveTopology);
-
-		m_deviceContext->PSSetShader(pixel_shaders[command->pixelShaderType]->GetShader(), nullptr, 0);
-		m_deviceContext->PSSetSamplers(0, 1,pixel_shaders[command->pixelShaderType]->GetSamplerState());
-
-
-		if (command->should_cull) { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid); }
-		else { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid_NoCull); }
+			m_deviceContext->PSSetShader(pixel_shaders[command->pixelShaderType]->GetShader(), nullptr, 0);
+			m_deviceContext->PSSetSamplers(0, 1, pixel_shaders[command->pixelShaderType]->GetSamplerState());
 
 
-		blend_state_manager->SetBlendState(BlendState::AlphaBlend);
+			if (command->should_cull) { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid); }
+			else { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid_NoCull); }
 
-		PerObjectCB transposedData = command->meshInstance->GetPerObjectData();
 
-		// Load World matrix into an XMMATRIX, transpose it, and store it back into an XMFLOAT4X4
-		XMMATRIX worldMatrix = XMLoadFloat4x4(&transposedData.world);
-		worldMatrix = XMMatrixTranspose(worldMatrix);
-		XMStoreFloat4x4(&transposedData.world, worldMatrix);
+			blend_state_manager->SetBlendState(BlendState::AlphaBlend);
 
-		// Update the per object constant buffer
-		D3D11_MAPPED_SUBRESOURCE mappedResource;
-		m_deviceContext->Map(m_perObjectCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-		memcpy(mappedResource.pData, &transposedData, sizeof(PerObjectCB));
-		m_deviceContext->Unmap(m_perObjectCB.Get(), 0);
+			PerObjectCB transposedData = command->meshInstance->GetPerObjectData();
 
-		command->meshInstance->Draw(m_deviceContext, lod_quality);
+			// Load World matrix into an XMMATRIX, transpose it, and store it back into an XMFLOAT4X4
+			XMMATRIX worldMatrix = XMLoadFloat4x4(&transposedData.world);
+			worldMatrix = XMMatrixTranspose(worldMatrix);
+			XMStoreFloat4x4(&transposedData.world, worldMatrix);
+
+			// Update the per object constant buffer
+			D3D11_MAPPED_SUBRESOURCE mappedResource;
+			m_deviceContext->Map(m_perObjectCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+			memcpy(mappedResource.pData, &transposedData, sizeof(PerObjectCB));
+			m_deviceContext->Unmap(m_perObjectCB.Get(), 0);
+
+			command->meshInstance->Draw(m_deviceContext, lod_quality);
+		}
 	}
 		
 
@@ -382,10 +383,12 @@ public:
 	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality)
 	{
 		static D3D11_PRIMITIVE_TOPOLOGY currentTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
-		static auto current_ps_shader_type = PixelShaderType::OldModel;
-		bool current_should_cull = true;
-		auto current_blend_state = BlendState::Opaque;
+		
+		static XMFLOAT3 prev_camera_position{ 0,0,0 };
+
 		m_renderBatch.SortCommands(camera_position);
+
+		blend_state_manager->SetBlendState(BlendState::AlphaBlend);
 
 		for (const RenderCommand& command : m_renderBatch.GetCommands())
 		{
@@ -397,28 +400,12 @@ public:
 				currentTopology = command.primitiveTopology;
 			}
 
-			if (command.pixelShaderType != current_ps_shader_type)
-			{
-				m_deviceContext->PSSetShader(pixel_shaders[command.pixelShaderType]->GetShader(), nullptr, 0);
-				m_deviceContext->PSSetSamplers(0, 1,
-				                               pixel_shaders[command.pixelShaderType]->GetSamplerState());
-				current_ps_shader_type = command.pixelShaderType;
-			}
+			m_deviceContext->PSSetShader(pixel_shaders[command.pixelShaderType]->GetShader(), nullptr, 0);
+			m_deviceContext->PSSetSamplers(0, 1, pixel_shaders[command.pixelShaderType]->GetSamplerState());
 
-			if (command.should_cull != current_should_cull)
-			{
-				if (command.should_cull) { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid); }
-				else { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid_NoCull); }
 
-				current_should_cull = command.should_cull;
-			}
-
-			/*if (command.blend_state != current_blend_state)
-			{*/
-				blend_state_manager->SetBlendState(BlendState::AlphaBlend);
-
-			//	current_blend_state = command.blend_state;
-			//}
+			if (command.should_cull) { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid); }
+			else { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid_NoCull); }
 
 			PerObjectCB transposedData = command.meshInstance->GetPerObjectData();
 
