@@ -435,6 +435,9 @@ public:
     void SetSkyHeight(float sky_height) { m_sky_height = sky_height; }
     float GetSkyHeight() { return m_sky_height;  }
 
+    void SetClearColor(XMFLOAT4 clear_color) { m_clear_color = clear_color; }
+    XMFLOAT4& GetClearColor() { return m_clear_color; }
+
     void Update(const float dt)
     {
         // Walk
@@ -630,4 +633,6 @@ private:
 
     bool m_should_render_sky = true;
     float m_sky_height = -1000;
+
+    XMFLOAT4 m_clear_color = { 0.662745118f, 0.662745118f, 0.662745118f, 1};
 };

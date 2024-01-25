@@ -67,6 +67,8 @@ std::vector<Mesh> prop_meshes;
 
 const ImGuiTableSortSpecs* DatBrowserItem::s_current_sort_specs = nullptr;
 
+DirectX::XMFLOAT4 GetAverageColorOfBottomRow(const DatTexture& dat_texture);
+
 void apply_filter(const std::vector<int>& new_filter, std::unordered_set<int>& intersection)
 {
     if (intersection.empty()) { intersection.insert(new_filter.begin(), new_filter.end()); }
@@ -515,6 +517,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                             if (SUCCEEDED(HR) && texture_id >= 0) {
                                 sky_textures.push_back(map_renderer->GetTextureManager()->GetTexture(texture_id));
                                 main_sky_tex_found = true;
+                                DirectX::XMFLOAT4 averageColor = GetAverageColorOfBottomRow(dat_texture);
+                                map_renderer->SetClearColor(averageColor);
                             }
                         }
                     }
@@ -2311,4 +2315,28 @@ std::string to_lower(const std::string& input)
     std::transform(result.begin(), result.end(), result.begin(),
         [](unsigned char c) { return std::tolower(c); });
     return result;
+}
+
+DirectX::XMFLOAT4 GetAverageColorOfBottomRow(const DatTexture& dat_texture) {
+    int total_pixels = dat_texture.width;
+
+    unsigned long long total_r = 0, total_g = 0, total_b = 0;
+
+    // Iterate over the bottom row of pixels
+    for (int x = 0; x < dat_texture.width; ++x) {
+        int index = (dat_texture.height - 1) * dat_texture.width + x;
+        RGBA pixel = dat_texture.rgba_data[index];
+
+        total_r += pixel.r;
+        total_g += pixel.g;
+        total_b += pixel.b;
+    }
+
+    // Calculate average color
+    float avg_r = static_cast<float>(total_r) / total_pixels / 255.0f;
+    float avg_g = static_cast<float>(total_g) / total_pixels / 255.0f;
+    float avg_b = static_cast<float>(total_b) / total_pixels / 255.0f;
+
+    // Return average color as XMFLOAT4
+    return DirectX::XMFLOAT4(avg_b, avg_g, avg_r, 1.0f); // Alpha set to 1.0f (fully opaque)
 }
