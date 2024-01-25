@@ -923,44 +923,44 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         //    map_renderer->AddBox(vertex.x, terrain->get_height_at(vertex.x, vertex.y) + 200, vertex.y, 50);
         //}
 
-        for (int i = 9; i < selected_ffna_map_file.chunk5.some_array.size(); i++) {
-            auto color1 = CheckerboardTexture::GetColorForIndex(i + 21);
-            auto color2 = CheckerboardTexture::GetColorForIndex(i + 21);
+        //for (int i = 0; i < selected_ffna_map_file.chunk5.some_array.size(); i++) {
+        //    auto color1 = CheckerboardTexture::GetColorForIndex(i + 21);
+        //    auto color2 = CheckerboardTexture::GetColorForIndex(i + 21);
 
-            const auto& vertices = selected_ffna_map_file.chunk5.some_array[i].vertices;
-            if (vertices.size() < 3) {
-                // Skip this iteration if there are fewer than 3 vertices.
-                continue;
-            }
+        //    const auto& vertices = selected_ffna_map_file.chunk5.some_array[i].vertices;
+        //    if (vertices.size() < 3) {
+        //        // Skip this iteration if there are fewer than 3 vertices.
+        //        continue;
+        //    }
 
-            // Create the base Vertex3 using the first vertex and terrain height
-            const auto& baseVertex2D = vertices[0];
-            Vertex3 baseVertex3D = {
-                baseVertex2D.x,
-                terrain->get_height_at(baseVertex2D.x, baseVertex2D.y) + 20000,
-                baseVertex2D.y
-            };
+        //    // Create the base Vertex3 using the first vertex and terrain height
+        //    const auto& baseVertex2D = vertices[0];
+        //    Vertex3 baseVertex3D = {
+        //        baseVertex2D.x,
+        //        terrain->get_height_at(baseVertex2D.x, baseVertex2D.y) + 20000,
+        //        baseVertex2D.y
+        //    };
 
-            for (int j = 1; j < vertices.size() - 1; j++) {
-                // Create Vertex3 for the two other vertices of the triangle
-                const auto& vertex1_2D = vertices[j];
-                Vertex3 vertex1_3D = {
-                    vertex1_2D.x,
-                    terrain->get_height_at(vertex1_2D.x, vertex1_2D.y) + 20000,
-                    vertex1_2D.y
-                };
+        //    for (int j = 1; j < vertices.size() - 1; j++) {
+        //        // Create Vertex3 for the two other vertices of the triangle
+        //        const auto& vertex1_2D = vertices[j];
+        //        Vertex3 vertex1_3D = {
+        //            vertex1_2D.x,
+        //            terrain->get_height_at(vertex1_2D.x, vertex1_2D.y) + 20000,
+        //            vertex1_2D.y
+        //        };
 
-                const auto& vertex2_2D = vertices[j + 1];
-                Vertex3 vertex2_3D = {
-                    vertex2_2D.x,
-                    terrain->get_height_at(vertex2_2D.x, vertex2_2D.y) + 20000,
-                    vertex2_2D.y
-                };
+        //        const auto& vertex2_2D = vertices[j + 1];
+        //        Vertex3 vertex2_3D = {
+        //            vertex2_2D.x,
+        //            terrain->get_height_at(vertex2_2D.x, vertex2_2D.y) + 20000,
+        //            vertex2_2D.y
+        //        };
 
-                // Use AddTriangle3D to draw the triangle
-                map_renderer->AddTriangle3D(baseVertex3D, vertex1_3D, vertex2_3D, 200, color1, color2);
-            }
-        }
+        //        // Use AddTriangle3D to draw the triangle
+        //        map_renderer->AddTriangle3D(baseVertex3D, vertex1_3D, vertex2_3D, 200, color1, color2);
+        //    }
+        //}
 
 
         //for (int i = 0; i < selected_ffna_map_file.chunk5.unknown2.size(); i += 2) {
