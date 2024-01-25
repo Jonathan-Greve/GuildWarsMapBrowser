@@ -7,4 +7,6 @@
 struct PerFrameCB
 {
     DirectionalLight directionalLight; // Sun
+    float time_elapsed;
+    float padframe[3];
 };

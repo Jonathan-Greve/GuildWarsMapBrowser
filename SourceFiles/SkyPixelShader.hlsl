@@ -18,6 +18,8 @@ struct DirectionalLight
 cbuffer PerFrameCB : register(b0)
 {
     DirectionalLight directionalLight;
+    float time_elapsed;
+    float padframe[3];
 };
 
 cbuffer PerObjectCB : register(b1)
@@ -80,7 +82,10 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 final_color = float4(0, 0, 0, 1);
     for (int i = 0; i < num_uv_texture_pairs; i++)
     {
-        float4 sampledTextureColor = shaderTextures[0].Sample(ss, input.tex_coords0);
+        float u = (float(i) * time_elapsed / 400) + input.tex_coords0.x;
+        float v = input.tex_coords0.y;
+        
+        float4 sampledTextureColor = shaderTextures[0].Sample(ss, float2(u, v));
         final_color.rgb += saturate(sampledTextureColor.rgb * sampledTextureColor.a);
     }
 

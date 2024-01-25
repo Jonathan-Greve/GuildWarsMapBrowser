@@ -440,6 +440,9 @@ public:
 
     void Update(const float dt)
     {
+        static float time_elapsed = 0;
+        time_elapsed += dt;
+
         // Walk
         if (m_input_manager->IsKeyDown('W'))
             m_user_camera->Walk(WalkDirection::Forward, dt);
@@ -466,10 +469,11 @@ public:
         }
 
         // Update per frame CB
-        if (m_per_frame_cb_changed)
+        if (m_per_frame_cb_changed || true)
         {
             PerFrameCB frameCB;
             frameCB.directionalLight = m_directionalLight;
+            frameCB.time_elapsed = time_elapsed;
 
             // Update the per frame constant buffer
             D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
