@@ -13,6 +13,7 @@
 #include "BlendStateManager.h"
 #include "RasterizerStateManager.h"
 #include "DepthStencilStateManager.h"
+#include "DeviceResources.h"
 
 using namespace DirectX;
 
@@ -202,6 +203,7 @@ public:
         auto mesh = terrain->get_mesh();
         mesh->num_textures = 1;
         m_terrain_mesh_id = m_mesh_manager->AddCustomMesh(mesh, m_terrain_current_pixel_shader_type);
+        m_mesh_manager->SetMeshShouldRender(m_terrain_mesh_id, false); // We'll render it manually.
         m_terrain_texture_atlas_id = texture_atlas_id;
 
         PerObjectCB terrainPerObjectData;
@@ -489,18 +491,31 @@ public:
         m_mesh_manager->Update(dt);
     }
 
-    void Render(ID3D11DepthStencilState* disable_depth_stencil_state)
+    void Render(ID3D11RenderTargetView* render_target_view, ID3D11RenderTargetView* picking_render_target, ID3D11DepthStencilView* depth_stencil_view)
     {
+        m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
+
         // Render sky before anything else
         if (m_sky_mesh_id >= 0 && m_should_render_sky) {
-            m_deviceContext->OMSetDepthStencilState(disable_depth_stencil_state, 1);
+
+            m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Disabled);
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
                 m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_sky_mesh_id);
 
             // Reenable depth write.
-            m_deviceContext->OMSetDepthStencilState(nullptr, 1);
+            m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Enabled);
         }
 
+        // picking_render_target can be null when writing to the offscreen buffer where picking isn't needed.
+        if (picking_render_target) {
+            ID3D11RenderTargetView* multipleRenderTargets[] = { render_target_view, picking_render_target };
+            m_deviceContext->OMSetRenderTargets(2, multipleRenderTargets, depth_stencil_view);
+        }
+
+        if (m_terrain_mesh_id) {
+            m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id);
+        }
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
                                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
