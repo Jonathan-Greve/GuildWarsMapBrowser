@@ -93,11 +93,11 @@ public:
 
 	std::vector<RenderCommand> GetCommands() { return m_sortedCommands; }
 
-	const RenderCommand* const GetCommand(int mesh_id)
+	const std::optional<RenderCommand> const GetCommand(int mesh_id)
 	{
 		auto it = m_commands.find(mesh_id);
-		if (it != m_commands.end()) { return &it->second; }
-		return nullptr;
+		if (it != m_commands.end()) { return it->second; }
+		return std::nullopt;
 	}
 
 	bool SetPixelShader(int mesh_id, PixelShaderType pixel_shader_type)

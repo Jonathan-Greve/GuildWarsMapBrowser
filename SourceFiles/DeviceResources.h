@@ -78,8 +78,6 @@ namespace DX
         DXGI_COLOR_SPACE_TYPE   GetColorSpace() const noexcept          { return m_colorSpace; }
         unsigned int            GetDeviceOptions() const noexcept       { return m_options; }
 
-        ID3D11DepthStencilState* GetDisableDepthWriteStencilState() const { return m_DisableDepthWriteStencilState.Get(); }
-
         // Performance events
         void PIXBeginEvent(_In_z_ const wchar_t* name)
         {
@@ -117,8 +115,6 @@ namespace DX
         void CreateFactory();
         void GetHardwareAdapter(IDXGIAdapter1** ppAdapter);
 
-        void CreateDisableDepthWriteStencilState();
-
         // Direct3D objects.
         Microsoft::WRL::ComPtr<IDXGIFactory2>               m_dxgiFactory;
         Microsoft::WRL::ComPtr<ID3D11Device1>               m_d3dDevice;
@@ -146,8 +142,6 @@ namespace DX
         Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  m_d3dOffscreenDepthStencilView;
         D3D11_VIEWPORT                                  m_screenViewport;
         D3D11_VIEWPORT                                  m_offscreenViewport;
-
-        Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_DisableDepthWriteStencilState;
 
         // Direct3D properties.
         DXGI_FORMAT                                     m_backBufferFormat;
