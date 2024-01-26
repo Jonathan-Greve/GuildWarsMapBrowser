@@ -171,12 +171,18 @@ void DATManager::read_files_thread(Concurrency::concurrent_queue<int>& file_indi
     unsigned char* data;
     int index;
 
+
     while (file_indices_queue.try_pop(index))
     {
-        data = m_dat.readFile(file_handle, index, false);
-        delete[] data;
-
-        auto _ = m_num_types_read.fetch_add(1, std::memory_order_relaxed);
+        try
+        {
+            data = m_dat.readFile(file_handle, index, false);
+            delete[] data;
+            auto _ = m_num_types_read.fetch_add(1, std::memory_order_relaxed);
+        }
+        catch (...)
+        {
+        }
     }
 
     CloseHandle(file_handle);
