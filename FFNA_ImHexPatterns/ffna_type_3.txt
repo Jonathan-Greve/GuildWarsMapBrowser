@@ -358,6 +358,106 @@ struct BigChunk {
   u8 zero;
 };
 
+struct EnvSubChunk0 {
+   u16 data[5];
+};
+
+struct EnvSubChunk1 {
+   u16 data[3];
+};
+
+struct EnvSubChunk2 {
+   u8 data[0x13];
+};
+
+struct EnvSubChunk3 {
+   u8 data[8];
+};
+
+struct EnvSubChunk4 {
+   u8 data[2];
+};
+
+struct EnvSubChunk5 {
+   u8 data[0xf];
+};
+
+// This is used if the value 4 bytes after magic_num_0x92991030 is >= 0x00010000
+struct EnvSubChunk5_other {
+   u8 data[0x10];
+};
+
+struct EnvSubChunk6 {
+   u8 data[0x39];
+};
+
+struct EnvSubChunk7 {
+   u8 data[0x4];
+};
+
+struct EnvSubChunk8 {
+   u8 unknown1[0x9];
+   float unknown2;
+   float unknown3;
+   u8 data[15];
+};
+
+struct EnvironmentInfoChunk {
+ u32 chunk_id;
+ u32 chunk_size;
+ u32 magic_num_0x92991030;
+ u16 always_0x10_maybe;
+ u16 unknown;
+ u8 data_type; // if 0 or 2 then the next bytes are u8 tag and u32 size I think.
+ u16 num_structs0;
+ EnvSubChunk0 env_sub_chunk0[num_structs0];
+ u8 data_type1;
+ u16 num_structs1;
+ EnvSubChunk1 env_sub_chunk1[num_structs1];
+ u8 data_type2;
+ u16 num_structs2;
+ EnvSubChunk2 env_sub_chunk2[num_structs2];
+ u8 data_type3;
+ u16 num_structs3;
+ EnvSubChunk3 env_sub_chunk3[num_structs3];
+ u8 data_type4;
+ u16 num_structs4;
+ EnvSubChunk4 env_sub_chunk4[num_structs4];
+ u8 data_type5;
+ u16 num_structs5;
+ if (unknown > 0) {
+   EnvSubChunk5_other env_sub_chunk5[num_structs5];
+ }
+ else{
+   EnvSubChunk5 env_sub_chunk5[num_structs5];
+ }
+ u8 data_type6;
+ u16 num_structs6;
+ EnvSubChunk6 env_sub_chunk6[num_structs6];
+ u8 data_type7;
+ u16 num_structs7;
+ EnvSubChunk7 env_sub_chunk7[num_structs7];
+ u8 unknown0;
+ u16 unknown1[8];
+ u8 unknown2;
+ u8 data_type8;
+ u8 num_structs8;
+ EnvSubChunk8 enb_sub_chunk8[num_structs8];
+ u16 unknown_3; // always 0x00 0x0B?
+ u16 num_structs9;
+ u8 structs9[5*num_structs9];
+ u8 end_byte_0xFF;
+ 
+ /*u8 chunk_data[chunk_size-11-sizeof(env_sub_chunk0)
+ - 3 - sizeof(env_sub_chunk1) - 3 - sizeof(env_sub_chunk2)
+ - 3 - sizeof(env_sub_chunk3)
+ - 3 - sizeof(env_sub_chunk4)
+ - 3 - sizeof(env_sub_chunk5)
+ - 3 - sizeof(env_sub_chunk6)
+ - 3 - sizeof(env_sub_chunk7)
+ - 0x14 - sizeof(enb_sub_chunk8) - 4 - sizeof(structs9)];*/
+};
+
 
 enum FFNAType : u8 {
   Type0,
@@ -414,6 +514,9 @@ struct Chunk {
  else if (chunk_id == 0x20000008){
    BigChunk big_chunk;
  }
+ else if (chunk_id == 0x20000009){
+   EnvironmentInfoChunk env_info_chunk;
+ }
  else{
    UnknownChunk unknown_chunk;
  }
@@ -426,4 +529,4 @@ struct MapFile {
  Chunk chunks[while($ < sizeof($))];
  };
  
- MapFile mapfile @ 0;
+MapFile mapfile @ 0;
