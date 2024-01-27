@@ -424,6 +424,8 @@ struct EnvironmentInfoChunk {
  u16 num_structs4;
  EnvSubChunk4 env_sub_chunk4[num_structs4];
  u8 data_type5;
+ // Texture file indices (see chunk 0x21000009 for the environment files)
+ // and other things.
  u16 num_structs5;
  if (unknown > 0) {
    EnvSubChunk5_other env_sub_chunk5[num_structs5];
