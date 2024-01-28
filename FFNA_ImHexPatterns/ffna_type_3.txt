@@ -384,13 +384,21 @@ struct EnvSubChunk2 {
    s32 unknown5;
 };
 
+// Setting this whole chunk to 0 turns everything black except specular highlights it seems.
+// and some exceptions to the above.
 struct EnvSubChunk3 {
-   s16 unknown0;
-   u8 unknown1;
-   u8 unknown2;
-   s16 unknown3;
-   u8 unknown4;
-   u8 unknown5;
+   // Ambient light perhaps.
+   u8 ambient_blue;
+   u8 ambient_green;
+   u8 ambient_red;
+   u8 ambient_intensity; // setting to zero makes all shadows completely black.
+
+   // These select the color of everywhere directly hit by the sun light
+   // No effect on the places in shadow.
+   u8 sun_blue;
+   u8 sun_green;
+   u8 sun_red;
+   u8 sun_intensity;
 };
 
 struct EnvSubChunk4 {
