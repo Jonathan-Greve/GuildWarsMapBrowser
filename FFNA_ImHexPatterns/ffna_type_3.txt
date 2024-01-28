@@ -359,19 +359,38 @@ struct BigChunk {
 };
 
 struct EnvSubChunk0 {
-   u16 data[5];
+   u8 unknown0;
+   u8 unknown1;
+   s32 unknown2;
+   u8 unknown3;
+   u8 unknown4;
+   u16 unknown5;
 };
 
 struct EnvSubChunk1 {
-   u16 data[3];
+   u8 ambient_intensity_maybe;
+   u8 diffuse_intensity_maybe;
+   u8 specular_intensity_maybe;
+   u16 unknown2;
+   u8 unknown4;
 };
 
 struct EnvSubChunk2 {
-   u8 data[0x13];
+   u16 unknown0;
+   u8 unknown1;
+   u32 unknown2;
+   u32 unknown3;
+   s32 unknown4;
+   s32 unknown5;
 };
 
 struct EnvSubChunk3 {
-   u8 data[8];
+   s16 unknown0;
+   u8 unknown1;
+   u8 unknown2;
+   s16 unknown3;
+   u8 unknown4;
+   u8 unknown5;
 };
 
 struct EnvSubChunk4 {
