@@ -368,20 +368,21 @@ struct EnvSubChunk0 {
 };
 
 struct EnvSubChunk1 {
-   u8 ambient_intensity_maybe;
-   u8 diffuse_intensity_maybe;
-   u8 specular_intensity_maybe;
+   u8 sky_brightness_maybe; // at 0 the sky is less bright and no specular highlights
+   u8 sky_saturaion_maybe; // not sure if saturation but changes colors.
+   u8 some_color_scale; // 0xff more gray-scale, 0 normal color.
    u16 unknown2;
    u8 unknown4;
 };
 
 struct EnvSubChunk2 {
-   u16 unknown0;
-   u8 unknown1;
-   u32 unknown2;
-   u32 unknown3;
-   s32 unknown4;
-   s32 unknown5;
+   u8 fog_blue;
+   u8 fog_green;
+   u8 fog_red;
+   u32 fog_distance_start;
+   u32 fog_distance_end;
+   s32 fog_z_start_maybe;
+   s32 fog_z_end_maybe; // remember GW uses negative height
 };
 
 // Setting this whole chunk to 0 turns everything black except specular highlights it seems.
@@ -406,20 +407,43 @@ struct EnvSubChunk4 {
 };
 
 struct EnvSubChunk5 {
-   u8 data[0xf];
+   u8 cloud_cylinder_radius_scale_maybe; // Always at 0xff? Settings it to lower values than 0xff seem to create a second cylinder for the clouds that is smaller than be sky cylinder.
+   
+   // Settings these indices to 0xFFFF makes the game not load it.
+   u16 sky_background_texture_index;
+   u16 sky_clouds_texture_index0;
+   u16 sky_clouds_texture_index1;
+   u16 sky_sun_texture_index;
+   
+   u8 unknown0; // the higher the number the higher up the fog seem to cover the sky
+   
+   // Probably sky cylinder dimensions (height and radius)
+   s16 unknown1;
+   s16 unknown2;
+   u8 unknown3;
+   //u8 data[0xf-9];
 };
 
 // This is used if the value 4 bytes after magic_num_0x92991030 is >= 0x00010000
 struct EnvSubChunk5_other {
-   u8 data[0x10];
+   u8 cloud_cylinder_radius_scale_maybe;
+   u16 sky_background_texture_index;
+   u16 sky_clouds_texture_index0;
+   u16 sky_clouds_texture_index1;
+   u16 sky_sun_texture_index;
+   u8 unknown[7];
 };
 
+// Water environment info most likely
 struct EnvSubChunk6 {
    u8 data[0x39];
 };
 
 struct EnvSubChunk7 {
-   u8 data[0x4];
+   u8 wind_dir0;
+   u8 wind_dir1;
+   u8 wind_speed0;
+   u8 wind_speed1;
 };
 
 struct EnvSubChunk8 {
