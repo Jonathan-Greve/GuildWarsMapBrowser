@@ -720,7 +720,7 @@ struct Chunk7
     }
 };
 
-struct SkydomeChunk {
+struct EnvironmentInfoFilenamesChunk {
     uint32_t chunk_id;
     uint32_t chunk_size;
     uint16_t unknown0;
@@ -729,8 +729,8 @@ struct SkydomeChunk {
     std::vector<Chunk4DataElement> filenames;
     std::vector<uint8_t> chunk_data;
 
-    SkydomeChunk() = default;
-    SkydomeChunk(int& offset, const unsigned char* data)
+    EnvironmentInfoFilenamesChunk() = default;
+    EnvironmentInfoFilenamesChunk(int& offset, const unsigned char* data)
     {
         // Copy the chunk ID
         std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
@@ -1048,12 +1048,13 @@ constexpr uint32_t CHUNK_ID_TERRAIN = 0x20000002;
 constexpr uint32_t CHUNK_ID_ZONES_STUFF = 0x20000003;
 constexpr uint32_t CHUNK_ID_PROPS_INFO = 0x20000004;
 constexpr uint32_t CHUNK_ID_PATH_INFO = 0x20000008;
+constexpr uint32_t CHUNK_ID_ENVIRONMENT_INFO = 0x20000009;
 constexpr uint32_t CHUNK_ID_MAP_INFO = 0x2000000C;
 constexpr uint32_t CHUNK_ID_SHOR = 0x20000010;
 constexpr uint32_t CHUNK_ID_TERRAIN_FILENAMES = 0x21000002;
 constexpr uint32_t CHUNK_ID_PROPS_FILENAMES0 = 0x21000003;
 constexpr uint32_t CHUNK_ID_PROPS_FILENAMES = 0x21000004;
-constexpr uint32_t CHUNK_ID_SKYDOME = 0x21000009;
+constexpr uint32_t CHUNK_ID_ENVIRONMENT_INFO_FILENAMES = 0x21000009;
 
 struct FFNA_MapFile
 {
@@ -1068,7 +1069,7 @@ struct FFNA_MapFile
     Chunk7 chunk7;
     Chunk8 terrain_chunk;
     Chunk4 terrain_texture_filenames; // same structure as chunk 4
-    SkydomeChunk skydome_chunk;
+    EnvironmentInfoFilenamesChunk environment_info_filenames_chunk;
     ShoreChunk shore_chunk;
     BigChunk big_chunk;
 
@@ -1152,15 +1153,15 @@ struct FFNA_MapFile
             terrain_texture_filenames = Chunk4(offset, data.data());
         }
 
-        // Check if the CHUNK_ID_SKYDOME is in the riff_chunks map
-        it = riff_chunks.find(CHUNK_ID_SKYDOME);
+        // Check if the CHUNK_ID_ENVIRONMENT_INFO_FILENAMES is in the riff_chunks map
+        it = riff_chunks.find(CHUNK_ID_ENVIRONMENT_INFO_FILENAMES);
         if (it != riff_chunks.end())
         {
             int offset = it->second;
-            skydome_chunk = SkydomeChunk(offset, data.data());
+            environment_info_filenames_chunk = EnvironmentInfoFilenamesChunk(offset, data.data());
         }
 
-        // Check if the CHUNK_ID_SKYDOME is in the riff_chunks map
+        // Check if the CHUNK_ID_SHOR is in the riff_chunks map
         //it = riff_chunks.find(CHUNK_ID_SHOR);
         //if (it != riff_chunks.end())
         //{

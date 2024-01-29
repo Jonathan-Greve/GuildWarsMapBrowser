@@ -497,9 +497,9 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             bool clouds_tex_found = false;
 
             std::vector<ID3D11ShaderResourceView*> sky_textures;
-            const auto& skydome_chunk = selected_ffna_map_file.skydome_chunk;
-            for (int i = 0; i < skydome_chunk.filenames.size(); i++) {
-                const auto& filename = skydome_chunk.filenames[i];
+            const auto& environment_info_filenames_chunk = selected_ffna_map_file.environment_info_filenames_chunk;
+            for (int i = 0; i < environment_info_filenames_chunk.filenames.size(); i++) {
+                const auto& filename = environment_info_filenames_chunk.filenames[i];
                 auto decoded_filename = decode_filename(filename.filename.id0, filename.filename.id1);
 
                 auto mft_entry_it = hash_index.find(decoded_filename);
