@@ -223,6 +223,12 @@ struct Chunk5_0 {
   }
 };
 
+struct SomeData8 {
+  u32 size;
+  u8 unknown1[size];
+  u8 unknown0[128];
+};
+
 
 struct Chunk8 {
   u32 chunk_id;
@@ -250,7 +256,8 @@ struct Chunk8 {
   u8 some_data3[some_size3];
   u8 tag4;
   u32 some_size4;
-  u8 some_data4[some_size4];
+  u8 some_size4_1;
+  u8 some_data4[some_size4_1];
   u8 tag5;
   u32 some_size5;
   u8 some_data5[some_size5];
@@ -259,13 +266,13 @@ struct Chunk8 {
   u8 something_for_each_tile1[num_terrain_tiles1];
   u8 tag7;
   u32 some_size7;
-  u32 some_size8;
-  u8 some_data7_0[some_size8];
-  u8 some_data7_1[some_size7-some_size8];
-  u8 chunk_data[chunk_size-79-sizeof(terrain_height_vertices)
+  SomeData8 some_per_32x32_tiles_data[terrain_x_dims*terrain_y_dims / 32 / 32];
+  u32 unknown1;
+  u8 zero;
+  u8 chunk_data[chunk_size-76-sizeof(terrain_height_vertices)
     -sizeof(terrain_texture_indices_maybe)-sizeof(some_data3)-sizeof(some_data4)
-    -sizeof(some_data5)-sizeof(something_for_each_tile1)-sizeof(some_data7_0)
-    -sizeof(some_data7_1)];
+    -sizeof(some_data5)-sizeof(something_for_each_tile1)
+    -sizeof(some_per_32x32_tiles_data)-5];
 };
 
 struct FileNameWith2Zeros{
