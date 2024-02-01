@@ -841,6 +841,437 @@ struct ShoreChunk {
     }
 };
 
+struct EnvSubChunk0 {
+    uint8_t unknown0;
+    uint8_t unknown1;
+    int32_t unknown2;
+    uint8_t unknown3;
+    uint8_t unknown4;
+    uint16_t unknown5;
+
+    EnvSubChunk0() = default;
+    EnvSubChunk0(const unsigned char* data, int& offset) {
+        std::memcpy(&unknown0, &data[offset], sizeof(unknown0));
+        offset += sizeof(unknown0);
+
+        std::memcpy(&unknown1, &data[offset], sizeof(unknown1));
+        offset += sizeof(unknown1);
+
+        std::memcpy(&unknown2, &data[offset], sizeof(unknown2));
+        offset += sizeof(unknown2);
+
+        std::memcpy(&unknown3, &data[offset], sizeof(unknown3));
+        offset += sizeof(unknown3);
+
+        std::memcpy(&unknown4, &data[offset], sizeof(unknown4));
+        offset += sizeof(unknown4);
+
+        std::memcpy(&unknown5, &data[offset], sizeof(unknown5));
+        offset += sizeof(unknown5);
+    }
+};
+
+struct EnvSubChunk1 {
+    uint8_t sky_brightness_maybe;
+    uint8_t sky_saturaion_maybe;
+    uint8_t some_color_scale;
+    uint16_t unknown2;
+    uint8_t unknown4;
+
+    EnvSubChunk1() = default;
+    EnvSubChunk1(const unsigned char* data, int& offset) {
+        std::memcpy(&sky_brightness_maybe, &data[offset], sizeof(sky_brightness_maybe));
+        offset += sizeof(sky_brightness_maybe);
+
+        std::memcpy(&sky_saturaion_maybe, &data[offset], sizeof(sky_saturaion_maybe));
+        offset += sizeof(sky_saturaion_maybe);
+
+        std::memcpy(&some_color_scale, &data[offset], sizeof(some_color_scale));
+        offset += sizeof(some_color_scale);
+
+        std::memcpy(&unknown2, &data[offset], sizeof(unknown2));
+        offset += sizeof(unknown2);
+
+        std::memcpy(&unknown4, &data[offset], sizeof(unknown4));
+        offset += sizeof(unknown4);
+    }
+};
+
+struct EnvSubChunk2 {
+    uint8_t fog_blue;
+    uint8_t fog_green;
+    uint8_t fog_red;
+    uint32_t fog_distance_start;
+    uint32_t fog_distance_end;
+    int32_t fog_z_start_maybe;
+    int32_t fog_z_end_maybe;
+
+    EnvSubChunk2() = default;
+    EnvSubChunk2(const unsigned char* data, int& offset) {
+        std::memcpy(&fog_blue, &data[offset], sizeof(fog_blue));
+        offset += sizeof(fog_blue);
+
+        std::memcpy(&fog_green, &data[offset], sizeof(fog_green));
+        offset += sizeof(fog_green);
+
+        std::memcpy(&fog_red, &data[offset], sizeof(fog_red));
+        offset += sizeof(fog_red);
+
+        std::memcpy(&fog_distance_start, &data[offset], sizeof(fog_distance_start));
+        offset += sizeof(fog_distance_start);
+
+        std::memcpy(&fog_distance_end, &data[offset], sizeof(fog_distance_end));
+        offset += sizeof(fog_distance_end);
+
+        std::memcpy(&fog_z_start_maybe, &data[offset], sizeof(fog_z_start_maybe));
+        offset += sizeof(fog_z_start_maybe);
+
+        std::memcpy(&fog_z_end_maybe, &data[offset], sizeof(fog_z_end_maybe));
+        offset += sizeof(fog_z_end_maybe);
+    }
+};
+
+struct EnvSubChunk3 {
+    uint8_t ambient_blue;
+    uint8_t ambient_green;
+    uint8_t ambient_red;
+    uint8_t ambient_intensity;
+    uint8_t sun_blue;
+    uint8_t sun_green;
+    uint8_t sun_red;
+    uint8_t sun_intensity;
+
+    EnvSubChunk3() = default;
+    EnvSubChunk3(const unsigned char* data, int& offset) {
+        std::memcpy(&ambient_blue, &data[offset], sizeof(ambient_blue));
+        offset += sizeof(ambient_blue);
+
+        std::memcpy(&ambient_green, &data[offset], sizeof(ambient_green));
+        offset += sizeof(ambient_green);
+
+        std::memcpy(&ambient_red, &data[offset], sizeof(ambient_red));
+        offset += sizeof(ambient_red);
+
+        std::memcpy(&ambient_intensity, &data[offset], sizeof(ambient_intensity));
+        offset += sizeof(ambient_intensity);
+
+        std::memcpy(&sun_blue, &data[offset], sizeof(sun_blue));
+        offset += sizeof(sun_blue);
+
+        std::memcpy(&sun_green, &data[offset], sizeof(sun_green));
+        offset += sizeof(sun_green);
+
+        std::memcpy(&sun_red, &data[offset], sizeof(sun_red));
+        offset += sizeof(sun_red);
+
+        std::memcpy(&sun_intensity, &data[offset], sizeof(sun_intensity));
+        offset += sizeof(sun_intensity);
+    }
+};
+
+struct EnvSubChunk4 {
+    uint8_t data[2];
+
+    EnvSubChunk4() = default;
+    EnvSubChunk4(const unsigned char* data, int& offset) {
+        std::memcpy(this->data, &data[offset], sizeof(this->data));
+        offset += sizeof(this->data);
+    }
+};
+
+struct EnvSubChunk5 {
+    uint8_t cloud_cylinder_radius_scale_maybe;
+    uint16_t sky_background_texture_index;
+    uint16_t sky_clouds_texture_index0;
+    uint16_t sky_clouds_texture_index1;
+    uint16_t sky_sun_texture_index;
+    uint8_t unknown0;
+    int16_t unknown1;
+    int16_t unknown2;
+    uint8_t unknown3;
+
+    EnvSubChunk5() = default;
+    EnvSubChunk5(const unsigned char* data, int& offset) {
+        std::memcpy(&cloud_cylinder_radius_scale_maybe, &data[offset], sizeof(cloud_cylinder_radius_scale_maybe));
+        offset += sizeof(cloud_cylinder_radius_scale_maybe);
+
+        std::memcpy(&sky_background_texture_index, &data[offset], sizeof(sky_background_texture_index));
+        offset += sizeof(sky_background_texture_index);
+
+        std::memcpy(&sky_clouds_texture_index0, &data[offset], sizeof(sky_clouds_texture_index0));
+        offset += sizeof(sky_clouds_texture_index0);
+
+        std::memcpy(&sky_clouds_texture_index1, &data[offset], sizeof(sky_clouds_texture_index1));
+        offset += sizeof(sky_clouds_texture_index1);
+
+        std::memcpy(&sky_sun_texture_index, &data[offset], sizeof(sky_sun_texture_index));
+        offset += sizeof(sky_sun_texture_index);
+
+        std::memcpy(&unknown0, &data[offset], sizeof(unknown0));
+        offset += sizeof(unknown0);
+
+        std::memcpy(&unknown1, &data[offset], sizeof(unknown1));
+        offset += sizeof(unknown1);
+
+        std::memcpy(&unknown2, &data[offset], sizeof(unknown2));
+        offset += sizeof(unknown2);
+
+        std::memcpy(&unknown3, &data[offset], sizeof(unknown3));
+        offset += sizeof(unknown3);
+    }
+};
+
+struct EnvSubChunk5_other {
+    uint8_t cloud_cylinder_radius_scale_maybe;
+    uint16_t sky_background_texture_index;
+    uint16_t sky_clouds_texture_index0;
+    uint16_t sky_clouds_texture_index1;
+    uint16_t sky_sun_texture_index;
+    uint8_t unknown[7];
+
+    EnvSubChunk5_other() = default;
+    EnvSubChunk5_other(const unsigned char* data, int& offset) {
+        std::memcpy(&cloud_cylinder_radius_scale_maybe, &data[offset], sizeof(cloud_cylinder_radius_scale_maybe));
+        offset += sizeof(cloud_cylinder_radius_scale_maybe);
+
+        std::memcpy(&sky_background_texture_index, &data[offset], sizeof(sky_background_texture_index));
+        offset += sizeof(sky_background_texture_index);
+
+        std::memcpy(&sky_clouds_texture_index0, &data[offset], sizeof(sky_clouds_texture_index0));
+        offset += sizeof(sky_clouds_texture_index0);
+
+        std::memcpy(&sky_clouds_texture_index1, &data[offset], sizeof(sky_clouds_texture_index1));
+        offset += sizeof(sky_clouds_texture_index1);
+
+        std::memcpy(&sky_sun_texture_index, &data[offset], sizeof(sky_sun_texture_index));
+        offset += sizeof(sky_sun_texture_index);
+
+        std::memcpy(unknown, &data[offset], sizeof(unknown));
+        offset += sizeof(unknown);
+    }
+};
+
+struct EnvSubChunk6 {
+    uint8_t data[0x39];
+
+    EnvSubChunk6() = default;
+    EnvSubChunk6(const unsigned char* data, int& offset) {
+        std::memcpy(this->data, &data[offset], sizeof(this->data));
+        offset += sizeof(this->data);
+    }
+};
+
+struct EnvSubChunk7 {
+    uint8_t wind_dir0;
+    uint8_t wind_dir1;
+    uint8_t wind_speed0;
+    uint8_t wind_speed1;
+
+    EnvSubChunk7() = default;
+    EnvSubChunk7(const unsigned char* data, int& offset) {
+        std::memcpy(&wind_dir0, &data[offset], sizeof(wind_dir0));
+        offset += sizeof(wind_dir0);
+
+        std::memcpy(&wind_dir1, &data[offset], sizeof(wind_dir1));
+        offset += sizeof(wind_dir1);
+
+        std::memcpy(&wind_speed0, &data[offset], sizeof(wind_speed0));
+        offset += sizeof(wind_speed0);
+
+        std::memcpy(&wind_speed1, &data[offset], sizeof(wind_speed1));
+        offset += sizeof(wind_speed1);
+    }
+};
+
+struct EnvSubChunk8 {
+    uint8_t unknown1[0x9];
+    float unknown2;
+    float unknown3;
+    uint8_t data[15];
+
+    EnvSubChunk8() = default;
+    EnvSubChunk8(const unsigned char* data, int& offset) {
+        std::memcpy(unknown1, &data[offset], sizeof(unknown1));
+        offset += sizeof(unknown1);
+
+        std::memcpy(&unknown2, &data[offset], sizeof(unknown2));
+        offset += sizeof(unknown2);
+
+        std::memcpy(&unknown3, &data[offset], sizeof(unknown3));
+        offset += sizeof(unknown3);
+
+        std::memcpy(this->data, &data[offset], sizeof(this->data));
+        offset += sizeof(this->data);
+    }
+};
+
+struct EnvironmentInfoChunk {
+    uint32_t chunk_id;
+    uint32_t chunk_size;
+    uint32_t magic_num_0x92991030;
+    uint16_t always_0x10_maybe;
+    uint16_t unknown;
+    uint8_t data_type;
+    std::vector<EnvSubChunk0> env_sub_chunk0;
+    uint8_t data_type1;
+    std::vector<EnvSubChunk1> env_sub_chunk1;
+    uint8_t data_type2;
+    std::vector<EnvSubChunk2> env_sub_chunk2;
+    uint8_t data_type3;
+    std::vector<EnvSubChunk3> env_sub_chunk3;
+    uint8_t data_type4;
+    std::vector<EnvSubChunk4> env_sub_chunk4;
+    uint8_t data_type5;
+    std::vector<EnvSubChunk5> env_sub_chunk5; // Used if unknown <= 0
+    std::vector<EnvSubChunk5_other> env_sub_chunk5_other; // Used if unknown > 0
+    uint8_t data_type6;
+    std::vector<EnvSubChunk6> env_sub_chunk6;
+    uint8_t data_type7;
+    std::vector<EnvSubChunk7> env_sub_chunk7;
+    uint8_t unknown0;
+    uint16_t unknown1[8];
+    uint8_t unknown2;
+    uint8_t data_type8;
+    std::vector<EnvSubChunk8> env_sub_chunk8;
+    uint16_t unknown_3; // always 0x00 0x0B?
+    std::vector<uint8_t> structs9; // 5 bytes per struct, size is num_structs9
+    uint8_t end_byte_0xFF;
+
+    EnvironmentInfoChunk() = default;
+    EnvironmentInfoChunk(int offset, unsigned char* data) {
+        std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
+        offset += sizeof(chunk_id);
+
+        std::memcpy(&chunk_size, &data[offset], sizeof(chunk_size));
+        offset += sizeof(chunk_size);
+
+        std::memcpy(&magic_num_0x92991030, &data[offset], sizeof(magic_num_0x92991030));
+        offset += sizeof(magic_num_0x92991030);
+
+        std::memcpy(&always_0x10_maybe, &data[offset], sizeof(always_0x10_maybe));
+        offset += sizeof(always_0x10_maybe);
+
+        std::memcpy(&unknown, &data[offset], sizeof(unknown));
+        offset += sizeof(unknown);
+
+        // Parse EnvSubChunk0
+        std::memcpy(&data_type, &data[offset], sizeof(data_type));
+        offset += sizeof(data_type);
+        uint16_t num_structs0;
+        std::memcpy(&num_structs0, &data[offset], sizeof(num_structs0));
+        offset += sizeof(num_structs0);
+        env_sub_chunk0.resize(num_structs0);
+        for (auto& sub_chunk : env_sub_chunk0) {
+            sub_chunk = EnvSubChunk0(data, offset);
+        }
+
+        // Parse EnvSubChunk1
+        std::memcpy(&data_type1, &data[offset], sizeof(data_type1));
+        offset += sizeof(data_type1);
+        uint16_t num_structs1;
+        std::memcpy(&num_structs1, &data[offset], sizeof(num_structs1));
+        offset += sizeof(num_structs1);
+        env_sub_chunk1.resize(num_structs1);
+        for (auto& sub_chunk : env_sub_chunk1) {
+            sub_chunk = EnvSubChunk1(data, offset);
+        }
+
+        // Parse EnvSubChunk2
+        std::memcpy(&data_type2, &data[offset], sizeof(data_type2));
+        offset += sizeof(data_type2);
+        uint16_t num_structs2;
+        std::memcpy(&num_structs2, &data[offset], sizeof(num_structs2));
+        offset += sizeof(num_structs2);
+        env_sub_chunk2.resize(num_structs2);
+        for (auto& sub_chunk : env_sub_chunk2) {
+            sub_chunk = EnvSubChunk2(data, offset);
+        }
+
+        // Parse EnvSubChunk3
+        std::memcpy(&data_type3, &data[offset], sizeof(data_type3));
+        offset += sizeof(data_type3);
+        uint16_t num_structs3;
+        std::memcpy(&num_structs3, &data[offset], sizeof(num_structs3));
+        offset += sizeof(num_structs3);
+        env_sub_chunk3.resize(num_structs3);
+        for (auto& sub_chunk : env_sub_chunk3) {
+            sub_chunk = EnvSubChunk3(data, offset);
+        }
+
+        // Parse EnvSubChunk4
+        std::memcpy(&data_type4, &data[offset], sizeof(data_type4));
+        offset += sizeof(data_type4);
+        uint16_t num_structs4;
+        std::memcpy(&num_structs4, &data[offset], sizeof(num_structs4));
+        offset += sizeof(num_structs4);
+        env_sub_chunk4.resize(num_structs4);
+        for (auto& sub_chunk : env_sub_chunk4) {
+            sub_chunk = EnvSubChunk4(data, offset);
+        }
+
+        // Conditionally parse EnvSubChunk5 or EnvSubChunk5_other based on 'unknown'
+        if (unknown > 0) {
+            std::memcpy(&data_type5, &data[offset], sizeof(data_type5));
+            offset += sizeof(data_type5);
+            uint16_t num_structs5_other;
+            std::memcpy(&num_structs5_other, &data[offset], sizeof(num_structs5_other));
+            offset += sizeof(num_structs5_other);
+            env_sub_chunk5_other.resize(num_structs5_other);
+            for (auto& sub_chunk : env_sub_chunk5_other) {
+                sub_chunk = EnvSubChunk5_other(data, offset);
+            }
+        }
+        else {
+            std::memcpy(&data_type5, &data[offset], sizeof(data_type5));
+            offset += sizeof(data_type5);
+            uint16_t num_structs5;
+            std::memcpy(&num_structs5, &data[offset], sizeof(num_structs5));
+            offset += sizeof(num_structs5);
+            env_sub_chunk5.resize(num_structs5);
+            for (auto& sub_chunk : env_sub_chunk5) {
+                sub_chunk = EnvSubChunk5(data, offset);
+            }
+        }
+
+        // Parse EnvSubChunk6
+        std::memcpy(&data_type6, &data[offset], sizeof(data_type6));
+        offset += sizeof(data_type6);
+        uint16_t num_structs6;
+        std::memcpy(&num_structs6, &data[offset], sizeof(num_structs6));
+        offset += sizeof(num_structs6);
+        env_sub_chunk6.resize(num_structs6);
+        for (auto& sub_chunk : env_sub_chunk6) {
+            sub_chunk = EnvSubChunk6(data, offset);
+        }
+
+        // Parse EnvSubChunk7
+        std::memcpy(&data_type7, &data[offset], sizeof(data_type7));
+        offset += sizeof(data_type7);
+        uint16_t num_structs7;
+        std::memcpy(&num_structs7, &data[offset], sizeof(num_structs7));
+        offset += sizeof(num_structs7);
+        env_sub_chunk7.resize(num_structs7);
+        for (auto& sub_chunk : env_sub_chunk7) {
+            sub_chunk = EnvSubChunk7(data, offset);
+        }
+
+        // Parse EnvSubChunk8
+        std::memcpy(&data_type8, &data[offset], sizeof(data_type8));
+        offset += sizeof(data_type8);
+        uint8_t num_structs8;
+        std::memcpy(&num_structs8, &data[offset], sizeof(num_structs8));
+        offset += sizeof(num_structs8);
+        env_sub_chunk8.resize(num_structs8);
+        for (auto& sub_chunk : env_sub_chunk8) {
+            sub_chunk = EnvSubChunk8(data, offset);
+        }
+
+        std::memcpy(&end_byte_0xFF, &data[offset], sizeof(end_byte_0xFF));
+        offset += sizeof(end_byte_0xFF);
+    }
+};
+
+
 struct BigChunkSub0 {
     uint8_t unknown[20];
     Vertex2 vertices[3];
@@ -1069,6 +1500,7 @@ struct FFNA_MapFile
     Chunk7 chunk7;
     Chunk8 terrain_chunk;
     Chunk4 terrain_texture_filenames; // same structure as chunk 4
+    EnvironmentInfoChunk environment_info_chunk;
     EnvironmentInfoFilenamesChunk environment_info_filenames_chunk;
     ShoreChunk shore_chunk;
     BigChunk big_chunk;
@@ -1151,6 +1583,14 @@ struct FFNA_MapFile
         {
             int offset = it->second;
             terrain_texture_filenames = Chunk4(offset, data.data());
+        }
+
+        //Check if the CHUNK_ID_ENVIRONMENT_INFO_FILENAMES is in the riff_chunks map
+        it = riff_chunks.find(CHUNK_ID_ENVIRONMENT_INFO);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            environment_info_chunk = EnvironmentInfoChunk(offset, data.data());
         }
 
         // Check if the CHUNK_ID_ENVIRONMENT_INFO_FILENAMES is in the riff_chunks map
