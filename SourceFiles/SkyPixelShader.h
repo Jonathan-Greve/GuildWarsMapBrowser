@@ -85,14 +85,41 @@ struct PSOutput
 float4 main(PixelInputType input) : SV_TARGET
 {
     float4 final_color = float4(0, 0, 0, 1);
-    for (int i = 0; i < num_uv_texture_pairs; i++)
+    
+    bool use_sky_background = texture_types[0][0] == 0;
+    bool use_clouds_0 = texture_types[0][1] == 0;
+    bool use_clouds_1 = texture_types[0][2] == 0;
+    bool use_sun = texture_types[0][3] == 0;
+    
+    if (use_sky_background)
     {
-        float u = (float(i) * time_elapsed / 400) + input.tex_coords0.x;
+        float4 sampledTextureColor = shaderTextures[0].Sample(ss, input.tex_coords0);
+        final_color.rgb = sampledTextureColor.rgb;
+    }
+    
+    if (use_clouds_0)
+    {
+        float u = (time_elapsed / 600) + input.tex_coords0.x;
         float v = input.tex_coords0.y;
         
-        float4 sampledTextureColor = shaderTextures[0].Sample(ss, float2(u, v));
-        final_color.rgb += saturate(sampledTextureColor.rgb * sampledTextureColor.a);
+        float4 sampledTextureColor = shaderTextures[1].Sample(ss, float2(u, v));
+        final_color.rgb = lerp(final_color.rgb, sampledTextureColor.rgb, sampledTextureColor.a);
     }
+    
+    if (use_clouds_1)
+    {
+        float u = (-time_elapsed / 800) + input.tex_coords0.x;
+        float v = input.tex_coords0.y;
+        
+        float4 sampledTextureColor = shaderTextures[2].Sample(ss, float2(u, v));
+        final_color.rgb = lerp(final_color.rgb, sampledTextureColor.rgb, sampledTextureColor.a);
+    }
+    
+    //if (use_sun)
+    //{
+    //    float4 sampledTextureColor = shaderTextures[3].Sample(ss, input.tex_coords0);
+    //    final_color.rgb = lerp(sampledTextureColor.rgb, final_color.rgb, sampledTextureColor.a);
+    //}
 
     return final_color;
 }

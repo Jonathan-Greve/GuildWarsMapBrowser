@@ -473,7 +473,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             break;
         }
 
-        
+
 
         selected_map_file_index = index;
 
@@ -492,14 +492,51 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             map_renderer->ClearProps();
             map_renderer->GetMeshManager()->RemoveMesh(sky_mesh_id);
 
-            // Set sky. First find main skydome texture
-            bool main_sky_tex_found = false;
-            bool clouds_tex_found = false;
+            const auto& environment_info_chunk = selected_ffna_map_file.environment_info_chunk;
+            if (environment_info_chunk.env_sub_chunk2.size() > 0){
+                const auto& sub2_0 = environment_info_chunk.env_sub_chunk2[0];
 
-            std::vector<ID3D11ShaderResourceView*> sky_textures;
+                XMFLOAT4 clear_and_fog_color{ 
+                    static_cast<float>(sub2_0.fog_red) / 255.0f, 
+                    static_cast<float>(sub2_0.fog_green) / 255.0f,
+                    static_cast<float>(sub2_0.fog_blue) / 255.0f,
+                    1.0f 
+                };
+
+                map_renderer->SetClearColor(clear_and_fog_color);
+            }
+
+            uint8_t sky_background_filename_index = 0xFF;
+            uint8_t sky_clouds_texture_filename_index0 = 0xFF;
+            uint8_t sky_clouds_texture_filename_index1 = 0xFF;
+            uint8_t sky_sun_texture_filename_index = 0xFF;
+
+            if (environment_info_chunk.env_sub_chunk5.size() > 0) {
+                const auto& sub5_0 = environment_info_chunk.env_sub_chunk5[0];
+                sky_background_filename_index = sub5_0.sky_background_texture_index;
+                sky_clouds_texture_filename_index0 = sub5_0.sky_clouds_texture_index0;
+                sky_clouds_texture_filename_index1 = sub5_0.sky_clouds_texture_index1;
+                sky_sun_texture_filename_index = sub5_0.sky_sun_texture_index;
+            }
+            else if (environment_info_chunk.env_sub_chunk5_other.size() > 0) {
+                const auto& sub5_0 = environment_info_chunk.env_sub_chunk5_other[0];
+                sky_background_filename_index = sub5_0.sky_background_texture_index;
+                sky_clouds_texture_filename_index0 = sub5_0.sky_clouds_texture_index0;
+                sky_clouds_texture_filename_index1 = sub5_0.sky_clouds_texture_index1;
+                sky_sun_texture_filename_index = sub5_0.sky_sun_texture_index;
+            }
+
+            std::vector<uint8_t> sky_texture_filename_indices{ sky_background_filename_index, sky_clouds_texture_filename_index0, sky_clouds_texture_filename_index1, sky_sun_texture_filename_index };
+
+            std::vector<ID3D11ShaderResourceView*> sky_textures(4, nullptr);
             const auto& environment_info_filenames_chunk = selected_ffna_map_file.environment_info_filenames_chunk;
-            for (int i = 0; i < environment_info_filenames_chunk.filenames.size(); i++) {
-                const auto& filename = environment_info_filenames_chunk.filenames[i];
+            for (int i = 0; i < sky_texture_filename_indices.size(); i++) {
+                const auto filename_index = sky_texture_filename_indices[i];
+                if (filename_index >= environment_info_filenames_chunk.filenames.size()) {
+                    continue;
+                }
+
+                const auto& filename = environment_info_filenames_chunk.filenames[filename_index];
                 auto decoded_filename = decode_filename(filename.filename.id0, filename.filename.id1);
 
                 auto mft_entry_it = hash_index.find(decoded_filename);
@@ -508,36 +545,15 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                     auto type = dat_manager->get_MFT()[mft_entry_it->second.at(0)].type;
                     const DatTexture dat_texture = dat_manager->parse_ffna_texture_file(mft_entry_it->second.at(0));
                     int texture_id = -1;
-                    if (type == ATEXDXTL) {
-                        if (dat_texture.width > 0 && dat_texture.height > 0) {
-                            
-                            auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
-                                dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
-                                &texture_id, decoded_filename);
-                            if (SUCCEEDED(HR) && texture_id >= 0) {
-                                sky_textures.push_back(map_renderer->GetTextureManager()->GetTexture(texture_id));
-                                main_sky_tex_found = true;
-                                DirectX::XMFLOAT4 averageColor = GetAverageColorOfBottomRow(dat_texture);
-                                map_renderer->SetClearColor(averageColor);
-                            }
-                        }
-                    }
-                    else {
-                        if (dat_texture.width == 1024 && dat_texture.height == 256) {
-                            int texture_id = -1;
-                            auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
-                                dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
-                                &texture_id, decoded_filename);
-                            if (SUCCEEDED(HR) && texture_id >= 0) {
-                                sky_textures.push_back(map_renderer->GetTextureManager()->GetTexture(texture_id));
-                                clouds_tex_found = true;
-                            }
-                        }
-                    }
-                }
+                    if (dat_texture.width > 0 && dat_texture.height > 0) {
 
-                if (main_sky_tex_found && clouds_tex_found) {
-                    break;
+                        auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                            dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
+                            &texture_id, decoded_filename);
+                        if (SUCCEEDED(HR) && texture_id >= 0) {
+                            sky_textures[i] = map_renderer->GetTextureManager()->GetTexture(texture_id);
+                        }
+                    }
                 }
             }
 
@@ -557,7 +573,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 PerObjectCB sky_per_object_data;
                 sky_per_object_data.world = sky_world_matrix;
                 for (int i = 0; i < sky_textures.size(); i++) {
-                    sky_per_object_data.texture_indices[i / 4][i % 4] = i;
+                    sky_per_object_data.texture_indices[i / 4][i % 4] = 0;
+                    sky_per_object_data.texture_types[i / 4][i % 4] = sky_textures[i] == nullptr ? 0xFF : 0;
                 }
 
                 sky_per_object_data.num_uv_texture_pairs = sky_textures.size();
@@ -1751,7 +1768,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                     ExportDDS(dat_manager, item, map_renderer, hash_index, compression_format);
                                 }
 
-                                if(ImGui::MenuItem("Export model textures (.dds) BC5"))
+                                if (ImGui::MenuItem("Export model textures (.dds) BC5"))
                                 {
                                     const auto compression_format = CompressionFormat::BC5;
                                     ExportDDS(dat_manager, item, map_renderer, hash_index, compression_format);
@@ -1877,7 +1894,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                         L"dds");
                                     if (!savePath.empty())
                                     {
-                                         dat_manager->save_raw_decompressed_data_to_file(item.id, savePath);
+                                        dat_manager->save_raw_decompressed_data_to_file(item.id, savePath);
                                     }
                                 }
                                 else if (ImGui::MenuItem("Export texture as png")) {
@@ -2091,7 +2108,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 
                         ImGui::PopID();
                     }
-                    ImGui::EndTable();
+                ImGui::EndTable();
             }
         }
 
