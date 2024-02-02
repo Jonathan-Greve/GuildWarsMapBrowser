@@ -82,7 +82,7 @@ struct PSOutput
 
 PSOutput main(PixelInputType input)
 {
-    float4 finalColor = input.lightingColor;
+    float4 finalColor = float4(1, 1, 1, 1);
 
     float2 texCoordsArray[8] =
     {
@@ -186,7 +186,7 @@ PSOutput main(PixelInputType input)
     }
 
     PSOutput output;
-    output.rt_0_output = finalColor;
+    output.rt_0_output = finalColor * input.lightingColor;
 
     float4 colorId = float4(0, 0, 0, 1);
     colorId.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
