@@ -513,16 +513,20 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             if (environment_info_chunk.env_sub_chunk3.size() > 0) {
                 const auto& sub3_0 = environment_info_chunk.env_sub_chunk3[0];
 
-                float light_div_factor = 2.0f; // Colors look too obvious otherwise.
+                float light_div_factor = 1.0f; // Colors look too obvious otherwise.
+
+
+                float ambient_intensity = sub3_0.ambient_intensity / 255.0f;
+                float diffuse_intensity = sub3_0.sun_intensity / 255.0f;
 
                 DirectionalLight directional_light = map_renderer->GetDirectionalLight();
-                directional_light.ambient.x = sub3_0.ambient_red / (255.0f * light_div_factor);
-                directional_light.ambient.y = sub3_0.ambient_green / (255.0f * light_div_factor);
-                directional_light.ambient.z = sub3_0.ambient_blue / (255.0f * light_div_factor);
+                directional_light.ambient.x = sub3_0.ambient_red * ambient_intensity / (255.0f * light_div_factor);
+                directional_light.ambient.y = sub3_0.ambient_green * ambient_intensity / (255.0f * light_div_factor);
+                directional_light.ambient.z = sub3_0.ambient_blue * ambient_intensity / (255.0f * light_div_factor);
 
-                directional_light.diffuse.x = sub3_0.sun_red / (255.0f * light_div_factor);
-                directional_light.diffuse.y = sub3_0.sun_green / (255.0f * light_div_factor);
-                directional_light.diffuse.z = sub3_0.sun_blue / (255.0f * light_div_factor);
+                directional_light.diffuse.x = sub3_0.sun_red * diffuse_intensity / (255.0f * light_div_factor);
+                directional_light.diffuse.y = sub3_0.sun_green * diffuse_intensity / (255.0f * light_div_factor);
+                directional_light.diffuse.z = sub3_0.sun_blue * diffuse_intensity / (255.0f * light_div_factor);
 
                 map_renderer->SetDirectionalLight(directional_light);
             }
