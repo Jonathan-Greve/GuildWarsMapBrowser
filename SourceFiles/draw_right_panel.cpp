@@ -10,13 +10,13 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
 
     // Set up the right panel
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
-                                     GuiGlobalConstants::panel_padding,
-                                   GuiGlobalConstants::panel_padding));
+        GuiGlobalConstants::panel_padding,
+        GuiGlobalConstants::panel_padding));
     ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
 
     ImGui::PushStyleVar(
-      ImGuiStyleVar_WindowPadding,
-      ImVec2(GuiGlobalConstants::panel_padding, GuiGlobalConstants::panel_padding)); // add padding
+        ImGuiStyleVar_WindowPadding,
+        ImVec2(GuiGlobalConstants::panel_padding, GuiGlobalConstants::panel_padding)); // add padding
     float window_height = 0;
     if (ImGui::Begin("Render settings", NULL, window_flags))
     {
@@ -100,10 +100,10 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
 
             int terrain_pixel_shader_type = static_cast<int>(map_renderer->GetTerrainPixelShaderType());
             if (ImGui::Combo("Terrain pixel shader", &terrain_pixel_shader_type,
-                             "Default\0Terrain Default\0Terrain Checkered\0Terrain textured\0Terrain textured /w shadows\0"))
+                "Default\0Terrain Default\0Terrain Checkered\0Terrain textured\0Terrain textured /w shadows\0"))
             {
                 map_renderer->SetTerrainPixelShaderType(
-                  static_cast<PixelShaderType>(terrain_pixel_shader_type));
+                    static_cast<PixelShaderType>(terrain_pixel_shader_type));
             }
         }
 
@@ -112,16 +112,16 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
     ImGui::End();
 
     float max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
-      (3 * GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
+        (3 * GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
 
     // Set up the second right panel
     ImGui::SetNextWindowPos(
-      ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
-               GuiGlobalConstants::panel_padding,
-             GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+        ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
+            GuiGlobalConstants::panel_padding,
+            GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
     ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
     ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
-                                        ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
+        ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
 
     if (ImGui::Begin("Lighting", NULL, window_flags))
     {
@@ -152,16 +152,16 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
     ImGui::End();
 
     max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
-      (3 * GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
+        (3 * GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
 
     // Set up the props visibility settings window
     ImGui::SetNextWindowPos(
-      ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
-               GuiGlobalConstants::panel_padding,
-             GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+        ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
+            GuiGlobalConstants::panel_padding,
+            GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
     ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
     ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
-                                        ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
+        ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
 
     if (ImGui::Begin("Camera and movement", NULL, window_flags))
     {
@@ -217,7 +217,7 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
                 }
             }
 
-            if (! lock_aspect_ratio && ImGui::SliderFloat("Frustum height", &frustum_height, 1, 300000))
+            if (!lock_aspect_ratio && ImGui::SliderFloat("Frustum height", &frustum_height, 1, 300000))
             {
                 camera_projection_settings_changed = true;
             }
@@ -272,17 +272,17 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
     {
 
         max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
-          (3 *
-           GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
+            (3 *
+                GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
 
         // Set up the props visibility settings window
         ImGui::SetNextWindowPos(
-          ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
-                   GuiGlobalConstants::panel_padding,
-                 GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+            ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
+                GuiGlobalConstants::panel_padding,
+                GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
         ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
         ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
-                                            ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
+            ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
         if (ImGui::Begin("Props Visibility", NULL, window_flags))
         {
             auto& propsMeshIds = map_renderer->GetPropsMeshIds();

@@ -492,18 +492,18 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             map_renderer->ClearProps();
             map_renderer->GetMeshManager()->RemoveMesh(sky_mesh_id);
 
-            
+
             const auto& environment_info_chunk = selected_ffna_map_file.environment_info_chunk;
 
             // Set fog and clear color
-            if (environment_info_chunk.env_sub_chunk2.size() > 0){
+            if (environment_info_chunk.env_sub_chunk2.size() > 0) {
                 const auto& sub2_0 = environment_info_chunk.env_sub_chunk2[0];
 
-                XMFLOAT4 clear_and_fog_color{ 
-                    static_cast<float>(sub2_0.fog_red) / 255.0f, 
+                XMFLOAT4 clear_and_fog_color{
+                    static_cast<float>(sub2_0.fog_red) / 255.0f,
                     static_cast<float>(sub2_0.fog_green) / 255.0f,
                     static_cast<float>(sub2_0.fog_blue) / 255.0f,
-                    1.0f 
+                    1.0f
                 };
 
                 map_renderer->SetClearColor(clear_and_fog_color);
@@ -513,7 +513,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             if (environment_info_chunk.env_sub_chunk3.size() > 0) {
                 const auto& sub3_0 = environment_info_chunk.env_sub_chunk3[0];
 
-                float light_div_factor = 1.0f; // Colors look too obvious otherwise.
+                float light_div_factor = 1.0f;
 
 
                 float ambient_intensity = sub3_0.ambient_intensity / 255.0f;
