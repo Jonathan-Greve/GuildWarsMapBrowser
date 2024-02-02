@@ -125,7 +125,6 @@ void MapBrowser::Update(DX::StepTimer const& timer)
 
     float elapsedTime = float(timer.GetElapsedSeconds());
 
-    // TODO: Add your map browser logic here.
     m_map_renderer->Update(elapsedTime);
 }
 #pragma endregion
