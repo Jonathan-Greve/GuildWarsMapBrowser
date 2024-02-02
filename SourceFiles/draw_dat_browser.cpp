@@ -492,7 +492,10 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             map_renderer->ClearProps();
             map_renderer->GetMeshManager()->RemoveMesh(sky_mesh_id);
 
+            
             const auto& environment_info_chunk = selected_ffna_map_file.environment_info_chunk;
+
+            // Set fog and clear color
             if (environment_info_chunk.env_sub_chunk2.size() > 0){
                 const auto& sub2_0 = environment_info_chunk.env_sub_chunk2[0];
 
@@ -504,6 +507,24 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 };
 
                 map_renderer->SetClearColor(clear_and_fog_color);
+            }
+
+            // Set ambient and diffuse light
+            if (environment_info_chunk.env_sub_chunk3.size() > 0) {
+                const auto& sub3_0 = environment_info_chunk.env_sub_chunk3[0];
+
+                float light_div_factor = 2.0f; // Colors look too obvious otherwise.
+
+                DirectionalLight directional_light = map_renderer->GetDirectionalLight();
+                directional_light.ambient.x = sub3_0.ambient_red / (255.0f * light_div_factor);
+                directional_light.ambient.y = sub3_0.ambient_green / (255.0f * light_div_factor);
+                directional_light.ambient.z = sub3_0.ambient_blue / (255.0f * light_div_factor);
+
+                directional_light.diffuse.x = sub3_0.sun_red / (255.0f * light_div_factor);
+                directional_light.diffuse.y = sub3_0.sun_green / (255.0f * light_div_factor);
+                directional_light.diffuse.z = sub3_0.sun_blue / (255.0f * light_div_factor);
+
+                map_renderer->SetDirectionalLight(directional_light);
             }
 
             uint8_t sky_background_filename_index = 0xFF;
