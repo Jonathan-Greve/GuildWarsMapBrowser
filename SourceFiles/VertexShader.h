@@ -4,7 +4,6 @@
 using Microsoft::WRL::ComPtr;
 
 const char shader_vs[] = R"(
-
 struct DirectionalLight
 {
     float4 ambient;
@@ -100,20 +99,29 @@ PixelInputType main(VertexInputType input)
     if (input.tangent.x == 0.0f && input.tangent.y == 0.0f && input.tangent.z == 0.0f ||
 		input.bitangent.x == 0.0f && input.bitangent.y == 0.0f && input.bitangent.z == 0.0f)
     {
-        float3 normal = normalize(mul(input.normal, (float3x3) World)); // Assuming world matrix doesn't have scaling
-        float NdotL = max(dot(normal, -directionalLight.direction), 0.0);
+        float3 normal = normalize(mul(input.normal, (float3x3) World)); // Normalize normal after transformation
+
+        // Ensure directionalLight.direction is normalized
+        float3 lightDir = normalize(-directionalLight.direction);
+        float NdotL = max(dot(normal, lightDir), 0.0);
+
         float4 ambientComponent = directionalLight.ambient;
         float4 diffuseComponent = directionalLight.diffuse * NdotL;
 
-	    // Calculate the specular component using the Blinn-Phong model
+        // Calculate view direction and ensure normalization
         float3 viewDirection = normalize(cam_position - worldPosition.xyz);
-        float3 halfVector = normalize(-directionalLight.direction + viewDirection);
+
+        // Compute half vector and ensure normalization
+        float3 halfVector = normalize(lightDir + viewDirection);
         float NdotH = max(dot(normal, halfVector), 0.0);
-        float shininess = 80.0; // You can adjust this value for shininess
+
+        float shininess = 80.0; // Shininess factor
         float specularIntensity = pow(NdotH, shininess);
         float4 specularComponent = directionalLight.specular * specularIntensity;
 
-        output.lightingColor = ambientComponent + diffuseComponent + specularComponent; // Store the result for the pixel shader
+        // Combine lighting components
+        output.lightingColor = ambientComponent + diffuseComponent + specularComponent;
+
     }
     else
     {
