@@ -7,6 +7,7 @@
 #include "FFNA_MapFile.h"
 #include <algorithm>
 #include <GuiGlobalConstants.h>
+#include <model_exporter.h>
 
 
 extern FFNA_MapFile selected_ffna_map_file;
@@ -15,7 +16,7 @@ extern std::vector<FileData> selected_map_files;
 void HightlightProp(MapRenderer* map_renderer, int selected_prop_index, int selected_prop_submodel_index);
 void RemoveHighlightFromProp(MapRenderer* map_renderer, int selected_prop_index);
 
-void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer)
+void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index)
 {
     static int selected_prop_index = -1;
     static int selected_prop_submodel_index = -1;
@@ -240,6 +241,21 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer)
                                     }
                                 }
                             }
+                        }
+                    }
+                    if (ImGui::Button("Export model as JSON"))
+                    {
+                        std::wstring saveDir = OpenDirectoryDialog();
+                        if (!saveDir.empty())
+                        {
+                            const auto filename_element = selected_ffna_map_file.prop_filenames_chunk.array[prop_info.filename_index];
+                            int file_id = decode_filename(filename_element.filename.id0, filename_element.filename.id1);
+                            // Use std::format to create the filename
+                            std::wstring filename = std::format(L"model_0x{:X}_gwmb.json", file_id);
+
+
+                            // Export the model to the chosen path
+                            model_exporter::export_model(saveDir, filename, ffna_model_file_ptr, dat_manager, hash_index, map_renderer->GetTextureManager(), false);
                         }
                     }
                 }

@@ -123,6 +123,13 @@ void MapBrowser::Update(DX::StepTimer const& timer)
         }
     }
 
+    if (!m_hash_index_initialized) {
+        const auto& mft = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT();
+        for (int i = 0; i < mft.size(); i++) {
+            m_hash_index[mft[i].Hash].push_back(i);
+        }
+    }
+
     float elapsedTime = float(timer.GetElapsedSeconds());
 
     m_map_renderer->Update(elapsedTime);
@@ -201,7 +208,7 @@ void MapBrowser::Render()
     }
     else {
         draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer, m_extract_panel_info,
-            msaa_changed, msaa_level_index, msaa_levels);
+            msaa_changed, msaa_level_index, msaa_levels, m_hash_index);
 
         if (!m_mft_indices_to_extract.empty()) {
             draw_dat_load_progress_bar(m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3) - m_mft_indices_to_extract.size(),
@@ -232,13 +239,6 @@ void MapBrowser::Render()
 
         const auto& mft = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT();
 
-        if (!m_hash_index_initialized) {
-
-            for (int i = 0; i < mft.size(); i++) {
-                m_hash_index[mft[i].Hash].push_back(i);
-            }
-        }
-
         switch (m_extract_panel_info.map_render_extract_map_type) {
         case ExtractPanel::AllMapsTopDownOrthographic:
             for (int i = 0; i < mft.size(); i++) {
@@ -261,9 +261,6 @@ void MapBrowser::Render()
         default:
             break;
         }
-
-
-        m_hash_index_initialized = true;
     }
 
     if (!m_mft_indices_to_extract.empty()) {
