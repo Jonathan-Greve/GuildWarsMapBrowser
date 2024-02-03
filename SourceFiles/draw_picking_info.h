@@ -1,5 +1,6 @@
 #pragma once
 #include "MapRenderer.h"
+#include "DATManager.h"
 
 struct PickingInfo
 {
@@ -11,6 +12,4 @@ struct PickingInfo
     DirectX::XMFLOAT3 camera_pos;
 };
 
-void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer);
-
-void NewFunction(MapRenderer* map_renderer, int selected_prop_index, int selected_prop_submodel_index);
+void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index);

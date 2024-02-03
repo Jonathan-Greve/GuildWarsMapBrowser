@@ -26,7 +26,7 @@ std::unordered_set<uint32_t> dat_compare_filter_result;
 
 void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show, MapRenderer* map_renderer, PickingInfo picking_info, 
     std::vector<std::vector<std::string>>& csv_data, int& FPS_target, DX::StepTimer& timer, ExtractPanelInfo& extract_panel_info, bool& msaa_changed,
-    int& msaa_level_index, const std::vector<std::pair<int, int>>& msaa_levels)
+    int& msaa_level_index, const std::vector<std::pair<int, int>>& msaa_levels, std::unordered_map<int, std::vector<int>>& hash_index)
 {
     int initial_dat_manager_to_show = dat_manager_to_show;
 
@@ -65,7 +65,7 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
             custom_file_info_changed = false;
             custom_file_info_changed = draw_file_info_editor_panel(csv_data);
 
-            draw_picking_info(picking_info, map_renderer);
+            draw_picking_info(picking_info, map_renderer, dat_managers[dat_manager_to_show].get(), hash_index);
 
             if (selected_file_type >= ATEXDXT1 && selected_file_type <= ATTXDXTL &&
                   selected_file_type != ATEXDXTA && selected_file_type != ATTXDXTA ||
