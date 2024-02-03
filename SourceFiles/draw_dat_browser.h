@@ -63,5 +63,5 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, bool 
 
 void ExportDDS2(DATManager* dat_manager, DatBrowserItem& item, MapRenderer* map_renderer, std::unordered_map<int, std::vector<int>>& hash_index, const CompressionFormat& compression_format);
 
-void ExportDDS(DATManager* dat_manager, DatBrowserItem& item, MapRenderer* map_renderer, std::unordered_map<int, std::vector<int>>& hash_index, const CompressionFormat& compression_format);
+void ExportDDS(DATManager* dat_manager, int mft_file_index, int file_id, MapRenderer* map_renderer, std::unordered_map<int, std::vector<int>>& hash_index, const CompressionFormat& compression_format);
 

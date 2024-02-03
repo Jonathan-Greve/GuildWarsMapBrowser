@@ -243,19 +243,100 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer, DATMa
                             }
                         }
                     }
-                    if (ImGui::Button("Export model as JSON"))
+
+                    const auto filename_element = selected_ffna_map_file.prop_filenames_chunk.array[prop_info.filename_index];
+                    int file_id = decode_filename(filename_element.filename.id0, filename_element.filename.id1);
+
+                    auto mft_entry_it = hash_index.find(file_id);
+
+                    if (mft_entry_it != hash_index.end())
                     {
-                        std::wstring saveDir = OpenDirectoryDialog();
-                        if (!saveDir.empty())
+                        auto file_index = mft_entry_it->second.at(0);
+
+                        if (ImGui::Button("Export model as JSON"))
                         {
-                            const auto filename_element = selected_ffna_map_file.prop_filenames_chunk.array[prop_info.filename_index];
-                            int file_id = decode_filename(filename_element.filename.id0, filename_element.filename.id1);
-                            // Use std::format to create the filename
-                            std::wstring filename = std::format(L"model_0x{:X}_gwmb.json", file_id);
+                            std::wstring saveDir = OpenDirectoryDialog();
+                            if (!saveDir.empty())
+                            {
+                                // Use std::format to create the filename
+                                std::wstring filename = std::format(L"model_0x{:X}_gwmb.json", file_id);
 
 
-                            // Export the model to the chosen path
-                            model_exporter::export_model(saveDir, filename, ffna_model_file_ptr, dat_manager, hash_index, map_renderer->GetTextureManager(), false);
+                                // Export the model to the chosen path
+                                model_exporter::export_model(saveDir, filename, ffna_model_file_ptr, dat_manager, hash_index, map_renderer->GetTextureManager(), false);
+                            }
+                        }
+                        if (ImGui::Button("Save decompressed data to file##picking_panel"))
+                        {
+                            if (mft_entry_it != hash_index.end())
+                            {
+                                auto file_index = mft_entry_it->second.at(0);
+                                std::wstring savePath = OpenFileDialog(std::format(L"0x{:X}", file_id), L"gwraw");
+                                if (!savePath.empty()) { dat_manager->save_raw_decompressed_data_to_file(file_index, savePath); }
+                            }
+                        }
+
+                        if (ImGui::Button("Export model textures (.png)##picking_panel"))
+                        {
+                            std::wstring saveDir = OpenDirectoryDialog();
+                            if (!saveDir.empty())
+                            {
+                                parse_file(dat_manager, file_index, map_renderer, hash_index);
+
+                                for (int tex_index = 0; tex_index < ffna_model_file_ptr->texture_filenames_chunk.
+                                    texture_filenames.
+                                    size(); tex_index++)
+                                {
+                                    const auto& texture_filename = ffna_model_file_ptr->texture_filenames_chunk.
+                                        texture_filenames[tex_index];
+
+                                    auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
+                                    int texture_id = map_renderer->GetTextureManager()->
+                                        GetTextureIdByHash(decoded_filename);
+
+                                    std::wstring filename = std::format(L"model_0x{:X}_tex_index{}_texture_0x{:X}.png",
+                                        file_id, tex_index, decoded_filename);
+
+                                    // Append the filename to the saveDir
+                                    std::wstring savePath = saveDir + L"\\" + filename;
+
+                                    ID3D11ShaderResourceView* texture =
+                                        map_renderer->GetTextureManager()->GetTexture(texture_id);
+                                    if (SaveTextureToPng(texture, savePath, map_renderer->GetTextureManager()))
+                                    {
+                                        // Success
+                                    }
+                                    else
+                                    {
+                                        // Error handling }
+                                    }
+                                }
+                            }
+                        }
+                        if (ImGui::Button("Export model textures (.dds) BC1##picking_panel"))
+                        {
+                            const auto compression_format = CompressionFormat::BC1;
+                            ExportDDS(dat_manager, file_index, file_id, map_renderer, hash_index, compression_format);
+                        }
+                        if (ImGui::Button("Export model textures (.dds) BC3##picking_panel"))
+                        {
+                            const auto compression_format = CompressionFormat::BC3;
+                            ExportDDS(dat_manager, file_index, file_id, map_renderer, hash_index, compression_format);
+                        }
+
+                        if (ImGui::Button("Export model textures (.dds) BC5##picking_panel"))
+                        {
+                            const auto compression_format = CompressionFormat::BC5;
+                            ExportDDS(dat_manager, file_index, file_id, map_renderer, hash_index, compression_format);
+                        }
+
+                        if (ImGui::Button("Export model textures (.dds) no compression##picking_panel"))
+                        {
+                            const auto compression_format = CompressionFormat::None;
+                            ExportDDS(dat_manager, file_index, file_id, map_renderer, hash_index, compression_format);
+                        }
+                        if (ImGui::Button("Show in browser##picking_panel")) {
+                            parse_file(dat_manager, file_index, map_renderer, hash_index);
                         }
                     }
                 }

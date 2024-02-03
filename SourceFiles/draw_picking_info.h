@@ -9,6 +9,7 @@ struct PickingInfo
     int object_id;
     int prop_index;
     int prop_submodel_index;
+    int mft_index;
     DirectX::XMFLOAT3 camera_pos;
 };
 

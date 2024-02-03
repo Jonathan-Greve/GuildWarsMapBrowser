@@ -1794,24 +1794,24 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
                                 if (ImGui::MenuItem("Export model textures (.dds) BC1"))
                                 {
                                     const auto compression_format = CompressionFormat::BC1;
-                                    ExportDDS(dat_manager, item, map_renderer, hash_index, compression_format);
+                                    ExportDDS(dat_manager, item.id, item.hash, map_renderer, hash_index, compression_format);
                                 }
                                 if (ImGui::MenuItem("Export model textures (.dds) BC3"))
                                 {
                                     const auto compression_format = CompressionFormat::BC3;
-                                    ExportDDS(dat_manager, item, map_renderer, hash_index, compression_format);
+                                    ExportDDS(dat_manager, item.id, item.hash, map_renderer, hash_index, compression_format);
                                 }
 
                                 if (ImGui::MenuItem("Export model textures (.dds) BC5"))
                                 {
                                     const auto compression_format = CompressionFormat::BC5;
-                                    ExportDDS(dat_manager, item, map_renderer, hash_index, compression_format);
+                                    ExportDDS(dat_manager, item.id, item.hash, map_renderer, hash_index, compression_format);
                                 }
 
                                 if (ImGui::MenuItem("Export model textures (.dds) no compression"))
                                 {
                                     const auto compression_format = CompressionFormat::None;
-                                    ExportDDS(dat_manager, item, map_renderer, hash_index, compression_format);
+                                    ExportDDS(dat_manager, item.id, item.hash, map_renderer, hash_index, compression_format);
                                 }
                             }
                             else if (item.type == FFNA_Type3)
@@ -2173,12 +2173,12 @@ void ExportDDS2(DATManager* dat_manager, DatBrowserItem& item, MapRenderer* map_
     }
 }
 
-void ExportDDS(DATManager* dat_manager, DatBrowserItem& item, MapRenderer* map_renderer, std::unordered_map<int, std::vector<int>>& hash_index, const CompressionFormat& compression_format)
+void ExportDDS(DATManager* dat_manager, int mft_file_index, int file_id, MapRenderer* map_renderer, std::unordered_map<int, std::vector<int>>& hash_index, const CompressionFormat& compression_format)
 {
     std::wstring saveDir = OpenDirectoryDialog();
     if (!saveDir.empty())
     {
-        parse_file(dat_manager, item.id, map_renderer, hash_index);
+        parse_file(dat_manager, mft_file_index, map_renderer, hash_index);
 
         for (int tex_index = 0; tex_index < selected_ffna_model_file.texture_filenames_chunk.
             texture_filenames.
@@ -2193,7 +2193,7 @@ void ExportDDS(DATManager* dat_manager, DatBrowserItem& item, MapRenderer* map_r
             if (texture_data.has_value()) {
 
                 std::wstring filename = std::format(L"model_0x{:X}_tex_index{}_texture_0x{:X}.dds",
-                    item.hash, tex_index, decoded_filename);
+                    file_id, tex_index, decoded_filename);
 
                 // Append the filename to the saveDir
                 std::wstring savePath = saveDir + L"\\" + filename;
