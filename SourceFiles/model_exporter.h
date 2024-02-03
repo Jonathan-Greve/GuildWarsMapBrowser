@@ -255,23 +255,31 @@ namespace nlohmann {
 class model_exporter {
 public:
     static bool export_model(const std::wstring& save_dir, const std::wstring& filename, const int model_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
-        std::wstring saveFilePath = save_dir + L"\\" + filename;
+        auto model_file = dat_manager->parse_ffna_model_file(model_mft_index);
+        return export_model_to_file(save_dir, filename, &model_file, dat_manager, hash_index, texture_manager, json_pretty_print);
+    }
 
+    static bool export_model(const std::wstring& save_dir, const std::wstring& filename, FFNA_ModelFile* model_file, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print = false) {
+        return export_model_to_file(save_dir, filename, model_file, dat_manager, hash_index, texture_manager, json_pretty_print);
+    }
+
+private:
+    static bool export_model_to_file(const std::wstring& save_dir, const std::wstring& filename, FFNA_ModelFile* model_file, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const bool json_pretty_print) {
+        std::wstring saveFilePath = save_dir + L"\\" + filename;
         if (std::filesystem::exists(saveFilePath)) {
             return true; // Return immediately if the file already exists
         }
 
-        // Build model
         gwmb_model model;
-        const bool success = generate_gwmb_model(model, model_mft_index, dat_manager, hash_index, texture_manager, save_dir);
-        if (!success)
-            return false;
+        const bool success = generate_gwmb_model(model, model_file, dat_manager, hash_index, texture_manager, save_dir);
+        if (!success) {
+            return false; // Failed to build the model
+        }
 
         const nlohmann::json j = model;
-
         std::ofstream file(saveFilePath);
         if (!file) {
-            return false; // Failed to open the file
+            return false; // Failed to open the file for writing
         }
 
         if (json_pretty_print) {
@@ -285,16 +293,14 @@ public:
         return true; // Successfully exported the model
     }
 
-private:
-    static bool generate_gwmb_model(gwmb_model& model_out, int model_mft_index, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const std::wstring& save_dir) {
-        auto model_file = dat_manager->parse_ffna_model_file(model_mft_index);
+    static bool generate_gwmb_model(gwmb_model& model_out, FFNA_ModelFile* model_file, DATManager* dat_manager, std::unordered_map<int, std::vector<int>>& hash_index, TextureManager* texture_manager, const std::wstring& save_dir) {
 
-        if (!model_file.parsed_correctly)
+        if (!model_file->parsed_correctly)
             return false;
-        if (!model_file.textures_parsed_correctly)
+        if (!model_file->textures_parsed_correctly)
             return false;
 
-        const auto& texture_filenames = model_file.texture_filenames_chunk.texture_filenames;
+        const auto& texture_filenames = model_file->texture_filenames_chunk.texture_filenames;
 
         // Build gwmb_textures
         for (int i = 0; i < texture_filenames.size(); i++) {
@@ -349,7 +355,7 @@ private:
             }
         }
 
-        const auto& geometry_chunk = model_file.geometry_chunk;
+        const auto& geometry_chunk = model_file->geometry_chunk;
 
         // Loop over each submodel
         for (int i = 0; i < geometry_chunk.models.size(); i++) {
@@ -416,7 +422,7 @@ private:
             }
 
             AMAT_file amat_file;
-            if (model_file.AMAT_filenames_chunk.texture_filenames.size() > 0) {
+            if (model_file->AMAT_filenames_chunk.texture_filenames.size() > 0) {
                 int sub_model_index = geometry_chunk.models[i].unknown;
                 if (geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0)
                 {
@@ -424,8 +430,8 @@ private:
                 }
                 const auto uts1 = geometry_chunk.uts1[sub_model_index % geometry_chunk.uts1.size()];
 
-                const int amat_file_index = ((uts1.some_flags0 >> 8) & 0xFF) % model_file.AMAT_filenames_chunk.texture_filenames.size();
-                const auto amat_filename = model_file.AMAT_filenames_chunk.texture_filenames[amat_file_index];
+                const int amat_file_index = ((uts1.some_flags0 >> 8) & 0xFF) % model_file->AMAT_filenames_chunk.texture_filenames.size();
+                const auto amat_filename = model_file->AMAT_filenames_chunk.texture_filenames[amat_file_index];
 
                 const auto decoded_filename = decode_filename(amat_filename.id0, amat_filename.id1);
 
@@ -438,7 +444,7 @@ private:
                 }
             }
 
-            Mesh prop_mesh = model_file.GetMesh(i, amat_file);
+            Mesh prop_mesh = model_file->GetMesh(i, amat_file);
 
             gwmb_submodel_i.texture_indices.resize(prop_mesh.tex_indices.size());
             for (int j = 0; j < prop_mesh.tex_indices.size(); j++) {
@@ -456,7 +462,7 @@ private:
             int draw_order = 0;
 
             auto pixel_shader_type = PixelShaderType::OldModel;
-            if (model_file.geometry_chunk.unknown_tex_stuff1.size() > 0)
+            if (model_file->geometry_chunk.unknown_tex_stuff1.size() > 0)
             {
                 pixel_shader_type = PixelShaderType::NewModel;
                 draw_order = amat_file.GRMT_chunk.sort_order;
