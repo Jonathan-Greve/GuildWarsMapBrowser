@@ -592,7 +592,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             }
 
             if (sky_textures.size() > 0) {
-                sky_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCylinder();
+                sky_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCylinder(67723.75f / 2.0f, 33941.0f);
                 map_renderer->SetSkyMeshId(sky_mesh_id);
                 map_renderer->GetMeshManager()->SetMeshShouldCull(sky_mesh_id, false);
                 map_renderer->GetMeshManager()->SetMeshShouldRender(sky_mesh_id, false); // we will manually render it first before any other meshes.
