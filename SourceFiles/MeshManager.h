@@ -113,10 +113,10 @@ public:
 		return meshID;
 	}
 
-	int AddGwSkyCylinder(PixelShaderType pixel_shader_type = PixelShaderType::Sky)
+	int AddGwSkyCylinder(float radius, float height, PixelShaderType pixel_shader_type = PixelShaderType::Sky)
 	{
 		int meshID = m_nextMeshID++;
-		auto mesh_instance = std::make_shared<GWSkyCylinder>(m_device, meshID);
+		auto mesh_instance = std::make_shared<GWSkyCylinder>(m_device, meshID, radius, height);
 		add_to_triangle_meshes(mesh_instance, pixel_shader_type);
 		m_needsUpdate = true;
 		return meshID;
