@@ -438,6 +438,16 @@ public:
     void SetClearColor(XMFLOAT4 clear_color) { m_clear_color = clear_color; }
     XMFLOAT4& GetClearColor() { return m_clear_color; }
 
+    void SetFogStart(float fog_start) { m_fog_start = fog_start; }
+    void SetFogEnd(float fog_end) { m_fog_end = fog_end; }
+    void SetFogStartY(float fog_start_y) { m_fog_start_y = fog_start_y; }
+    void SetFogEndY(float fog_end_y) { m_fog_end_y = fog_end_y; }
+
+    float GetFogStart() const { return m_fog_start; }
+    float GetFogEnd() const { return m_fog_end; }
+    float GetFogStartY() const { return m_fog_start_y; }
+    float GetFogEndY() const { return m_fog_end_y; }
+
     void Update(const float dt)
     {
         static float time_elapsed = 0;
@@ -472,6 +482,13 @@ public:
         PerFrameCB frameCB;
         frameCB.directionalLight = m_directionalLight;
         frameCB.time_elapsed = time_elapsed;
+        frameCB.fog_color_rgb[0] = m_clear_color.x;
+        frameCB.fog_color_rgb[1] = m_clear_color.y;
+        frameCB.fog_color_rgb[2] = m_clear_color.z;
+        frameCB.fog_start = m_fog_start;
+        frameCB.fog_end = m_fog_end;
+        frameCB.fog_start_y = m_fog_start_y;
+        frameCB.fog_end_y = m_fog_end_y;
 
         // Update the per frame constant buffer
         D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
@@ -633,7 +650,11 @@ private:
     LODQuality m_lod_quality = LODQuality::High;
 
     bool m_should_render_sky = true;
-    float m_sky_height = -1000;
+    float m_sky_height = 0;
 
     XMFLOAT4 m_clear_color = { 0.662745118f, 0.662745118f, 0.662745118f, 1 };
+    float m_fog_start = 100000000.0f;
+    float m_fog_end = 100000000000.0f; 
+    float m_fog_start_y = 0;
+    float m_fog_end_y = 0;
 };
