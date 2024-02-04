@@ -39,10 +39,10 @@ public:
         float fov_degrees = 60.0f;
         float aspect_ratio = viewport_width / viewport_height;
         m_user_camera->SetFrustumAsPerspective(static_cast<float>(fov_degrees * XM_PI / 180.0), aspect_ratio,
-                                               10.0f, 200000);
-        const auto pos = FXMVECTOR{0, 8500, 0, 0};
-        const auto target = FXMVECTOR{1000, 6000, 1000, 0};
-        const auto world_up = FXMVECTOR{0, 1, 0, 0};
+            10.0f, 200000);
+        const auto pos = FXMVECTOR{ 0, 8500, 0, 0 };
+        const auto target = FXMVECTOR{ 1000, 6000, 1000, 0 };
+        const auto world_up = FXMVECTOR{ 0, 1, 0, 0 };
         m_user_camera->LookAt(pos, target, world_up);
 
         m_input_manager->AddMouseMoveListener(m_user_camera.get());
@@ -59,52 +59,52 @@ public:
         m_vertex_shader->Initialize(L"VertexShader.hlsl");
 
         // Create and initialize the Pixel Shaders
-        if (! m_pixel_shaders.contains(PixelShaderType::OldModel))
+        if (!m_pixel_shaders.contains(PixelShaderType::OldModel))
         {
             m_pixel_shaders[PixelShaderType::OldModel] =
-              std::make_unique<PixelShader>(m_device, m_deviceContext);
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
             m_pixel_shaders[PixelShaderType::OldModel]->Initialize(PixelShaderType::OldModel);
         }
 
-        if (! m_pixel_shaders.contains(PixelShaderType::NewModel))
+        if (!m_pixel_shaders.contains(PixelShaderType::NewModel))
         {
             m_pixel_shaders[PixelShaderType::NewModel] =
-              std::make_unique<PixelShader>(m_device, m_deviceContext);
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
             m_pixel_shaders[PixelShaderType::NewModel]->Initialize(PixelShaderType::NewModel);
         }
 
-        if (! m_pixel_shaders.contains(PixelShaderType::PickingShader))
+        if (!m_pixel_shaders.contains(PixelShaderType::PickingShader))
         {
             m_pixel_shaders[PixelShaderType::PickingShader] =
-              std::make_unique<PixelShader>(m_device, m_deviceContext);
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
             m_pixel_shaders[PixelShaderType::PickingShader]->Initialize(PixelShaderType::PickingShader);
         }
 
-        if (! m_pixel_shaders.contains(PixelShaderType::TerrainTexturedWithShadows))
+        if (!m_pixel_shaders.contains(PixelShaderType::TerrainTexturedWithShadows))
         {
             m_pixel_shaders[PixelShaderType::TerrainTexturedWithShadows] =
-              std::make_unique<PixelShader>(m_device, m_deviceContext);
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
             m_pixel_shaders[PixelShaderType::TerrainTexturedWithShadows]->Initialize(PixelShaderType::TerrainTexturedWithShadows);
         }
 
-        if (! m_pixel_shaders.contains(PixelShaderType::TerrainTextured))
+        if (!m_pixel_shaders.contains(PixelShaderType::TerrainTextured))
         {
             m_pixel_shaders[PixelShaderType::TerrainTextured] =
-              std::make_unique<PixelShader>(m_device, m_deviceContext);
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
             m_pixel_shaders[PixelShaderType::TerrainTextured]->Initialize(PixelShaderType::TerrainTextured);
         }
 
-        if (! m_pixel_shaders.contains(PixelShaderType::TerrainCheckered))
+        if (!m_pixel_shaders.contains(PixelShaderType::TerrainCheckered))
         {
             m_pixel_shaders[PixelShaderType::TerrainCheckered] =
-              std::make_unique<PixelShader>(m_device, m_deviceContext);
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
             m_pixel_shaders[PixelShaderType::TerrainCheckered]->Initialize(PixelShaderType::TerrainCheckered);
         }
 
-        if (! m_pixel_shaders.contains(PixelShaderType::TerrainDefault))
+        if (!m_pixel_shaders.contains(PixelShaderType::TerrainDefault))
         {
             m_pixel_shaders[PixelShaderType::TerrainDefault] =
-              std::make_unique<PixelShader>(m_device, m_deviceContext);
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
             m_pixel_shaders[PixelShaderType::TerrainDefault]->Initialize(PixelShaderType::TerrainDefault);
         }
 
@@ -222,9 +222,9 @@ public:
 
         auto water_level = m_terrain ? m_terrain->m_per_terrain_cb.water_level : 0.0f;
         terrain->m_per_terrain_cb =
-          PerTerrainCB(terrain->m_grid_dim_x, terrain->m_grid_dim_z, terrain->m_bounds.map_min_x,
-                       terrain->m_bounds.map_max_x, terrain->m_bounds.map_min_y, terrain->m_bounds.map_max_y,
-                       terrain->m_bounds.map_min_z, terrain->m_bounds.map_max_z, water_level, 0.03, 0.03, {0});
+            PerTerrainCB(terrain->m_grid_dim_x, terrain->m_grid_dim_z, terrain->m_bounds.map_min_x,
+                terrain->m_bounds.map_max_x, terrain->m_bounds.map_min_y, terrain->m_bounds.map_max_y,
+                terrain->m_bounds.map_min_z, terrain->m_bounds.map_max_z, water_level, 0.03, 0.03, { 0 });
 
         D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
         ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
@@ -236,12 +236,12 @@ public:
             m_terrain_texture_atlas_id < 0)
         {
             m_mesh_manager->SetTexturesForMesh(
-              m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_checkered_texture_id)}, 3);
+                m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_checkered_texture_id) }, 3);
         }
         else
         {
             m_mesh_manager->SetTexturesForMesh(
-              m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 0);
+                m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_texture_atlas_id) }, 0);
         }
 
         // Now we create a texture used for splatting (blending terrain textures)
@@ -264,15 +264,15 @@ public:
 
         // Create the texture and add it to the texture manager
         m_terrain_texture_indices_id = m_texture_manager->AddTexture(
-          terain_texture_data.data(), texture_width, texture_height, DXGI_FORMAT_R8_UNORM, -1);
+            terain_texture_data.data(), texture_width, texture_height, DXGI_FORMAT_R8_UNORM, -1);
 
         m_terrain_shadow_map_id = m_texture_manager->AddTexture(
-          terrain_shadow_map_data.data(), texture_width, texture_height, DXGI_FORMAT_R8_UNORM, -1);
+            terrain_shadow_map_data.data(), texture_width, texture_height, DXGI_FORMAT_R8_UNORM, -1);
 
         m_mesh_manager->SetTexturesForMesh(m_terrain_mesh_id,
-                                           {m_texture_manager->GetTexture(m_terrain_texture_indices_id)}, 1);
+            { m_texture_manager->GetTexture(m_terrain_texture_indices_id) }, 1);
         m_mesh_manager->SetTexturesForMesh(
-          m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_shadow_map_id)}, 2);
+            m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_shadow_map_id) }, 2);
 
         m_terrain = terrain;
         m_is_terrain_mesh_set = true;
@@ -312,7 +312,7 @@ public:
 
     // A prop consists of 1+ sub models/meshes.
     std::vector<int> AddProp(std::vector<Mesh> meshes, std::vector<PerObjectCB>& per_object_cbs,
-                             uint32_t model_id, PixelShaderType pixel_shader_type)
+        uint32_t model_id, PixelShaderType pixel_shader_type)
     {
         std::vector<int> mesh_ids;
         for (int i = 0; i < meshes.size(); i++)
@@ -363,7 +363,7 @@ public:
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
                 m_mesh_manager->SetTexturesForMesh(
-                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_checkered_texture_id)}, 3);
+                    m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_checkered_texture_id) }, 3);
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
@@ -371,7 +371,7 @@ public:
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
                 m_mesh_manager->SetTexturesForMesh(
-                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 0);
+                    m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_texture_atlas_id) }, 0);
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
@@ -379,7 +379,7 @@ public:
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
                 m_mesh_manager->SetTexturesForMesh(
-                  m_terrain_mesh_id, {m_texture_manager->GetTexture(m_terrain_texture_atlas_id)}, 0);
+                    m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_texture_atlas_id) }, 0);
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
@@ -433,7 +433,7 @@ public:
     bool GetShouldRenderSky() { return m_should_render_sky; }
 
     void SetSkyHeight(float sky_height) { m_sky_height = sky_height; }
-    float GetSkyHeight() { return m_sky_height;  }
+    float GetSkyHeight() { return m_sky_height; }
 
     void SetClearColor(XMFLOAT4 clear_color) { m_clear_color = clear_color; }
     XMFLOAT4& GetClearColor() { return m_clear_color; }
@@ -469,19 +469,16 @@ public:
         }
 
         // Update per frame CB
-        if (m_per_frame_cb_changed || true)
-        {
-            PerFrameCB frameCB;
-            frameCB.directionalLight = m_directionalLight;
-            frameCB.time_elapsed = time_elapsed;
+        PerFrameCB frameCB;
+        frameCB.directionalLight = m_directionalLight;
+        frameCB.time_elapsed = time_elapsed;
 
-            // Update the per frame constant buffer
-            D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
-            ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
-            m_deviceContext->Map(m_per_frame_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
-            memcpy(mappedResourceFrame.pData, &frameCB, sizeof(PerFrameCB));
-            m_deviceContext->Unmap(m_per_frame_cb.Get(), 0);
-        }
+        // Update the per frame constant buffer
+        D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
+        ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
+        m_deviceContext->Map(m_per_frame_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
+        memcpy(mappedResourceFrame.pData, &frameCB, sizeof(PerFrameCB));
+        m_deviceContext->Unmap(m_per_frame_cb.Get(), 0);
 
         // Update camera CB
         static auto cameraCB = PerCameraCB();
@@ -525,12 +522,12 @@ public:
         }
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-                               m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
+            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
     }
 
-    void AddBox(float x, float y, float z, float size, 
-            CheckerboardTexture::ColorChoice color_choice1 = CheckerboardTexture::ColorChoice::White, 
-            CheckerboardTexture::ColorChoice color_choice2 = CheckerboardTexture::ColorChoice::Silver)
+    void AddBox(float x, float y, float z, float size,
+        CheckerboardTexture::ColorChoice color_choice1 = CheckerboardTexture::ColorChoice::White,
+        CheckerboardTexture::ColorChoice color_choice2 = CheckerboardTexture::ColorChoice::Silver)
     {
         auto mesh_id = m_mesh_manager->AddBox({ size, size, size });
         extra_mesh_ids.push_back(mesh_id);
@@ -638,5 +635,5 @@ private:
     bool m_should_render_sky = true;
     float m_sky_height = -1000;
 
-    XMFLOAT4 m_clear_color = { 0.662745118f, 0.662745118f, 0.662745118f, 1};
+    XMFLOAT4 m_clear_color = { 0.662745118f, 0.662745118f, 0.662745118f, 1 };
 };
