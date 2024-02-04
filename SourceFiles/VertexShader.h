@@ -67,7 +67,7 @@ struct PixelInputType
     float2 tex_coords5 : TEXCOORD5;
     float2 tex_coords6 : TEXCOORD6;
     float2 tex_coords7 : TEXCOORD7;
-    float terrain_height : TEXCOORD8;
+    float3 world_position : TEXCOORD8;
     float3x3 TBN : TEXCOORD9;
 };
 
@@ -80,6 +80,7 @@ PixelInputType main(VertexInputType input)
     float4 worldPosition = mul(float4(input.position, 1.0f), World);
     float4 viewPosition = mul(worldPosition, View);
     output.position = mul(viewPosition, Projection);
+    output.world_position = worldPosition;
 
     // Transform the normal using the inverse transpose of the world matrix
     output.normal = normalize(mul(input.normal, World));
@@ -93,7 +94,6 @@ PixelInputType main(VertexInputType input)
     output.tex_coords5 = input.tex_coords5;
     output.tex_coords6 = input.tex_coords6;
     output.tex_coords7 = input.tex_coords7;
-    output.terrain_height = worldPosition.y;
 
     // Lighting computation
     if (input.tangent.x == 0.0f && input.tangent.y == 0.0f && input.tangent.z == 0.0f ||

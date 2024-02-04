@@ -1,4 +1,3 @@
-
 sampler ss : register(s0);
 Texture2DArray terrain_texture_array : register(t0);
 Texture2D terrain_texture_indices : register(t1);
@@ -24,6 +23,12 @@ struct DirectionalLight
 cbuffer PerFrameCB : register(b0)
 {
     DirectionalLight directionalLight;
+    float time_elapsed;
+    float3 fog_color_rgb;
+    float fog_start;
+    float fog_end;
+    float fog_start_y; // The height at which fog starts.
+    float fog_end_y; // The height at which fog ends.
 };
 
 cbuffer PerObjectCB : register(b1)
@@ -76,7 +81,7 @@ struct PixelInputType
     float2 tex_coords5 : TEXCOORD5;
     float2 tex_coords6 : TEXCOORD6;
     float2 tex_coords7 : TEXCOORD7;
-    float terrain_height : TEXCOORD8;
+    float3 world_position : TEXCOORD8;
 };
 
 struct PSOutput
@@ -285,7 +290,7 @@ PSOutput main(PixelInputType input)
 	// ------------ TEXTURE END ----------------
 
     float4 outputColor;
-    if (input.terrain_height <= water_level)
+    if (input.world_position.y <= water_level)
     {
         float4 blue_color = float4(0.11, 0.65, 0.81, 1.0); // Water color
         outputColor = finalColor * splattedTextureColor * blue_color;
@@ -302,11 +307,20 @@ PSOutput main(PixelInputType input)
     outputColor.rgb = outputColor.rgb * modulatedShadow;
 
     outputColor.a = 1.0f;
+    
+    float distance = length(cam_position - input.world_position.xyz);
+
+    float fogFactor = (fog_end - distance) / (fog_end - fog_start);
+
+    fogFactor = clamp(fogFactor, 0.15, 1);
+
+    float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
+    float4 finalColorWithFog = lerp(float4(fogColor, 1.0), outputColor, fogFactor);
 
     PSOutput output;
 
 	// The main render target showing the rendered world
-    output.rt_0_output = outputColor;
+    output.rt_0_output = finalColorWithFog;
 
     float4 colorId = float4(0, 0, 0, 1);
     colorId.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;

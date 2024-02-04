@@ -23,6 +23,12 @@ struct DirectionalLight
 cbuffer PerFrameCB : register(b0)
 {
     DirectionalLight directionalLight;
+    float time_elapsed;
+    float3 fog_color_rgb;
+    float fog_start;
+    float fog_end;
+    float fog_start_y; // The height at which fog starts.
+    float fog_end_y; // The height at which fog ends.
 };
 
 cbuffer PerObjectCB : register(b1)
@@ -71,7 +77,7 @@ struct PixelInputType
     float2 tex_coords5 : TEXCOORD5;
     float2 tex_coords6 : TEXCOORD6;
     float2 tex_coords7 : TEXCOORD7;
-    float terrain_height : TEXCOORD8;
+    float3 world_position : TEXCOORD8;
 };
 
 struct PSOutput
@@ -82,7 +88,7 @@ struct PSOutput
 
 PSOutput main(PixelInputType input)
 {
-    float4 finalColor = float4(1, 1, 1, 1);
+    float4 finalColor = input.lightingColor;
 
     float2 texCoordsArray[8] =
     {
@@ -184,9 +190,19 @@ PSOutput main(PixelInputType input)
     {
         finalColor.rgb = lerp(finalColor.rgb, LIGHTGREEN, 0.4);
     }
+    
+    float distance = length(cam_position - input.world_position.xyz);
 
+    float fogFactor = (fog_end - distance) / (fog_end - fog_start);
+
+    fogFactor = clamp(fogFactor, 0.15, 1); // Never go full fog so we limit the range to 0.3-1.
+
+    float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
+    float4 finalColorWithFog = lerp(float4(fogColor, finalColor.a), finalColor, fogFactor);
+        
     PSOutput output;
-    output.rt_0_output = finalColor * input.lightingColor;
+
+    output.rt_0_output = finalColorWithFog;
 
     float4 colorId = float4(0, 0, 0, 1);
     colorId.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;

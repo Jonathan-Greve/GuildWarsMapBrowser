@@ -506,6 +506,11 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                     1.0f
                 };
 
+                map_renderer->SetFogStart(sub2_0.fog_distance_start);
+                map_renderer->SetFogEnd(sub2_0.fog_distance_end);
+                map_renderer->SetFogStartY(-sub2_0.fog_z_start_maybe);
+                map_renderer->SetFogEndY(-sub2_0.fog_z_end_maybe);
+
                 map_renderer->SetClearColor(clear_and_fog_color);
             }
 
