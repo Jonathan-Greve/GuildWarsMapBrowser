@@ -115,6 +115,13 @@ public:
             m_pixel_shaders[PixelShaderType::Sky]->Initialize(PixelShaderType::Sky);
         }
 
+        if (!m_pixel_shaders.contains(PixelShaderType::Clouds))
+        {
+            m_pixel_shaders[PixelShaderType::Clouds] =
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::Clouds]->Initialize(PixelShaderType::Clouds);
+        }
+
         // Set up the constant buffer for the camera
         D3D11_BUFFER_DESC buffer_desc = {};
         buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -302,13 +309,11 @@ public:
         m_prop_mesh_ids.clear();
     }
 
-    void SetSkyMeshId(int sky_mesh_id) {
-        m_sky_mesh_id = sky_mesh_id;
-    }
+    void SetSkyMeshId(int sky_mesh_id) { m_sky_mesh_id = sky_mesh_id; }
+    int GetSkyMeshId() { return m_sky_mesh_id; }
 
-    int GetSkyMeshId() {
-        return m_sky_mesh_id;
-    }
+    void SetCloudsMeshId(int clouds_mesh_id) { m_clouds_mesh_id = clouds_mesh_id; }
+    int GetCloudsMeshId() { return m_clouds_mesh_id; }
 
     // A prop consists of 1+ sub models/meshes.
     std::vector<int> AddProp(std::vector<Mesh> meshes, std::vector<PerObjectCB>& per_object_cbs,
@@ -478,6 +483,16 @@ public:
             m_mesh_manager->UpdateMeshPerObjectData(m_sky_mesh_id, sky_per_object_data);
         }
 
+        //const auto clouds_cb_opt = m_mesh_manager->GetMeshPerObjectData(m_clouds_mesh_id);
+        //if (clouds_cb_opt.has_value()) {
+        //    auto clouds_per_object_data = clouds_cb_opt.value();
+
+        //    DirectX::XMFLOAT4X4 clouds_world_matrix;
+        //    DirectX::XMStoreFloat4x4(&clouds_world_matrix, DirectX::XMMatrixTranslation(m_user_camera->GetPosition3f().x, m_sky_height, m_user_camera->GetPosition3f().z));
+        //    clouds_per_object_data.world = clouds_world_matrix;
+        //    m_mesh_manager->UpdateMeshPerObjectData(m_clouds_mesh_id, clouds_per_object_data);
+        //}
+
         // Update per frame CB
         PerFrameCB frameCB;
         frameCB.directionalLight = m_directionalLight;
@@ -525,6 +540,12 @@ public:
 
             // Reenable depth write.
             m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Enabled);
+        }
+
+        // Render Clouds
+        if (m_clouds_mesh_id >= 0 && m_should_render_sky) {
+            m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_clouds_mesh_id);
         }
 
         // picking_render_target can be null when writing to the offscreen buffer where picking isn't needed.
@@ -643,6 +664,7 @@ private:
     int m_terrain_texture_atlas_id = -1;
 
     int m_sky_mesh_id = -1;
+    int m_clouds_mesh_id = -1;
 
     DirectionalLight m_directionalLight;
     bool m_per_frame_cb_changed = true;

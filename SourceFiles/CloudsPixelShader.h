@@ -1,6 +1,6 @@
 #pragma once
 
-struct SkyPixelShader
+struct CloudsPixelShader
 {
     static constexpr char shader_ps[] = R"(
 #define CHECK_TEXTURE_SET(TYPE) TYPE == texture_type
@@ -88,52 +88,29 @@ struct PSOutput
 
 float4 main(PixelInputType input) : SV_TARGET
 {
-    float4 final_color = float4(0, 0, 0, 1);
+    float4 final_color = float4(0, 0, 0, 0);
     
-    bool use_sky_background = texture_types[0][0] == 0;
-    bool use_clouds_0 = texture_types[0][1] == 0;
-    bool use_clouds_1 = texture_types[0][2] == 0;
-    bool use_sun = texture_types[0][3] == 0;
+    bool use_cloud_texture_0 = texture_types[0][0] == 0;
     
-    if (use_sky_background)
+    if (use_cloud_texture_0)
     {
-        float4 sampledTextureColor = shaderTextures[0].Sample(ss, input.tex_coords0);
-        final_color.rgb = sampledTextureColor.rgb;
-    }
-    
-    if (use_clouds_0)
-    {
-        float u = (time_elapsed / 600) + input.tex_coords0.x;
-        float v = input.tex_coords0.y;
+        float u = (-time_elapsed / 200) + input.tex_coords0.x * 2;
+        float v = input.tex_coords0.y * 2;
         
-        float4 sampledTextureColor = shaderTextures[1].Sample(ss, float2(u, v));
-        final_color.rgb = lerp(final_color.rgb, sampledTextureColor.rgb, sampledTextureColor.a);
+        float4 sampledTextureColor = shaderTextures[0].Sample(ss, float2(u, v));
+        final_color = sampledTextureColor;
     }
     
-    if (use_clouds_1)
+    float distance = length(cam_position - input.world_position.xyz);
+
+    float cloudFactor = clamp((60000 - distance) / 60000, 0, 1);
+    
+    final_color.a *= cloudFactor;
+    
+    if (final_color.a == 0)
     {
-        float u = (-time_elapsed / 800) + input.tex_coords0.x;
-        float v = input.tex_coords0.y;
-        
-        float4 sampledTextureColor = shaderTextures[2].Sample(ss, float2(u, v));
-        final_color.rgb = lerp(final_color.rgb, sampledTextureColor.rgb, sampledTextureColor.a);
+        discard;
     }
-    
-    //if (use_sun)
-    //{
-    //    float4 sampledTextureColor = shaderTextures[3].Sample(ss, input.tex_coords0);
-    //    final_color.rgb = lerp(sampledTextureColor.rgb, final_color.rgb, sampledTextureColor.a);
-    //}
-    
-    
-
-    float fogFactor = (input.world_position.y - fog_end_y) / (fog_end_y - fog_start_y);
-
-    fogFactor = clamp(fogFactor, 0, 1);
-
-    float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
-    float4 finalColorWithFog = lerp(float4(fogColor, final_color.a), final_color, fogFactor);
-    final_color = finalColorWithFog;
 
     return final_color;
 }

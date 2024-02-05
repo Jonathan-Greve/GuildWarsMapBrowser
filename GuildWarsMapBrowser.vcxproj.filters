@@ -143,7 +143,7 @@
     <Filter Include="GUI\Extract Panel">
       <UniqueIdentifier>{2caf87f3-0ca3-4864-8170-dd73bd9393a1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Render\Shaders\Pixel shaders\Skydome">
+    <Filter Include="Render\Shaders\Pixel shaders\Sky">
       <UniqueIdentifier>{aac38440-c1f7-44be-b999-da27a746ba02}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -469,9 +469,6 @@
     <ClInclude Include="SourceFiles\draw_file_info_editor_panel.h">
       <Filter>GUI\Custom file info editor panel</Filter>
     </ClInclude>
-    <ClInclude Include="show_how_to_use_dat_comparer_guide.h">
-      <Filter>GUI\DatComparePanel</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\draw_gui_window_controller.h">
       <Filter>GUI\gui_window_controller</Filter>
     </ClInclude>
@@ -485,7 +482,7 @@
       <Filter>Render\Basic shapes</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\SkyPixelShader.h">
-      <Filter>Render\Shaders\Pixel shaders\Skydome</Filter>
+      <Filter>Render\Shaders\Pixel shaders\Sky</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\GWSkyCylinder.h">
       <Filter>Render\Basic shapes</Filter>
@@ -495,6 +492,15 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\Triangle3D.h">
       <Filter>Render\Basic shapes</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\GWSkyCircle.h">
+      <Filter>Render\Basic shapes</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\CloudsPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Sky</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\show_how_to_use_dat_comparer_guide.h">
+      <Filter>GUI\DatComparePanel</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -762,9 +768,6 @@
     <ClCompile Include="SourceFiles\draw_file_info_editor_panel.cpp">
       <Filter>GUI\Custom file info editor panel</Filter>
     </ClCompile>
-    <ClCompile Include="show_how_to_use_dat_comparer_guide.cpp">
-      <Filter>GUI\DatComparePanel</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\draw_gui_window_controller.cpp">
       <Filter>GUI\gui_window_controller</Filter>
     </ClCompile>
@@ -785,6 +788,12 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\Triangle3D.cpp">
       <Filter>Render\Basic shapes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\GWSkyCircle.cpp">
+      <Filter>Render\Basic shapes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\show_how_to_use_dat_comparer_guide.cpp">
+      <Filter>GUI\DatComparePanel</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -864,7 +873,10 @@
       <Filter>Render\Shaders\Pixel shaders\Model</Filter>
     </FxCompile>
     <FxCompile Include="SourceFiles\SkyPixelShader.hlsl">
-      <Filter>Render\Shaders\Pixel shaders\Skydome</Filter>
+      <Filter>Render\Shaders\Pixel shaders\Sky</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\CloudsPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Sky</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
