@@ -126,16 +126,14 @@ float4 main(PixelInputType input) : SV_TARGET
     //}
     
     
-    if (input.world_position.y < fog_end_y)
-    {
-        float fogFactor = (input.world_position.y) / (fog_end_y - fog_start_y);
 
-        fogFactor = clamp(fogFactor, 0, 1);
+    float fogFactor = (input.world_position.y - fog_end_y) / (fog_end_y - fog_start_y);
 
-        float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
-        float4 finalColorWithFog = lerp(float4(fogColor, 1), final_color, fogFactor);
-        final_color = finalColorWithFog;
-    }
+    fogFactor = clamp(fogFactor, 0, 1);
+
+    float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
+    float4 finalColorWithFog = lerp(float4(fogColor, final_color.a), final_color, fogFactor);
+    final_color = finalColorWithFog;
 
     return final_color;
 }
