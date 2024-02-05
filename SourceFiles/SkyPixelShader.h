@@ -128,9 +128,7 @@ float4 main(PixelInputType input) : SV_TARGET
     
     if (input.world_position.y < fog_end_y)
     {
-        float distance = length(cam_position - input.world_position.xyz);
-
-        float fogFactor = (fog_end - distance) / (fog_end - fog_start);
+        float fogFactor = (input.world_position.y) / (fog_end_y - fog_start_y);
 
         fogFactor = clamp(fogFactor, 0, 1);
 
