@@ -128,6 +128,8 @@ void MapBrowser::Update(DX::StepTimer const& timer)
         for (int i = 0; i < mft.size(); i++) {
             m_hash_index[mft[i].Hash].push_back(i);
         }
+
+        m_hash_index_initialized = true;
     }
 
     float elapsedTime = float(timer.GetElapsedSeconds());
