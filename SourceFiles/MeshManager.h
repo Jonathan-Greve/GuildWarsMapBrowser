@@ -17,6 +17,7 @@
 #include <GWSkyCylinder.h>
 #include <Trapezoid3D.h>
 #include <Triangle3D.h>
+#include <GWSkyCircle.h>
 
 class MeshManager
 {
@@ -117,6 +118,15 @@ public:
 	{
 		int meshID = m_nextMeshID++;
 		auto mesh_instance = std::make_shared<GWSkyCylinder>(m_device, meshID, radius, height);
+		add_to_triangle_meshes(mesh_instance, pixel_shader_type);
+		m_needsUpdate = true;
+		return meshID;
+	}
+
+	int AddGwSkyCircle(float radius, PixelShaderType pixel_shader_type = PixelShaderType::Clouds)
+	{
+		int meshID = m_nextMeshID++;
+		auto mesh_instance = std::make_shared<GWSkyCircle>(m_device, meshID, radius);
 		add_to_triangle_meshes(mesh_instance, pixel_shader_type);
 		m_needsUpdate = true;
 		return meshID;

@@ -212,7 +212,6 @@
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialog.h" />
     <ClInclude Include="ImGuiFileDialog-Lib_Only\ImGuiFileDialogConfig.h" />
     <ClInclude Include="peglib\peglib.h" />
-    <ClInclude Include="show_how_to_use_dat_comparer_guide.h" />
     <ClInclude Include="SourceFiles\AMAT_file.h" />
     <ClInclude Include="SourceFiles\AtexAsm.h" />
     <ClInclude Include="SourceFiles\AtexReader.h" />
@@ -220,6 +219,7 @@
     <ClInclude Include="SourceFiles\Box.h" />
     <ClInclude Include="SourceFiles\Camera.h" />
     <ClInclude Include="SourceFiles\CheckerboardTexture.h" />
+    <ClInclude Include="SourceFiles\CloudsPixelShader.h" />
     <ClInclude Include="SourceFiles\comparer_dsl.h" />
     <ClInclude Include="SourceFiles\ConstantBufferManager.h" />
     <ClInclude Include="SourceFiles\Cylinder.h" />
@@ -229,6 +229,7 @@
     <ClInclude Include="SourceFiles\draw_extract_panel.h" />
     <ClInclude Include="SourceFiles\draw_file_info_editor_panel.h" />
     <ClInclude Include="SourceFiles\draw_gui_window_controller.h" />
+    <ClInclude Include="SourceFiles\GWSkyCircle.h" />
     <ClInclude Include="SourceFiles\GWSkyCylinder.h" />
     <ClInclude Include="SourceFiles\json.hpp" />
     <ClInclude Include="SourceFiles\map_exporter.h" />
@@ -287,6 +288,7 @@
     <ClInclude Include="SourceFiles\RenderCommand.h" />
     <ClInclude Include="SourceFiles\RenderConstants.h" />
     <ClInclude Include="SourceFiles\resource.h" />
+    <ClInclude Include="SourceFiles\show_how_to_use_dat_comparer_guide.h" />
     <ClInclude Include="SourceFiles\SkyPixelShader.h" />
     <ClInclude Include="SourceFiles\Sphere.h" />
     <ClInclude Include="SourceFiles\stb_image_write.h" />
@@ -383,7 +385,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="show_how_to_use_dat_comparer_guide.cpp" />
     <ClCompile Include="SourceFiles\AMAT_file.cpp" />
     <ClCompile Include="SourceFiles\AtexAsm.cpp" />
     <ClCompile Include="SourceFiles\AtexReader.cpp" />
@@ -426,6 +427,7 @@
     <ClCompile Include="SourceFiles\FFNA_MapFile.cpp" />
     <ClCompile Include="SourceFiles\FFNA_ModelFile.cpp" />
     <ClCompile Include="SourceFiles\GuiGlobalConstants.cpp" />
+    <ClCompile Include="SourceFiles\GWSkyCircle.cpp" />
     <ClCompile Include="SourceFiles\GWSkyCylinder.cpp" />
     <ClCompile Include="SourceFiles\GWUnpacker.cpp" />
     <ClCompile Include="SourceFiles\InputManager.cpp" />
@@ -439,6 +441,12 @@
     <ClCompile Include="SourceFiles\MeshManager.cpp" />
     <ClCompile Include="SourceFiles\model_exporter.cpp" />
     <ClCompile Include="SourceFiles\MouseMoveListener.cpp" />
+    <FxCompile Include="SourceFiles\CloudsPixelShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="SourceFiles\NewModelPixelShader.hlsl">
       <FileType>Document</FileType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -461,6 +469,7 @@
     <ClCompile Include="SourceFiles\RenderBatch.cpp" />
     <ClCompile Include="SourceFiles\RenderCommand.cpp" />
     <ClCompile Include="SourceFiles\RenderConstants.cpp" />
+    <ClCompile Include="SourceFiles\show_how_to_use_dat_comparer_guide.cpp" />
     <ClCompile Include="SourceFiles\Sphere.cpp" />
     <ClCompile Include="SourceFiles\Terrain.cpp" />
     <ClCompile Include="SourceFiles\TextureManager.cpp" />

@@ -60,7 +60,6 @@ inline bool items_to_parse = false;
 inline bool items_parsed = false;
 
 inline std::unordered_map<int, TextureType> model_texture_types;
-inline int sky_mesh_id = -1;
 
 std::unique_ptr<Terrain> terrain;
 std::vector<Mesh> prop_meshes;
@@ -490,7 +489,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             // Clear up some GPU memory (especially important for GPUs with little VRAM)
             map_renderer->GetTextureManager()->Clear();
             map_renderer->ClearProps();
-            map_renderer->GetMeshManager()->RemoveMesh(sky_mesh_id);
+            map_renderer->GetMeshManager()->RemoveMesh(map_renderer->GetSkyMeshId());
 
 
             const auto& environment_info_chunk = selected_ffna_map_file.environment_info_chunk;
@@ -530,6 +529,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             uint8_t sky_clouds_texture_filename_index0 = 0xFF;
             uint8_t sky_clouds_texture_filename_index1 = 0xFF;
             uint8_t sky_sun_texture_filename_index = 0xFF;
+            uint8_t cloud_texture_filename_index = 0;
 
             if (environment_info_chunk.env_sub_chunk5.size() > 0) {
                 const auto& sub5_0 = environment_info_chunk.env_sub_chunk5[0];
@@ -548,7 +548,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
             std::vector<uint8_t> sky_texture_filename_indices{ sky_background_filename_index, sky_clouds_texture_filename_index0, sky_clouds_texture_filename_index1, sky_sun_texture_filename_index };
 
-            std::vector<ID3D11ShaderResourceView*> sky_textures(4, nullptr);
+            std::vector<ID3D11ShaderResourceView*> sky_textures(sky_texture_filename_indices.size(), nullptr);
             const auto& environment_info_filenames_chunk = selected_ffna_map_file.environment_info_filenames_chunk;
             for (int i = 0; i < sky_texture_filename_indices.size(); i++) {
                 const auto filename_index = sky_texture_filename_indices[i];
@@ -578,7 +578,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             }
 
             if (sky_textures.size() > 0) {
-                sky_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCylinder(67723.75f / 2.0f, 33941.0f);
+                const int sky_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCylinder(67723.75f / 2.0f, 33941.0f);
                 map_renderer->SetSkyMeshId(sky_mesh_id);
                 map_renderer->GetMeshManager()->SetMeshShouldCull(sky_mesh_id, false);
                 map_renderer->GetMeshManager()->SetMeshShouldRender(sky_mesh_id, false); // we will manually render it first before any other meshes.
@@ -603,6 +603,62 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 map_renderer->GetMeshManager()->SetTexturesForMesh(sky_mesh_id, sky_textures, 3);
             }
 
+            // Add cloud mesh and texture
+            std::vector<uint8_t> cloud_texture_filename_indices{ cloud_texture_filename_index };
+
+            std::vector<ID3D11ShaderResourceView*> cloud_textures(sky_texture_filename_indices.size(), nullptr);
+            for (int i = 0; i < cloud_texture_filename_indices.size(); i++) {
+                const auto filename_index = cloud_texture_filename_indices[i];
+                if (filename_index >= environment_info_filenames_chunk.filenames.size()) {
+                    continue;
+                }
+
+                const auto& filename = environment_info_filenames_chunk.filenames[filename_index];
+                auto decoded_filename = decode_filename(filename.filename.id0, filename.filename.id1);
+
+                auto mft_entry_it = hash_index.find(decoded_filename);
+                if (mft_entry_it != hash_index.end())
+                {
+                    auto type = dat_manager->get_MFT()[mft_entry_it->second.at(0)].type;
+                    const DatTexture dat_texture = dat_manager->parse_ffna_texture_file(mft_entry_it->second.at(0));
+                    int texture_id = -1;
+                    if (dat_texture.width == 512 && dat_texture.height == 512) {
+
+                        auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                            dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
+                            &texture_id, decoded_filename);
+                        if (SUCCEEDED(HR) && texture_id >= 0) {
+                            cloud_textures[i] = map_renderer->GetTextureManager()->GetTexture(texture_id);
+                        }
+                    }
+                }
+            }
+
+            if (cloud_textures.size() > 0) {
+                const int clouds_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCircle(100000.0f);
+                map_renderer->SetCloudsMeshId(clouds_mesh_id);
+                map_renderer->GetMeshManager()->SetMeshShouldCull(clouds_mesh_id, false);
+                map_renderer->GetMeshManager()->SetMeshShouldRender(clouds_mesh_id, false); // we will manually render it first before any other meshes.
+
+                const auto& map_bounds = selected_ffna_map_file.map_info_chunk.map_bounds;
+
+                const float map_center_x = (map_bounds.map_min_x + map_bounds.map_max_x) / 2.0f;
+                const float map_center_z = (map_bounds.map_min_z + map_bounds.map_max_z) / 2.0f;
+
+                DirectX::XMFLOAT4X4 clouds_world_matrix;
+                DirectX::XMStoreFloat4x4(&clouds_world_matrix, DirectX::XMMatrixTranslation(map_center_x, map_renderer->GetSkyHeight()+10000, map_center_z));
+                PerObjectCB clouds_per_object_data;
+                clouds_per_object_data.world = clouds_world_matrix;
+                for (int i = 0; i < cloud_textures.size(); i++) {
+                    clouds_per_object_data.texture_indices[i / 4][i % 4] = 0;
+                    clouds_per_object_data.texture_types[i / 4][i % 4] = cloud_textures[i] == nullptr ? 0xFF : 0;
+                }
+
+                clouds_per_object_data.num_uv_texture_pairs = cloud_textures.size();
+                map_renderer->GetMeshManager()->UpdateMeshPerObjectData(clouds_mesh_id, clouds_per_object_data);
+
+                map_renderer->GetMeshManager()->SetTexturesForMesh(clouds_mesh_id, cloud_textures, 3);
+            }
 
             auto& terrain_texture_filenames = selected_ffna_map_file.terrain_texture_filenames.array;
             std::vector<DatTexture> terrain_dat_textures;
