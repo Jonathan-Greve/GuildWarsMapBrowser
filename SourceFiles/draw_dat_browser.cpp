@@ -690,13 +690,13 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
                 map_renderer->SetFogStart(std::max((int)sub2_0.fog_distance_start, 3000));
                 map_renderer->SetFogEnd(std::max((float)sub2_0.fog_distance_end, map_renderer->GetFogStart()+10000));
-                map_renderer->SetFogStartY(terrain->m_bounds.map_min_y - 100);
-                map_renderer->SetFogEndY(terrain->m_bounds.map_min_y + 3000);
+                map_renderer->SetFogStartY(0);
+                map_renderer->SetFogEndY(3500);
 
                 map_renderer->SetClearColor(clear_and_fog_color);
             }
 
-            map_renderer->SetSkyHeight(terrain->m_bounds.map_min_y-100);
+            map_renderer->SetSkyHeight(0);
         }
 
         // Load models
