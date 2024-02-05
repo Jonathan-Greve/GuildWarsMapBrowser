@@ -189,8 +189,7 @@ PSOutput main(PixelInputType input)
     float distance = length(cam_position - input.world_position.xyz);
 
     float fogFactor = (fog_end - distance) / (fog_end - fog_start);
-
-    fogFactor = clamp(fogFactor, 0.15, 1); // Never go full fog so we limit the range to 0.3-1.
+    fogFactor = clamp(fogFactor, 0.20, 1);
 
     float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
     float4 finalColorWithFog = lerp(float4(fogColor, finalColor.a), finalColor, fogFactor);

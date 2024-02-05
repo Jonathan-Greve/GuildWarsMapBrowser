@@ -495,25 +495,6 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
             const auto& environment_info_chunk = selected_ffna_map_file.environment_info_chunk;
 
-            // Set fog and clear color
-            if (environment_info_chunk.env_sub_chunk2.size() > 0) {
-                const auto& sub2_0 = environment_info_chunk.env_sub_chunk2[0];
-
-                XMFLOAT4 clear_and_fog_color{
-                    static_cast<float>(sub2_0.fog_red) / 255.0f,
-                    static_cast<float>(sub2_0.fog_green) / 255.0f,
-                    static_cast<float>(sub2_0.fog_blue) / 255.0f,
-                    1.0f
-                };
-
-                map_renderer->SetFogStart(sub2_0.fog_distance_start);
-                map_renderer->SetFogEnd(sub2_0.fog_distance_end);
-                map_renderer->SetFogStartY(-sub2_0.fog_z_start_maybe);
-                map_renderer->SetFogEndY(-sub2_0.fog_z_end_maybe);
-
-                map_renderer->SetClearColor(clear_and_fog_color);
-            }
-
             // Set ambient and diffuse light
             if (environment_info_chunk.env_sub_chunk3.size() > 0) {
                 const auto& sub3_0 = environment_info_chunk.env_sub_chunk3[0];
@@ -694,6 +675,28 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             map_renderer->SetTerrain(terrain.get(), terrain_texture_id);
 
             success = true;
+
+            // Set fog and clear color
+            if (environment_info_chunk.env_sub_chunk2.size() > 0) {
+                const auto& sub2_0 = environment_info_chunk.env_sub_chunk2[0];
+
+                XMFLOAT4 clear_and_fog_color{
+                    static_cast<float>(sub2_0.fog_red) / 255.0f,
+                    static_cast<float>(sub2_0.fog_green) / 255.0f,
+                    static_cast<float>(sub2_0.fog_blue) / 255.0f,
+                    1.0f
+                };
+
+
+                map_renderer->SetFogStart(std::max((int)sub2_0.fog_distance_start, 3000));
+                map_renderer->SetFogEnd(std::max((float)sub2_0.fog_distance_end, map_renderer->GetFogStart()+10000));
+                map_renderer->SetFogStartY(terrain->m_bounds.map_min_y - 100);
+                map_renderer->SetFogEndY(terrain->m_bounds.map_min_y + 3000);
+
+                map_renderer->SetClearColor(clear_and_fog_color);
+            }
+
+            map_renderer->SetSkyHeight(terrain->m_bounds.map_min_y-100);
         }
 
         // Load models
