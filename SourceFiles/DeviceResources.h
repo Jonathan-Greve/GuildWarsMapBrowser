@@ -111,6 +111,12 @@ namespace DX
             CreateWindowSizeDependentResources();
         }
 
+        // Shadow map functions
+        void CreateShadowResources(UINT shadowMapWidth, UINT shadowMapHeight);
+        auto GetShadowMapDSV() const noexcept { return m_shadowMapDSV.Get(); }
+        auto GetShadowMapSRV() const noexcept { return m_shadowMapSRV.Get(); }
+        const D3D11_VIEWPORT& GetShadowViewport() const noexcept { return m_shadowViewport; }
+
     private:
         void CreateFactory();
         void GetHardwareAdapter(IDXGIAdapter1** ppAdapter);
@@ -142,6 +148,12 @@ namespace DX
         Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  m_d3dOffscreenDepthStencilView;
         D3D11_VIEWPORT                                  m_screenViewport;
         D3D11_VIEWPORT                                  m_offscreenViewport;
+
+        // Shadow mapping resources
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> m_shadowMap;
+        Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_shadowMapDSV;
+        Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_shadowMapSRV;
+        D3D11_VIEWPORT m_shadowViewport;
 
         // Direct3D properties.
         DXGI_FORMAT                                     m_backBufferFormat;

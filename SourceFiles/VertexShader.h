@@ -16,6 +16,12 @@ struct DirectionalLight
 cbuffer PerFrameCB : register(b0)
 {
     DirectionalLight directionalLight;
+    float time_elapsed;
+    float3 fog_color_rgb;
+    float fog_start;
+    float fog_end;
+    float fog_start_y; // The height at which fog starts.
+    float fog_end_y; // The height at which fog ends.
 };
 
 cbuffer PerObjectCB : register(b1)
@@ -35,6 +41,7 @@ cbuffer PerCameraCB : register(b2)
     matrix View;
     matrix Projection;
     float3 cam_position;
+    matrix directional_light_view_proj;
     float pad[1];
 };
 
@@ -66,7 +73,7 @@ struct PixelInputType
     float2 tex_coords4 : TEXCOORD4;
     float2 tex_coords5 : TEXCOORD5;
     float2 tex_coords6 : TEXCOORD6;
-    float2 tex_coords7 : TEXCOORD7;
+    float4 lightSpacePos : TEXCOORD7;
     float3 world_position : TEXCOORD8;
     float3x3 TBN : TEXCOORD9;
 };
@@ -93,7 +100,6 @@ PixelInputType main(VertexInputType input)
     output.tex_coords4 = input.tex_coords4;
     output.tex_coords5 = input.tex_coords5;
     output.tex_coords6 = input.tex_coords6;
-    output.tex_coords7 = input.tex_coords7;
 
     // Lighting computation
     if (input.tangent.x == 0.0f && input.tangent.y == 0.0f && input.tangent.z == 0.0f ||
@@ -135,6 +141,9 @@ PixelInputType main(VertexInputType input)
 
         output.lightingColor = float4(1, 1, 1, 1);
     }
+    
+    // Transform position to light space for shadow mapping
+    output.lightSpacePos = mul(worldPosition, directional_light_view_proj);
 
     return output;
 }

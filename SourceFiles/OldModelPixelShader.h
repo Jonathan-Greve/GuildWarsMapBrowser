@@ -76,8 +76,9 @@ struct PixelInputType
     float2 tex_coords4 : TEXCOORD4;
     float2 tex_coords5 : TEXCOORD5;
     float2 tex_coords6 : TEXCOORD6;
-    float2 tex_coords7 : TEXCOORD7;
+    float4 lightSpacePos : TEXCOORD7;
     float3 world_position : TEXCOORD8;
+    float3x3 TBN : TEXCOORD9;
 };
 
 struct PSOutput
@@ -90,10 +91,10 @@ PSOutput main(PixelInputType input)
 {
     float4 finalColor = input.lightingColor;
 
-    float2 texCoordsArray[8] =
+    float2 texCoordsArray[7] =
     {
         input.tex_coords0, input.tex_coords1, input.tex_coords2, input.tex_coords3,
-                                 input.tex_coords4, input.tex_coords5, input.tex_coords6, input.tex_coords7
+                                 input.tex_coords4, input.tex_coords5, input.tex_coords6
     };
     float a = 0;
 

@@ -362,6 +362,7 @@ public:
 
 			m_deviceContext->PSSetShader(pixel_shaders[command->pixelShaderType]->GetShader(), nullptr, 0);
 			m_deviceContext->PSSetSamplers(0, 1, pixel_shaders[command->pixelShaderType]->GetSamplerState());
+			m_deviceContext->PSSetSamplers(1, 1, pixel_shaders[command->pixelShaderType]->GetSamplerStateShadow());
 
 
 			if (command->should_cull) { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid); }
@@ -412,6 +413,7 @@ public:
 
 			m_deviceContext->PSSetShader(pixel_shaders[command.pixelShaderType]->GetShader(), nullptr, 0);
 			m_deviceContext->PSSetSamplers(0, 1, pixel_shaders[command.pixelShaderType]->GetSamplerState());
+			m_deviceContext->PSSetSamplers(1, 1, pixel_shaders[command.pixelShaderType]->GetSamplerStateShadow());
 
 
 			if (command.should_cull) { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid); }
