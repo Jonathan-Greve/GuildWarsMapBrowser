@@ -94,16 +94,17 @@ float4 main(PixelInputType input) : SV_TARGET
     
     if (use_cloud_texture_0)
     {
-        float u = (-time_elapsed / 200) + input.tex_coords0.x * 2;
-        float v = input.tex_coords0.y * 2;
+        float u = (-time_elapsed / 200) + input.tex_coords0.x * 4;
+        float v = input.tex_coords0.y * 4;
         
         float4 sampledTextureColor = shaderTextures[0].Sample(ss, float2(u, v));
         final_color = sampledTextureColor;
+        final_color.a *= 0.6;
     }
     
     float distance = length(cam_position - input.world_position.xyz);
 
-    float cloudFactor = clamp((60000 - distance) / 60000, 0, 1);
+    float cloudFactor = clamp((50000 - distance) / 50000, 0, 1);
     
     final_color.a *= cloudFactor;
     
