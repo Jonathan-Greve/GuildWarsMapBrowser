@@ -634,32 +634,6 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 }
             }
 
-            if (cloud_textures.size() > 0) {
-                const int clouds_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCircle(100000.0f);
-                map_renderer->SetCloudsMeshId(clouds_mesh_id);
-                map_renderer->GetMeshManager()->SetMeshShouldCull(clouds_mesh_id, false);
-                map_renderer->GetMeshManager()->SetMeshShouldRender(clouds_mesh_id, false); // we will manually render it first before any other meshes.
-
-                const auto& map_bounds = selected_ffna_map_file.map_info_chunk.map_bounds;
-
-                const float map_center_x = (map_bounds.map_min_x + map_bounds.map_max_x) / 2.0f;
-                const float map_center_z = (map_bounds.map_min_z + map_bounds.map_max_z) / 2.0f;
-
-                DirectX::XMFLOAT4X4 clouds_world_matrix;
-                DirectX::XMStoreFloat4x4(&clouds_world_matrix, DirectX::XMMatrixTranslation(map_center_x, map_renderer->GetSkyHeight()+10000, map_center_z));
-                PerObjectCB clouds_per_object_data;
-                clouds_per_object_data.world = clouds_world_matrix;
-                for (int i = 0; i < cloud_textures.size(); i++) {
-                    clouds_per_object_data.texture_indices[i / 4][i % 4] = 0;
-                    clouds_per_object_data.texture_types[i / 4][i % 4] = cloud_textures[i] == nullptr ? 0xFF : 0;
-                }
-
-                clouds_per_object_data.num_uv_texture_pairs = cloud_textures.size();
-                map_renderer->GetMeshManager()->UpdateMeshPerObjectData(clouds_mesh_id, clouds_per_object_data);
-
-                map_renderer->GetMeshManager()->SetTexturesForMesh(clouds_mesh_id, cloud_textures, 3);
-            }
-
             auto& terrain_texture_filenames = selected_ffna_map_file.terrain_texture_filenames.array;
             std::vector<DatTexture> terrain_dat_textures;
             for (int i = 0; i < terrain_texture_filenames.size(); i++)
@@ -730,7 +704,31 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 selected_ffna_map_file.map_info_chunk.map_bounds);
             map_renderer->SetTerrain(terrain.get(), terrain_texture_id);
 
-            success = true;
+            if (cloud_textures.size() > 0) {
+                const int clouds_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCircle(100000.0f);
+                map_renderer->SetCloudsMeshId(clouds_mesh_id);
+                map_renderer->GetMeshManager()->SetMeshShouldCull(clouds_mesh_id, true);
+                map_renderer->GetMeshManager()->SetMeshShouldRender(clouds_mesh_id, false); // we will manually render it first before any other meshes.
+
+                const auto& map_bounds = terrain->m_bounds;
+
+                const float map_center_x = (map_bounds.map_min_x + map_bounds.map_max_x) / 2.0f;
+                const float map_center_z = (map_bounds.map_min_z + map_bounds.map_max_z) / 2.0f;
+
+                DirectX::XMFLOAT4X4 clouds_world_matrix;
+                DirectX::XMStoreFloat4x4(&clouds_world_matrix, DirectX::XMMatrixTranslation(map_center_x, map_bounds.map_max_y + 2000, map_center_z));
+                PerObjectCB clouds_per_object_data;
+                clouds_per_object_data.world = clouds_world_matrix;
+                for (int i = 0; i < cloud_textures.size(); i++) {
+                    clouds_per_object_data.texture_indices[i / 4][i % 4] = 0;
+                    clouds_per_object_data.texture_types[i / 4][i % 4] = cloud_textures[i] == nullptr ? 0xFF : 0;
+                }
+
+                clouds_per_object_data.num_uv_texture_pairs = cloud_textures.size();
+                map_renderer->GetMeshManager()->UpdateMeshPerObjectData(clouds_mesh_id, clouds_per_object_data);
+
+                map_renderer->GetMeshManager()->SetTexturesForMesh(clouds_mesh_id, cloud_textures, 3);
+            }
 
             // Set fog and clear color
             if (environment_info_chunk.env_sub_chunk2.size() > 0) {
@@ -746,13 +744,15 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
                 map_renderer->SetFogStart(std::max((int)sub2_0.fog_distance_start, 3000));
                 map_renderer->SetFogEnd(std::max((float)sub2_0.fog_distance_end, map_renderer->GetFogStart()+10000));
-                map_renderer->SetFogStartY(0);
-                map_renderer->SetFogEndY(3500);
+                map_renderer->SetFogStartY(-5000);
+                map_renderer->SetFogEndY(1500);
 
                 map_renderer->SetClearColor(clear_and_fog_color);
             }
 
             map_renderer->SetSkyHeight(0);
+
+            success = true;
         }
 
         // Load models
