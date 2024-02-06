@@ -150,6 +150,8 @@ public:
 
         // Set the pixel shader and sampler state
         m_deviceContext->PSSetSamplers(0, 1, m_pixel_shaders[PixelShaderType::OldModel]->GetSamplerState());
+        m_deviceContext->PSSetSamplers(1, 1, m_pixel_shaders[PixelShaderType::OldModel]->GetSamplerStateShadow());
+
         m_deviceContext->PSSetShader(m_pixel_shaders[PixelShaderType::OldModel]->GetShader(), nullptr, 0);
     }
 
@@ -309,6 +311,9 @@ public:
         m_prop_mesh_ids.clear();
     }
 
+    void SetTerrainMeshId(int terrain_mesh_id) { m_terrain_mesh_id = terrain_mesh_id; }
+    int GetTerrainMeshId() { return m_terrain_mesh_id; }
+    
     void SetSkyMeshId(int sky_mesh_id) { m_sky_mesh_id = sky_mesh_id; }
     int GetSkyMeshId() { return m_sky_mesh_id; }
 
@@ -453,6 +458,12 @@ public:
     float GetFogStartY() const { return m_fog_start_y; }
     float GetFogEndY() const { return m_fog_end_y; }
 
+    PerCameraCB GetPerCameraCB() { return m_per_camera_cb_data; }
+    void SetPerCameraCB(const PerCameraCB& per_camera_cb_data) { m_per_camera_cb_data = per_camera_cb_data; }
+
+    int GetNumFramesRenderedForSelectedFile() const { return m_num_frames_rendered_for_file; }
+    void SetNumFramesRenderedForSelectedFile(int frame_count) { m_num_frames_rendered_for_file = frame_count; }
+
     void Update(const float dt)
     {
         static float time_elapsed = 0;
@@ -513,15 +524,14 @@ public:
         m_deviceContext->Unmap(m_per_frame_cb.Get(), 0);
 
         // Update camera CB
-        static auto cameraCB = PerCameraCB();
-        XMStoreFloat4x4(&cameraCB.view, XMMatrixTranspose(m_user_camera->GetView()));
-        XMStoreFloat4x4(&cameraCB.projection, XMMatrixTranspose(m_user_camera->GetProj()));
-        XMStoreFloat3(&cameraCB.position, m_user_camera->GetPosition());
+        XMStoreFloat4x4(&m_per_camera_cb_data.view, XMMatrixTranspose(m_user_camera->GetView()));
+        XMStoreFloat4x4(&m_per_camera_cb_data.projection, XMMatrixTranspose(m_user_camera->GetProj()));
+        XMStoreFloat3(&m_per_camera_cb_data.position, m_user_camera->GetPosition());
 
         D3D11_MAPPED_SUBRESOURCE mappedResource;
         ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
         m_deviceContext->Map(m_per_camera_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-        memcpy(mappedResource.pData, &cameraCB, sizeof(PerCameraCB));
+        memcpy(mappedResource.pData, &m_per_camera_cb_data, sizeof(PerCameraCB));
         m_deviceContext->Unmap(m_per_camera_cb.Get(), 0);
 
         m_mesh_manager->Update(dt);
@@ -560,6 +570,16 @@ public:
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
                 m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id);
         }
+
+        m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
+        
+        m_num_frames_rendered_for_file++;
+    }
+
+    void RenderForShadowMap(ID3D11DepthStencilView* depth_stencil_view)
+    {
+        m_deviceContext->OMSetRenderTargets(0, nullptr, depth_stencil_view);
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
             m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
@@ -681,4 +701,8 @@ private:
     float m_fog_end = 100000000000.0f; 
     float m_fog_start_y = 0;
     float m_fog_end_y = 0;
+
+    int m_num_frames_rendered_for_file = 0;
+
+    PerCameraCB m_per_camera_cb_data;
 };

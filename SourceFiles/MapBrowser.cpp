@@ -148,6 +148,76 @@ void MapBrowser::Render()
         return;
     }
 
+    // If it is the first time rendering a map generate a shadow map
+    if (m_map_renderer->GetTerrain() && m_map_renderer->GetNumFramesRenderedForSelectedFile() == 0) {
+        bool should_render_sky = m_map_renderer->GetShouldRenderSky();
+        m_map_renderer->SetShouldRenderSky(false);
+        const auto camera_type = m_map_renderer->GetCamera()->GetCameraType();
+        const auto camera_pos = m_map_renderer->GetCamera()->GetPosition3f();
+        const auto camera_pitch = m_map_renderer->GetCamera()->GetPitch();
+        const auto camera_yaw = m_map_renderer->GetCamera()->GetYaw();
+        const auto camera_fovY = m_map_renderer->GetCamera()->GetFovY();
+        const auto camera_frustrum_width = m_map_renderer->GetCamera()->GetViewWidth();
+        const auto camera_frustrum_height = m_map_renderer->GetCamera()->GetViewHeight();
+        const auto camera_aspect_ration = m_map_renderer->GetCamera()->GetAspectRatio();
+        const auto camera_near = m_map_renderer->GetCamera()->GetNearZ();
+        const auto camera_far = m_map_renderer->GetCamera()->GetFarZ();
+
+        const auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
+        const auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
+
+        const float map_width = (dim_x - 1) * 96;
+        const float map_height = (dim_z - 1) * 96;
+
+        const float cam_pos_x = -m_map_renderer->GetDirectionalLight().direction.x;
+        const float cam_pos_y = -m_map_renderer->GetDirectionalLight().direction.y;
+        const float cam_pos_z = -m_map_renderer->GetDirectionalLight().direction.z;
+
+        m_map_renderer->SetFrustumAsOrthographic(map_width * 1.5, map_height * 1.2, 100, 200000);
+        m_map_renderer->GetCamera()->SetPosition(cam_pos_x * 50000, cam_pos_y * 20000, cam_pos_z * 50000);
+        m_map_renderer->GetCamera()->LookAt(m_map_renderer->GetCamera()->GetPosition(), {0,0,0}, {0,1,0});
+        m_map_renderer->GetCamera()->Update(0);
+
+
+        // Update Camera Constant Buffer with light view projection matrix
+        const auto view = m_map_renderer->GetCamera()->GetView();
+        const auto proj = m_map_renderer->GetCamera()->GetProj();
+        const auto view_proj = view * proj;
+        auto curr_per_camera_cb = m_map_renderer->GetPerCameraCB();
+        XMStoreFloat4x4(&curr_per_camera_cb.directional_light_view_proj, XMMatrixTranspose(view_proj));
+        m_map_renderer->SetPerCameraCB(curr_per_camera_cb);
+
+        m_map_renderer->Update(0); // Update camera CB
+
+        m_deviceResources->CreateShadowResources(dim_x*10, dim_z*10);
+        ClearShadow();
+        m_map_renderer->RenderForShadowMap(m_deviceResources->GetShadowMapDSV());
+
+        auto shadowMapSRV = m_deviceResources->GetShadowMapSRV();
+
+        int terrain_mesh_id = m_map_renderer->GetTerrainMeshId();
+        auto terrain_mesh_instance = m_map_renderer->GetMeshManager()->GetMesh(terrain_mesh_id);
+
+        terrain_mesh_instance->SetTextures({ shadowMapSRV }, 3);
+
+        // Restore settings
+        if (camera_type == CameraType::Perspective)
+        {
+            m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
+            m_map_renderer->GetCamera()->SetFrustumAsPerspective(camera_fovY, camera_aspect_ration, camera_near, camera_far);
+            m_map_renderer->GetCamera()->SetOrientation(camera_pitch * XM_PI / 180, camera_yaw * XM_PI / 180);
+            
+        }
+        else
+        {
+            m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
+            m_map_renderer->GetCamera()->SetFrustumAsOrthographic(camera_frustrum_width, camera_frustrum_height / camera_aspect_ration, camera_near, camera_far);
+            m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
+        }
+
+        m_map_renderer->SetShouldRenderSky(should_render_sky);
+    }
+
     Clear();
 
     m_deviceResources->PIXBeginEvent(L"Render");
@@ -468,6 +538,23 @@ void MapBrowser::ClearOffscreen() {
     context->OMSetRenderTargets(1, &renderTarget, depthStencil);
 
     auto const viewport = m_deviceResources->GetOffscreenViewport();
+    context->RSSetViewports(1, &viewport);
+    m_deviceResources->PIXEndEvent();
+}
+
+void MapBrowser::ClearShadow()
+{
+    m_deviceResources->PIXBeginEvent(L"ClearShadow");
+    auto context = m_deviceResources->GetD3DDeviceContext();
+    auto depthStencil = m_deviceResources->GetShadowMapDSV();
+
+    context->OMSetRenderTargets(0, nullptr, depthStencil);
+    context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+
+    context->OMSetRenderTargets(0, nullptr, depthStencil);
+
+    auto const viewport = m_deviceResources->GetShadowViewport();
     context->RSSetViewports(1, &viewport);
     m_deviceResources->PIXEndEvent();
 }

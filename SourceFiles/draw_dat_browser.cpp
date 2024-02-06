@@ -110,6 +110,9 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         selected_map_file_index = -1;
     }
 
+    // Reset the frame counter
+    map_renderer->SetNumFramesRenderedForSelectedFile(0);
+
     switch (entry->type)
     {
     case TEXT:

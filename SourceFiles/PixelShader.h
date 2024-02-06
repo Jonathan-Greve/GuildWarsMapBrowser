@@ -118,6 +118,21 @@ public:
         }
 
         // Create a sampler state
+        D3D11_SAMPLER_DESC shadowSamplerDesc = {};
+        shadowSamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+        shadowSamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+        shadowSamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+        shadowSamplerDesc.BorderColor[0] = 1.0f;
+        shadowSamplerDesc.BorderColor[1] = 1.0f;
+        shadowSamplerDesc.BorderColor[2] = 1.0f;
+        shadowSamplerDesc.BorderColor[3] = 1.0f;
+        shadowSamplerDesc.MinLOD = 0.f;
+        shadowSamplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+        shadowSamplerDesc.MipLODBias = 0.f;
+        shadowSamplerDesc.MaxAnisotropy = 0;
+        shadowSamplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL;
+        shadowSamplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
+
         D3D11_SAMPLER_DESC samplerDesc = {};
         samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
         samplerDesc.MaxAnisotropy = 16;
@@ -135,16 +150,24 @@ public:
             return false;
         }
 
+        hr = m_device->CreateSamplerState(&shadowSamplerDesc, m_samplerStateShadow.GetAddressOf());
+        if (FAILED(hr))
+        {
+            return false;
+        }
+
         return true;
     }
 
     ID3D11PixelShader* GetShader() const { return m_pixelShader.Get(); }
 
     ID3D11SamplerState* const* GetSamplerState() const { return m_samplerState.GetAddressOf(); }
+    ID3D11SamplerState* const* GetSamplerStateShadow() const { return m_samplerStateShadow.GetAddressOf(); }
 
 private:
     Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pixelShader;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> m_samplerState;
+    Microsoft::WRL::ComPtr<ID3D11SamplerState> m_samplerStateShadow;
 
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_deviceContext;
