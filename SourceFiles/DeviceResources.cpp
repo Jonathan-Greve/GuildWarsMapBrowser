@@ -636,6 +636,53 @@ void DeviceResources::Present()
     }
 }
 
+void DeviceResources::CreateShadowResources(UINT shadowMapWidth, UINT shadowMapHeight)
+{
+    m_shadowMapDSV.Reset();
+    m_shadowMapDSV.Reset();
+    m_d3dContext->Flush();
+
+    // Shadow map texture description
+    D3D11_TEXTURE2D_DESC texDesc = {};
+    texDesc.Width = shadowMapWidth;
+    texDesc.Height = shadowMapHeight;
+    texDesc.MipLevels = 1;
+    texDesc.ArraySize = 1;
+    texDesc.Format = DXGI_FORMAT_R32_TYPELESS; // Format that supports depth stencil
+    texDesc.SampleDesc.Count = 1;
+    texDesc.SampleDesc.Quality = 0;
+    texDesc.Usage = D3D11_USAGE_DEFAULT;
+    texDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+    texDesc.CPUAccessFlags = 0;
+    texDesc.MiscFlags = 0;
+
+    // Create the texture for the shadow map
+    ThrowIfFailed(m_d3dDevice->CreateTexture2D(&texDesc, nullptr, m_shadowMap.GetAddressOf()));
+
+    // Create the depth stencil view for the shadow map
+    D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Texture2D.MipSlice = 0;
+    ThrowIfFailed(m_d3dDevice->CreateDepthStencilView(m_shadowMap.Get(), &dsvDesc, m_shadowMapDSV.GetAddressOf()));
+
+    // Create the shader resource view for the shadow map
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.Texture2D.MipLevels = 1;
+    ThrowIfFailed(m_d3dDevice->CreateShaderResourceView(m_shadowMap.Get(), &srvDesc, m_shadowMapSRV.GetAddressOf()));
+
+    // Setup the viewport for rendering the shadow map
+    m_shadowViewport.Width = static_cast<float>(shadowMapWidth);
+    m_shadowViewport.Height = static_cast<float>(shadowMapHeight);
+    m_shadowViewport.MinDepth = 0.0f;
+    m_shadowViewport.MaxDepth = 1.0f;
+    m_shadowViewport.TopLeftX = 0.0f;
+    m_shadowViewport.TopLeftY = 0.0f;
+}
+
 void DeviceResources::CreateFactory()
 {
 #if defined(_DEBUG) && (_WIN32_WINNT >= 0x0603 /*_WIN32_WINNT_WINBLUE*/)

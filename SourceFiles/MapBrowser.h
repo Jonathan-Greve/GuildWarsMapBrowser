@@ -54,6 +54,7 @@ private:
 
     void Clear();
     void ClearOffscreen();
+    void ClearShadow();
 
     void ShowErrorMessage();
 

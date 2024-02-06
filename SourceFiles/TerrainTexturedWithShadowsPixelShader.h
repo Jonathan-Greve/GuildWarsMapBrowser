@@ -2,10 +2,12 @@
 struct TerrainTexturedWithShadowsPixelShader
 {
     static constexpr char shader_ps[] = R"(
-sampler ss : register(s0);
+SamplerState ss : register(s0);
+SamplerComparisonState shadowSampler : register(s1);
 Texture2DArray terrain_texture_array : register(t0);
 Texture2D terrain_texture_indices : register(t1);
 Texture2D terrain_shadow_map : register(t2);
+Texture2D terrain_shadow_map_props : register(t3);
 
 #define MAX_SAMPLES 8
 #define ADD_SAMPLE(adjustedUV, texIdx) \
@@ -53,7 +55,8 @@ cbuffer PerCameraCB : register(b2)
     matrix View;
     matrix Projection;
     float3 cam_position;
-    float cam_pad[1];
+    matrix directional_light_view_proj;
+    float pad[1];
 };
 
 cbuffer PerTerrainCB : register(b3)
@@ -69,7 +72,7 @@ cbuffer PerTerrainCB : register(b3)
     float water_level;
     float terrain_texture_pad_x;
     float terrain_texture_pad_y;
-    float pad[1];
+    float terrain_pad[1];
 };
 
 struct PixelInputType
@@ -84,8 +87,9 @@ struct PixelInputType
     float2 tex_coords4 : TEXCOORD4;
     float2 tex_coords5 : TEXCOORD5;
     float2 tex_coords6 : TEXCOORD6;
-    float2 tex_coords7 : TEXCOORD7;
+    float4 lightSpacePos : TEXCOORD7;
     float3 world_position : TEXCOORD8;
+    float3x3 TBN : TEXCOORD9;
 };
 
 struct PSOutput
@@ -311,6 +315,20 @@ PSOutput main(PixelInputType input)
     outputColor.rgb = outputColor.rgb * modulatedShadow;
 
     outputColor.a = 1.0f;
+    
+    // ============ SHADOW MAP START =====================
+    float3 ndcPos = input.lightSpacePos.xyz / input.lightSpacePos.w;
+
+    // Transform position to shadow map texture space
+    float2 shadowTexCoord = ndcPos.xy * 0.5 + 0.5;
+    float shadowDepth = input.lightSpacePos.z / input.lightSpacePos.w;
+
+    // Sample the shadow map with comparison
+    float shadow = terrain_shadow_map_props.SampleCmpLevelZero(shadowSampler, shadowTexCoord, shadowDepth);
+
+    // Apply shadow to final color
+    outputColor.rgb *= shadow;
+    // ============ SHADOW MAP END ++=====================
     
     float distance = length(cam_position - input.world_position.xyz);
 
