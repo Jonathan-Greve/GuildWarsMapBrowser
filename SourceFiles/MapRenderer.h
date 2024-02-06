@@ -544,8 +544,10 @@ public:
 
         // Render Clouds
         if (m_clouds_mesh_id >= 0 && m_should_render_sky) {
+            m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Disabled);
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
                 m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_clouds_mesh_id);
+            m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Enabled);
         }
 
         // picking_render_target can be null when writing to the offscreen buffer where picking isn't needed.

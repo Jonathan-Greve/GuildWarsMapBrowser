@@ -98,7 +98,7 @@ float4 main(PixelInputType input) : SV_TARGET
     
     if (use_clouds_0)
     {
-        float u = (time_elapsed / 600) + input.tex_coords0.x;
+        float u = (time_elapsed / 1000) + input.tex_coords0.x;
         float v = input.tex_coords0.y;
         
         float4 sampledTextureColor = shaderTextures[1].Sample(ss, float2(u, v));
@@ -107,7 +107,7 @@ float4 main(PixelInputType input) : SV_TARGET
     
     if (use_clouds_1)
     {
-        float u = (-time_elapsed / 800) + input.tex_coords0.x;
+        float u = (-time_elapsed / 2000) + input.tex_coords0.x;
         float v = input.tex_coords0.y;
         
         float4 sampledTextureColor = shaderTextures[2].Sample(ss, float2(u, v));
