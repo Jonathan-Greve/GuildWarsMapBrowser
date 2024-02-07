@@ -51,7 +51,7 @@ public:
         m_directionalLight.ambient = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
         m_directionalLight.diffuse = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
         m_directionalLight.specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-        m_directionalLight.direction = XMFLOAT3(0.5f, -1.0f, 0.0f);
+        m_directionalLight.direction = XMFLOAT3(1.0f, -1.0f, 0.0f);
         m_directionalLight.pad = 0.0f;
 
         // Create and initialize the VertexShader
@@ -580,6 +580,11 @@ public:
     void RenderForShadowMap(ID3D11DepthStencilView* depth_stencil_view)
     {
         m_deviceContext->OMSetRenderTargets(0, nullptr, depth_stencil_view);
+
+        if (m_terrain_mesh_id) {
+            m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id);
+        }
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
             m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
