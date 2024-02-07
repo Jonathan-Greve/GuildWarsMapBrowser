@@ -173,7 +173,7 @@ void MapBrowser::Render()
         const float cam_pos_y = -m_map_renderer->GetDirectionalLight().direction.y;
         const float cam_pos_z = -m_map_renderer->GetDirectionalLight().direction.z;
 
-        m_map_renderer->SetFrustumAsOrthographic(map_width * 1.5, map_height * 1.2, 100, 200000);
+        m_map_renderer->SetFrustumAsOrthographic(map_width * 1.5, map_height * 0.8, 100, 200000);
         m_map_renderer->GetCamera()->SetPosition(cam_pos_x * 50000, cam_pos_y * 20000, cam_pos_z * 50000);
         m_map_renderer->GetCamera()->LookAt(m_map_renderer->GetCamera()->GetPosition(), {0,0,0}, {0,1,0});
         m_map_renderer->GetCamera()->Update(0);
@@ -182,14 +182,14 @@ void MapBrowser::Render()
         // Update Camera Constant Buffer with light view projection matrix
         const auto view = m_map_renderer->GetCamera()->GetView();
         const auto proj = m_map_renderer->GetCamera()->GetProj();
-        const auto view_proj = view * proj;
         auto curr_per_camera_cb = m_map_renderer->GetPerCameraCB();
-        XMStoreFloat4x4(&curr_per_camera_cb.directional_light_view_proj, XMMatrixTranspose(view_proj));
+        XMStoreFloat4x4(&curr_per_camera_cb.directional_light_view, XMMatrixTranspose(view));
+        XMStoreFloat4x4(&curr_per_camera_cb.directional_light_proj, XMMatrixTranspose(proj));
         m_map_renderer->SetPerCameraCB(curr_per_camera_cb);
 
         m_map_renderer->Update(0); // Update camera CB
 
-        m_deviceResources->CreateShadowResources(dim_x*10, dim_z*10);
+        m_deviceResources->CreateShadowResources(16384, 16384);
         ClearShadow();
         m_map_renderer->RenderForShadowMap(m_deviceResources->GetShadowMapDSV());
 

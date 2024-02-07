@@ -34,9 +34,10 @@ cbuffer PerCameraCB : register(b2)
 {
     matrix View;
     matrix Projection;
+    matrix directional_light_view;
+    matrix directional_light_proj;
     float3 cam_position;
-    matrix directional_light_view_proj;
-    float pad[1];
+    float pad;
 };
 
 struct VertexInputType
@@ -137,7 +138,8 @@ PixelInputType main(VertexInputType input)
     }
     
     // Transform position to light space for shadow mapping
-    output.lightSpacePos = mul(worldPosition, directional_light_view_proj);
+    float4 lightViewPosition = mul(worldPosition, directional_light_view);
+    output.lightSpacePos = mul(lightViewPosition, directional_light_proj);
 
     return output;
 }

@@ -50,9 +50,10 @@ cbuffer PerCameraCB : register(b2)
 {
     matrix View;
     matrix Projection;
+    matrix directional_light_view;
+    matrix directional_light_proj;
     float3 cam_position;
-    matrix directional_light_view_proj;
-    float pad[1];
+    float pad;
 };
 
 cbuffer PerTerrainCB : register(b3)
@@ -316,14 +317,17 @@ PSOutput main(PixelInputType input)
     float3 ndcPos = input.lightSpacePos.xyz / input.lightSpacePos.w;
 
     // Transform position to shadow map texture space
-    float2 shadowTexCoord = ndcPos.xy * 0.5 + 0.5;
+    float2 shadowTexCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
     float shadowDepth = input.lightSpacePos.z / input.lightSpacePos.w;
 
     // Sample the shadow map with comparison
-    float shadow = terrain_shadow_map_props.SampleCmpLevelZero(shadowSampler, shadowTexCoord, shadowDepth);
+    float shadow = terrain_shadow_map_props.SampleCmpLevelZero(shadowSampler, float2(shadowTexCoord.x, shadowTexCoord.y), shadowDepth);
 
     // Apply shadow to final color
-    outputColor.rgb *= shadow;
+    if (shadow == 0)
+    {
+        outputColor.rgb *= 0.7;
+    }
     // ============ SHADOW MAP END ++=====================
     
     float distance = length(cam_position - input.world_position.xyz);
