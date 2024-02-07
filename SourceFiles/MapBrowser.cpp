@@ -215,6 +215,8 @@ void MapBrowser::Render()
             m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
         }
 
+        m_map_renderer->Update(0); // Update camera CB
+
         m_map_renderer->SetShouldRenderSky(should_render_sky);
     }
 
