@@ -163,24 +163,60 @@ void MapBrowser::Render()
         const auto camera_near = m_map_renderer->GetCamera()->GetNearZ();
         const auto camera_far = m_map_renderer->GetCamera()->GetFarZ();
 
-        const auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
-        const auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
+        XMFLOAT3 corners[8] = {
+            {m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z}, // Min corner
+            {m_map_renderer->GetTerrain()->m_bounds.map_max_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z}, // Min y, max x, min z
+            {m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_max_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z}, // Max y, min x, min z
+            {m_map_renderer->GetTerrain()->m_bounds.map_max_x, m_map_renderer->GetTerrain()->m_bounds.map_max_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z}, // Max y, max x, min z
+            {m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_max_z}, // Min y, min x, max z
+            {m_map_renderer->GetTerrain()->m_bounds.map_max_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_max_z}, // Min y, max x, max z
+            {m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_max_y, m_map_renderer->GetTerrain()->m_bounds.map_max_z}, // Max y, min x, max z
+            {m_map_renderer->GetTerrain()->m_bounds.map_max_x, m_map_renderer->GetTerrain()->m_bounds.map_max_y, m_map_renderer->GetTerrain()->m_bounds.map_max_z}  // Max corner
+        };
 
-        const float map_width = (dim_x - 1) * 96;
-        const float map_height = (dim_z - 1) * 96;
 
+        // each of these are between -1 and 1 is the vector the light is moving
         const float cam_pos_x = -m_map_renderer->GetDirectionalLight().direction.x;
         const float cam_pos_y = -m_map_renderer->GetDirectionalLight().direction.y;
         const float cam_pos_z = -m_map_renderer->GetDirectionalLight().direction.z;
+        constexpr float pos_scale = 50000;
 
-        m_map_renderer->SetFrustumAsOrthographic(map_width * 1.5, map_height * 0.8, 100, 200000);
-        m_map_renderer->GetCamera()->SetPosition(cam_pos_x * 50000, cam_pos_y * 20000, cam_pos_z * 50000);
+        m_map_renderer->GetCamera()->SetPosition(cam_pos_x * pos_scale, cam_pos_y * pos_scale, cam_pos_z * pos_scale);
         m_map_renderer->GetCamera()->LookAt(m_map_renderer->GetCamera()->GetPosition(), {0,0,0}, {0,1,0});
+        m_map_renderer->GetCamera()->Update(0);
+        auto view = m_map_renderer->GetCamera()->GetView();
+
+        // Use view matrix to compute new bounding box.
+        XMFLOAT3 transformedCorners[8];
+        for (int i = 0; i < 8; ++i) {
+            XMVECTOR corner = XMLoadFloat3(&corners[i]);
+            corner = XMVector3TransformCoord(corner, view);
+            XMStoreFloat3(&transformedCorners[i], corner);
+        }
+
+        float minX = FLT_MAX, maxX = -FLT_MAX, minY = FLT_MAX, maxY = -FLT_MAX, minZ = FLT_MAX, maxZ = -FLT_MAX;
+
+        for (auto& corner : transformedCorners) {
+            minX = std::min(minX, corner.x);
+            maxX = std::max(maxX, corner.x);
+            minY = std::min(minY, corner.y);
+            maxY = std::max(maxY, corner.y);
+            minZ = std::min(minZ, corner.z);
+            maxZ = std::max(maxZ, corner.z);
+        }
+
+        float frustum_width = maxX - minX;
+        float frustum_height = maxY - minY;
+        float frustum_near = minZ;
+        float frustum_far = maxZ;
+
+
+        m_map_renderer->SetFrustumAsOrthographic(frustum_width, frustum_height, frustum_near, frustum_far);
         m_map_renderer->GetCamera()->Update(0);
 
 
         // Update Camera Constant Buffer with light view projection matrix
-        const auto view = m_map_renderer->GetCamera()->GetView();
+        view = m_map_renderer->GetCamera()->GetView();
         const auto proj = m_map_renderer->GetCamera()->GetProj();
         auto curr_per_camera_cb = m_map_renderer->GetPerCameraCB();
         XMStoreFloat4x4(&curr_per_camera_cb.directional_light_view, XMMatrixTranspose(view));
@@ -189,7 +225,7 @@ void MapBrowser::Render()
 
         m_map_renderer->Update(0); // Update camera CB
 
-        m_deviceResources->CreateShadowResources(16384, 16384);
+        m_deviceResources->CreateShadowResources(16384 / 2, 16384 / 2);
         ClearShadow();
         m_map_renderer->RenderForShadowMap(m_deviceResources->GetShadowMapDSV());
 
