@@ -214,6 +214,13 @@ void MapBrowser::Render()
         m_map_renderer->SetFrustumAsOrthographic(frustum_width, frustum_height, frustum_near, frustum_far);
         m_map_renderer->GetCamera()->Update(0);
 
+#ifdef _DEBUG
+        constexpr float shadowmap_width = 16384 / 2;
+        constexpr float shadowmap_height = 16384 / 2;
+#else
+        constexpr float shadowmap_width = 16384;
+        constexpr float shadowmap_height = 16384;
+#endif
 
         // Update Camera Constant Buffer with light view projection matrix
         view = m_map_renderer->GetCamera()->GetView();
@@ -221,6 +228,8 @@ void MapBrowser::Render()
         auto curr_per_camera_cb = m_map_renderer->GetPerCameraCB();
         XMStoreFloat4x4(&curr_per_camera_cb.directional_light_view, XMMatrixTranspose(view));
         XMStoreFloat4x4(&curr_per_camera_cb.directional_light_proj, XMMatrixTranspose(proj));
+        curr_per_camera_cb.shadowmap_texel_size_x = 1.0f / shadowmap_width;
+        curr_per_camera_cb.shadowmap_texel_size_y = 1.0f / shadowmap_height;
         m_map_renderer->SetPerCameraCB(curr_per_camera_cb);
 
         m_map_renderer->Update(0); // Update camera CB

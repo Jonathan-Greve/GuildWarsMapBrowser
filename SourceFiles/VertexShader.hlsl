@@ -37,7 +37,7 @@ cbuffer PerCameraCB : register(b2)
     matrix directional_light_view;
     matrix directional_light_proj;
     float3 cam_position;
-    float pad;
+    float2 shadowmap_texel_size;
 };
 
 struct VertexInputType
