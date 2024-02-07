@@ -53,7 +53,7 @@ cbuffer PerCameraCB : register(b2)
     matrix directional_light_view;
     matrix directional_light_proj;
     float3 cam_position;
-    float pad;
+    float2 shadowmap_texel_size;
 };
 
 cbuffer PerTerrainCB : register(b3)
@@ -320,15 +320,29 @@ PSOutput main(PixelInputType input)
     float2 shadowTexCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
     float shadowDepth = input.lightSpacePos.z / input.lightSpacePos.w;
 
-    // Sample the shadow map with comparison
-    float shadow = terrain_shadow_map_props.SampleCmpLevelZero(shadowSampler, float2(shadowTexCoord.x, shadowTexCoord.y), shadowDepth);
+    // Add a bias to reduce shadow acne, especially on steep surfaces
+    float bias = max(0.0005 * (1.0 - dot(input.normal, directionalLight.direction)), 0.0005);
+    shadowDepth -= bias;
+
+    // PCF
+    float shadow = 0.0;
+    int pcf_samples = 16; // Number of samples for PCF. Adjust as needed for performance/quality tradeoff
+    float2 shadowmap_texelSize = shadowmap_texel_size; // Assuming this is the size of one texel in shadow map space
+    for (int x = -2; x <= 2; x++)
+    {
+        for (int y = -2; y <= 2; y++)
+        {
+            float2 samplePos = shadowTexCoord + float2(x, y) * shadowmap_texelSize;
+            shadow += terrain_shadow_map_props.SampleCmpLevelZero(shadowSampler, samplePos, shadowDepth);
+        }
+    }
+
+    // Normalize the shadow value
+    shadow /= pcf_samples;
 
     // Apply shadow to final color
-    if (shadow == 0)
-    {
-        outputColor.rgb *= 0.7;
-    }
-    // ============ SHADOW MAP END ++=====================
+    outputColor.rgb *= lerp(0.5, 1.0, shadow);
+    // ============ SHADOW MAP END =====================
     
     float distance = length(cam_position - input.world_position.xyz);
 
