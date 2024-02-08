@@ -51,7 +51,7 @@ public:
         m_directionalLight.ambient = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
         m_directionalLight.diffuse = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
         m_directionalLight.specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-        m_directionalLight.direction = XMFLOAT3(1.0f, -1.0f, 0.0f);
+        m_directionalLight.direction = NormalizeXMFLOAT3(XMFLOAT3(1.0f, -0.98f, 0.0f));
         m_directionalLight.pad = 0.0f;
 
         // Create and initialize the VertexShader
@@ -169,6 +169,7 @@ public:
     void SetDirectionalLight(DirectionalLight new_directional_light)
     {
         m_directionalLight = new_directional_light;
+        m_directionalLight.direction = NormalizeXMFLOAT3(m_directionalLight.direction);
         m_per_frame_cb_changed = true;
     }
     const DirectionalLight GetDirectionalLight() { return m_directionalLight; }
