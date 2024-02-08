@@ -131,7 +131,7 @@ public:
         shadowSamplerDesc.MipLODBias = 0.f;
         shadowSamplerDesc.MaxAnisotropy = 0;
         shadowSamplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL;
-        shadowSamplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_POINT;
+        shadowSamplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 
         D3D11_SAMPLER_DESC samplerDesc = {};
         samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;

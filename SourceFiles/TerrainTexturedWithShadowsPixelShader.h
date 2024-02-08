@@ -325,16 +325,16 @@ PSOutput main(PixelInputType input)
     float shadowDepth = input.lightSpacePos.z / input.lightSpacePos.w;
 
     // Add a bias to reduce shadow acne, especially on steep surfaces
-    float bias = max(0.0005 * (1.0 - dot(input.normal, directionalLight.direction)), 0.0005);
+    float bias = max(0.002 * (1.0 - dot(input.normal, -directionalLight.direction)), 0.001);
     shadowDepth -= bias;
 
     // PCF
     float shadow = 0.0;
-    int pcf_samples = 16; // Number of samples for PCF. Adjust as needed for performance/quality tradeoff
-    float2 shadowmap_texelSize = shadowmap_texel_size; // Assuming this is the size of one texel in shadow map space
-    for (int x = -2; x <= 2; x++)
+    int pcf_samples = 49;
+    float2 shadowmap_texelSize = shadowmap_texel_size;
+    for (int x = -3; x <= 3; x++)
     {
-        for (int y = -2; y <= 2; y++)
+        for (int y = -3; y <= 3; y++)
         {
             float2 samplePos = shadowTexCoord + float2(x, y) * shadowmap_texelSize;
             shadow += terrain_shadow_map_props.SampleCmpLevelZero(shadowSampler, samplePos, shadowDepth);
@@ -345,7 +345,7 @@ PSOutput main(PixelInputType input)
     shadow /= pcf_samples;
 
     // Apply shadow to final color
-    outputColor.rgb *= lerp(0.5, 1.0, shadow);
+    outputColor.rgb *= lerp(0.65, 1.0, shadow);
     // ============ SHADOW MAP END =====================
     
     float distance = length(cam_position - input.world_position.xyz);
