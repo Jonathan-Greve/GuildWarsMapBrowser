@@ -84,6 +84,17 @@ void MapBrowser::Initialize(HWND window, int width, int height)
 // Executes the basic render loop.
 void MapBrowser::Tick()
 {
+    // Check if the window is minimized
+    if (IsIconic(m_deviceResources->GetWindow()))
+    {
+        return;  // Don't proceed with the rest of the function if the window is minimized
+    }
+
+    // Check if the window is not the foreground window
+    if (GetForegroundWindow() != m_deviceResources->GetWindow())
+    {
+        return;  // Don't proceed with the rest of the function if the window is not in focus
+    }
 
     using namespace std::chrono;
 
