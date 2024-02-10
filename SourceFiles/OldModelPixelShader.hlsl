@@ -97,78 +97,69 @@ PSOutput main(PixelInputType input)
 
     float mult_val = 1;
 
-    for (int j = 0; j < (num_uv_texture_pairs + 3) / 4; ++j)
+    uint prev_texture_type = -1;
+    uint prev_blend_flag = -1;
+    for (int i = 0; i < num_uv_texture_pairs; ++i)
     {
+        uint uv_set_index = uv_indices[i / 4][i % 4];
+        uint texture_index = texture_indices[i / 4][i % 4];
+        uint blend_flag = blend_flags[i / 4][i % 4];
+        uint texture_type = texture_types[i / 4][i % 4] & 0xFF;
+        uint texture_flag0 = texture_types[i / 4][i % 4] >> 8;
 
-        uint prev_texture_type = -1;
-        uint prev_blend_flag = -1;
-        for (int k = 0; k < 4; ++k)
+        for (int t = 0; t < 8; ++t)
         {
-            uint uv_set_index = uv_indices[j][k];
-            uint texture_index = texture_indices[j][k];
-            uint blend_flag = blend_flags[j][k];
-            uint texture_type = texture_types[j][k] & 0xFF;
-            uint texture_flag0 = texture_types[j][k] >> 8;
-
-            if (j * 4 + k >= num_uv_texture_pairs)
+            if (t == texture_index)
             {
-                break;
-            }
-
-            for (int t = 0; t < 8; ++t)
-            {
-                if (t == texture_index)
+                float4 currentSampledTextureColor = shaderTextures[t].Sample(ss, texCoordsArray[uv_set_index]);
+                float alpha = currentSampledTextureColor.a;
+                if (blend_flag == 3 || blend_flag == 6 || blend_flag == 7)
                 {
-                    float4 currentSampledTextureColor = shaderTextures[t].Sample(ss, texCoordsArray[uv_set_index]);
-                    float alpha = currentSampledTextureColor.a;
-                    if (blend_flag == 3 || blend_flag == 6 || blend_flag == 7)
-                    {
-                        alpha = 1 - alpha;
-                    }
-                    else if (blend_flag == 0)
-                    {
-                        alpha = 1;
-                    }
-                    if (blend_flag == 8 && alpha == 0 || (blend_flag == 7 && a == 0))
-                    {
-                        continue;
-                    }
-
-                    a += alpha * (1.0 - a);
-
-                    if ((blend_flag == 7 && prev_blend_flag == 8) || blend_flag == 6 || blend_flag == 0)
-                    {
-                        mult_val = 1;
-                    }
-                    else
-                    {
-                        mult_val = 2;
-                    }
-
-                    if (blend_flag == 3 || blend_flag == 5)
-                    {
-                        if (prev_texture_type == 1)
-                        {
-                            finalColor = saturate(currentSampledTextureColor.a * finalColor + currentSampledTextureColor);
-                        }
-                        else
-                        {
-                            finalColor = saturate(finalColor.a * currentSampledTextureColor + finalColor);
-                        }
-                    }
-                    else if (blend_flag == 4 && texture_index > 0)
-                    {
-                        finalColor = saturate(lerp(finalColor, currentSampledTextureColor, currentSampledTextureColor.a));
-                    }
-                    else
-                    {
-                        finalColor = saturate(finalColor * currentSampledTextureColor * mult_val);
-                    }
-
-                    prev_texture_type = texture_type;
-                    prev_blend_flag = blend_flag;
-                    break;
+                    alpha = 1 - alpha;
                 }
+                else if (blend_flag == 0)
+                {
+                    alpha = 1;
+                }
+                if (blend_flag == 8 && alpha == 0 || (blend_flag == 7 && a == 0))
+                {
+                    continue;
+                }
+
+                a += alpha * (1.0 - a);
+
+                if ((blend_flag == 7 && prev_blend_flag == 8) || blend_flag == 6 || blend_flag == 0)
+                {
+                    mult_val = 1;
+                }
+                else
+                {
+                    mult_val = 2;
+                }
+
+                if (blend_flag == 3 || blend_flag == 5)
+                {
+                    if (prev_texture_type == 1)
+                    {
+                        finalColor = saturate(currentSampledTextureColor.a * finalColor + currentSampledTextureColor);
+                    }
+                    else
+                    {
+                        finalColor = saturate(finalColor.a * currentSampledTextureColor + finalColor);
+                    }
+                }
+                else if (blend_flag == 4 && texture_index > 0)
+                {
+                    finalColor = saturate(lerp(finalColor, currentSampledTextureColor, currentSampledTextureColor.a));
+                }
+                else
+                {
+                    finalColor = saturate(finalColor * currentSampledTextureColor * mult_val);
+                }
+
+                prev_texture_type = texture_type;
+                prev_blend_flag = blend_flag;
+                break;
             }
         }
     }

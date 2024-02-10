@@ -146,6 +146,9 @@
     <Filter Include="Render\Shaders\Pixel shaders\Sky">
       <UniqueIdentifier>{aac38440-c1f7-44be-b999-da27a746ba02}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Render\Shaders\Pixel shaders\Model\Shadow Map">
+      <UniqueIdentifier>{21d77c0f-99a1-4527-a482-e54551c4c4b4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -501,6 +504,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\show_how_to_use_dat_comparer_guide.h">
       <Filter>GUI\DatComparePanel</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\OldModelShadowMapPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Model\Shadow Map</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -877,6 +883,9 @@
     </FxCompile>
     <FxCompile Include="SourceFiles\CloudsPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Sky</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\OldModelShadowMapPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Model\Shadow Map</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
