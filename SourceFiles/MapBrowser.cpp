@@ -85,15 +85,17 @@ void MapBrowser::Initialize(HWND window, int width, int height)
 void MapBrowser::Tick()
 {
     // Check if the window is minimized
-    if (IsIconic(m_deviceResources->GetWindow()))
-    {
-        return;  // Don't proceed with the rest of the function if the window is minimized
-    }
+    if (m_mft_indices_to_extract.empty()) { // Only stop updates and rendering if we are not extracting stuff.
+        if (IsIconic(m_deviceResources->GetWindow()))
+        {
+            return;  // Don't proceed with the rest of the function if the window is minimized
+        }
 
-    // Check if the window is not the foreground window
-    if (GetForegroundWindow() != m_deviceResources->GetWindow())
-    {
-        return;  // Don't proceed with the rest of the function if the window is not in focus
+        // Check if the window is not the foreground window
+        if (GetForegroundWindow() != m_deviceResources->GetWindow())
+        {
+            return;  // Don't proceed with the rest of the function if the window is not in focus
+        }
     }
 
     using namespace std::chrono;
@@ -134,7 +136,7 @@ void MapBrowser::Update(DX::StepTimer const& timer)
         }
     }
 
-    if (!m_hash_index_initialized) {
+    if (m_dat_managers[0]->m_initialization_state == InitializationState::Completed && !m_hash_index_initialized) {
         const auto& mft = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT();
         for (int i = 0; i < mft.size(); i++) {
             m_hash_index[mft[i].Hash].push_back(i);
@@ -343,6 +345,8 @@ void MapBrowser::Render()
         if (!m_mft_indices_to_extract.empty()) {
             draw_dat_load_progress_bar(m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3) - m_mft_indices_to_extract.size(),
                 m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3));
+
+            DrawStopExtractionButton();
         }
 
         static bool show_demo_window = false;
@@ -724,5 +728,35 @@ void MapBrowser::OnDeviceRestored()
     CreateDeviceDependentResources();
 
     CreateWindowSizeDependentResources();
+}
+
+void MapBrowser::DrawStopExtractionButton() {
+    if (!m_mft_indices_to_extract.empty()) {
+        // Set the window to be centered on the screen
+        ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f,
+            ImGui::GetIO().DisplaySize.y * 0.5f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+
+        // Push style color for the window border to be red
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+
+        // Set the border size to make the red frame visible
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2.0f);
+
+        // Begin a new window for the button
+        ImGui::Begin("Stop Extraction", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
+
+        // Render the button and handle its press
+        if (ImGui::Button("Stop Extracting")) {
+            m_mft_indices_to_extract.clear();
+        }
+
+        // End the window
+        ImGui::End();
+
+        // Pop the style color and style var to revert back to the default style
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
+    }
 }
 #pragma endregion
