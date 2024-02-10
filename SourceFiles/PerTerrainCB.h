@@ -13,6 +13,4 @@ struct PerTerrainCB
     float terrain_texture_pad_x;
     float terrain_texture_pad_y;
     float pad[1];
-
-    uint8_t terrain_texture_indices[65536 * 4];
 };
