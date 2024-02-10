@@ -275,6 +275,7 @@
     <ClInclude Include="SourceFiles\MeshInstance.h" />
     <ClInclude Include="SourceFiles\MeshManager.h" />
     <ClInclude Include="SourceFiles\MouseMoveListener.h" />
+    <ClInclude Include="SourceFiles\OldModelShadowMapPixelShader.h" />
     <ClInclude Include="SourceFiles\pch.h" />
     <ClInclude Include="SourceFiles\PerCameraCB.h" />
     <ClInclude Include="SourceFiles\PerFrameCB.h" />
@@ -455,6 +456,13 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
     </FxCompile>
     <ClCompile Include="SourceFiles\MurmurHash3.cpp" />
+    <FxCompile Include="SourceFiles\OldModelShadowMapPixelShader.hlsl">
+      <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
     <ClCompile Include="SourceFiles\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
