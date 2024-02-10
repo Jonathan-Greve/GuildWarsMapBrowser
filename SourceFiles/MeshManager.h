@@ -354,13 +354,15 @@ public:
 	// Render only a specific mesh. Ignores should_render.
 	void RenderMesh(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
 		BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
-		DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, int mesh_id) {
+		DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, int mesh_id, bool should_set_ps = true) {
 
 		auto command = m_renderBatch.GetCommand(mesh_id);
 		if (command.has_value()) {
 			m_deviceContext->IASetPrimitiveTopology(command->primitiveTopology);
 
-			m_deviceContext->PSSetShader(pixel_shaders[command->pixelShaderType]->GetShader(), nullptr, 0);
+			if (should_set_ps) {
+				m_deviceContext->PSSetShader(pixel_shaders[command->pixelShaderType]->GetShader(), nullptr, 0);
+			}
 			m_deviceContext->PSSetSamplers(0, 1, pixel_shaders[command->pixelShaderType]->GetSamplerState());
 			m_deviceContext->PSSetSamplers(1, 1, pixel_shaders[command->pixelShaderType]->GetSamplerStateShadow());
 
@@ -391,7 +393,7 @@ public:
 
 	void Render(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
 	            BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
-	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality)
+	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, bool should_set_ps = true)
 	{
 		static D3D11_PRIMITIVE_TOPOLOGY currentTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
 		
@@ -410,8 +412,9 @@ public:
 				m_deviceContext->IASetPrimitiveTopology(command.primitiveTopology);
 				currentTopology = command.primitiveTopology;
 			}
-
-			m_deviceContext->PSSetShader(pixel_shaders[command.pixelShaderType]->GetShader(), nullptr, 0);
+			if (should_set_ps) {
+				m_deviceContext->PSSetShader(pixel_shaders[command.pixelShaderType]->GetShader(), nullptr, 0);
+			}
 			m_deviceContext->PSSetSamplers(0, 1, pixel_shaders[command.pixelShaderType]->GetSamplerState());
 			m_deviceContext->PSSetSamplers(1, 1, pixel_shaders[command.pixelShaderType]->GetSamplerStateShadow());
 

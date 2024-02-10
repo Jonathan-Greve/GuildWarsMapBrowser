@@ -9,6 +9,7 @@
 #include "TerrainTexturedWithShadowsPixelShader.h"
 #include <SkyPixelShader.h>
 #include <CloudsPixelShader.h>
+#include <OldModelShadowMapPixelShader.h>
 
 enum class PixelShaderType
 {
@@ -21,7 +22,8 @@ enum class PixelShaderType
     OldModel, // Primarily Prophecies and Factions
     NewModel, // Primarily Nightfall and EotN
     Sky,
-    Clouds
+    Clouds,
+    OldModelShadowMap
 };
 
 class PixelShader
@@ -91,6 +93,11 @@ public:
         case PixelShaderType::Clouds:
             hr = D3DCompile(CloudsPixelShader::shader_ps,
                 strlen(CloudsPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
+            break;
+        case PixelShaderType::OldModelShadowMap:
+            hr = D3DCompile(OldModelShadowMapPixelShader::shader_ps,
+                strlen(OldModelShadowMapPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
                 "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         default:
