@@ -121,6 +121,12 @@ public:
                 std::make_unique<PixelShader>(m_device, m_deviceContext);
             m_pixel_shaders[PixelShaderType::Clouds]->Initialize(PixelShaderType::Clouds);
         }
+        if (!m_pixel_shaders.contains(PixelShaderType::OldModelShadowMap))
+        {
+            m_pixel_shaders[PixelShaderType::OldModelShadowMap] =
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::OldModelShadowMap]->Initialize(PixelShaderType::OldModelShadowMap);
+        }
 
         // Set up the constant buffer for the camera
         D3D11_BUFFER_DESC buffer_desc = {};
@@ -582,13 +588,16 @@ public:
     {
         m_deviceContext->OMSetRenderTargets(0, nullptr, depth_stencil_view);
 
+
+        m_deviceContext->PSSetShader(m_pixel_shaders[PixelShaderType::OldModelShadowMap]->GetShader(), nullptr, 0);
+
         if (m_terrain_mesh_id) {
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id);
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id, false);
         }
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
+            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, false);
 
         m_num_frames_rendered_for_file++;
     }
