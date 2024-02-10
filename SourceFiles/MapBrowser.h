@@ -36,6 +36,7 @@ public:
     void OnDeviceLost() override;
     void OnDeviceRestored() override;
 
+
     // Messages
     void OnActivated();
     void OnDeactivated();
@@ -60,6 +61,8 @@ private:
 
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
+
+    void DrawStopExtractionButton();
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources> m_deviceResources;
