@@ -10,6 +10,7 @@
 #include <SkyPixelShader.h>
 #include <CloudsPixelShader.h>
 #include <OldModelShadowMapPixelShader.h>
+#include <WaterPixelShader.h>
 
 enum class PixelShaderType
 {
@@ -23,6 +24,7 @@ enum class PixelShaderType
     NewModel, // Primarily Nightfall and EotN
     Sky,
     Clouds,
+    Water,
     OldModelShadowMap
 };
 
@@ -93,6 +95,11 @@ public:
         case PixelShaderType::Clouds:
             hr = D3DCompile(CloudsPixelShader::shader_ps,
                 strlen(CloudsPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
+            break;
+        case PixelShaderType::Water:
+            hr = D3DCompile(WaterPixelShader::shader_ps,
+                strlen(WaterPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
                 "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         case PixelShaderType::OldModelShadowMap:

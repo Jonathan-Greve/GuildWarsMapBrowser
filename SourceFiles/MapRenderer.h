@@ -121,6 +121,14 @@ public:
                 std::make_unique<PixelShader>(m_device, m_deviceContext);
             m_pixel_shaders[PixelShaderType::Clouds]->Initialize(PixelShaderType::Clouds);
         }
+        
+        if (!m_pixel_shaders.contains(PixelShaderType::Water))
+        {
+            m_pixel_shaders[PixelShaderType::Water] =
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::Water]->Initialize(PixelShaderType::Water);
+        }
+
         if (!m_pixel_shaders.contains(PixelShaderType::OldModelShadowMap))
         {
             m_pixel_shaders[PixelShaderType::OldModelShadowMap] =
@@ -327,6 +335,9 @@ public:
     void SetCloudsMeshId(int clouds_mesh_id) { m_clouds_mesh_id = clouds_mesh_id; }
     int GetCloudsMeshId() { return m_clouds_mesh_id; }
 
+    void SetWaterMeshId(int water_mesh_id) { m_water_mesh_id = water_mesh_id; }
+    int GetWaterMeshId() { return m_water_mesh_id; }
+
     // A prop consists of 1+ sub models/meshes.
     std::vector<int> AddProp(std::vector<Mesh> meshes, std::vector<PerObjectCB>& per_object_cbs,
         uint32_t model_id, PixelShaderType pixel_shader_type)
@@ -511,6 +522,16 @@ public:
         //    m_mesh_manager->UpdateMeshPerObjectData(m_clouds_mesh_id, clouds_per_object_data);
         //}
 
+        //const auto water_cb_opt = m_mesh_manager->GetMeshPerObjectData(m_water_mesh_id);
+        //if (water_cb_opt.has_value()) {
+        //    auto water_per_object_data = water_cb_opt.value();
+
+        //    DirectX::XMFLOAT4X4 water_world_matrix;
+        //    DirectX::XMStoreFloat4x4(&water_world_matrix, DirectX::XMMatrixTranslation(m_user_camera->GetPosition3f().x, 0, m_user_camera->GetPosition3f().z));
+        //    water_per_object_data.world = water_world_matrix;
+        //    m_mesh_manager->UpdateMeshPerObjectData(m_water_mesh_id, water_per_object_data);
+        //}
+
         // Update per frame CB
         PerFrameCB frameCB;
         frameCB.directionalLight = m_directionalLight;
@@ -567,6 +588,8 @@ public:
             m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Enabled);
         }
 
+        
+
         // picking_render_target can be null when writing to the offscreen buffer where picking isn't needed.
         if (picking_render_target) {
             ID3D11RenderTargetView* multipleRenderTargets[] = { render_target_view, picking_render_target };
@@ -580,6 +603,12 @@ public:
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
             m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
+
+        if (m_water_mesh_id) {
+            m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
+            m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_water_mesh_id);
+        }
         
         m_num_frames_rendered_for_file++;
     }
@@ -704,6 +733,7 @@ private:
 
     int m_sky_mesh_id = -1;
     int m_clouds_mesh_id = -1;
+    int m_water_mesh_id = -1;
 
     DirectionalLight m_directionalLight;
     bool m_per_frame_cb_changed = true;

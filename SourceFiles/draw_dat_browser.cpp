@@ -533,6 +533,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             uint8_t sky_clouds_texture_filename_index1 = 0xFF;
             uint8_t sky_sun_texture_filename_index = 0xFF;
             uint8_t cloud_texture_filename_index = 0;
+            uint8_t water_texture_filename_index = 0xFF;
+            uint8_t water_normal_map_texture_index = 0xFF;
 
             if (environment_info_chunk.env_sub_chunk5.size() > 0) {
                 const auto& sub5_0 = environment_info_chunk.env_sub_chunk5[0];
@@ -547,6 +549,12 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 sky_clouds_texture_filename_index0 = sub5_0.sky_clouds_texture_index0;
                 sky_clouds_texture_filename_index1 = sub5_0.sky_clouds_texture_index1;
                 sky_sun_texture_filename_index = sub5_0.sky_sun_texture_index;
+            }
+
+            if (!environment_info_chunk.env_sub_chunk6.empty()) {
+                const auto& sub6_0 = environment_info_chunk.env_sub_chunk6[0];
+                water_texture_filename_index = sub6_0.water_texture_index;
+                water_normal_map_texture_index = sub6_0.water_normal_texture_index;
             }
 
             std::vector<uint8_t> sky_texture_filename_indices{ sky_background_filename_index, sky_clouds_texture_filename_index0, sky_clouds_texture_filename_index1, sky_sun_texture_filename_index };
@@ -635,6 +643,62 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                         }
                     }
                 }
+            }
+
+            std::vector<uint8_t> water_texture_filename_indices{ water_texture_filename_index, water_normal_map_texture_index };
+
+            std::vector<ID3D11ShaderResourceView*> water_textures(water_texture_filename_indices.size(), nullptr);
+            for (int i = 0; i < water_texture_filename_indices.size(); i++) {
+                const auto filename_index = water_texture_filename_indices[i];
+                if (filename_index >= environment_info_filenames_chunk.filenames.size()) {
+                    continue;
+                }
+
+                const auto& filename = environment_info_filenames_chunk.filenames[filename_index];
+                auto decoded_filename = decode_filename(filename.filename.id0, filename.filename.id1);
+
+                auto mft_entry_it = hash_index.find(decoded_filename);
+                if (mft_entry_it != hash_index.end())
+                {
+                    auto type = dat_manager->get_MFT()[mft_entry_it->second.at(0)].type;
+                    const DatTexture dat_texture = dat_manager->parse_ffna_texture_file(mft_entry_it->second.at(0));
+                    int texture_id = -1;
+                    if (dat_texture.width > 0 && dat_texture.height > 0) {
+
+                        auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                            dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
+                            &texture_id, decoded_filename);
+                        if (SUCCEEDED(HR) && texture_id >= 0) {
+                            water_textures[i] = map_renderer->GetTextureManager()->GetTexture(texture_id);
+                        }
+                    }
+                }
+            }
+
+            if (water_textures.size() > 0) {
+                const int water_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCircle(67723.75f, PixelShaderType::Water);
+                map_renderer->SetWaterMeshId(water_mesh_id);
+                map_renderer->GetMeshManager()->SetMeshShouldCull(water_mesh_id, false);
+                map_renderer->GetMeshManager()->SetMeshShouldRender(water_mesh_id, false); // we will manually render it first before any other meshes.
+
+                const auto& map_bounds = selected_ffna_map_file.map_info_chunk.map_bounds;
+
+                const float map_center_x = (map_bounds.map_min_x + map_bounds.map_max_x) / 2.0f;
+                const float map_center_z = (map_bounds.map_min_z + map_bounds.map_max_z) / 2.0f;
+
+                DirectX::XMFLOAT4X4 water_world_matrix;
+                DirectX::XMStoreFloat4x4(&water_world_matrix, DirectX::XMMatrixTranslation(map_center_x, 0, map_center_z));
+                PerObjectCB water_per_object_data;
+                water_per_object_data.world = water_world_matrix;
+                for (int i = 0; i < sky_textures.size(); i++) {
+                    water_per_object_data.texture_indices[i / 4][i % 4] = 0;
+                    water_per_object_data.texture_types[i / 4][i % 4] = water_textures[i] == nullptr ? 0xFF : 0;
+                }
+
+                water_per_object_data.num_uv_texture_pairs = water_textures.size();
+                map_renderer->GetMeshManager()->UpdateMeshPerObjectData(water_mesh_id, water_per_object_data);
+
+                map_renderer->GetMeshManager()->SetTexturesForMesh(water_mesh_id, water_textures, 3);
             }
 
             auto& terrain_texture_filenames = selected_ffna_map_file.terrain_texture_filenames.array;

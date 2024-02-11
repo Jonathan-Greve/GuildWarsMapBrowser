@@ -294,16 +294,7 @@ PSOutput main(PixelInputType input)
 
 	// ------------ TEXTURE END ----------------
 
-    float4 outputColor;
-    if (input.world_position.y <= water_level)
-    {
-        float4 blue_color = float4(0.11, 0.65, 0.81, 1.0); // Water color
-        outputColor = finalColor * splattedTextureColor * blue_color;
-    }
-    else
-    {
-        outputColor = finalColor * splattedTextureColor;
-    }
+    float4 outputColor = finalColor * splattedTextureColor;
 
     float luminance = dot(outputColor.rgb, float3(0.299, 0.587, 0.114));
 
