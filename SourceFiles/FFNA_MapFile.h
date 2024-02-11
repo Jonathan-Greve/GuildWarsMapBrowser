@@ -1052,12 +1052,28 @@ struct EnvSubChunk5_other {
 };
 
 struct EnvSubChunk6 {
-    uint8_t data[0x39];
+    uint8_t unknown[9];
+    float water_properties[9];
+    uint8_t unknown1[8];
+    uint16_t water_texture_index;
+    uint16_t water_normal_texture_index;
 
     EnvSubChunk6() = default;
     EnvSubChunk6(const unsigned char* data, int& offset) {
-        std::memcpy(this->data, &data[offset], sizeof(this->data));
-        offset += sizeof(this->data);
+        std::memcpy(unknown, &data[offset], sizeof(unknown));
+        offset += sizeof(unknown);
+
+        std::memcpy(water_properties, &data[offset], sizeof(water_properties));
+        offset += sizeof(water_properties);
+
+        std::memcpy(unknown1, &data[offset], sizeof(unknown1));
+        offset += sizeof(unknown1);
+
+        std::memcpy(&water_texture_index, &data[offset], sizeof(water_texture_index));
+        offset += sizeof(water_texture_index);
+
+        std::memcpy(&water_normal_texture_index, &data[offset], sizeof(water_normal_texture_index));
+        offset += sizeof(water_normal_texture_index);
     }
 };
 
