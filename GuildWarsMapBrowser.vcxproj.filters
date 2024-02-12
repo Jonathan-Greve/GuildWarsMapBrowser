@@ -152,6 +152,12 @@
     <Filter Include="Render\Shaders\Pixel shaders\Water">
       <UniqueIdentifier>{f4f0fec8-e7a1-4e8e-97e7-35988c053eb0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Render\Shaders\Pixel shaders\Model\Reflection">
+      <UniqueIdentifier>{f9df4868-217f-4645-bfff-973e84b61b41}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Shaders\Pixel shaders\Terrain\Reflection">
+      <UniqueIdentifier>{051e1a43-2ee1-4cd1-a4d5-133ea063f40d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -513,6 +519,12 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\WaterPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Water</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\OldModelReflectionPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Model\Reflection</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\TerrainReflectionTexturedWithShadowsPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Terrain\Reflection</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -895,6 +907,12 @@
     </FxCompile>
     <FxCompile Include="SourceFiles\WaterPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Water</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\OldModelReflectionPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Model\Reflection</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\TerrainReflectionTexturedWithShadowsPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Terrain\Reflection</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
