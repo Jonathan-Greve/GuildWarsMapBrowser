@@ -11,6 +11,8 @@
 #include <CloudsPixelShader.h>
 #include <OldModelShadowMapPixelShader.h>
 #include <WaterPixelShader.h>
+#include <TerrainReflectionTexturedWithShadowsPixelShader.h>
+#include <OldModelReflectionPixelShader.h>
 
 enum class PixelShaderType
 {
@@ -25,7 +27,9 @@ enum class PixelShaderType
     Sky,
     Clouds,
     Water,
-    OldModelShadowMap
+    OldModelShadowMap,
+    OldModelReflection,
+    TerrainReflectionTexturedWithShadows
 };
 
 class PixelShader
@@ -105,6 +109,16 @@ public:
         case PixelShaderType::OldModelShadowMap:
             hr = D3DCompile(OldModelShadowMapPixelShader::shader_ps,
                 strlen(OldModelShadowMapPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
+            break;
+        case PixelShaderType::OldModelReflection:
+            hr = D3DCompile(OldModelReflectionPixelShader::shader_ps,
+                strlen(OldModelReflectionPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
+            break;
+        case PixelShaderType::TerrainReflectionTexturedWithShadows:
+            hr = D3DCompile(TerrainReflectionTexturedWithShadowsPixelShader::shader_ps,
+                strlen(TerrainReflectionTexturedWithShadowsPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
                 "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         default:

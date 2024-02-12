@@ -136,6 +136,20 @@ public:
             m_pixel_shaders[PixelShaderType::OldModelShadowMap]->Initialize(PixelShaderType::OldModelShadowMap);
         }
 
+        if (!m_pixel_shaders.contains(PixelShaderType::OldModelReflection))
+        {
+            m_pixel_shaders[PixelShaderType::OldModelReflection] =
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::OldModelReflection]->Initialize(PixelShaderType::OldModelReflection);
+        }
+
+        if (!m_pixel_shaders.contains(PixelShaderType::TerrainReflectionTexturedWithShadows))
+        {
+            m_pixel_shaders[PixelShaderType::TerrainReflectionTexturedWithShadows] =
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::TerrainReflectionTexturedWithShadows]->Initialize(PixelShaderType::TerrainReflectionTexturedWithShadows);
+        }
+
         // Set up the constant buffer for the camera
         D3D11_BUFFER_DESC buffer_desc = {};
         buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -640,27 +654,26 @@ public:
 
         if (m_terrain_mesh_id) {
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id);
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id, true, 
+                true, PixelShaderType::TerrainReflectionTexturedWithShadows);
         }
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
+            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, true, 
+            true, PixelShaderType::OldModelReflection);
     }
 
     void RenderForShadowMap(ID3D11DepthStencilView* depth_stencil_view)
     {
         m_deviceContext->OMSetRenderTargets(0, nullptr, depth_stencil_view);
 
-
-        m_deviceContext->PSSetShader(m_pixel_shaders[PixelShaderType::OldModelShadowMap]->GetShader(), nullptr, 0);
-
         if (m_terrain_mesh_id) {
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id, false);
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id, true);
         }
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, false);
+            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, true, true, PixelShaderType::OldModelShadowMap);
 
         m_num_frames_rendered_for_file++;
     }

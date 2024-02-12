@@ -116,16 +116,19 @@ float4 main(PixelInputType input) : SV_TARGET
     final_color = 0.5 * (waterColor0 + waterColor1);
     
     // ============ REFLECTION START =====================
-    float3 ndcPos = input.reflectionSpacePos.xyz / input.reflectionSpacePos.w;
+    if (input.reflectionSpacePos.y > water_level)
+    {
+        float3 ndcPos = input.reflectionSpacePos.xyz / input.reflectionSpacePos.w;
 
-    // Transform position to shadow map texture space
-    float2 reflectionCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
-    float4 reflectionColor = shaderTextures[2].Sample(ss, reflectionCoord);
+        // Transform position to shadow map texture space
+        float2 reflectionCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
+        float4 reflectionColor = shaderTextures[2].Sample(ss, reflectionCoord);
     
-    // Combine the reflection color with the final color
-    // This can be adjusted based on the desired reflection intensity and blending mode
-    final_color = lerp(final_color, reflectionColor, 0.5); // Simple blend for demonstration
-    // ============ REFLECTION START =====================
+        // Combine the reflection color with the final color
+        // This can be adjusted based on the desired reflection intensity and blending mode
+        final_color = lerp(final_color, reflectionColor, 0.7); // Simple blend for demonstration
+    }
+    // ============ REFLECTION END =====================
     
     // Combine the normals (this is a simple way; for better results, you might blend them based on some criteria)
     float3 normal0 = normalize(normalColor0.rgb * 2.0 - 1.0); // Convert from [0, 1] to [-1, 1]
@@ -158,7 +161,7 @@ float4 main(PixelInputType input) : SV_TARGET
     fogFactor = clamp(fogFactor, 0.0, 1.0);
     final_color = lerp(float4(fog_color_rgb, 1.0), final_color, fogFactor);
     
-    float water_alpha = clamp(1.0f - viewDirection.y, 0.7, 1.0);
+    float water_alpha = clamp(1.0f - viewDirection.y, 0.8, 1.0);
 
     return float4(final_color.rgb, water_alpha);
 }
