@@ -45,6 +45,7 @@ public:
     void SetFrustumAsPerspective(float fovY, float aspect, float zn, float zf);
     void SetFrustumAsOrthographic(float view_width, float view_height, float zn, float zf);
     void LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp);
+    void LookAt(FXMVECTOR target, FXMVECTOR worldUp);
     void SetOrientation(float pitch, float yaw);
     void Strafe(StrafeDirection strafe_direction, double dt);
     void Walk(WalkDirection walk_direction, double dt);

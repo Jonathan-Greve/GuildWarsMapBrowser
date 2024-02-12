@@ -690,7 +690,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 DirectX::XMStoreFloat4x4(&water_world_matrix, DirectX::XMMatrixTranslation(map_center_x, 0, map_center_z));
                 PerObjectCB water_per_object_data;
                 water_per_object_data.world = water_world_matrix;
-                for (int i = 0; i < sky_textures.size(); i++) {
+                for (int i = 0; i < water_textures.size(); i++) {
                     water_per_object_data.texture_indices[i / 4][i % 4] = 0;
                     water_per_object_data.texture_types[i / 4][i % 4] = water_textures[i] == nullptr ? 0xFF : 0;
                 }
@@ -698,7 +698,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 water_per_object_data.num_uv_texture_pairs = water_textures.size();
                 map_renderer->GetMeshManager()->UpdateMeshPerObjectData(water_mesh_id, water_per_object_data);
 
-                map_renderer->GetMeshManager()->SetTexturesForMesh(water_mesh_id, water_textures, 3);
+                map_renderer->GetMeshManager()->SetTexturesForMesh(water_mesh_id, water_textures, 0);
             }
 
             auto& terrain_texture_filenames = selected_ffna_map_file.terrain_texture_filenames.array;

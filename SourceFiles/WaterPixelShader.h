@@ -6,7 +6,7 @@ struct WaterPixelShader
 #define CHECK_TEXTURE_SET(TYPE) TYPE == texture_type
 
 sampler ss : register(s0);
-Texture2D shaderTextures[8] : register(t3);
+Texture2D shaderTextures[8] : register(t0);
 
 #define DARKGREEN float3(0.4, 1.0, 0.4)
 #define LIGHTGREEN float3(0.0, 0.5, 0.0)
@@ -50,8 +50,11 @@ cbuffer PerCameraCB : register(b2)
     matrix Projection;
     matrix directional_light_view;
     matrix directional_light_proj;
+    matrix reflection_view;
+    matrix reflection_proj;
     float3 cam_position;
     float2 shadowmap_texel_size;
+    float2 reflection_texel_size;
 };
 
 cbuffer PerTerrainCB : register(b3)
@@ -77,7 +80,7 @@ struct PixelInputType
     float2 tex_coords3 : TEXCOORD3;
     float2 tex_coords4 : TEXCOORD4;
     float2 tex_coords5 : TEXCOORD5;
-    float2 tex_coords6 : TEXCOORD6;
+    float4 reflectionSpacePos : TEXCOORD6;
     float4 lightSpacePos : TEXCOORD7;
     float3 world_position : TEXCOORD8;
     float3x3 TBN : TEXCOORD9;
@@ -114,10 +117,21 @@ float4 main(PixelInputType input) : SV_TARGET
     // Sample normal map at two coordinates
     float4 normalColor0 = shaderTextures[1].Sample(ss, normalCoord0);
     float4 normalColor1 = shaderTextures[1].Sample(ss, normalCoord1);
-
-    // Combine the sampled colors
+    
     final_color = 0.5 * (waterColor0 + waterColor1);
+    
+    // ============ REFLECTION START =====================
+    float3 ndcPos = input.reflectionSpacePos.xyz / input.reflectionSpacePos.w;
 
+    // Transform position to shadow map texture space
+    float2 reflectionCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
+    float4 reflectionColor = shaderTextures[2].Sample(ss, reflectionCoord);
+    
+    // Combine the reflection color with the final color
+    // This can be adjusted based on the desired reflection intensity and blending mode
+    final_color = lerp(final_color, reflectionColor, 0.5); // Simple blend for demonstration
+    // ============ REFLECTION START =====================
+    
     // Combine the normals (this is a simple way; for better results, you might blend them based on some criteria)
     float3 normal0 = normalize(normalColor0.rgb * 2.0 - 1.0); // Convert from [0, 1] to [-1, 1]
     float3 normal1 = normalize(normalColor1.rgb * 2.0 - 1.0);
@@ -130,9 +144,8 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 ambientComponent = directionalLight.ambient;
     float4 diffuseComponent = directionalLight.diffuse * NdotL;
 
-    // Calculate view direction and ensure normalization
     float3 viewDirection = normalize(cam_position - input.world_position.xyz);
-
+    
     // Compute half vector and ensure normalization
     float3 halfVector = normalize(lightDir + viewDirection);
     float NdotH = max(dot(normal, halfVector), 0.0);

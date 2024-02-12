@@ -37,8 +37,11 @@ cbuffer PerCameraCB : register(b2)
     matrix Projection;
     matrix directional_light_view;
     matrix directional_light_proj;
+    matrix reflection_view;
+    matrix reflection_proj;
     float3 cam_position;
     float2 shadowmap_texel_size;
+    float2 reflection_texel_size;
 };
 
 cbuffer PerTerrainCB : register(b3)
@@ -68,7 +71,7 @@ struct PixelInputType
     float2 tex_coords3 : TEXCOORD3;
     float2 tex_coords4 : TEXCOORD4;
     float2 tex_coords5 : TEXCOORD5;
-    float2 tex_coords6 : TEXCOORD6;
+    float4 reflectionSpacePos : TEXCOORD6;
     float4 lightSpacePos : TEXCOORD7;
     float3 world_position : TEXCOORD8;
     float3x3 TBN : TEXCOORD9;

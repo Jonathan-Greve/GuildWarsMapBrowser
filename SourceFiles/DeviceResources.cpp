@@ -636,9 +636,83 @@ void DeviceResources::Present()
     }
 }
 
+void DX::DeviceResources::CreateReflectionResources(UINT width, UINT height)
+{
+    // Reset existing resources
+    m_reflectionRTV.Reset();
+    m_reflectionSRV.Reset();
+    m_reflectionRenderTarget.Reset();
+    m_reflectionDepthStencil.Reset();
+    m_reflectionDepthStencilView.Reset();
+    m_d3dContext->Flush();
+
+    // Setup the texture description for the reflection render target
+    D3D11_TEXTURE2D_DESC reflectionDesc = {};
+    reflectionDesc.Width = width;
+    reflectionDesc.Height = height;
+    reflectionDesc.MipLevels = 1;
+    reflectionDesc.ArraySize = 1;
+    reflectionDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Or any format suitable for your reflection texture
+    reflectionDesc.SampleDesc.Count = 1; // Adjust if using MSAA
+    reflectionDesc.SampleDesc.Quality = 0;
+    reflectionDesc.Usage = D3D11_USAGE_DEFAULT;
+    reflectionDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    reflectionDesc.CPUAccessFlags = 0;
+    reflectionDesc.MiscFlags = 0;
+
+    // Create the reflection render target texture
+    DX::ThrowIfFailed(
+        m_d3dDevice->CreateTexture2D(&reflectionDesc, nullptr, m_reflectionRenderTarget.GetAddressOf())
+    );
+
+    // Create the render target view for the reflection texture
+    DX::ThrowIfFailed(
+        m_d3dDevice->CreateRenderTargetView(m_reflectionRenderTarget.Get(), nullptr, m_reflectionRTV.GetAddressOf())
+    );
+
+    // Create the shader resource view for the reflection texture
+    DX::ThrowIfFailed(
+        m_d3dDevice->CreateShaderResourceView(m_reflectionRenderTarget.Get(), nullptr, m_reflectionSRV.GetAddressOf())
+    );
+
+    // Setup the depth stencil texture description
+    D3D11_TEXTURE2D_DESC depthStencilDesc = {};
+    depthStencilDesc.Width = width;
+    depthStencilDesc.Height = height;
+    depthStencilDesc.MipLevels = 1;
+    depthStencilDesc.ArraySize = 1;
+    depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // Common depth stencil format
+    depthStencilDesc.SampleDesc.Count = 1; // Ensure this matches your render target's sample count
+    depthStencilDesc.SampleDesc.Quality = 0;
+    depthStencilDesc.Usage = D3D11_USAGE_DEFAULT;
+    depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    depthStencilDesc.CPUAccessFlags = 0;
+    depthStencilDesc.MiscFlags = 0;
+
+    // Create the depth stencil texture
+    DX::ThrowIfFailed(
+        m_d3dDevice->CreateTexture2D(&depthStencilDesc, nullptr, m_reflectionDepthStencil.GetAddressOf())
+    );
+
+    // Create the depth stencil view
+    DX::ThrowIfFailed(
+        m_d3dDevice->CreateDepthStencilView(m_reflectionDepthStencil.Get(), nullptr, m_reflectionDepthStencilView.GetAddressOf())
+    );
+
+    // Setup the viewport for rendering reflection
+    m_reflectionViewport.Width = static_cast<float>(width);
+    m_reflectionViewport.Height = static_cast<float>(height);
+    m_reflectionViewport.MinDepth = 0.0f;
+    m_reflectionViewport.MaxDepth = 1.0f;
+    m_reflectionViewport.TopLeftX = 0;
+    m_reflectionViewport.TopLeftY = 0;
+}
+
+
 void DeviceResources::CreateShadowResources(UINT shadowMapWidth, UINT shadowMapHeight)
 {
-    m_shadowMapDSV.Reset();
+    m_shadowMap.Reset();
+    m_shadowMapSRV.Reset();
     m_shadowMapDSV.Reset();
     m_d3dContext->Flush();
 

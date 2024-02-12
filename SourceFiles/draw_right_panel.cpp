@@ -20,7 +20,6 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
     float window_height = 0;
     if (ImGui::Begin("Render settings", NULL, window_flags))
     {
-        static float water_level = 0.0f;
         static float terrain_tex_pad_x = 0.03f;
         static float terrain_tex_pad_y = 0.03f;
 
@@ -64,6 +63,8 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
         {
             float min_level = terrain->m_bounds.map_min_y;
             float max_level = terrain->m_bounds.map_max_y;
+
+            float water_level = map_renderer->GetWaterLevel();
 
             // Create the slider for changing the water level with text input enabled
             if (ImGui::SliderFloat("Water level", &water_level, min_level, max_level, "%.2f", 0))

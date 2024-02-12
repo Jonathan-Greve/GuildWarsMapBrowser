@@ -36,8 +36,11 @@ cbuffer PerCameraCB : register(b2)
     matrix Projection;
     matrix directional_light_view;
     matrix directional_light_proj;
+    matrix reflection_view;
+    matrix reflection_proj;
     float3 cam_position;
     float2 shadowmap_texel_size;
+    float2 reflection_texel_size;
 };
 
 struct VertexInputType
@@ -67,7 +70,7 @@ struct PixelInputType
     float2 tex_coords3 : TEXCOORD3;
     float2 tex_coords4 : TEXCOORD4;
     float2 tex_coords5 : TEXCOORD5;
-    float2 tex_coords6 : TEXCOORD6;
+    float4 reflectionSpacePos : TEXCOORD6;
     float4 lightSpacePos : TEXCOORD7;
     float3 world_position : TEXCOORD8;
     float3x3 TBN : TEXCOORD9;
@@ -94,7 +97,6 @@ PixelInputType main(VertexInputType input)
     output.tex_coords3 = input.tex_coords3;
     output.tex_coords4 = input.tex_coords4;
     output.tex_coords5 = input.tex_coords5;
-    output.tex_coords6 = input.tex_coords6;
 
     // Lighting computation
     if (input.tangent.x == 0.0f && input.tangent.y == 0.0f && input.tangent.z == 0.0f ||
@@ -140,6 +142,10 @@ PixelInputType main(VertexInputType input)
     // Transform position to light space for shadow mapping
     float4 lightViewPosition = mul(worldPosition, directional_light_view);
     output.lightSpacePos = mul(lightViewPosition, directional_light_proj);
+    
+    // Transform position to reflection space for water reflections
+    float4 reflectionViewPosition = mul(worldPosition, reflection_view);
+    output.reflectionSpacePos = mul(reflectionViewPosition, reflection_proj);
 
     return output;
 }
