@@ -354,13 +354,17 @@ public:
 	// Render only a specific mesh. Ignores should_render.
 	void RenderMesh(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
 		BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
-		DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, int mesh_id, bool should_set_ps = true) {
+		DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, int mesh_id, bool should_set_ps = true,
+		bool should_overwrite_shader = false, PixelShaderType overwrite_shader = PixelShaderType::OldModel) {
 
 		auto command = m_renderBatch.GetCommand(mesh_id);
 		if (command.has_value()) {
 			m_deviceContext->IASetPrimitiveTopology(command->primitiveTopology);
 
-			if (should_set_ps) {
+			if (should_overwrite_shader) {
+				m_deviceContext->PSSetShader(pixel_shaders[overwrite_shader]->GetShader(), nullptr, 0);
+			}
+			else if (should_set_ps) {
 				m_deviceContext->PSSetShader(pixel_shaders[command->pixelShaderType]->GetShader(), nullptr, 0);
 			}
 			m_deviceContext->PSSetSamplers(0, 1, pixel_shaders[command->pixelShaderType]->GetSamplerState());
@@ -393,7 +397,10 @@ public:
 
 	void Render(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
 	            BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
-	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, bool should_set_ps = true)
+	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, bool should_set_ps = true,
+				bool should_overwrite_old_model_shader = false, PixelShaderType overwrite_old_model_shader = PixelShaderType::OldModel,
+				bool should_overwrite_new_model_shader = false, PixelShaderType overwrite_new_model_shader = PixelShaderType::NewModel
+		)
 	{
 		static D3D11_PRIMITIVE_TOPOLOGY currentTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
 		
@@ -412,7 +419,14 @@ public:
 				m_deviceContext->IASetPrimitiveTopology(command.primitiveTopology);
 				currentTopology = command.primitiveTopology;
 			}
-			if (should_set_ps) {
+
+			if (should_overwrite_old_model_shader && command.pixelShaderType == PixelShaderType::OldModel) {
+				m_deviceContext->PSSetShader(pixel_shaders[overwrite_old_model_shader]->GetShader(), nullptr, 0);
+			}
+			else if (should_overwrite_new_model_shader && command.pixelShaderType == PixelShaderType::NewModel) {
+				m_deviceContext->PSSetShader(pixel_shaders[overwrite_new_model_shader]->GetShader(), nullptr, 0);
+			}
+			else if (should_set_ps) {
 				m_deviceContext->PSSetShader(pixel_shaders[command.pixelShaderType]->GetShader(), nullptr, 0);
 			}
 			m_deviceContext->PSSetSamplers(0, 1, pixel_shaders[command.pixelShaderType]->GetSamplerState());
