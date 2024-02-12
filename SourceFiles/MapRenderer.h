@@ -190,8 +190,9 @@ public:
 
     void UpdateTerrainWaterLevel(float new_water_level)
     {
+        m_water_level = new_water_level;
         auto cb = m_terrain->m_per_terrain_cb;
-        cb.water_level = new_water_level;
+        cb.water_level = m_water_level;
         m_terrain->m_per_terrain_cb = cb;
 
         D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
@@ -200,6 +201,8 @@ public:
         memcpy(mappedResourceFrame.pData, &m_terrain->m_per_terrain_cb, sizeof(PerTerrainCB));
         m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
     }
+
+    float GetWaterLevel() { return m_water_level; }
 
     void UpdateTerrainTexturePadding(float padding_x, float padding_y)
     {
@@ -244,11 +247,10 @@ public:
         }
         m_mesh_manager->UpdateMeshPerObjectData(m_terrain_mesh_id, terrainPerObjectData);
 
-        auto water_level = m_terrain ? m_terrain->m_per_terrain_cb.water_level : 0.0f;
         terrain->m_per_terrain_cb =
             PerTerrainCB(terrain->m_grid_dim_x, terrain->m_grid_dim_z, terrain->m_bounds.map_min_x,
                 terrain->m_bounds.map_max_x, terrain->m_bounds.map_min_y, terrain->m_bounds.map_max_y,
-                terrain->m_bounds.map_min_z, terrain->m_bounds.map_max_z, water_level, 0.03, 0.03, { 0 });
+                terrain->m_bounds.map_min_z, terrain->m_bounds.map_max_z, m_water_level, 0.03, 0.03, { 0 });
 
         D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
         ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
@@ -613,6 +615,38 @@ public:
         m_num_frames_rendered_for_file++;
     }
 
+    void RenderForReflection(ID3D11RenderTargetView* render_target_view, ID3D11DepthStencilView* depth_stencil_view)
+    {
+        m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
+
+        // Render sky before anything else
+        if (m_sky_mesh_id >= 0 && m_should_render_sky) {
+
+            m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Disabled);
+            m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_sky_mesh_id);
+
+            // Reenable depth write.
+            m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Enabled);
+        }
+
+        // Render Clouds
+        if (m_clouds_mesh_id >= 0 && m_should_render_sky) {
+            m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Disabled);
+            m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_clouds_mesh_id);
+            m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Enabled);
+        }
+
+        if (m_terrain_mesh_id) {
+            m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id);
+        }
+
+        m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
+    }
+
     void RenderForShadowMap(ID3D11DepthStencilView* depth_stencil_view)
     {
         m_deviceContext->OMSetRenderTargets(0, nullptr, depth_stencil_view);
@@ -748,6 +782,8 @@ private:
     float m_fog_end = 100000000000.0f; 
     float m_fog_start_y = 0;
     float m_fog_end_y = 0;
+
+    float m_water_level = 0;
 
     int m_num_frames_rendered_for_file = 0;
 

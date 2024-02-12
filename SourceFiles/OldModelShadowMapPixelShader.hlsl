@@ -12,7 +12,7 @@ struct PixelInputType
     float2 tex_coords3 : TEXCOORD3;
     float2 tex_coords4 : TEXCOORD4;
     float2 tex_coords5 : TEXCOORD5;
-    float2 tex_coords6 : TEXCOORD6;
+    float4 reflectionSpacePos : TEXCOORD6;
     float4 lightSpacePos : TEXCOORD7;
     float3 world_position : TEXCOORD8;
     float3x3 TBN : TEXCOORD9;
@@ -51,10 +51,10 @@ void main(PixelInputType input)
     float alpha = 1.0f; // Default opaque
     uint blend_flag = 0;
     
-    float2 texCoordsArray[7] =
+    float2 texCoordsArray[6] =
     {
         input.tex_coords0, input.tex_coords1, input.tex_coords2, input.tex_coords3,
-                                 input.tex_coords4, input.tex_coords5, input.tex_coords6
+                                 input.tex_coords4, input.tex_coords5
     };
 
     // Loop through textures
@@ -65,7 +65,7 @@ void main(PixelInputType input)
         uint texture_index = texture_indices[i / 4][i % 4];
         uint blend_flag = blend_flags[i / 4][i % 4];
 
-        for (int j = 0; j < 8; ++j)
+        for (int j = 0; j < 6; ++j)
         {
             if (j == texture_index)
             {

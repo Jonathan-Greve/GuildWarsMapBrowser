@@ -247,7 +247,7 @@ void MapBrowser::Render()
 
         m_map_renderer->Update(0); // Update camera CB
 
-        m_deviceResources->CreateShadowResources(16384 / 2, 16384 / 2);
+        m_deviceResources->CreateShadowResources(shadowmap_width, shadowmap_height);
         ClearShadow();
         m_map_renderer->RenderForShadowMap(m_deviceResources->GetShadowMapDSV());
 
@@ -263,7 +263,7 @@ void MapBrowser::Render()
         {
             m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
             m_map_renderer->GetCamera()->SetFrustumAsPerspective(camera_fovY, camera_aspect_ration, camera_near, camera_far);
-            m_map_renderer->GetCamera()->SetOrientation(camera_pitch * XM_PI / 180, camera_yaw * XM_PI / 180);
+            m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
             
         }
         else
@@ -272,6 +272,74 @@ void MapBrowser::Render()
             m_map_renderer->GetCamera()->SetFrustumAsOrthographic(camera_frustrum_width, camera_frustrum_height / camera_aspect_ration, camera_near, camera_far);
             m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
         }
+
+        m_map_renderer->Update(0); // Update camera CB
+
+        m_map_renderer->SetShouldRenderSky(should_render_sky);
+    }
+
+    if (m_map_renderer->GetTerrain() && m_map_renderer->GetWaterMeshId() >= 0) {
+        bool should_render_sky = m_map_renderer->GetShouldRenderSky();
+        m_map_renderer->SetShouldRenderSky(false);
+        const auto camera_type = m_map_renderer->GetCamera()->GetCameraType();
+        const auto camera_pos = m_map_renderer->GetCamera()->GetPosition3f();
+        const auto camera_pitch = m_map_renderer->GetCamera()->GetPitch();
+        const auto camera_yaw = m_map_renderer->GetCamera()->GetYaw();
+        const auto camera_fovY = m_map_renderer->GetCamera()->GetFovY();
+        const auto camera_frustrum_width = m_map_renderer->GetCamera()->GetViewWidth();
+        const auto camera_frustrum_height = m_map_renderer->GetCamera()->GetViewHeight();
+        const auto camera_aspect_ration = m_map_renderer->GetCamera()->GetAspectRatio();
+        const auto camera_near = m_map_renderer->GetCamera()->GetNearZ();
+        const auto camera_far = m_map_renderer->GetCamera()->GetFarZ();
+
+        float water_level = m_map_renderer->GetWaterLevel();
+        const auto cam_look = NormalizeXMFLOAT3(m_map_renderer->GetCamera()->GetLook3f());
+
+        const XMVECTOR reflection_dir{cam_look.x, -cam_look.y, cam_look.z};
+
+        // Place the camera under the water surface by relecting the camera y position around the xz plane.
+        m_map_renderer->GetCamera()->SetPosition(
+            camera_pos.x, 
+            2 * water_level - camera_pos.y, 
+            camera_pos.z);
+        m_map_renderer->GetCamera()->LookAt(reflection_dir, { 0,-1,0 });
+        m_map_renderer->GetCamera()->Update(0);
+
+#ifdef _DEBUG
+        constexpr float reflection_width = 16384 / 20;
+        constexpr float reflection_height = 16384 / 20;
+#else
+        constexpr float reflection_width = 16384 / 10;
+        constexpr float reflection_height = 16384 / 10;
+#endif
+
+        // Update Camera Constant Buffer with light view projection matrix
+        const auto view = m_map_renderer->GetCamera()->GetView();
+        const auto proj = m_map_renderer->GetCamera()->GetProj();
+        auto curr_per_camera_cb = m_map_renderer->GetPerCameraCB();
+        XMStoreFloat4x4(&curr_per_camera_cb.reflection_view, XMMatrixTranspose(view));
+        XMStoreFloat4x4(&curr_per_camera_cb.reflection_proj, XMMatrixTranspose(proj));
+        curr_per_camera_cb.reflection_texel_size_x = 1.0f / reflection_width;
+        curr_per_camera_cb.reflection_texel_size_y = 1.0f / reflection_height;
+        m_map_renderer->SetPerCameraCB(curr_per_camera_cb);
+
+        m_map_renderer->Update(0); // Update camera CB
+
+        m_deviceResources->CreateReflectionResources(reflection_width, reflection_height);
+        ClearReflection();
+        m_map_renderer->RenderForReflection(m_deviceResources->GetReflectionRTV(), m_deviceResources->GetReflectionDSV());
+
+        auto reflectionSRV = m_deviceResources->GetReflectionSRV();
+
+        int water_mesh_id = m_map_renderer->GetWaterMeshId();
+        auto water_mesh_instance = m_map_renderer->GetMeshManager()->GetMesh(water_mesh_id);
+
+        water_mesh_instance->SetTextures({ reflectionSRV }, 2);
+
+        // Restore settings
+        m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
+        m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
+
 
         m_map_renderer->Update(0); // Update camera CB
 
@@ -618,6 +686,28 @@ void MapBrowser::ClearShadow()
 
     auto const viewport = m_deviceResources->GetShadowViewport();
     context->RSSetViewports(1, &viewport);
+    m_deviceResources->PIXEndEvent();
+}
+
+void MapBrowser::ClearReflection()
+{
+    m_deviceResources->PIXBeginEvent(L"Clear");
+
+    // Clear the views.
+    auto context = m_deviceResources->GetD3DDeviceContext();
+    auto renderTarget = m_deviceResources->GetReflectionRTV();
+    auto depthStencil = m_deviceResources->GetReflectionDSV();
+
+    const auto& clear_color = m_map_renderer->GetClearColor();
+    context->ClearRenderTargetView(renderTarget, (float*)(&clear_color));
+    context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+    context->OMSetRenderTargets(1, &renderTarget, depthStencil);
+
+    // Set the viewport.
+    auto const viewport = m_deviceResources->GetReflectionViewport();
+    context->RSSetViewports(1, &viewport);
+
     m_deviceResources->PIXEndEvent();
 }
 

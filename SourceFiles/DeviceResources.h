@@ -117,6 +117,13 @@ namespace DX
         auto GetShadowMapSRV() const noexcept { return m_shadowMapSRV.Get(); }
         const D3D11_VIEWPORT& GetShadowViewport() const noexcept { return m_shadowViewport; }
 
+        // Reflection functions
+        void CreateReflectionResources(UINT width, UINT height);
+        ID3D11ShaderResourceView* GetReflectionSRV() const noexcept { return m_reflectionSRV.Get(); }
+        ID3D11RenderTargetView* GetReflectionRTV() const noexcept { return m_reflectionRTV.Get(); }
+        ID3D11DepthStencilView* GetReflectionDSV() const noexcept { return m_reflectionDepthStencilView.Get(); }
+        const D3D11_VIEWPORT& GetReflectionViewport() const noexcept { return m_reflectionViewport; }
+
     private:
         void CreateFactory();
         void GetHardwareAdapter(IDXGIAdapter1** ppAdapter);
@@ -133,20 +140,22 @@ namespace DX
 
         // Direct3D rendering objects. Required for 3D.
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_renderTarget;
+        Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_depthStencil;
+        Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_d3dRenderTargetView;
+        Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  m_d3dDepthStencilView;
+        D3D11_VIEWPORT                                  m_screenViewport;
+
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_pickingRenderTarget;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_pickingStagingTexture;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_pickingNonMsaaTexture;
+        Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_d3dPickingRenderTargetView;
+
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_offscreenRenderTarget;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_offscreenStagingTexture;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_offscreenNonMsaaTexture;
-        Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_depthStencil;
         Microsoft::WRL::ComPtr<ID3D11Texture2D>         m_offscreenDepthStencil;
-        Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_d3dRenderTargetView;
-        Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_d3dPickingRenderTargetView;
         Microsoft::WRL::ComPtr<ID3D11RenderTargetView>  m_d3dOffscreenRenderTargetView;
-        Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  m_d3dDepthStencilView;
         Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  m_d3dOffscreenDepthStencilView;
-        D3D11_VIEWPORT                                  m_screenViewport;
         D3D11_VIEWPORT                                  m_offscreenViewport;
 
         // Shadow mapping resources
@@ -154,6 +163,14 @@ namespace DX
         Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_shadowMapDSV;
         Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_shadowMapSRV;
         D3D11_VIEWPORT m_shadowViewport;
+
+        // Reflection rendering resources
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> m_reflectionRenderTarget;
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> m_reflectionDepthStencil;
+        Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_reflectionRTV;
+        Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_reflectionSRV;
+        Microsoft::WRL::ComPtr<ID3D11DepthStencilView>  m_reflectionDepthStencilView;
+        D3D11_VIEWPORT m_reflectionViewport;
 
         // Direct3D properties.
         DXGI_FORMAT                                     m_backBufferFormat;

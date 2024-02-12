@@ -80,6 +80,30 @@ void Camera::LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp)
     m_pitch = atan2f(lookY, sqrtf(lookX * lookX + lookZ * lookZ));
 }
 
+void Camera::LookAt(FXMVECTOR new_look, FXMVECTOR worldUp)
+{
+    XMVECTOR look = XMVector3Normalize(new_look);
+    XMVECTOR right = XMVector3Normalize(XMVector3Cross(worldUp, look));
+    if (XMVector3Equal(right, g_XMZero))
+    {
+        right = { 1, 0, 0, 0 };
+    }
+    XMVECTOR up = XMVector3Cross(right, look);
+
+    XMStoreFloat3(&m_look, look);
+    XMStoreFloat3(&m_right, right);
+    XMStoreFloat3(&m_up, up);
+    m_view_should_update = true;
+
+    // Calculate yaw and pitch based on the look vector
+    float lookX = XMVectorGetX(look);
+    float lookY = XMVectorGetY(look);
+    float lookZ = XMVectorGetZ(look);
+
+    m_yaw = atan2f(lookX, lookZ);
+    m_pitch = atan2f(lookY, sqrtf(lookX * lookX + lookZ * lookZ));
+}
+
 void Camera::SetOrientation(float pitch, float yaw)
 {
     // Update pitch and yaw
