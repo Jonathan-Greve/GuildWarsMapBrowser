@@ -150,6 +150,13 @@ public:
             m_pixel_shaders[PixelShaderType::TerrainReflectionTexturedWithShadows]->Initialize(PixelShaderType::TerrainReflectionTexturedWithShadows);
         }
 
+        if (!m_pixel_shaders.contains(PixelShaderType::TerrainShadowMap))
+        {
+            m_pixel_shaders[PixelShaderType::TerrainShadowMap] =
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::TerrainShadowMap]->Initialize(PixelShaderType::TerrainShadowMap);
+        }
+
         // Set up the constant buffer for the camera
         D3D11_BUFFER_DESC buffer_desc = {};
         buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -681,7 +688,7 @@ public:
 
         if (m_terrain_mesh_id) {
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id, true);
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id, true, true, PixelShaderType::TerrainShadowMap);
         }
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
