@@ -35,6 +35,7 @@ cbuffer PerFrameCB : register(b0)
     float fog_end;
     float fog_start_y; // The height at which fog starts.
     float fog_end_y; // The height at which fog ends.
+    uint should_render_flags; // Shadows, Water reflection, fog (shadows at bit 0, water reflection at bit 1, fog at bit 2)
 };
 
 cbuffer PerObjectCB : register(b1)
@@ -94,12 +95,6 @@ struct PixelInputType
     float4 lightSpacePos : TEXCOORD7;
     float3 world_position : TEXCOORD8;
     float3x3 TBN : TEXCOORD9;
-};
-
-struct PSOutput
-{
-    float4 rt_0_output : SV_TARGET0; // Goes to first render target (usually the screen)
-    float4 rt_1_output : SV_TARGET1; // Goes to second render target
 };
 
 // Assuming quadrants are ordered in a 2x2 grid:
@@ -178,7 +173,7 @@ float2 AdjustUVForQuadrant1(float2 uv, bool isTopRight)
 	            float2(1.0 - uv.x, 1 - uv.y));
 }
 
-PSOutput main(PixelInputType input)
+float4 main(PixelInputType input) : SV_TARGET0
 {
     if (input.world_position.y <= 0)
     {
@@ -316,59 +311,54 @@ PSOutput main(PixelInputType input)
 
     outputColor.a = 1.0f;
     
-    // ============ SHADOW MAP START =====================
-    float3 ndcPos = input.lightSpacePos.xyz / input.lightSpacePos.w;
-
-    // Transform position to shadow map texture space
-    float2 shadowTexCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
-    float shadowDepth = input.lightSpacePos.z / input.lightSpacePos.w;
-
-    // Add a bias to reduce shadow acne, especially on steep surfaces
-    float bias = max(0.001 * (1.0 - dot(input.normal, -directionalLight.direction)), 0.0005);
-    shadowDepth -= bias;
-
-    // PCF
-    float shadow = 0.0;
-    int pcf_samples = 49;
-    float2 shadowmap_texelSize = shadowmap_texel_size;
-    for (int x = -3; x <= 3; x++)
+    bool should_render_shadow = should_render_flags & 1;
+    if (should_render_shadow)
     {
-        for (int y = -3; y <= 3; y++)
+        // ============ SHADOW MAP START =====================
+        float3 ndcPos = input.lightSpacePos.xyz / input.lightSpacePos.w;
+
+        // Transform position to shadow map texture space
+        float2 shadowTexCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
+        float shadowDepth = input.lightSpacePos.z / input.lightSpacePos.w;
+
+        // Add a bias to reduce shadow acne, especially on steep surfaces
+        float bias = max(0.001 * (1.0 - dot(input.normal, -directionalLight.direction)), 0.0005);
+        shadowDepth -= bias;
+
+        // PCF
+        float shadow = 0.0;
+        int pcf_samples = 49;
+        float2 shadowmap_texelSize = shadowmap_texel_size;
+        for (int x = -3; x <= 3; x++)
         {
-            float2 samplePos = shadowTexCoord + float2(x, y) * shadowmap_texelSize;
-            shadow += terrain_shadow_map_props.SampleCmpLevelZero(shadowSampler, samplePos, shadowDepth);
+            for (int y = -3; y <= 3; y++)
+            {
+                float2 samplePos = shadowTexCoord + float2(x, y) * shadowmap_texelSize;
+                shadow += terrain_shadow_map_props.SampleCmpLevelZero(shadowSampler, samplePos, shadowDepth);
+            }
         }
+
+        // Normalize the shadow value
+        shadow /= pcf_samples;
+
+        // Apply shadow to final color
+        outputColor.rgb *= lerp(0.65, 1.0, shadow);
+        // ============ SHADOW MAP END =====================
+    }
+    
+    bool should_render_fog = should_render_flags & 4;
+    if (should_render_fog)
+    {
+        float distance = length(cam_position - input.world_position.xyz);
+
+        float fogFactor = (fog_end - distance) / (fog_end - fog_start);
+        fogFactor = clamp(fogFactor, 0.20, 1);
+
+        float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
+        outputColor = lerp(float4(fogColor, 1.0), outputColor, fogFactor);
     }
 
-    // Normalize the shadow value
-    shadow /= pcf_samples;
-
-    // Apply shadow to final color
-    outputColor.rgb *= lerp(0.65, 1.0, shadow);
-    // ============ SHADOW MAP END =====================
-    
-    float distance = length(cam_position - input.world_position.xyz);
-
-    float fogFactor = (fog_end - distance) / (fog_end - fog_start);
-    fogFactor = clamp(fogFactor, 0.20, 1);
-
-    float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
-    float4 finalColorWithFog = lerp(float4(fogColor, 1.0), outputColor, fogFactor);
-
-    PSOutput output;
-
-	// The main render target showing the rendered world
-    output.rt_0_output = finalColorWithFog;
-
-    float4 colorId = float4(0, 0, 0, 1);
-    colorId.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
-    colorId.g = (float) ((object_id & 0x0000FF00) >> 8) / 255.0f;
-    colorId.b = (float) ((object_id & 0x000000FF)) / 255.0f;
-
-	// Render target for picking
-    output.rt_1_output = colorId;
-
-    return output;
+    return outputColor;
 }
 )";
 };
