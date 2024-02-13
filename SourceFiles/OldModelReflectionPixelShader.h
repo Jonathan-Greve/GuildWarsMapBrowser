@@ -87,13 +87,7 @@ struct PixelInputType
     float3x3 TBN : TEXCOORD9;
 };
 
-struct PSOutput
-{
-    float4 rt_0_output : SV_TARGET0; // Goes to first render target (usually the screen)
-    float4 rt_1_output : SV_TARGET1; // Goes to second render target
-};
-
-PSOutput main(PixelInputType input)
+float4 main(PixelInputType input) : SV_TARGET
 {
     if (input.world_position.y <= 0)
     {
@@ -206,19 +200,7 @@ PSOutput main(PixelInputType input)
         finalColor = lerp(float4(fogColor, finalColor.a), finalColor, fogFactor);
     }
     
-    PSOutput output;
-
-    output.rt_0_output = finalColor;
-
-    float4 colorId = float4(0, 0, 0, 1);
-    colorId.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
-    colorId.g = (float) ((object_id & 0x0000FF00) >> 8) / 255.0f;
-    colorId.b = (float) ((object_id & 0x000000FF)) / 255.0f;
-
-    // Render target for picking
-    output.rt_1_output = colorId;
-
-    return output;
+    return finalColor;
 }
 )";
 };

@@ -86,12 +86,6 @@ struct PixelInputType
     float3x3 TBN : TEXCOORD9;
 };
 
-struct PSOutput
-{
-    float4 rt_0_output : SV_TARGET0; // Goes to first render target (usually the screen)
-    float4 rt_1_output : SV_TARGET1; // Goes to second render target
-};
-
 float4 main(PixelInputType input) : SV_TARGET
 {
     float4 final_color = float4(0, 0, 0, 0);
