@@ -162,7 +162,9 @@ void MapBrowser::Render()
     }
 
     // If it is the first time rendering a map generate a shadow map
-    if (m_map_renderer->GetTerrain() && m_map_renderer->GetNumFramesRenderedForSelectedFile() == 0) {
+    if (m_map_renderer->GetTerrain() && m_map_renderer->GetShouldRerenderShadows()) {
+        m_map_renderer->SetShouldRerenderShadows(false);
+
         bool should_render_sky = m_map_renderer->GetShouldRenderSky();
         m_map_renderer->SetShouldRenderSky(false);
         const auto camera_type = m_map_renderer->GetCamera()->GetCameraType();
@@ -278,7 +280,7 @@ void MapBrowser::Render()
         m_map_renderer->SetShouldRenderSky(should_render_sky);
     }
 
-    if (m_map_renderer->GetTerrain() && m_map_renderer->GetWaterMeshId() >= 0) {
+    if (m_map_renderer->GetTerrain() && m_map_renderer->GetWaterMeshId() >= 0 && m_map_renderer->GetShouldRenderWaterReflection()) {
         bool should_render_sky = m_map_renderer->GetShouldRenderSky();
         m_map_renderer->SetShouldRenderSky(false);
         const auto camera_type = m_map_renderer->GetCamera()->GetCameraType();

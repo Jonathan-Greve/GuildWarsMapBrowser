@@ -74,10 +74,6 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
             }
 
             bool should_render_sky = map_renderer->GetShouldRenderSky();
-            if (ImGui::Checkbox("Show sky", &should_render_sky)) {
-                map_renderer->SetShouldRenderSky(should_render_sky);
-            }
-
             if (should_render_sky) {
                 float sky_height = map_renderer->GetSkyHeight();
                 if (ImGui::SliderFloat("Sky height", &sky_height, -40000.0f, 40000.0f, "%.2f", 0))
@@ -105,6 +101,25 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
             {
                 map_renderer->SetTerrainPixelShaderType(
                     static_cast<PixelShaderType>(terrain_pixel_shader_type));
+            }
+
+            if (ImGui::Checkbox("Show sky", &should_render_sky)) {
+                map_renderer->SetShouldRenderSky(should_render_sky);
+            }
+
+            bool should_render_fog = map_renderer->GetShouldRenderFog();
+            if (ImGui::Checkbox("Show fog", &should_render_fog)) {
+                map_renderer->SetShouldRenderFog(should_render_fog);
+            }
+
+            bool should_render_shadows = map_renderer->GetShouldRenderShadows();
+            if (ImGui::Checkbox("Show shadows", &should_render_shadows)) {
+                map_renderer->SetShouldRenderShadows(should_render_shadows);
+            }
+
+            bool should_render_water_reflection = map_renderer->GetShouldRenderWaterReflection();
+            if (ImGui::Checkbox("Show water reflection", &should_render_water_reflection)) {
+                map_renderer->SetShouldRenderWaterReflection(should_render_water_reflection);
             }
         }
 

@@ -51,7 +51,7 @@ public:
         m_directionalLight.ambient = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
         m_directionalLight.diffuse = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
         m_directionalLight.specular = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
-        m_directionalLight.direction = NormalizeXMFLOAT3(XMFLOAT3(1.0f, -0.98f, 0.0f));
+        m_directionalLight.direction = XMFLOAT3(1.0f, -0.98f, 0.0f);
         m_directionalLight.pad = 0.0f;
 
         // Create and initialize the VertexShader
@@ -197,7 +197,6 @@ public:
     void SetDirectionalLight(DirectionalLight new_directional_light)
     {
         m_directionalLight = new_directional_light;
-        m_directionalLight.direction = NormalizeXMFLOAT3(m_directionalLight.direction);
         m_per_frame_cb_changed = true;
     }
     const DirectionalLight GetDirectionalLight() { return m_directionalLight; }
@@ -236,6 +235,7 @@ public:
 
     void SetTerrain(Terrain* terrain, int texture_atlas_id)
     {
+        m_should_rerender_shadows = true;
         if (m_is_terrain_mesh_set)
         {
             UnsetTerrain();
@@ -358,6 +358,7 @@ public:
     std::vector<int> AddProp(std::vector<Mesh> meshes, std::vector<PerObjectCB>& per_object_cbs,
         uint32_t model_id, PixelShaderType pixel_shader_type)
     {
+        m_should_rerender_shadows = true;
         std::vector<int> mesh_ids;
         for (int i = 0; i < meshes.size(); i++)
         {
@@ -382,6 +383,7 @@ public:
     }
 
     void ClearProps() {
+        m_should_rerender_shadows = true;
         for (const auto mesh_ids : m_prop_mesh_ids) {
             for (const auto mesh_id : mesh_ids.second) {
                 m_mesh_manager->RemoveMesh(mesh_id);
@@ -457,6 +459,7 @@ public:
 
     void SetMeshShouldRender(int mesh_id, bool should_render)
     {
+        m_should_rerender_shadows = true;
         m_mesh_manager->SetMeshShouldRender(mesh_id, should_render);
     }
 
@@ -492,11 +495,18 @@ public:
     float GetFogStartY() const { return m_fog_start_y; }
     float GetFogEndY() const { return m_fog_end_y; }
 
+    void SetShouldRenderShadows(bool should_render_shadows) { m_should_render_shadows = should_render_shadows; }
+    void SetShouldRenderWaterReflection(bool should_render_reflection) { m_should_render_water_reflection = should_render_reflection; }
+    void SetShouldRenderFog(bool should_render_fog) { m_should_render_fog = should_render_fog; }
+    void SetShouldRerenderShadows(bool should_rerender_shadows) { m_should_rerender_shadows = should_rerender_shadows; }
+
+    bool GetShouldRenderShadows() { return m_should_render_shadows; }
+    bool GetShouldRenderWaterReflection() { return m_should_render_water_reflection; }
+    bool GetShouldRenderFog() { return m_should_render_fog; }
+    bool GetShouldRerenderShadows() { return m_should_rerender_shadows; }
+
     PerCameraCB GetPerCameraCB() { return m_per_camera_cb_data; }
     void SetPerCameraCB(const PerCameraCB& per_camera_cb_data) { m_per_camera_cb_data = per_camera_cb_data; }
-
-    int GetNumFramesRenderedForSelectedFile() const { return m_num_frames_rendered_for_file; }
-    void SetNumFramesRenderedForSelectedFile(int frame_count) { m_num_frames_rendered_for_file = frame_count; }
 
     void Update(const float dt)
     {
@@ -533,20 +543,20 @@ public:
         //    auto clouds_per_object_data = clouds_cb_opt.value();
 
         //    DirectX::XMFLOAT4X4 clouds_world_matrix;
-        //    DirectX::XMStoreFloat4x4(&clouds_world_matrix, DirectX::XMMatrixTranslation(m_user_camera->GetPosition3f().x, m_sky_height, m_user_camera->GetPosition3f().z));
+        //    DirectX::XMStoreFloat4x4(&clouds_world_matrix, DirectX::XMMatrixTranslation(clouds_per_object_data.world._41, clouds_per_object_data.world._42, clouds_per_object_data.world._43));
         //    clouds_per_object_data.world = clouds_world_matrix;
         //    m_mesh_manager->UpdateMeshPerObjectData(m_clouds_mesh_id, clouds_per_object_data);
         //}
 
-        //const auto water_cb_opt = m_mesh_manager->GetMeshPerObjectData(m_water_mesh_id);
-        //if (water_cb_opt.has_value()) {
-        //    auto water_per_object_data = water_cb_opt.value();
+        const auto water_cb_opt = m_mesh_manager->GetMeshPerObjectData(m_water_mesh_id);
+        if (water_cb_opt.has_value()) {
+            auto water_per_object_data = water_cb_opt.value();
 
-        //    DirectX::XMFLOAT4X4 water_world_matrix;
-        //    DirectX::XMStoreFloat4x4(&water_world_matrix, DirectX::XMMatrixTranslation(m_user_camera->GetPosition3f().x, 0, m_user_camera->GetPosition3f().z));
-        //    water_per_object_data.world = water_world_matrix;
-        //    m_mesh_manager->UpdateMeshPerObjectData(m_water_mesh_id, water_per_object_data);
-        //}
+            DirectX::XMFLOAT4X4 water_world_matrix;
+            DirectX::XMStoreFloat4x4(&water_world_matrix, DirectX::XMMatrixTranslation(water_per_object_data.world._31, m_water_level, water_per_object_data.world._33));
+            water_per_object_data.world = water_world_matrix;
+            m_mesh_manager->UpdateMeshPerObjectData(m_water_mesh_id, water_per_object_data);
+        }
 
         // Update per frame CB
         PerFrameCB frameCB;
@@ -559,6 +569,10 @@ public:
         frameCB.fog_end = m_fog_end;
         frameCB.fog_start_y = m_fog_start_y;
         frameCB.fog_end_y = m_fog_end_y;
+        frameCB.should_render_flags = 0;
+        frameCB.should_render_flags = frameCB.should_render_flags | (m_should_render_shadows);
+        frameCB.should_render_flags = frameCB.should_render_flags | (m_should_render_water_reflection << 1);
+        frameCB.should_render_flags = frameCB.should_render_flags | (m_should_render_fog << 2);
 
         // Update the per frame constant buffer
         D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
@@ -625,8 +639,6 @@ public:
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
                 m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_water_mesh_id);
         }
-        
-        m_num_frames_rendered_for_file++;
     }
 
     void RenderForReflection(ID3D11RenderTargetView* render_target_view, ID3D11DepthStencilView* depth_stencil_view)
@@ -674,8 +686,6 @@ public:
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
             m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, true, true, PixelShaderType::OldModelShadowMap);
-
-        m_num_frames_rendered_for_file++;
     }
 
     void AddBox(float x, float y, float z, float size,
@@ -790,6 +800,12 @@ private:
     bool m_should_render_sky = true;
     float m_sky_height = 0;
 
+    bool m_should_render_shadows = true;
+    bool m_should_render_water_reflection = true;
+    bool m_should_render_fog = true;
+
+    bool m_should_rerender_shadows = false;
+
     XMFLOAT4 m_clear_color = { 0.662745118f, 0.662745118f, 0.662745118f, 1 };
     float m_fog_start = 100000000.0f;
     float m_fog_end = 100000000000.0f; 
@@ -797,8 +813,6 @@ private:
     float m_fog_end_y = 0;
 
     float m_water_level = 0;
-
-    int m_num_frames_rendered_for_file = 0;
 
     PerCameraCB m_per_camera_cb_data;
 };

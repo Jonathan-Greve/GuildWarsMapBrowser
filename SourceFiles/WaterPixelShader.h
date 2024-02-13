@@ -29,6 +29,7 @@ cbuffer PerFrameCB : register(b0)
     float fog_end;
     float fog_start_y; // The height at which fog starts.
     float fog_end_y; // The height at which fog ends.
+    uint should_render_flags; // Shadows, Water reflection, fog (shadows at bit 0, water reflection at bit 1, fog at bit 2)
 };
 
 cbuffer PerObjectCB : register(b1)
@@ -120,22 +121,25 @@ float4 main(PixelInputType input) : SV_TARGET
     
     final_color = 0.5 * (waterColor0 + waterColor1);
     
-    // ============ REFLECTION START =====================
-    if (input.reflectionSpacePos.y > water_level)
+    bool should_render_water_reflection = should_render_flags & 2;
+    if (should_render_water_reflection)
     {
-        float3 ndcPos = input.reflectionSpacePos.xyz / input.reflectionSpacePos.w;
+        // ============ REFLECTION START =====================
+        if (input.reflectionSpacePos.y > water_level)
+        {
+            float3 ndcPos = input.reflectionSpacePos.xyz / input.reflectionSpacePos.w;
 
-        // Transform position to shadow map texture space
-        float2 reflectionCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
-        float4 reflectionColor = shaderTextures[2].Sample(ss, reflectionCoord);
+            // Transform position to shadow map texture space
+            float2 reflectionCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
+            float4 reflectionColor = shaderTextures[2].Sample(ss, reflectionCoord);
     
-        // Combine the reflection color with the final color
-        // This can be adjusted based on the desired reflection intensity and blending mode
-        final_color = lerp(final_color, reflectionColor, 0.7); // Simple blend for demonstration
+            // Combine the reflection color with the final color
+            // This can be adjusted based on the desired reflection intensity and blending mode
+            final_color = lerp(final_color, reflectionColor, 0.3); // Simple blend for demonstration
+        }
+        // ============ REFLECTION END =====================
     }
-    // ============ REFLECTION END =====================
     
-    // Combine the normals (this is a simple way; for better results, you might blend them based on some criteria)
     float3 normal0 = normalize(normalColor0.rgb * 2.0 - 1.0); // Convert from [0, 1] to [-1, 1]
     float3 normal1 = normalize(normalColor1.rgb * 2.0 - 1.0);
     float3 normal = normalize(normal0 + normal1);
@@ -157,14 +161,18 @@ float4 main(PixelInputType input) : SV_TARGET
     float specularIntensity = pow(NdotH, shininess);
     float4 specularComponent = float4(1, 1, 1, 1) * specularIntensity;
 
-        // Combine lighting components
+    // Combine lighting components
     final_color *= ambientComponent + diffuseComponent + specularComponent;
 
     // Fog effect
-    float distance = length(cam_position - input.world_position.xyz);
-    float fogFactor = (fog_end - distance) / (fog_end - fog_start);
-    fogFactor = clamp(fogFactor, 0.0, 1.0);
-    final_color = lerp(float4(fog_color_rgb, 1.0), final_color, fogFactor);
+    bool should_render_fog = should_render_flags & 4;
+    if (should_render_fog)
+    {
+        float distance = length(cam_position - input.world_position.xyz);
+        float fogFactor = (fog_end - distance) / (fog_end - fog_start);
+        fogFactor = clamp(fogFactor, 0.0, 1.0);
+        final_color = lerp(float4(fog_color_rgb, 1.0), final_color, fogFactor);
+    }
     
     float water_alpha = clamp(1.0f - viewDirection.y, 0.8, 1.0);
 

@@ -13,4 +13,6 @@ struct PerFrameCB
     float fog_end;
     float fog_start_y; // The height at which fog starts.
     float fog_end_y; // The height at which fog ends.
+    uint32_t should_render_flags; // Shadows, Water reflection, Fog
+    uint32_t pad[3];
 };

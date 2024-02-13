@@ -110,9 +110,6 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         selected_map_file_index = -1;
     }
 
-    // Reset the frame counter
-    map_renderer->SetNumFramesRenderedForSelectedFile(0);
-
     switch (entry->type)
     {
     case TEXT:
@@ -592,7 +589,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 const int sky_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCylinder(67723.75f / 2.0f, 33941.0f);
                 map_renderer->SetSkyMeshId(sky_mesh_id);
                 map_renderer->GetMeshManager()->SetMeshShouldCull(sky_mesh_id, false);
-                map_renderer->GetMeshManager()->SetMeshShouldRender(sky_mesh_id, false); // we will manually render it first before any other meshes.
+                map_renderer->SetMeshShouldRender(sky_mesh_id, false); // we will manually render it first before any other meshes.
 
                 const auto& map_bounds = selected_ffna_map_file.map_info_chunk.map_bounds;
 
@@ -679,7 +676,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 const int water_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCircle(67723.75f, PixelShaderType::Water);
                 map_renderer->SetWaterMeshId(water_mesh_id);
                 map_renderer->GetMeshManager()->SetMeshShouldCull(water_mesh_id, false);
-                map_renderer->GetMeshManager()->SetMeshShouldRender(water_mesh_id, false); // we will manually render it first before any other meshes.
+                map_renderer->SetMeshShouldRender(water_mesh_id, false); // we will manually render it first before any other meshes.
 
                 const auto& map_bounds = selected_ffna_map_file.map_info_chunk.map_bounds;
 
@@ -775,7 +772,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 const int clouds_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCircle(100000.0f);
                 map_renderer->SetCloudsMeshId(clouds_mesh_id);
                 map_renderer->GetMeshManager()->SetMeshShouldCull(clouds_mesh_id, true);
-                map_renderer->GetMeshManager()->SetMeshShouldRender(clouds_mesh_id, false); // we will manually render it first before any other meshes.
+                map_renderer->SetMeshShouldRender(clouds_mesh_id, false); // we will manually render it first before any other meshes.
 
                 const auto& map_bounds = terrain->m_bounds;
 

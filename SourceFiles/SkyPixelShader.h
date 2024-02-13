@@ -29,6 +29,7 @@ cbuffer PerFrameCB : register(b0)
     float fog_end;
     float fog_start_y; // The height at which fog starts.
     float fog_end_y; // The height at which fog ends.
+    uint should_render_flags; // Shadows, Water reflection, fog (shadows at bit 0, water reflection at bit 1, fog at bit 2)
 };
 
 cbuffer PerObjectCB : register(b1)
@@ -132,15 +133,17 @@ float4 main(PixelInputType input) : SV_TARGET
     //}
     
     
+    bool should_render_fog = should_render_flags & 4;
+    if (should_render_fog)
+    {
+        float fogFactor = (input.world_position.y - fog_end_y) / (fog_end_y - fog_start_y);
 
-    float fogFactor = (input.world_position.y - fog_end_y) / (fog_end_y - fog_start_y);
+        fogFactor = clamp(fogFactor, 0, 1);
 
-    fogFactor = clamp(fogFactor, 0, 1);
-
-    float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
-    float4 finalColorWithFog = lerp(float4(fogColor, final_color.a), final_color, fogFactor);
-    final_color = finalColorWithFog;
-
+        float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
+        float4 final_color = lerp(float4(fogColor, final_color.a), final_color, fogFactor);
+    }
+    
     return final_color;
 }
 )";

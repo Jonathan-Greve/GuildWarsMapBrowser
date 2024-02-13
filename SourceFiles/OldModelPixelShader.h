@@ -29,6 +29,7 @@ cbuffer PerFrameCB : register(b0)
     float fog_end;
     float fog_start_y; // The height at which fog starts.
     float fog_end_y; // The height at which fog ends.
+    uint should_render_flags; // Shadows, Water reflection, fog (shadows at bit 0, water reflection at bit 1, fog at bit 2)
 };
 
 cbuffer PerObjectCB : register(b1)
@@ -188,17 +189,21 @@ PSOutput main(PixelInputType input)
         finalColor.rgb = lerp(finalColor.rgb, LIGHTGREEN, 0.4);
     }
     
-    float distance = length(cam_position - input.world_position.xyz);
+    bool should_render_fog = should_render_flags & 4;
+    if (should_render_fog)
+    {
+        float distance = length(cam_position - input.world_position.xyz);
 
-    float fogFactor = (fog_end - distance) / (fog_end - fog_start);
-    fogFactor = clamp(fogFactor, 0.20, 1);
+        float fogFactor = (fog_end - distance) / (fog_end - fog_start);
+        fogFactor = clamp(fogFactor, 0.20, 1);
 
-    float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
-    float4 finalColorWithFog = lerp(float4(fogColor, finalColor.a), finalColor, fogFactor);
-        
+        float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
+        finalColor = lerp(float4(fogColor, finalColor.a), finalColor, fogFactor);
+    }
+    
     PSOutput output;
 
-    output.rt_0_output = finalColorWithFog;
+    output.rt_0_output = finalColor;
 
     float4 colorId = float4(0, 0, 0, 1);
     colorId.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
