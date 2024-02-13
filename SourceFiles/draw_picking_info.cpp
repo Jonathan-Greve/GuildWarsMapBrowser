@@ -43,7 +43,7 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer, DATMa
         if (ImGui::GetIO().KeyShift || ImGui::GetIO().KeyCtrl || ImGui::GetIO().KeyAlt) { // Hide all submodels if shift, ctrl or alt is held down.
             if (prop_mesh_ids_it != props_mesh_ids.end()) {
                 for (const auto& mesh_id : prop_mesh_ids_it->second) {
-                    map_renderer->GetMeshManager()->SetMeshShouldRender(mesh_id, false);
+                    map_renderer->SetMeshShouldRender(mesh_id, false);
                 }
             }
         }
@@ -51,7 +51,7 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer, DATMa
             if (prop_mesh_ids_it != props_mesh_ids.end()) {
                 if (selected_prop_submodel_index < prop_mesh_ids_it->second.size()) {
                     const auto mesh_id = prop_mesh_ids_it->second[selected_prop_submodel_index];
-                    map_renderer->GetMeshManager()->SetMeshShouldRender(mesh_id, false);
+                    map_renderer->SetMeshShouldRender(mesh_id, false);
                 }
             }
         }
@@ -234,10 +234,10 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer, DATMa
                                     bool should_render = map_renderer->GetMeshManager()->GetMeshShouldRender(mesh_id);
 
                                     if (should_render && ImGui::Button(("Hide##" + std::to_string(i)).c_str())) {
-                                        map_renderer->GetMeshManager()->SetMeshShouldRender(mesh_id, false);
+                                        map_renderer->SetMeshShouldRender(mesh_id, false);
                                     }
                                     else if (!should_render && ImGui::Button(("Show##" + std::to_string(i)).c_str())) {
-                                        map_renderer->GetMeshManager()->SetMeshShouldRender(mesh_id, true);
+                                        map_renderer->SetMeshShouldRender(mesh_id, true);
                                     }
                                 }
                             }

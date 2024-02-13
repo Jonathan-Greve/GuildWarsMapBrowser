@@ -16,6 +16,7 @@ cbuffer PerFrameCB : register(b0)
     float fog_end;
     float fog_start_y; // The height at which fog starts.
     float fog_end_y; // The height at which fog ends.
+    uint should_render_flags; // Shadows, Water reflection, fog (shadows at bit 0, water reflection at bit 1, fog at bit 2)
 };
 
 cbuffer PerObjectCB : register(b1)
@@ -87,8 +88,7 @@ PixelInputType main(VertexInputType input)
     output.position = mul(viewPosition, Projection);
     output.world_position = worldPosition;
 
-    // Transform the normal using the inverse transpose of the world matrix
-    output.normal = normalize(mul(input.normal, World));
+    output.normal = mul(input.normal, (float3x3)World);
 
     // Pass the texture coordinates to the pixel shader
     output.tex_coords0 = input.tex_coords0;
@@ -102,7 +102,7 @@ PixelInputType main(VertexInputType input)
     if (input.tangent.x == 0.0f && input.tangent.y == 0.0f && input.tangent.z == 0.0f ||
 		input.bitangent.x == 0.0f && input.bitangent.y == 0.0f && input.bitangent.z == 0.0f)
     {
-        float3 normal = normalize(mul(input.normal, (float3x3) World)); // Normalize normal after transformation
+        float3 normal = normalize(output.normal);
 
         // Ensure directionalLight.direction is normalized
         float3 lightDir = normalize(-directionalLight.direction);
@@ -139,13 +139,22 @@ PixelInputType main(VertexInputType input)
         output.lightingColor = float4(1, 1, 1, 1);
     }
     
-    // Transform position to light space for shadow mapping
-    float4 lightViewPosition = mul(worldPosition, directional_light_view);
-    output.lightSpacePos = mul(lightViewPosition, directional_light_proj);
+    bool should_render_shadow = should_render_flags & 1;
+    bool should_render_water_reflection = should_render_flags & 2;
     
-    // Transform position to reflection space for water reflections
-    float4 reflectionViewPosition = mul(worldPosition, reflection_view);
-    output.reflectionSpacePos = mul(reflectionViewPosition, reflection_proj);
+    if (should_render_shadow)
+    {
+        // Transform position to light space for shadow mapping
+        float4 lightViewPosition = mul(worldPosition, directional_light_view);
+        output.lightSpacePos = mul(lightViewPosition, directional_light_proj);
+    }
+    
+    if (should_render_water_reflection)
+    {
+        // Transform position to reflection space for water reflections
+        float4 reflectionViewPosition = mul(worldPosition, reflection_view);
+        output.reflectionSpacePos = mul(reflectionViewPosition, reflection_proj);
+    }
 
     return output;
 }
