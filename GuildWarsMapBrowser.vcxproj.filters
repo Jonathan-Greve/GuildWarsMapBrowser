@@ -158,6 +158,9 @@
     <Filter Include="Render\Shaders\Pixel shaders\Terrain\Reflection">
       <UniqueIdentifier>{051e1a43-2ee1-4cd1-a4d5-133ea063f40d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Render\Shaders\Pixel shaders\Terrain\Shadow Map">
+      <UniqueIdentifier>{9780eaa5-7029-4808-b7e7-f4c8d8a5ffad}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -525,6 +528,9 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\TerrainReflectionTexturedWithShadowsPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Terrain\Reflection</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\TerrainShadowMapPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Terrain\Shadow Map</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -913,6 +919,9 @@
     </FxCompile>
     <FxCompile Include="SourceFiles\TerrainReflectionTexturedWithShadowsPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Terrain\Reflection</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\TerrainShadowMapPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Terrain\Shadow Map</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
