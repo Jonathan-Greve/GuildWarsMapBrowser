@@ -13,6 +13,7 @@
 #include <WaterPixelShader.h>
 #include <TerrainReflectionTexturedWithShadowsPixelShader.h>
 #include <OldModelReflectionPixelShader.h>
+#include <TerrainShadowMapPixelShader.h>
 
 enum class PixelShaderType
 {
@@ -29,7 +30,8 @@ enum class PixelShaderType
     Water,
     OldModelShadowMap,
     OldModelReflection,
-    TerrainReflectionTexturedWithShadows
+    TerrainReflectionTexturedWithShadows,
+    TerrainShadowMap
 };
 
 class PixelShader
@@ -119,6 +121,11 @@ public:
         case PixelShaderType::TerrainReflectionTexturedWithShadows:
             hr = D3DCompile(TerrainReflectionTexturedWithShadowsPixelShader::shader_ps,
                 strlen(TerrainReflectionTexturedWithShadowsPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
+            break;
+        case PixelShaderType::TerrainShadowMap:
+            hr = D3DCompile(TerrainShadowMapPixelShader::shader_ps,
+                strlen(TerrainShadowMapPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
                 "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         default:

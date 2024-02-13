@@ -299,6 +299,7 @@
     <ClInclude Include="SourceFiles\TerrainCheckeredPixelShader.h" />
     <ClInclude Include="SourceFiles\TerrainDefaultPixelShader.h" />
     <ClInclude Include="SourceFiles\TerrainReflectionTexturedWithShadowsPixelShader.h" />
+    <ClInclude Include="SourceFiles\TerrainShadowMapPixelShader.h" />
     <ClInclude Include="SourceFiles\TerrainTexturedPixelShader.h" />
     <ClInclude Include="SourceFiles\TerrainTexturedWithShadowsPixelShader.h" />
     <ClInclude Include="SourceFiles\TextureManager.h" />
@@ -526,6 +527,12 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
     </FxCompile>
     <FxCompile Include="SourceFiles\TerrainReflectionTexturedWithShadowsPixelShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\TerrainShadowMapPixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
