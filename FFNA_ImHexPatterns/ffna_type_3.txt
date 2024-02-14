@@ -443,7 +443,11 @@ struct EnvSubChunk5_other {
 
 // Water environment info most likely
 struct EnvSubChunk6 {
-   u8 data[0x39];
+   u8 unknown[9];
+   float water_properties[9];
+   u8 unknown1[8];
+   u16 water_texture;
+   u16 water_normal_map;
 };
 
 struct EnvSubChunk7 {
