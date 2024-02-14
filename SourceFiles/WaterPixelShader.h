@@ -99,7 +99,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 final_color = float4(0, 0, 0, 1);
 
     // Water animation based on time
-    float2 tex_scale = float2(-grid_dim_x / 8, -grid_dim_y / 8);
+    float2 tex_scale = float2(-grid_dim_x / 8, -grid_dim_x / 8);
     float scaled_time = time_elapsed / 100;
 
     // Apply wave offset to texture coordinates
