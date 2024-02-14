@@ -658,9 +658,21 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 if (mft_entry_it != hash_index.end())
                 {
                     auto type = dat_manager->get_MFT()[mft_entry_it->second.at(0)].type;
-                    const DatTexture dat_texture = dat_manager->parse_ffna_texture_file(mft_entry_it->second.at(0));
+                    DatTexture dat_texture;
                     int texture_id = -1;
-                    if (dat_texture.width > 0 && dat_texture.height > 0) {
+                    if (type == DDS) {
+                        const auto ddsData = dat_manager->parse_dds_file(mft_entry_it->second.at(0));
+                        size_t ddsDataSize = ddsData.size();
+                        const auto HR = map_renderer->GetTextureManager()->
+                            CreateTextureFromDDSInMemory(ddsData.data(), ddsDataSize, &texture_id, &dat_texture.width,
+                                &dat_texture.height, dat_texture.rgba_data, entry->Hash);
+                        if (SUCCEEDED(HR) && texture_id >= 0) {
+                            water_textures[i] = map_renderer->GetTextureManager()->GetTexture(texture_id);
+                            dat_texture.texture_type = DDSt;
+                        }
+                    }
+                    else {
+                        dat_texture = dat_manager->parse_ffna_texture_file(mft_entry_it->second.at(0));
 
                         auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
                             dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
@@ -673,7 +685,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             }
 
             if (water_textures.size() > 0) {
-                const int water_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCircle(67723.75f, PixelShaderType::Water);
+                const int water_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCircle(70000, PixelShaderType::Water);
                 map_renderer->SetWaterMeshId(water_mesh_id);
                 map_renderer->GetMeshManager()->SetMeshShouldCull(water_mesh_id, false);
                 map_renderer->SetMeshShouldRender(water_mesh_id, false); // we will manually render it first before any other meshes.

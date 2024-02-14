@@ -98,8 +98,6 @@ void MapBrowser::Tick()
         }
     }
 
-    using namespace std::chrono;
-
     // Calculate the desired frame duration
     milliseconds frame_duration(1000 / m_FPS_target);
 
@@ -118,13 +116,13 @@ void MapBrowser::Tick()
     last_frame_time = high_resolution_clock::now();
 
     m_timer.Tick([&]() {
-        Update(m_timer);
+        Update(elapsed);
         Render();
         });
 }
 
 // Updates the world.
-void MapBrowser::Update(DX::StepTimer const& timer)
+void MapBrowser::Update(duration<double, std::milli> elapsed)
 {
     if (gw_dat_path_set && m_dat_managers[0]->m_initialization_state == InitializationState::NotStarted)
     {
@@ -145,9 +143,7 @@ void MapBrowser::Update(DX::StepTimer const& timer)
         m_hash_index_initialized = true;
     }
 
-    float elapsedTime = float(timer.GetElapsedSeconds());
-
-    m_map_renderer->Update(elapsedTime);
+    m_map_renderer->Update(elapsed.count() / 1000);
 }
 #pragma endregion
 
