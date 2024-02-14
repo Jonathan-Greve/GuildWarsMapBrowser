@@ -143,6 +143,20 @@ public:
             m_pixel_shaders[PixelShaderType::OldModelReflection]->Initialize(PixelShaderType::OldModelReflection);
         }
 
+        if (!m_pixel_shaders.contains(PixelShaderType::NewModelShadowMap))
+        {
+            m_pixel_shaders[PixelShaderType::NewModelShadowMap] =
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::NewModelShadowMap]->Initialize(PixelShaderType::NewModelShadowMap);
+        }
+
+        if (!m_pixel_shaders.contains(PixelShaderType::NewModelReflection))
+        {
+            m_pixel_shaders[PixelShaderType::NewModelReflection] =
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::NewModelReflection]->Initialize(PixelShaderType::NewModelReflection);
+        }
+
         if (!m_pixel_shaders.contains(PixelShaderType::TerrainReflectionTexturedWithShadows))
         {
             m_pixel_shaders[PixelShaderType::TerrainReflectionTexturedWithShadows] =
@@ -680,7 +694,7 @@ public:
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
             m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, true, 
-            true, PixelShaderType::OldModelReflection);
+            true, PixelShaderType::OldModelReflection, true, PixelShaderType::NewModelReflection);
     }
 
     void RenderForShadowMap(ID3D11DepthStencilView* depth_stencil_view)
@@ -693,7 +707,7 @@ public:
         }
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, true, true, PixelShaderType::OldModelShadowMap);
+            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, true, true, PixelShaderType::OldModelShadowMap, true, PixelShaderType::NewModelShadowMap);
     }
 
     void AddBox(float x, float y, float z, float size,

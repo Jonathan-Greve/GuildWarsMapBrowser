@@ -6,11 +6,11 @@ Texture2D shaderTextures[8] : register(t3);
 
 struct DirectionalLight
 {
-	float4 ambient;
-	float4 diffuse;
-	float4 specular;
-	float3 direction;
-	float pad;
+    float4 ambient;
+    float4 diffuse;
+    float4 specular;
+    float3 direction;
+    float pad;
 };
 
 cbuffer PerFrameCB : register(b0)
@@ -53,14 +53,14 @@ cbuffer PerCameraCB : register(b2)
 
 cbuffer PerTerrainCB : register(b3)
 {
-	int grid_dim_x;
-	int grid_dim_y;
-	float min_x;
-	float max_x;
-	float min_y;
-	float max_y;
-	float water_level;
-	float pad[3];
+    int grid_dim_x;
+    int grid_dim_y;
+    float min_x;
+    float max_x;
+    float min_y;
+    float max_y;
+    float water_level;
+    float pad[3];
 };
 
 struct PixelInputType
@@ -82,8 +82,8 @@ struct PixelInputType
 
 struct PSOutput
 {
-	float4 rt_0_output : SV_TARGET0; // Goes to first render target (usually the screen)
-	float4 rt_1_output : SV_TARGET1; // Goes to second render target
+    float4 rt_0_output : SV_TARGET0; // Goes to first render target (usually the screen)
+    float4 rt_1_output : SV_TARGET1; // Goes to second render target
 };
 
 float3 compute_normalmap_lighting(const float3 normalmap_sample, const float3x3 TBN, const float3 pos)
@@ -109,6 +109,11 @@ float3 compute_normalmap_lighting(const float3 normalmap_sample, const float3x3 
 
 PSOutput main(PixelInputType input)
 {
+    if (input.world_position.y <= 0)
+    {
+        discard;
+    }
+    
     float4 sampled_texture_color = float4(1, 1, 1, 1);
     float2 tex_coords_array[6] =
     {
@@ -132,7 +137,7 @@ PSOutput main(PixelInputType input)
             {
                 if (texture_type == 2)
                 {
-					// Compute normal map lighting
+						// Compute normal map lighting
                     const float3 normal_from_map = shaderTextures[t].Sample(ss, tex_coords_array[uv_set_index]).rgb * 2.0 - 1.0;
                     float3 pos = input.position.xyz;
                     lighting_color = compute_normalmap_lighting(normal_from_map, input.TBN, pos);
@@ -187,13 +192,13 @@ PSOutput main(PixelInputType input)
     PSOutput output;
     output.rt_0_output = float4(final_color, sampled_texture_color.a);
 
-	float4 color_id = float4(0, 0, 0, 1);
-	color_id.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
-	color_id.g = (float) ((object_id & 0x0000FF00) >> 8) / 255.0f;
-	color_id.b = (float) ((object_id & 0x000000FF)) / 255.0f;
+    float4 color_id = float4(0, 0, 0, 1);
+    color_id.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
+    color_id.g = (float) ((object_id & 0x0000FF00) >> 8) / 255.0f;
+    color_id.b = (float) ((object_id & 0x000000FF)) / 255.0f;
 
     // Render target for picking
-	output.rt_1_output = color_id;
+    output.rt_1_output = color_id;
 
-	return output;
+    return output;
 }
