@@ -203,6 +203,7 @@ public:
 
     void SetDirectionalLight(DirectionalLight new_directional_light)
     {
+        m_should_rerender_shadows = true;
         m_directionalLight = new_directional_light;
         m_per_frame_cb_changed = true;
     }
@@ -515,24 +516,24 @@ public:
     PerCameraCB GetPerCameraCB() { return m_per_camera_cb_data; }
     void SetPerCameraCB(const PerCameraCB& per_camera_cb_data) { m_per_camera_cb_data = per_camera_cb_data; }
 
-    void Update(const float dt)
+    void Update(const double dt_seconds)
     {
-        static float time_elapsed = 0;
-        time_elapsed += dt;
+        static double time_elapsed = 0;
+        time_elapsed += dt_seconds;
 
         // Walk
         if (m_input_manager->IsKeyDown('W'))
-            m_user_camera->Walk(WalkDirection::Forward, dt);
+            m_user_camera->Walk(WalkDirection::Forward, dt_seconds);
         if (m_input_manager->IsKeyDown('S'))
-            m_user_camera->Walk(WalkDirection::Backward, dt);
+            m_user_camera->Walk(WalkDirection::Backward, dt_seconds);
 
         // Strafe
         if (m_input_manager->IsKeyDown('Q') || (m_input_manager->IsKeyDown('A')))
-            m_user_camera->Strafe(StrafeDirection::Left, dt);
+            m_user_camera->Strafe(StrafeDirection::Left, dt_seconds);
         if (m_input_manager->IsKeyDown('E') || (m_input_manager->IsKeyDown('D')))
-            m_user_camera->Strafe(StrafeDirection::Right, dt);
+            m_user_camera->Strafe(StrafeDirection::Right, dt_seconds);
 
-        m_user_camera->Update(dt);
+        m_user_camera->Update(dt_seconds);
 
         // Center sky around camera (not height, only x and z, leave height as is)
         const auto sky_cb_opt = m_mesh_manager->GetMeshPerObjectData(m_sky_mesh_id);
@@ -599,7 +600,7 @@ public:
         memcpy(mappedResource.pData, &m_per_camera_cb_data, sizeof(PerCameraCB));
         m_deviceContext->Unmap(m_per_camera_cb.Get(), 0);
 
-        m_mesh_manager->Update(dt);
+        m_mesh_manager->Update(time_elapsed);
     }
 
     void Render(ID3D11RenderTargetView* render_target_view, ID3D11RenderTargetView* picking_render_target, ID3D11DepthStencilView* depth_stencil_view)
