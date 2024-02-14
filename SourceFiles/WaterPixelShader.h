@@ -99,28 +99,28 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 final_color = float4(0, 0, 0, 1);
 
     // Water animation based on time
-    float2 tex_scale = float2(grid_dim_x, grid_dim_y);
-    
-    float scaled_time = time_elapsed / 1500;
-    
-    // Apply wave offset to texture coordinates
-    float2 waterCoord0 = input.tex_coords0.yx * tex_scale * float2(scaled_time, sin(scaled_time));
-    float2 waterCoord1 = input.tex_coords0.yx * tex_scale * scaled_time;
+    float2 tex_scale = float2(-grid_dim_x / 8, -grid_dim_y / 5);
+    float scaled_time = time_elapsed / 100;
 
-    // Texture coordinates with animation for normal map
-    float2 normalCoord0 = waterCoord0 + 0.01;
-    float2 normalCoord1 = waterCoord1 - 0.01;
+    // Apply wave offset to texture coordinates
+    float2 waterCoord0 = input.tex_coords0.yx * tex_scale - scaled_time;
+    float2 normalCoord0 = waterCoord0.yx;
 
     // Sample water texture at two coordinates
     float4 waterColor0 = shaderTextures[0].Sample(ss, waterCoord0);
-    float4 waterColor1 = shaderTextures[0].Sample(ss, waterCoord1);
-
-    // Sample normal map at two coordinates
     float4 normalColor0 = shaderTextures[1].Sample(ss, normalCoord0);
-    float4 normalColor1 = shaderTextures[1].Sample(ss, normalCoord1);
+    final_color = waterColor0;
     
-    final_color = 0.5 * (waterColor0 + waterColor1);
+    float normal_r = normalColor0.r; // Convert from [0, 1] range to [-1, 1] 
+    float normal_g = normalColor0.g; // Convert from [0, 1] range to [-1, 1] 
+    // Reconstruct the Z component. Assume normal points out of the water.
+    float normal_y = sqrt(1.0 - normal_r * normal_r - normal_g * normal_g);
+    float3 normal = normalize(float3(normal_r, normal_y, normal_g));
+    float3 viewDirection = normalize(cam_position - input.world_position.xyz);
     
+    float NdotV = dot(normal, viewDirection);
+    
+
     bool should_render_water_reflection = should_render_flags & 2;
     if (should_render_water_reflection)
     {
@@ -135,14 +135,12 @@ float4 main(PixelInputType input) : SV_TARGET
     
             // Combine the reflection color with the final color
             // This can be adjusted based on the desired reflection intensity and blending mode
-            final_color = lerp(final_color, reflectionColor, 0.3); // Simple blend for demonstration
+            final_color = lerp(final_color, reflectionColor, clamp(1 - NdotV, 0.2, 0.4)); // Simple blend for demonstration
         }
         // ============ REFLECTION END =====================
     }
     
-    float3 normal0 = normalize(normalColor0.rgb * 2.0 - 1.0); // Convert from [0, 1] to [-1, 1]
-    float3 normal1 = normalize(normalColor1.rgb * 2.0 - 1.0);
-    float3 normal = normalize(normal0 + normal1);
+
 
     // Ensure directionalLight.direction is normalized
     float3 lightDir = normalize(-directionalLight.direction);
@@ -151,18 +149,17 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 ambientComponent = directionalLight.ambient;
     float4 diffuseComponent = directionalLight.diffuse * NdotL;
 
-    float3 viewDirection = normalize(cam_position - input.world_position.xyz);
     
     // Compute half vector and ensure normalization
     float3 halfVector = normalize(lightDir + viewDirection);
     float NdotH = max(dot(normal, halfVector), 0.0);
 
-    float shininess = 180.0; // Shininess factor
+    float shininess = 80.0; // Shininess factor
     float specularIntensity = pow(NdotH, shininess);
     float4 specularComponent = float4(1, 1, 1, 1) * specularIntensity;
 
     // Combine lighting components
-    final_color *= ambientComponent + diffuseComponent + specularComponent;
+    final_color *= ambientComponent + diffuseComponent * 0.3 + specularComponent * 0.3;
 
     // Fog effect
     bool should_render_fog = should_render_flags & 4;
@@ -174,7 +171,7 @@ float4 main(PixelInputType input) : SV_TARGET
         final_color = lerp(float4(fog_color_rgb, 1.0), final_color, fogFactor);
     }
     
-    float water_alpha = clamp(1.0f - viewDirection.y, 0.8, 1.0);
+    float water_alpha = clamp(1 - dot(float3(0,1,0), viewDirection), 0.8, 1.0);
 
     return float4(final_color.rgb, water_alpha);
 }

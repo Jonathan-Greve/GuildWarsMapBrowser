@@ -81,11 +81,11 @@ public:
 		return meshID;
 	}
 
-	int AddTrapezoid3D(const Vertex3& a, const Vertex3& b, const Vertex3& c, const Vertex3& d,
+	int AddTrapezoid3D(const Vertex3& TL, const Vertex3& TR, const Vertex3& BL, const Vertex3& BR,
 		float height, PixelShaderType pixel_shader_type = PixelShaderType::OldModel)
 	{
 		int meshID = m_nextMeshID++;
-		auto mesh_instance = std::make_shared<Trapezoid3D>(m_device, a, b, c, d, height, meshID);
+		auto mesh_instance = std::make_shared<Trapezoid3D>(m_device, TL, TR, BL, BR, height, meshID);
 		add_to_triangle_meshes(mesh_instance, pixel_shader_type);
 		m_needsUpdate = true;
 		return meshID;

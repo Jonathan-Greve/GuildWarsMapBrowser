@@ -12,6 +12,8 @@
 #include "MapRenderer.h"
 #include <draw_extract_panel.h>
 
+using namespace std::chrono;
+
 // A basic MapBrowser implementation that creates a D3D11 device and
 // provides a MapBrowser loop.
 class MapBrowser final : public DX::IDeviceNotify
@@ -50,7 +52,7 @@ public:
     void GetDefaultSize(int& width, int& height) const noexcept;
 
 private:
-    void Update(DX::StepTimer const& timer);
+    void Update(duration<double, std::milli> elapsed);
     void Render();
 
     void Clear();
