@@ -532,6 +532,12 @@
     <ClInclude Include="SourceFiles\TerrainShadowMapPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Terrain\Shadow Map</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\NewModelReflectionPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Model\Reflection</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\NewModelShadowMapPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Model\Shadow Map</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -922,6 +928,12 @@
     </FxCompile>
     <FxCompile Include="SourceFiles\TerrainShadowMapPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Terrain\Shadow Map</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\NewModelReflectionPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Model\Reflection</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\NewModelShadowMapPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Model\Shadow Map</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

@@ -236,6 +236,8 @@
     <ClInclude Include="SourceFiles\model_exporter.h" />
     <ClInclude Include="SourceFiles\MurmurHash3.h" />
     <ClInclude Include="SourceFiles\NewModelPixelShader.h" />
+    <ClInclude Include="SourceFiles\NewModelReflectionPixelShader.h" />
+    <ClInclude Include="SourceFiles\NewModelShadowMapPixelShader.h" />
     <ClInclude Include="SourceFiles\OldModelPixelShader.h" />
     <ClInclude Include="SourceFiles\DepthStencilStateManager.h" />
     <ClInclude Include="SourceFiles\DeviceResources.h" />
@@ -467,6 +469,20 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
     </FxCompile>
     <FxCompile Include="SourceFiles\OldModelShadowMapPixelShader.hlsl">
+      <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\NewModelReflectionPixelShader.hlsl">
+      <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\NewModelShadowMapPixelShader.hlsl">
       <FileType>Document</FileType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>

@@ -27,6 +27,7 @@ cbuffer PerFrameCB : register(b0)
     float fog_end;
     float fog_start_y; // The height at which fog starts.
     float fog_end_y; // The height at which fog ends.
+    uint should_render_flags; // Shadows, Water reflection, fog (shadows at bit 0, water reflection at bit 1, fog at bit 2)
 };
 
 cbuffer PerObjectCB : register(b1)
@@ -123,46 +124,37 @@ PSOutput main(PixelInputType input)
     float3 lighting_color = float3(1, 1, 1);
 
     bool first_non_normalmap_texture_applied = false;
-    for (int j = 0; j < (num_uv_texture_pairs + 3) / 4; ++j)
+    for (int i = 0; i < num_uv_texture_pairs; ++i)
     {
-        for (int k = 0; k < 4; ++k)
+        uint uv_set_index = uv_indices[i / 4][i % 4];
+        uint texture_index = texture_indices[i / 4][i % 4];
+        uint blend_flag = blend_flags[i / 4][i % 4];
+        uint texture_type = texture_types[i / 4][i % 4] & 0xFF;
+
+        for (int t = 0; t < 6; ++t)
         {
-            uint uv_set_index = uv_indices[j][k];
-            const uint texture_index = texture_indices[j][k];
-            const uint blend_flag = blend_flags[j][k];
-            const uint texture_type = texture_types[j][k] & 0xFF;
-
-
-            if (j * 4 + k >= num_uv_texture_pairs)
+            if (t == texture_index)
             {
-                break;
-            }
-
-            for (int t = 0; t < 6; ++t)
-            {
-                if (t == texture_index)
+                if (texture_type == 2)
                 {
-                    if (texture_type == 2)
+					// Compute normal map lighting
+                    const float3 normal_from_map = shaderTextures[t].Sample(ss, tex_coords_array[uv_set_index]).rgb * 2.0 - 1.0;
+                    float3 pos = input.position.xyz;
+                    lighting_color = compute_normalmap_lighting(normal_from_map, input.TBN, pos);
+                }
+                else
+                {
+                    if (!first_non_normalmap_texture_applied)
                     {
-						// Compute normal map lighting
-                        const float3 normal_from_map = shaderTextures[t].Sample(ss, tex_coords_array[uv_set_index]).rgb * 2.0 - 1.0;
-                        float3 pos = input.position.xyz;
-                        lighting_color = compute_normalmap_lighting(normal_from_map, input.TBN, pos);
-                    }
-                    else
-                    {
-                        if (!first_non_normalmap_texture_applied)
+                        float4 current_sampled_texture_color = shaderTextures[t].Sample(ss, tex_coords_array[uv_set_index]);
+                        if (blend_flag == 0)
                         {
-                            float4 current_sampled_texture_color = shaderTextures[t].Sample(ss, tex_coords_array[uv_set_index]);
-                            if (blend_flag == 0)
-                            {
-                                current_sampled_texture_color.a = 1;
-                            }
-
-                            sampled_texture_color = saturate(sampled_texture_color * current_sampled_texture_color);
-                            first_non_normalmap_texture_applied = true;
-                            break;
+                            current_sampled_texture_color.a = 1;
                         }
+
+                        sampled_texture_color = saturate(sampled_texture_color * current_sampled_texture_color);
+                        first_non_normalmap_texture_applied = true;
+                        break;
                     }
                 }
             }
@@ -185,16 +177,20 @@ PSOutput main(PixelInputType input)
         final_color.rgb = lerp(final_color.rgb, LIGHTGREEN, 0.4);
     }
 
-    float distance = length(cam_position - input.world_position.xyz);
+    bool should_render_fog = should_render_flags & 4;
+    if (should_render_fog)
+    {
+        float distance = length(cam_position - input.world_position.xyz);
 
-    float fogFactor = (fog_end - distance) / (fog_end - fog_start);
-    fogFactor = clamp(fogFactor, 0.20, 1);
+        float fogFactor = (fog_end - distance) / (fog_end - fog_start);
+        fogFactor = clamp(fogFactor, 0.20, 1);
 
-    float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
-    float3 finalColorWithFog = lerp(fogColor, final_color, fogFactor);
+        float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
+        final_color = lerp(fogColor, final_color, fogFactor);
+    }
     
     PSOutput output;
-    output.rt_0_output = float4(finalColorWithFog, sampled_texture_color.a);
+    output.rt_0_output = float4(final_color, sampled_texture_color.a);
 
 	float4 color_id = float4(0, 0, 0, 1);
 	color_id.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
