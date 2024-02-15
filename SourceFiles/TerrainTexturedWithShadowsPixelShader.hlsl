@@ -324,11 +324,11 @@ PSOutput main(PixelInputType input)
 
         // PCF
         float shadow = 0.0;
-        int pcf_samples = 49;
+        int pcf_samples = 9;
         float2 shadowmap_texelSize = shadowmap_texel_size;
-        for (int x = -3; x <= 3; x++)
+        for (int x = -1; x <= 1; x++)
         {
-            for (int y = -3; y <= 3; y++)
+            for (int y = -1; y <= 1; y++)
             {
                 float2 samplePos = shadowTexCoord + float2(x, y) * shadowmap_texelSize;
                 shadow += terrain_shadow_map_props.SampleCmpLevelZero(shadowSampler, samplePos, shadowDepth);
