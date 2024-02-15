@@ -11,11 +11,12 @@ public:
 
     static const CheckerboardColor presetColors[220];
 
-    CheckerboardTexture(int width, int height, int tile_size, ColorChoice color1 = ColorChoice::White, ColorChoice color2 = ColorChoice::Silver)
+    CheckerboardTexture(int width, int height, int tile_size, ColorChoice color1 = ColorChoice::White, ColorChoice color2 = ColorChoice::Silver, float alpha = 0.5)
         : m_width(width)
         , m_height(height)
         , m_tile_size(tile_size)
         , m_data(width* height * 4)
+        , m_alpha(alpha)
     {
         m_color1 = presetColors[static_cast<size_t>(color1)];
         m_color2 = presetColors[static_cast<size_t>(color2)];
@@ -43,7 +44,7 @@ private:
                 m_data[index] = color.r; // R
                 m_data[index + 1] = color.g; // G
                 m_data[index + 2] = color.b; // B
-                m_data[index + 3] = 128; // A
+                m_data[index + 3] = m_alpha * 255; // A
             }
         }
     }
@@ -53,6 +54,7 @@ private:
     int m_height;
     int m_tile_size;
     CheckerboardColor m_color1, m_color2;
+    float m_alpha;
     std::vector<uint8_t> m_data;
 
 public:
