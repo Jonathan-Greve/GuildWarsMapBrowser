@@ -130,7 +130,7 @@ float4 main(PixelInputType input) : SV_TARGET
         fogFactor = clamp(fogFactor, 0, 1);
 
         float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
-        float4 final_color = lerp(float4(fogColor, final_color.a), final_color, fogFactor);
+        final_color = lerp(float4(fogColor, final_color.a), final_color, fogFactor);
     }
     
     return final_color;
