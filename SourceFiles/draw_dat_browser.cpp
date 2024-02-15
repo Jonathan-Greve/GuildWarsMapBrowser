@@ -530,8 +530,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
             uint8_t sky_clouds_texture_filename_index1 = 0xFF;
             uint8_t sky_sun_texture_filename_index = 0xFF;
             uint8_t cloud_texture_filename_index = 0;
-            uint8_t water_texture_filename_index = 0xFF;
-            uint8_t water_normal_map_texture_index = 0xFF;
+            uint8_t water_color_texture_filename_index = 0xFF;
+            uint8_t water_distortion_texture_filename_index = 0xFF;
 
             if (environment_info_chunk.env_sub_chunk5.size() > 0) {
                 const auto& sub5_0 = environment_info_chunk.env_sub_chunk5[0];
@@ -550,8 +550,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
             if (!environment_info_chunk.env_sub_chunk6.empty()) {
                 const auto& sub6_0 = environment_info_chunk.env_sub_chunk6[0];
-                water_texture_filename_index = sub6_0.water_texture_index;
-                water_normal_map_texture_index = sub6_0.water_normal_texture_index;
+                water_color_texture_filename_index = sub6_0.water_color_texture_index;
+                water_distortion_texture_filename_index = sub6_0.water_distortion_texture_index;
             }
 
             std::vector<uint8_t> sky_texture_filename_indices{ sky_background_filename_index, sky_clouds_texture_filename_index0, sky_clouds_texture_filename_index1, sky_sun_texture_filename_index };
@@ -642,7 +642,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 }
             }
 
-            std::vector<uint8_t> water_texture_filename_indices{ water_texture_filename_index, water_normal_map_texture_index };
+            std::vector<uint8_t> water_texture_filename_indices{ water_color_texture_filename_index, water_distortion_texture_filename_index };
 
             std::vector<ID3D11ShaderResourceView*> water_textures(water_texture_filename_indices.size(), nullptr);
             for (int i = 0; i < water_texture_filename_indices.size(); i++) {

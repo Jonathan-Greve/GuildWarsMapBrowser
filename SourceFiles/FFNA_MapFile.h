@@ -1053,27 +1053,88 @@ struct EnvSubChunk5_other {
 
 struct EnvSubChunk6 {
     uint8_t unknown[9];
-    float water_properties[9];
-    uint8_t unknown1[8];
-    uint16_t water_texture_index;
-    uint16_t water_normal_texture_index;
+    float unknown1;
+    float water_distortion_tex_scale;
+    float water_distortion_scale;
+    float water_distortion_tex_speed;
+    float water_color_tex_scale;
+    float water_color_tex_speed;
+    float water_color_and_alpha_related;
+    float water0;
+    float water1;
+    uint8_t blue_color0;
+    uint8_t green_color0;
+    uint8_t red_color0;
+    uint8_t alpha0;
+    uint8_t blue_color1;
+    uint8_t green_color1;
+    uint8_t red_color1;
+    uint8_t alpha1;
+    uint16_t water_color_texture_index;
+    uint16_t water_distortion_texture_index;
 
     EnvSubChunk6() = default;
+
     EnvSubChunk6(const unsigned char* data, int& offset) {
         std::memcpy(unknown, &data[offset], sizeof(unknown));
         offset += sizeof(unknown);
 
-        std::memcpy(water_properties, &data[offset], sizeof(water_properties));
-        offset += sizeof(water_properties);
-
-        std::memcpy(unknown1, &data[offset], sizeof(unknown1));
+        std::memcpy(&unknown1, &data[offset], sizeof(unknown1));
         offset += sizeof(unknown1);
 
-        std::memcpy(&water_texture_index, &data[offset], sizeof(water_texture_index));
-        offset += sizeof(water_texture_index);
+        std::memcpy(&water_distortion_tex_scale, &data[offset], sizeof(water_distortion_tex_scale));
+        offset += sizeof(water_distortion_tex_scale);
 
-        std::memcpy(&water_normal_texture_index, &data[offset], sizeof(water_normal_texture_index));
-        offset += sizeof(water_normal_texture_index);
+        std::memcpy(&water_distortion_scale, &data[offset], sizeof(water_distortion_scale));
+        offset += sizeof(water_distortion_scale);
+
+        std::memcpy(&water_distortion_tex_speed, &data[offset], sizeof(water_distortion_tex_speed));
+        offset += sizeof(water_distortion_tex_speed);
+
+        std::memcpy(&water_color_tex_scale, &data[offset], sizeof(water_color_tex_scale));
+        offset += sizeof(water_color_tex_scale);
+
+        std::memcpy(&water_color_tex_speed, &data[offset], sizeof(water_color_tex_speed));
+        offset += sizeof(water_color_tex_speed);
+
+        std::memcpy(&water_color_and_alpha_related, &data[offset], sizeof(water_color_and_alpha_related));
+        offset += sizeof(water_color_and_alpha_related);
+
+        std::memcpy(&water0, &data[offset], sizeof(water0));
+        offset += sizeof(water0);
+
+        std::memcpy(&water1, &data[offset], sizeof(water1));
+        offset += sizeof(water1);
+
+        std::memcpy(&blue_color0, &data[offset], sizeof(blue_color0));
+        offset += sizeof(blue_color0);
+
+        std::memcpy(&green_color0, &data[offset], sizeof(green_color0));
+        offset += sizeof(green_color0);
+
+        std::memcpy(&red_color0, &data[offset], sizeof(red_color0));
+        offset += sizeof(red_color0);
+
+        std::memcpy(&alpha0, &data[offset], sizeof(alpha0));
+        offset += sizeof(alpha0);
+
+        std::memcpy(&blue_color1, &data[offset], sizeof(blue_color1));
+        offset += sizeof(blue_color1);
+
+        std::memcpy(&green_color1, &data[offset], sizeof(green_color1));
+        offset += sizeof(green_color1);
+
+        std::memcpy(&red_color1, &data[offset], sizeof(red_color1));
+        offset += sizeof(red_color1);
+
+        std::memcpy(&alpha1, &data[offset], sizeof(alpha1));
+        offset += sizeof(alpha1);
+
+        std::memcpy(&water_color_texture_index, &data[offset], sizeof(water_color_texture_index));
+        offset += sizeof(water_color_texture_index);
+
+        std::memcpy(&water_distortion_texture_index, &data[offset], sizeof(water_distortion_texture_index));
+        offset += sizeof(water_distortion_texture_index);
     }
 };
 
