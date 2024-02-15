@@ -462,11 +462,6 @@ public:
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
-            else if (pixel_shader_type == PixelShaderType::PickingShader)
-            {
-                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
-                m_terrain_current_pixel_shader_type = pixel_shader_type;
-            }
             else
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, PixelShaderType::TerrainDefault);
@@ -537,6 +532,9 @@ public:
     bool GetShouldRenderWaterReflection() { return m_should_render_water_reflection; }
     bool GetShouldRenderFog() { return m_should_render_fog; }
     bool GetShouldRerenderShadows() { return m_should_rerender_shadows; }
+
+    void SetShouldUsePickingShaderForModels(bool should_use_picking_shader_for_models) { m_should_use_picking_shader_for_models = should_use_picking_shader_for_models; }
+    bool GetShouldUsePickingShaderForModels() { return m_should_use_picking_shader_for_models; }
 
     PerCameraCB GetPerCameraCB() { return m_per_camera_cb_data; }
     void SetPerCameraCB(const PerCameraCB& per_camera_cb_data) { m_per_camera_cb_data = per_camera_cb_data; }
@@ -664,8 +662,17 @@ public:
                 m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id);
         }
 
-        m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::OpaqueOnly);
+        if (m_should_use_picking_shader_for_models) {
+            m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
+
+            m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::OpaqueOnly, true,
+                true, PixelShaderType::PickingShader, true, PixelShaderType::PickingShader);
+        }
+        else {
+            m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::OpaqueOnly);
+        }
 
         if (m_water_mesh_id) {
             m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
@@ -673,8 +680,21 @@ public:
                 m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_water_mesh_id);
         }
 
-        m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::TransparentOnly);
+        if (m_should_use_picking_shader_for_models) {
+            m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
+            m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::TransparentOnly, true,
+                true, PixelShaderType::PickingShader, true, PixelShaderType::PickingShader);
+        }
+        else {
+            if (picking_render_target) {
+                ID3D11RenderTargetView* multipleRenderTargets[] = { render_target_view, picking_render_target };
+                m_deviceContext->OMSetRenderTargets(2, multipleRenderTargets, depth_stencil_view);
+            }
+
+            m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::TransparentOnly);
+        }
     }
 
     void RenderForReflection(ID3D11RenderTargetView* render_target_view, ID3D11DepthStencilView* depth_stencil_view)
@@ -843,6 +863,8 @@ private:
     bool m_should_render_fog = true;
 
     bool m_should_rerender_shadows = false;
+
+    bool m_should_use_picking_shader_for_models = false;
 
     XMFLOAT4 m_clear_color = { 0.662745118f, 0.662745118f, 0.662745118f, 1 };
     float m_fog_start = 100000000.0f;
