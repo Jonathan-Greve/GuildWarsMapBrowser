@@ -19,6 +19,12 @@
 #include <Triangle3D.h>
 #include <GWSkyCircle.h>
 
+enum class RenderSelectionState {
+	All,
+	OpaqueOnly,
+	TransparentOnly,
+};
+
 class MeshManager
 {
 public:
@@ -354,11 +360,22 @@ public:
 	// Render only a specific mesh. Ignores should_render.
 	void RenderMesh(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
 		BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
-		DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, int mesh_id, bool should_set_ps = true,
+		DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, 
+		int mesh_id, RenderSelectionState render_select_state = RenderSelectionState::All, bool should_set_ps = true,
 		bool should_overwrite_shader = false, PixelShaderType overwrite_shader = PixelShaderType::OldModel) {
 
 		auto command = m_renderBatch.GetCommand(mesh_id);
 		if (command.has_value()) {
+			if (render_select_state != RenderSelectionState::All) {
+				// Note that these blend_states are estimates. I don't know for sure which ones are transparent until after the models pixel shader has run.
+				if (command->blend_state == BlendState::Opaque && render_select_state != RenderSelectionState::OpaqueOnly) {
+					return;
+				}
+				if (command->blend_state == BlendState::AlphaBlend && render_select_state != RenderSelectionState::TransparentOnly) {
+					return;
+				}
+			}
+
 			m_deviceContext->IASetPrimitiveTopology(command->primitiveTopology);
 
 			if (should_overwrite_shader) {
@@ -397,7 +414,8 @@ public:
 
 	void Render(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
 	            BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
-	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, bool should_set_ps = true,
+	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, 
+				RenderSelectionState render_select_state = RenderSelectionState::All, bool should_set_ps = true,
 				bool should_overwrite_old_model_shader = false, PixelShaderType overwrite_old_model_shader = PixelShaderType::OldModel,
 				bool should_overwrite_new_model_shader = false, PixelShaderType overwrite_new_model_shader = PixelShaderType::NewModel
 		)
@@ -414,6 +432,15 @@ public:
 		{
 			if (!command.should_render)
 				continue;
+			if (render_select_state != RenderSelectionState::All) {
+				if (command.blend_state == BlendState::Opaque && render_select_state != RenderSelectionState::OpaqueOnly) {
+					continue;
+				}
+				if (command.blend_state == BlendState::AlphaBlend && render_select_state != RenderSelectionState::TransparentOnly) {
+					continue;
+				}
+			}
+
 			if (command.primitiveTopology != currentTopology)
 			{
 				m_deviceContext->IASetPrimitiveTopology(command.primitiveTopology);

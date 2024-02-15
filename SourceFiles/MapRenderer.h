@@ -294,11 +294,22 @@ public:
         memcpy(mappedResourceFrame.pData, &terrain->m_per_terrain_cb, sizeof(PerTerrainCB));
         m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
 
+        // Create checkered texture so the user can choose to render the terrain with the checkered pixel shader.
+        int texture_tile_size = 96;
+        int texture_width = texture_tile_size * 2;
+        int texture_height = texture_tile_size * 2;
+        auto color_choice1 = CheckerboardTexture::ColorChoice::White;
+        auto color_choice2 = CheckerboardTexture::ColorChoice::DimGray;
+        CheckerboardTexture checkerboard_texture(texture_width, texture_height, texture_tile_size, color_choice1, color_choice2, 1.0f);
+        m_terrain_checkered_texture_id =
+            m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
+                texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 3214972 + (int)color_choice1 * 20 + (int)color_choice2);
+
         if (m_terrain_current_pixel_shader_type == PixelShaderType::TerrainCheckered ||
             m_terrain_texture_atlas_id < 0)
         {
             m_mesh_manager->SetTexturesForMesh(
-                m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_checkered_texture_id) }, 3);
+                m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_checkered_texture_id) }, 0);
         }
         else
         {
@@ -311,8 +322,8 @@ public:
         const auto& terrain_shadow_map_grid = terrain->get_terrain_shadow_map_grid();
 
         // Create a 2D texture from the texture_index_grid
-        int texture_width = terrain->m_grid_dim_x;
-        int texture_height = terrain->m_grid_dim_z;
+        texture_width = terrain->m_grid_dim_x;
+        texture_height = terrain->m_grid_dim_z;
         std::vector<uint8_t> terain_texture_data(texture_width * texture_height);
         std::vector<uint8_t> terrain_shadow_map_data(texture_width * texture_height);
         for (int i = 0; i < texture_height; ++i)
@@ -431,7 +442,7 @@ public:
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
                 m_mesh_manager->SetTexturesForMesh(
-                    m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_checkered_texture_id) }, 3);
+                    m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_checkered_texture_id) }, 0);
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
@@ -654,13 +665,16 @@ public:
         }
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality);
+            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::OpaqueOnly);
 
         if (m_water_mesh_id) {
             m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
                 m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_water_mesh_id);
         }
+
+        m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::TransparentOnly);
     }
 
     void RenderForReflection(ID3D11RenderTargetView* render_target_view, ID3D11DepthStencilView* depth_stencil_view)
@@ -688,12 +702,12 @@ public:
 
         if (m_terrain_mesh_id) {
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id, true, 
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id, RenderSelectionState::All, true, 
                 true, PixelShaderType::TerrainReflectionTexturedWithShadows);
         }
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, true, 
+            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::All, true,
             true, PixelShaderType::OldModelReflection, true, PixelShaderType::NewModelReflection);
     }
 
@@ -703,11 +717,13 @@ public:
 
         if (m_terrain_mesh_id) {
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id, true, true, PixelShaderType::TerrainShadowMap);
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_terrain_mesh_id, 
+                RenderSelectionState::All, true, true, PixelShaderType::TerrainShadowMap);
         }
 
         m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, true, true, PixelShaderType::OldModelShadowMap, true, PixelShaderType::NewModelShadowMap);
+            m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, 
+            RenderSelectionState::All, true, true, PixelShaderType::OldModelShadowMap, true, PixelShaderType::NewModelShadowMap);
     }
 
     void AddBox(float x, float y, float z, float size,

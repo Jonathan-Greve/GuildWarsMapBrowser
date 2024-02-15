@@ -1491,7 +1491,10 @@ struct FFNA_ModelFile
             // Blend state (Wrong not how the game does it, just for testing)
             for (int i = num_uv_coords_start_index; i < num_uv_coords_start_index + num_uv_coords_to_use; i++)
             {
-                if (geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 8 || ! should_cull || geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 4)
+                // Note this is just an approximation. All models use alpha blend in the pixel shader but this is used for optimization.
+                // For example models with blend_state set to AlphaBlend is rendered after water and those with opaque before water.
+                // Other than that it has no uses so far. Was once used for sorting meshes but that has been disabled for now.
+                if (geometry_chunk.tex_and_vertex_shader_struct.blend_state[i] == 8)
                 {
                     blend_state = BlendState::AlphaBlend;
                     break;

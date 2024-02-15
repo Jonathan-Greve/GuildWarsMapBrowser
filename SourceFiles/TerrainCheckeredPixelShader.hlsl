@@ -1,5 +1,5 @@
 sampler ss: register(s0);
-Texture2D shaderTextures[8] : register(t3);
+Texture2D shaderTextures[8] : register(t0);
 
 struct DirectionalLight
 {
