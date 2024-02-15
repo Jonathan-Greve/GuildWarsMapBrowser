@@ -121,6 +121,11 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
             if (ImGui::Checkbox("Show water reflection", &should_render_water_reflection)) {
                 map_renderer->SetShouldRenderWaterReflection(should_render_water_reflection);
             }
+
+            bool should_use_picking_shader_for_models = map_renderer->GetShouldUsePickingShaderForModels();
+            if (ImGui::Checkbox("Show model picking colors", &should_use_picking_shader_for_models)) {
+                map_renderer->SetShouldUsePickingShaderForModels(should_use_picking_shader_for_models);
+            }
         }
 
         window_height = ImGui::GetWindowSize().y;
