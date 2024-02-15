@@ -444,10 +444,29 @@ struct EnvSubChunk5_other {
 // Water environment info most likely
 struct EnvSubChunk6 {
    u8 unknown[9];
-   float water_properties[9];
-   u8 unknown1[8];
-   u16 water_texture;
-   u16 water_normal_map;
+   float unknown1;
+   float water_distortion_tex_scale; // small means larger scale and big means smaller scale.
+   float water_distortion_scale; // small and the water surface is completely flat with good reflections. High and all reflections disappear. Crashes Gw with too high values. 10 didnt crash lakeside 100 did. 
+   float water_distortion_tex_speed;
+   float water_color_tex_scale;
+   float water_color_tex_speed;
+   float water_color_and_alpha_related; // 0 means water is less transparent and more of the water color texture is applied. Higher numbers does the opposite: makes it more transparent.
+   float water0;
+   float water1;
+   // The colors have a strong effect on the final color of the water. 
+   // the 1 colors seem to be stronger than the 0 colors. If alpha is set 
+   // to 255 for both then the 1 colors might overwrite the 0 colors.
+   // If alpha is set to 0 then the water is fully transparent.
+   u8 blue_color0;
+   u8 green_color0;
+   u8 red_color0;
+   u8 alpha0;
+   u8 blue_color1;
+   u8 green_color1;
+   u8 red_color1;
+   u8 alpha1;
+   u16 water_color_texture;
+   u16 water_distortion_texture;
 };
 
 struct EnvSubChunk7 {
