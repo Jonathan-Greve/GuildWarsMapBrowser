@@ -401,7 +401,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
                 float maxDimension = std::max({ modelWidth, modelHeight, modelDepth });
 
-                float boundingBoxSize = 3000.0f;
+                float boundingBoxSize = 10000.0f;
                 float scale = boundingBoxSize / maxDimension;
 
                 float centerX = overallMinX + modelWidth * 0.5f;
@@ -410,7 +410,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
                 XMMATRIX scaling_matrix = XMMatrixScaling(scale, scale, scale);
                 XMMATRIX translation_matrix =
-                    XMMatrixTranslation(-centerX * scale, -centerY * scale, -centerZ * scale);
+                    XMMatrixTranslation(-centerX * scale, (-centerY + modelHeight / 2) * scale, -centerZ * scale);
                 XMMATRIX world_matrix = scaling_matrix * translation_matrix;
 
                 XMStoreFloat4x4(&per_object_cbs[i].world, world_matrix);
