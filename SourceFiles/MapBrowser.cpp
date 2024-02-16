@@ -253,8 +253,15 @@ void MapBrowser::Render()
 
         int terrain_mesh_id = m_map_renderer->GetTerrainMeshId();
         auto terrain_mesh_instance = m_map_renderer->GetMeshManager()->GetMesh(terrain_mesh_id);
-
         terrain_mesh_instance->SetTextures({ shadowMapSRV }, 3);
+
+        const auto& props_mesh_ids = m_map_renderer->GetPropsMeshIds();
+        for (const auto& prop_mesh_ids : props_mesh_ids) {
+            for (const auto prop_mesh_id : prop_mesh_ids.second) {
+                auto prop_mesh_instance = m_map_renderer->GetMeshManager()->GetMesh(prop_mesh_id);
+                prop_mesh_instance->SetTextures({ shadowMapSRV }, 0);
+            }
+        }
 
         // Restore settings
         if (camera_type == CameraType::Perspective)
