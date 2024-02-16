@@ -6,6 +6,9 @@ struct OldModelPixelShader
 #define CHECK_TEXTURE_SET(TYPE) TYPE == texture_type
 
 sampler ss : register(s0);
+SamplerComparisonState shadowSampler : register(s1);
+
+Texture2D terrain_shadow_map_props : register(t0);
 Texture2D shaderTextures[8] : register(t3);
 
 #define DARKGREEN float3(0.4, 1.0, 0.4)
@@ -187,6 +190,39 @@ PSOutput main(PixelInputType input)
     else if (highlight_state == 2)
     {
         finalColor.rgb = lerp(finalColor.rgb, LIGHTGREEN, 0.4);
+    }
+    
+    bool should_render_model_shadows = should_render_flags & 8;
+    if (should_render_model_shadows)
+    {
+        float3 ndcPos = input.lightSpacePos.xyz / input.lightSpacePos.w;
+
+        // Transform position to shadow map texture space
+        float2 shadowTexCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
+        float shadowDepth = input.lightSpacePos.z / input.lightSpacePos.w;
+
+        // Add a bias to reduce shadow acne, especially on steep surfaces
+        float bias = max(0.001 * (1.0 - dot(normalize(input.normal), -normalize(directionalLight.direction))), 0.0005);
+        shadowDepth -= bias;
+
+        // PCF
+        float shadow = 0.0;
+        int pcf_samples = 9;
+        float2 shadowmap_texelSize = shadowmap_texel_size;
+        for (int x = -1; x <= 1; x++)
+        {
+            for (int y = -1; y <= 1; y++)
+            {
+                float2 samplePos = shadowTexCoord + float2(x, y) * shadowmap_texelSize;
+                shadow += terrain_shadow_map_props.SampleCmpLevelZero(shadowSampler, samplePos, shadowDepth);
+            }
+        }
+
+        // Normalize the shadow value
+        shadow /= pcf_samples;
+
+        // Apply shadow to final color
+        finalColor.rgb *= lerp(0.65, 1.0, shadow);
     }
     
     bool should_render_fog = should_render_flags & 4;

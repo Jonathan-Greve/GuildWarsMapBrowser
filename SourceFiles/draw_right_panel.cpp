@@ -117,6 +117,11 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
                 map_renderer->SetShouldRenderShadows(should_render_shadows);
             }
 
+            bool should_render_shadows_on_props = map_renderer->GetShouldRenderShadowsForModels();
+            if (ImGui::Checkbox("Show shadows on props", &should_render_shadows_on_props)) {
+                map_renderer->SetShouldRenderShadowsForModels(should_render_shadows_on_props);
+            }
+
             bool should_render_water_reflection = map_renderer->GetShouldRenderWaterReflection();
             if (ImGui::Checkbox("Show water reflection", &should_render_water_reflection)) {
                 map_renderer->SetShouldRenderWaterReflection(should_render_water_reflection);
