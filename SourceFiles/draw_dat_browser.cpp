@@ -780,6 +780,35 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 selected_ffna_map_file.map_info_chunk.map_bounds);
             map_renderer->SetTerrain(terrain.get(), terrain_texture_id);
 
+            if (!environment_info_chunk.env_sub_chunk6.empty()) {
+                const auto& sub6_0 = environment_info_chunk.env_sub_chunk6[0];
+
+                // Convert RGBA values from uint8_t to normalized floats for DirectX::XMFLOAT4
+                DirectX::XMFLOAT4 color0(
+                    sub6_0.red_color0 / 255.0f,
+                    sub6_0.green_color0 / 255.0f,
+                    sub6_0.blue_color0 / 255.0f,
+                    sub6_0.alpha0 / 255.0f
+                );
+
+                DirectX::XMFLOAT4 color1(
+                    sub6_0.red_color1 / 255.0f,
+                    sub6_0.green_color1 / 255.0f,
+                    sub6_0.blue_color1 / 255.0f,
+                    sub6_0.alpha1 / 255.0f
+                );
+
+                map_renderer->UpdateWaterProperties(
+                    sub6_0.water_distortion_tex_scale,
+                    sub6_0.water_distortion_scale,
+                    sub6_0.water_distortion_tex_speed,
+                    sub6_0.water_color_tex_scale,
+                    sub6_0.water_color_tex_speed,
+                    color0,
+                    color1
+                );
+            }
+
             if (cloud_textures.size() > 0) {
                 const int clouds_mesh_id = map_renderer->GetMeshManager()->AddGwSkyCircle(100000.0f);
                 map_renderer->SetCloudsMeshId(clouds_mesh_id);
