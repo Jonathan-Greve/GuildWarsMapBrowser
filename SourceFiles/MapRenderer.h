@@ -253,6 +253,38 @@ public:
         m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
     }
 
+    void UpdateWaterProperties(
+        float water_distortion_tex_scale,
+        float water_distortion_scale,
+        float water_distortion_tex_speed,
+        float water_color_tex_scale,
+        float water_color_tex_speed,
+        DirectX::XMFLOAT4 color0,
+        DirectX::XMFLOAT4 color1
+    )
+    {
+        auto& cb = m_terrain->m_per_terrain_cb;
+
+        // Update new fields
+        cb.water_distortion_tex_scale = water_distortion_tex_scale;
+        cb.water_distortion_scale = water_distortion_scale;
+        cb.water_distortion_tex_speed = water_distortion_tex_speed;
+        cb.water_color_tex_scale = water_color_tex_scale;
+        cb.water_color_tex_speed = water_color_tex_speed;
+        cb.color0 = color0;
+        cb.color1 = color1;
+
+        D3D11_MAPPED_SUBRESOURCE mappedResource;
+        ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+        HRESULT hr = m_deviceContext->Map(m_per_terrain_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+        if (SUCCEEDED(hr))
+        {
+            memcpy(mappedResource.pData, &cb, sizeof(PerTerrainCB));
+            m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
+        }
+    }
+
+
     Terrain* GetTerrain() { return m_terrain; }
 
     void SetTerrain(Terrain* terrain, int texture_atlas_id)

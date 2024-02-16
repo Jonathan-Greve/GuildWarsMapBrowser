@@ -73,7 +73,13 @@ cbuffer PerTerrainCB : register(b3)
     float water_level;
     float terrain_texture_pad_x;
     float terrain_texture_pad_y;
-    float terrain_pad[1];
+    float water_distortion_tex_scale;
+    float water_distortion_scale;
+    float water_distortion_tex_speed;
+    float water_color_tex_scale;
+    float water_color_tex_speed;
+    float4 color0;
+    float4 color1;
 };
 
 struct PixelInputType
