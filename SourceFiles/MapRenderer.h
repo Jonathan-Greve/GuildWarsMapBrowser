@@ -559,11 +559,13 @@ public:
     void SetShouldRenderWaterReflection(bool should_render_reflection) { m_should_render_water_reflection = should_render_reflection; }
     void SetShouldRenderFog(bool should_render_fog) { m_should_render_fog = should_render_fog; }
     void SetShouldRerenderShadows(bool should_rerender_shadows) { m_should_rerender_shadows = should_rerender_shadows; }
+    void SetShouldRenderShadowsForModels(bool should_render_shadows) { m_should_render_shadows_for_models = should_render_shadows; }
 
     bool GetShouldRenderShadows() { return m_should_render_shadows; }
     bool GetShouldRenderWaterReflection() { return m_should_render_water_reflection; }
     bool GetShouldRenderFog() { return m_should_render_fog; }
     bool GetShouldRerenderShadows() { return m_should_rerender_shadows; }
+    bool GetShouldRenderShadowsForModels() { return m_should_render_shadows_for_models; }
 
     void SetShouldUsePickingShaderForModels(bool should_use_picking_shader_for_models) { m_should_use_picking_shader_for_models = should_use_picking_shader_for_models; }
     bool GetShouldUsePickingShaderForModels() { return m_should_use_picking_shader_for_models; }
@@ -636,6 +638,8 @@ public:
         frameCB.should_render_flags = frameCB.should_render_flags | (m_should_render_shadows);
         frameCB.should_render_flags = frameCB.should_render_flags | (m_should_render_water_reflection << 1);
         frameCB.should_render_flags = frameCB.should_render_flags | (m_should_render_fog << 2);
+        frameCB.should_render_flags = frameCB.should_render_flags | (m_should_render_shadows_for_models << 3);
+
 
         // Update the per frame constant buffer
         D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
@@ -893,6 +897,7 @@ private:
     bool m_should_render_shadows = true;
     bool m_should_render_water_reflection = true;
     bool m_should_render_fog = true;
+    bool m_should_render_shadows_for_models = true;
 
     bool m_should_rerender_shadows = false;
 
