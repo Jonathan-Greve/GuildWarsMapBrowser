@@ -66,8 +66,18 @@ cbuffer PerTerrainCB : register(b3)
     float max_x;
     float min_y;
     float max_y;
+    float min_z;
+    float max_z;
     float water_level;
-    float pad[3];
+    float terrain_texture_pad_x;
+    float terrain_texture_pad_y;
+    float water_distortion_tex_scale;
+    float water_distortion_scale;
+    float water_distortion_tex_speed;
+    float water_color_tex_scale;
+    float water_color_tex_speed;
+    float4 color0;
+    float4 color1;
 };
 
 struct PixelInputType
@@ -99,20 +109,20 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 final_color = float4(0, 0, 0, 1);
 
     // Water animation based on time
-    float2 tex_scale = float2(-grid_dim_x / 8, -grid_dim_x / 8);
-    float scaled_time = time_elapsed / 100;
+    float color_scaled_time = time_elapsed * water_color_tex_speed / 200;
+    float distortion_scaled_time = time_elapsed * water_distortion_tex_speed / 80;
 
     // Apply wave offset to texture coordinates
-    float2 waterCoord0 = input.tex_coords0.yx * tex_scale - scaled_time;
-    float2 normalCoord0 = waterCoord0.yx;
+    float2 color_uv = input.tex_coords0.yx * water_color_tex_scale - color_scaled_time;
+    float2 distortion_uv = input.tex_coords0.xy * water_distortion_tex_scale * 50 + distortion_scaled_time;
 
     // Sample water texture at two coordinates
-    float4 waterColor0 = shaderTextures[0].Sample(ss, waterCoord0);
-    float4 normalColor0 = shaderTextures[1].Sample(ss, normalCoord0);
-    final_color = waterColor0;
+    float4 waterColor0 = shaderTextures[0].Sample(ss, color_uv);
+    float4 normalColor0 = shaderTextures[1].Sample(ss, distortion_uv);
+    final_color = lerp(waterColor0, color0, 0.3);
     
-    float normal_r = normalColor0.r; // Convert from [0, 1] range to [-1, 1] 
-    float normal_g = normalColor0.g; // Convert from [0, 1] range to [-1, 1] 
+    float normal_r = normalColor0.r * 2 - 1; // Convert from [0, 1] range to [-1, 1] 
+    float normal_g = normalColor0.g * 2 - 1; // Convert from [0, 1] range to [-1, 1] 
     // Reconstruct the Z component. Assume normal points out of the water.
     float normal_y = sqrt(1.0 - normal_r * normal_r - normal_g * normal_g);
     float3 normal = normalize(float3(normal_r, normal_y, normal_g));
@@ -120,23 +130,20 @@ float4 main(PixelInputType input) : SV_TARGET
     
     float NdotV = dot(normal, viewDirection);
     
-
+    
     bool should_render_water_reflection = should_render_flags & 2;
     if (should_render_water_reflection)
     {
         // ============ REFLECTION START =====================
-        if (input.reflectionSpacePos.y > water_level)
-        {
-            float3 ndcPos = input.reflectionSpacePos.xyz / input.reflectionSpacePos.w;
+        float3 ndcPos = input.reflectionSpacePos.xyz / input.reflectionSpacePos.w;
 
-            // Transform position to shadow map texture space
-            float2 reflectionCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
-            float4 reflectionColor = shaderTextures[2].Sample(ss, reflectionCoord+normal_g / 40);
+        // Transform position to shadow map texture space
+        float2 reflectionCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
+        float4 reflectionColor = shaderTextures[2].Sample(ss, reflectionCoord + normal_g * water_distortion_scale / 30);
     
-            // Combine the reflection color with the final color
-            // This can be adjusted based on the desired reflection intensity and blending mode
-            final_color = lerp(final_color, reflectionColor, 0.5); // Simple blend for demonstration
-        }
+        // Combine the reflection color with the final color
+        // This can be adjusted based on the desired reflection intensity and blending mode
+        final_color = lerp(final_color, lerp(reflectionColor, color1, 0.3), 0.5); // Simple blend for demonstration
         // ============ REFLECTION END =====================
     }
     
@@ -147,7 +154,6 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 ambientComponent = directionalLight.ambient;
     float4 diffuseComponent = directionalLight.diffuse * NdotL;
 
-    
     // Compute half vector and ensure normalization
     float3 halfVector = normalize(lightDir + viewDirection);
     float NdotH = max(dot(normal, halfVector), 0.0);
@@ -157,7 +163,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 specularComponent = float4(1, 1, 1, 1) * specularIntensity;
 
     // Combine lighting components
-    final_color *= ambientComponent + diffuseComponent * 0.3 + specularComponent * 0.5;
+    final_color *= ambientComponent + diffuseComponent * 0.1 + specularComponent * 0.2;
 
     // Fog effect
     bool should_render_fog = should_render_flags & 4;
@@ -169,7 +175,8 @@ float4 main(PixelInputType input) : SV_TARGET
         final_color = lerp(float4(fog_color_rgb, 1.0), final_color, fogFactor);
     }
     
-    float water_alpha = clamp(1 - viewDirection.y, 0.8, 1.0);
+    float min_alpha = max(0.5 * (color0.a + color1.a), 0.7);
+    float water_alpha = clamp(1.2 - viewDirection.y, min_alpha, 1.0);
 
     return float4(final_color.rgb, water_alpha);
 }
