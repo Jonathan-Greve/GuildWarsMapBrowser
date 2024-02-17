@@ -158,198 +158,9 @@ void MapBrowser::Render()
     }
 
     // If it is the first time rendering a map generate a shadow map
-    if (m_map_renderer->GetTerrain() && m_map_renderer->GetShouldRerenderShadows()) {
-        m_map_renderer->SetShouldRerenderShadows(false);
+    RenderShadows();
 
-        bool should_render_sky = m_map_renderer->GetShouldRenderSky();
-        m_map_renderer->SetShouldRenderSky(false);
-        const auto camera_type = m_map_renderer->GetCamera()->GetCameraType();
-        const auto camera_pos = m_map_renderer->GetCamera()->GetPosition3f();
-        const auto camera_pitch = m_map_renderer->GetCamera()->GetPitch();
-        const auto camera_yaw = m_map_renderer->GetCamera()->GetYaw();
-        const auto camera_fovY = m_map_renderer->GetCamera()->GetFovY();
-        const auto camera_frustrum_width = m_map_renderer->GetCamera()->GetViewWidth();
-        const auto camera_frustrum_height = m_map_renderer->GetCamera()->GetViewHeight();
-        const auto camera_aspect_ration = m_map_renderer->GetCamera()->GetAspectRatio();
-        const auto camera_near = m_map_renderer->GetCamera()->GetNearZ();
-        const auto camera_far = m_map_renderer->GetCamera()->GetFarZ();
-
-        XMFLOAT3 corners[8] = {
-            {m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z}, // Min corner
-            {m_map_renderer->GetTerrain()->m_bounds.map_max_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z}, // Min y, max x, min z
-            {m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_max_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z}, // Max y, min x, min z
-            {m_map_renderer->GetTerrain()->m_bounds.map_max_x, m_map_renderer->GetTerrain()->m_bounds.map_max_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z}, // Max y, max x, min z
-            {m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_max_z}, // Min y, min x, max z
-            {m_map_renderer->GetTerrain()->m_bounds.map_max_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_max_z}, // Min y, max x, max z
-            {m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_max_y, m_map_renderer->GetTerrain()->m_bounds.map_max_z}, // Max y, min x, max z
-            {m_map_renderer->GetTerrain()->m_bounds.map_max_x, m_map_renderer->GetTerrain()->m_bounds.map_max_y, m_map_renderer->GetTerrain()->m_bounds.map_max_z}  // Max corner
-        };
-
-
-        // each of these are between -1 and 1 is the vector the light is moving
-        const float cam_pos_x = -m_map_renderer->GetDirectionalLight().direction.x;
-        const float cam_pos_y = -m_map_renderer->GetDirectionalLight().direction.y;
-        const float cam_pos_z = -m_map_renderer->GetDirectionalLight().direction.z;
-        constexpr float pos_scale = 50000;
-
-        m_map_renderer->GetCamera()->SetPosition(cam_pos_x * pos_scale, cam_pos_y * pos_scale, cam_pos_z * pos_scale);
-        m_map_renderer->GetCamera()->LookAt(m_map_renderer->GetCamera()->GetPosition(), {0,0,0}, {0,1,0});
-        m_map_renderer->GetCamera()->Update(0);
-        auto view = m_map_renderer->GetCamera()->GetView();
-
-        // Use view matrix to compute new bounding box.
-        XMFLOAT3 transformedCorners[8];
-        for (int i = 0; i < 8; ++i) {
-            XMVECTOR corner = XMLoadFloat3(&corners[i]);
-            corner = XMVector3TransformCoord(corner, view);
-            XMStoreFloat3(&transformedCorners[i], corner);
-        }
-
-        float minX = FLT_MAX, maxX = -FLT_MAX, minY = FLT_MAX, maxY = -FLT_MAX, minZ = FLT_MAX, maxZ = -FLT_MAX;
-
-        for (auto& corner : transformedCorners) {
-            minX = std::min(minX, corner.x);
-            maxX = std::max(maxX, corner.x);
-            minY = std::min(minY, corner.y);
-            maxY = std::max(maxY, corner.y);
-            minZ = std::min(minZ, corner.z);
-            maxZ = std::max(maxZ, corner.z);
-        }
-
-        float frustum_width = maxX - minX;
-        float frustum_height = maxY - minY;
-        float frustum_near = minZ;
-        float frustum_far = maxZ;
-
-
-        m_map_renderer->SetFrustumAsOrthographic(frustum_width, frustum_height, frustum_near, frustum_far);
-        m_map_renderer->GetCamera()->Update(0);
-
-#ifdef _DEBUG
-        constexpr float shadowmap_width = 16384 / 2;
-        constexpr float shadowmap_height = 16384 / 2;
-#else
-        constexpr float shadowmap_width = 16384;
-        constexpr float shadowmap_height = 16384;
-#endif
-
-        // Update Camera Constant Buffer with light view projection matrix
-        view = m_map_renderer->GetCamera()->GetView();
-        const auto proj = m_map_renderer->GetCamera()->GetProj();
-        auto curr_per_camera_cb = m_map_renderer->GetPerCameraCB();
-        XMStoreFloat4x4(&curr_per_camera_cb.directional_light_view, XMMatrixTranspose(view));
-        XMStoreFloat4x4(&curr_per_camera_cb.directional_light_proj, XMMatrixTranspose(proj));
-        curr_per_camera_cb.shadowmap_texel_size_x = 1.0f / shadowmap_width;
-        curr_per_camera_cb.shadowmap_texel_size_y = 1.0f / shadowmap_height;
-        m_map_renderer->SetPerCameraCB(curr_per_camera_cb);
-
-        m_map_renderer->Update(0); // Update camera CB
-
-        m_deviceResources->CreateShadowResources(shadowmap_width, shadowmap_height);
-        ClearShadow();
-        m_map_renderer->RenderForShadowMap(m_deviceResources->GetShadowMapDSV());
-
-        auto shadowMapSRV = m_deviceResources->GetShadowMapSRV();
-
-        int terrain_mesh_id = m_map_renderer->GetTerrainMeshId();
-        auto terrain_mesh_instance = m_map_renderer->GetMeshManager()->GetMesh(terrain_mesh_id);
-        terrain_mesh_instance->SetTextures({ shadowMapSRV }, 3);
-
-        const auto& props_mesh_ids = m_map_renderer->GetPropsMeshIds();
-        for (const auto& prop_mesh_ids : props_mesh_ids) {
-            for (const auto prop_mesh_id : prop_mesh_ids.second) {
-                auto prop_mesh_instance = m_map_renderer->GetMeshManager()->GetMesh(prop_mesh_id);
-                prop_mesh_instance->SetTextures({ shadowMapSRV }, 0);
-            }
-        }
-
-        // Restore settings
-        if (camera_type == CameraType::Perspective)
-        {
-            m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
-            m_map_renderer->GetCamera()->SetFrustumAsPerspective(camera_fovY, camera_aspect_ration, camera_near, camera_far);
-            m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
-            
-        }
-        else
-        {
-            m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
-            m_map_renderer->GetCamera()->SetFrustumAsOrthographic(camera_frustrum_width, camera_frustrum_height / camera_aspect_ration, camera_near, camera_far);
-            m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
-        }
-
-        m_map_renderer->Update(0); // Update camera CB
-
-        m_map_renderer->SetShouldRenderSky(should_render_sky);
-    }
-
-    if (m_map_renderer->GetTerrain() && m_map_renderer->GetWaterMeshId() >= 0 && m_map_renderer->GetShouldRenderWaterReflection()) {
-        bool should_render_sky = m_map_renderer->GetShouldRenderSky();
-        m_map_renderer->SetShouldRenderSky(false);
-        const auto camera_type = m_map_renderer->GetCamera()->GetCameraType();
-        const auto camera_pos = m_map_renderer->GetCamera()->GetPosition3f();
-        const auto camera_pitch = m_map_renderer->GetCamera()->GetPitch();
-        const auto camera_yaw = m_map_renderer->GetCamera()->GetYaw();
-        const auto camera_fovY = m_map_renderer->GetCamera()->GetFovY();
-        const auto camera_frustrum_width = m_map_renderer->GetCamera()->GetViewWidth();
-        const auto camera_frustrum_height = m_map_renderer->GetCamera()->GetViewHeight();
-        const auto camera_aspect_ration = m_map_renderer->GetCamera()->GetAspectRatio();
-        const auto camera_near = m_map_renderer->GetCamera()->GetNearZ();
-        const auto camera_far = m_map_renderer->GetCamera()->GetFarZ();
-
-        float water_level = m_map_renderer->GetWaterLevel();
-        const auto cam_look = NormalizeXMFLOAT3(m_map_renderer->GetCamera()->GetLook3f());
-
-        const XMVECTOR reflection_dir{cam_look.x, -cam_look.y, cam_look.z};
-
-        // Place the camera under the water surface by relecting the camera y position around the xz plane.
-        m_map_renderer->GetCamera()->SetPosition(
-            camera_pos.x, 
-            2 * water_level - camera_pos.y, 
-            camera_pos.z);
-        m_map_renderer->GetCamera()->LookAt(reflection_dir, { 0,-1,0 });
-        m_map_renderer->GetCamera()->Update(0);
-
-#ifdef _DEBUG
-        constexpr float reflection_width = 16384 / 20;
-        constexpr float reflection_height = 16384 / 20;
-#else
-        constexpr float reflection_width = 16384 / 10;
-        constexpr float reflection_height = 16384 / 10;
-#endif
-
-        // Update Camera Constant Buffer with light view projection matrix
-        const auto view = m_map_renderer->GetCamera()->GetView();
-        const auto proj = m_map_renderer->GetCamera()->GetProj();
-        auto curr_per_camera_cb = m_map_renderer->GetPerCameraCB();
-        XMStoreFloat4x4(&curr_per_camera_cb.reflection_view, XMMatrixTranspose(view));
-        XMStoreFloat4x4(&curr_per_camera_cb.reflection_proj, XMMatrixTranspose(proj));
-        curr_per_camera_cb.reflection_texel_size_x = 1.0f / reflection_width;
-        curr_per_camera_cb.reflection_texel_size_y = 1.0f / reflection_height;
-        m_map_renderer->SetPerCameraCB(curr_per_camera_cb);
-
-        m_map_renderer->Update(0); // Update camera CB
-
-        m_deviceResources->CreateReflectionResources(reflection_width, reflection_height);
-        ClearReflection();
-        m_map_renderer->RenderForReflection(m_deviceResources->GetReflectionRTV(), m_deviceResources->GetReflectionDSV());
-
-        auto reflectionSRV = m_deviceResources->GetReflectionSRV();
-
-        int water_mesh_id = m_map_renderer->GetWaterMeshId();
-        auto water_mesh_instance = m_map_renderer->GetMeshManager()->GetMesh(water_mesh_id);
-
-        water_mesh_instance->SetTextures({ reflectionSRV }, 2);
-
-        // Restore settings
-        m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
-        m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
-
-
-        m_map_renderer->Update(0); // Update camera CB
-
-        m_map_renderer->SetShouldRenderSky(should_render_sky);
-    }
+    RenderWaterReflection();
 
     Clear();
 
@@ -513,6 +324,7 @@ void MapBrowser::Render()
             // We might disable sky rendering for top down orthographic extraction.
             // Save the current state here so we can restore it after.
             bool should_render_sky = m_map_renderer->GetShouldRenderSky();
+            bool should_render_fog = m_map_renderer->GetShouldRenderFog();
 
             auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
             auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
@@ -523,6 +335,8 @@ void MapBrowser::Render()
             {
                 m_deviceResources->UpdateOffscreenResources(dim_x * m_extract_panel_info.pixels_per_tile_x, dim_z * m_extract_panel_info.pixels_per_tile_y);
                 m_map_renderer->SetShouldRenderSky(false);
+                m_map_renderer->SetShouldRenderFog(false);
+
             }
             break;
             case ExtractPanel::CurrentMapNoViewChange:
@@ -536,12 +350,15 @@ void MapBrowser::Render()
                 break;
             }
 
+            RenderShadows();
+            RenderWaterReflection();
 
             ClearOffscreen();
 
             m_map_renderer->Render(m_deviceResources->GetOffscreenRenderTargetView(), nullptr, m_deviceResources->GetOffscreenDepthStencilView());
 
             m_map_renderer->SetShouldRenderSky(should_render_sky);
+            m_map_renderer->SetShouldRenderFog(should_render_fog);
 
             m_deviceResources->GetD3DDeviceContext()->Flush();
 
@@ -631,6 +448,205 @@ void MapBrowser::Render()
             }
 
         }
+    }
+}
+
+void MapBrowser::RenderWaterReflection()
+{
+    if (m_map_renderer->GetTerrain() && m_map_renderer->GetWaterMeshId() >= 0 && m_map_renderer->GetShouldRenderWaterReflection()) {
+        bool should_render_sky = m_map_renderer->GetShouldRenderSky();
+        m_map_renderer->SetShouldRenderSky(false);
+        const auto camera_type = m_map_renderer->GetCamera()->GetCameraType();
+        const auto camera_pos = m_map_renderer->GetCamera()->GetPosition3f();
+        const auto camera_pitch = m_map_renderer->GetCamera()->GetPitch();
+        const auto camera_yaw = m_map_renderer->GetCamera()->GetYaw();
+        const auto camera_fovY = m_map_renderer->GetCamera()->GetFovY();
+        const auto camera_frustrum_width = m_map_renderer->GetCamera()->GetViewWidth();
+        const auto camera_frustrum_height = m_map_renderer->GetCamera()->GetViewHeight();
+        const auto camera_aspect_ration = m_map_renderer->GetCamera()->GetAspectRatio();
+        const auto camera_near = m_map_renderer->GetCamera()->GetNearZ();
+        const auto camera_far = m_map_renderer->GetCamera()->GetFarZ();
+
+        float water_level = m_map_renderer->GetWaterLevel();
+        const auto cam_look = NormalizeXMFLOAT3(m_map_renderer->GetCamera()->GetLook3f());
+
+        const XMVECTOR reflection_dir{ cam_look.x, -cam_look.y, cam_look.z };
+
+        // Place the camera under the water surface by relecting the camera y position around the xz plane.
+        m_map_renderer->GetCamera()->SetPosition(
+            camera_pos.x,
+            2 * water_level - camera_pos.y,
+            camera_pos.z);
+        m_map_renderer->GetCamera()->LookAt(reflection_dir, { 0,-1,0 });
+        m_map_renderer->GetCamera()->Update(0);
+
+#ifdef _DEBUG
+        constexpr float reflection_width = 16384 / 20;
+        constexpr float reflection_height = 16384 / 20;
+#else
+        constexpr float reflection_width = 16384 / 10;
+        constexpr float reflection_height = 16384 / 10;
+#endif
+
+        // Update Camera Constant Buffer with light view projection matrix
+        const auto view = m_map_renderer->GetCamera()->GetView();
+        const auto proj = m_map_renderer->GetCamera()->GetProj();
+        auto curr_per_camera_cb = m_map_renderer->GetPerCameraCB();
+        XMStoreFloat4x4(&curr_per_camera_cb.reflection_view, XMMatrixTranspose(view));
+        XMStoreFloat4x4(&curr_per_camera_cb.reflection_proj, XMMatrixTranspose(proj));
+        curr_per_camera_cb.reflection_texel_size_x = 1.0f / reflection_width;
+        curr_per_camera_cb.reflection_texel_size_y = 1.0f / reflection_height;
+        m_map_renderer->SetPerCameraCB(curr_per_camera_cb);
+
+        m_map_renderer->Update(0); // Update camera CB
+
+        m_deviceResources->CreateReflectionResources(reflection_width, reflection_height);
+        ClearReflection();
+        m_map_renderer->RenderForReflection(m_deviceResources->GetReflectionRTV(), m_deviceResources->GetReflectionDSV());
+
+        auto reflectionSRV = m_deviceResources->GetReflectionSRV();
+
+        int water_mesh_id = m_map_renderer->GetWaterMeshId();
+        auto water_mesh_instance = m_map_renderer->GetMeshManager()->GetMesh(water_mesh_id);
+
+        water_mesh_instance->SetTextures({ reflectionSRV }, 2);
+
+        // Restore settings
+        m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
+        m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
+
+
+        m_map_renderer->Update(0); // Update camera CB
+
+        m_map_renderer->SetShouldRenderSky(should_render_sky);
+    }
+}
+
+void MapBrowser::RenderShadows()
+{
+    if (m_map_renderer->GetTerrain() && m_map_renderer->GetShouldRerenderShadows()) {
+        m_map_renderer->SetShouldRerenderShadows(false);
+
+        bool should_render_sky = m_map_renderer->GetShouldRenderSky();
+        m_map_renderer->SetShouldRenderSky(false);
+        const auto camera_type = m_map_renderer->GetCamera()->GetCameraType();
+        const auto camera_pos = m_map_renderer->GetCamera()->GetPosition3f();
+        const auto camera_pitch = m_map_renderer->GetCamera()->GetPitch();
+        const auto camera_yaw = m_map_renderer->GetCamera()->GetYaw();
+        const auto camera_fovY = m_map_renderer->GetCamera()->GetFovY();
+        const auto camera_frustrum_width = m_map_renderer->GetCamera()->GetViewWidth();
+        const auto camera_frustrum_height = m_map_renderer->GetCamera()->GetViewHeight();
+        const auto camera_aspect_ration = m_map_renderer->GetCamera()->GetAspectRatio();
+        const auto camera_near = m_map_renderer->GetCamera()->GetNearZ();
+        const auto camera_far = m_map_renderer->GetCamera()->GetFarZ();
+
+        XMFLOAT3 corners[8] = {
+            { m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z }, // Min corner
+            { m_map_renderer->GetTerrain()->m_bounds.map_max_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z }, // Min y, max x, min z
+            { m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_max_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z }, // Max y, min x, min z
+            { m_map_renderer->GetTerrain()->m_bounds.map_max_x, m_map_renderer->GetTerrain()->m_bounds.map_max_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z }, // Max y, max x, min z
+            { m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_max_z }, // Min y, min x, max z
+            { m_map_renderer->GetTerrain()->m_bounds.map_max_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_max_z }, // Min y, max x, max z
+            { m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_max_y, m_map_renderer->GetTerrain()->m_bounds.map_max_z }, // Max y, min x, max z
+            { m_map_renderer->GetTerrain()->m_bounds.map_max_x, m_map_renderer->GetTerrain()->m_bounds.map_max_y, m_map_renderer->GetTerrain()->m_bounds.map_max_z }  // Max corner
+        };
+
+
+        // each of these are between -1 and 1 is the vector the light is moving
+        const float cam_pos_x = -m_map_renderer->GetDirectionalLight().direction.x;
+        const float cam_pos_y = -m_map_renderer->GetDirectionalLight().direction.y;
+        const float cam_pos_z = -m_map_renderer->GetDirectionalLight().direction.z;
+        constexpr float pos_scale = 50000;
+
+        m_map_renderer->GetCamera()->SetPosition(cam_pos_x * pos_scale, cam_pos_y * pos_scale, cam_pos_z * pos_scale);
+        m_map_renderer->GetCamera()->LookAt(m_map_renderer->GetCamera()->GetPosition(), { 0,0,0 }, { 0,1,0 });
+        m_map_renderer->GetCamera()->Update(0);
+        auto view = m_map_renderer->GetCamera()->GetView();
+
+        // Use view matrix to compute new bounding box.
+        XMFLOAT3 transformedCorners[8];
+        for (int i = 0; i < 8; ++i) {
+            XMVECTOR corner = XMLoadFloat3(&corners[i]);
+            corner = XMVector3TransformCoord(corner, view);
+            XMStoreFloat3(&transformedCorners[i], corner);
+        }
+
+        float minX = FLT_MAX, maxX = -FLT_MAX, minY = FLT_MAX, maxY = -FLT_MAX, minZ = FLT_MAX, maxZ = -FLT_MAX;
+
+        for (auto& corner : transformedCorners) {
+            minX = std::min(minX, corner.x);
+            maxX = std::max(maxX, corner.x);
+            minY = std::min(minY, corner.y);
+            maxY = std::max(maxY, corner.y);
+            minZ = std::min(minZ, corner.z);
+            maxZ = std::max(maxZ, corner.z);
+        }
+
+        float frustum_width = maxX - minX;
+        float frustum_height = maxY - minY;
+        float frustum_near = minZ;
+        float frustum_far = maxZ;
+
+
+        m_map_renderer->SetFrustumAsOrthographic(frustum_width, frustum_height, frustum_near, frustum_far);
+        m_map_renderer->GetCamera()->Update(0);
+
+#ifdef _DEBUG
+        constexpr float shadowmap_width = 16384 / 2;
+        constexpr float shadowmap_height = 16384 / 2;
+#else
+        constexpr float shadowmap_width = 16384;
+        constexpr float shadowmap_height = 16384;
+#endif
+
+        // Update Camera Constant Buffer with light view projection matrix
+        view = m_map_renderer->GetCamera()->GetView();
+        const auto proj = m_map_renderer->GetCamera()->GetProj();
+        auto curr_per_camera_cb = m_map_renderer->GetPerCameraCB();
+        XMStoreFloat4x4(&curr_per_camera_cb.directional_light_view, XMMatrixTranspose(view));
+        XMStoreFloat4x4(&curr_per_camera_cb.directional_light_proj, XMMatrixTranspose(proj));
+        curr_per_camera_cb.shadowmap_texel_size_x = 1.0f / shadowmap_width;
+        curr_per_camera_cb.shadowmap_texel_size_y = 1.0f / shadowmap_height;
+        m_map_renderer->SetPerCameraCB(curr_per_camera_cb);
+
+        m_map_renderer->Update(0); // Update camera CB
+
+        m_deviceResources->CreateShadowResources(shadowmap_width, shadowmap_height);
+        ClearShadow();
+        m_map_renderer->RenderForShadowMap(m_deviceResources->GetShadowMapDSV());
+
+        auto shadowMapSRV = m_deviceResources->GetShadowMapSRV();
+
+        int terrain_mesh_id = m_map_renderer->GetTerrainMeshId();
+        auto terrain_mesh_instance = m_map_renderer->GetMeshManager()->GetMesh(terrain_mesh_id);
+        terrain_mesh_instance->SetTextures({ shadowMapSRV }, 3);
+
+        const auto& props_mesh_ids = m_map_renderer->GetPropsMeshIds();
+        for (const auto& prop_mesh_ids : props_mesh_ids) {
+            for (const auto prop_mesh_id : prop_mesh_ids.second) {
+                auto prop_mesh_instance = m_map_renderer->GetMeshManager()->GetMesh(prop_mesh_id);
+                prop_mesh_instance->SetTextures({ shadowMapSRV }, 0);
+            }
+        }
+
+        // Restore settings
+        if (camera_type == CameraType::Perspective)
+        {
+            m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
+            m_map_renderer->GetCamera()->SetFrustumAsPerspective(camera_fovY, camera_aspect_ration, camera_near, camera_far);
+            m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
+
+        }
+        else
+        {
+            m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
+            m_map_renderer->GetCamera()->SetFrustumAsOrthographic(camera_frustrum_width, camera_frustrum_height / camera_aspect_ration, camera_near, camera_far);
+            m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
+        }
+
+        m_map_renderer->Update(0); // Update camera CB
+
+        m_map_renderer->SetShouldRenderSky(should_render_sky);
     }
 }
 

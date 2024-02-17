@@ -55,6 +55,10 @@ private:
     void Update(duration<double, std::milli> elapsed);
     void Render();
 
+    void RenderWaterReflection();
+
+    void RenderShadows();
+
     void Clear();
     void ClearOffscreen();
     void ClearShadow();
