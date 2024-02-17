@@ -252,7 +252,7 @@ void DeviceResources::CreateDeviceResources()
 
 void DeviceResources::UpdateOffscreenResources(int width, int height) {
     m_d3dOffscreenRenderTargetView.Reset();
-    m_offscreenRenderTarget.Reset();
+    //m_offscreenRenderTarget.Reset();
     m_d3dOffscreenDepthStencilView.Reset();
     m_offscreenDepthStencil.Reset();
     m_d3dContext->Flush();
