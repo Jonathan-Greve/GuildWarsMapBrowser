@@ -325,6 +325,8 @@ void MapBrowser::Render()
             // Save the current state here so we can restore it after.
             bool should_render_sky = m_map_renderer->GetShouldRenderSky();
             bool should_render_fog = m_map_renderer->GetShouldRenderFog();
+            bool should_render_shadows = m_map_renderer->GetShouldRenderShadows();
+            bool should_render_model_shadows = m_map_renderer->GetShouldRenderShadowsForModels();
 
             auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
             auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
@@ -336,7 +338,8 @@ void MapBrowser::Render()
                 m_deviceResources->UpdateOffscreenResources(dim_x * m_extract_panel_info.pixels_per_tile_x, dim_z * m_extract_panel_info.pixels_per_tile_y);
                 m_map_renderer->SetShouldRenderSky(false);
                 m_map_renderer->SetShouldRenderFog(false);
-
+                m_map_renderer->SetShouldRenderShadows(false);
+                m_map_renderer->SetShouldRenderShadowsForModels(false);
             }
             break;
             case ExtractPanel::CurrentMapNoViewChange:
@@ -359,6 +362,8 @@ void MapBrowser::Render()
 
             m_map_renderer->SetShouldRenderSky(should_render_sky);
             m_map_renderer->SetShouldRenderFog(should_render_fog);
+            m_map_renderer->SetShouldRenderShadows(should_render_shadows);
+            m_map_renderer->SetShouldRenderShadowsForModels(should_render_model_shadows);
 
             m_deviceResources->GetD3DDeviceContext()->Flush();
 
