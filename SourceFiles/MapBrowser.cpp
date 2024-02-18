@@ -750,8 +750,8 @@ void MapBrowser::ShowErrorMessage() {
         // Create a window that is not resizable, not movable and with a title bar
         ImGui::Begin("Error", &m_show_error_msg, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 
-        // Display the error message
-        ImGui::Text("%s", m_error_msg.c_str());
+        // Display the error message with TextWrapped
+        ImGui::TextWrapped("%s", m_error_msg.c_str());
 
         // Close button
         if (ImGui::Button("Close")) {
