@@ -67,6 +67,7 @@ std::vector<Mesh> prop_meshes;
 const ImGuiTableSortSpecs* DatBrowserItem::s_current_sort_specs = nullptr;
 
 DirectX::XMFLOAT4 GetAverageColorOfBottomRow(const DatTexture& dat_texture);
+void generate_shore_mesh(const XMFLOAT2& point1, const XMFLOAT2& point2, Terrain* terrain, std::vector<Mesh>& meshes, float height = 5);
 
 void apply_filter(const std::vector<int>& new_filter, std::unordered_set<int>& intersection)
 {
@@ -1194,16 +1195,89 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         //    }
         //}
 
-        //for (int i = 0; i < selected_ffna_map_file.shore_chunk.subchunks.size(); i++) {
-        //    auto color1 = CheckerboardTexture::GetColorForIndex(i);
-        //    auto color2 = CheckerboardTexture::GetColorForIndex(i);
+        std::vector<Mesh> shore_meshes;
+        for (int i = 0; i < selected_ffna_map_file.shore_chunk.subchunks.size(); i++) {
+            auto& sub_chunk_i = selected_ffna_map_file.shore_chunk.subchunks[i];
+            auto& vertices = sub_chunk_i.vertices;
 
-        //    const auto& vertices = selected_ffna_map_file.shore_chunk.subchunks[i].vertices;
-        //    for (int j = 0; j < vertices.size(); j++) {
-        //        const auto& vertex = vertices[j];
-        //        map_renderer->AddBox(vertex.x, terrain->get_height_at(vertex.x, vertex.y) + 200, vertex.y, 300, color1, color2);
-        //    }
-        //}
+            // Case for exactly 2 vertices
+            if (vertices.size() == 2) {
+                XMFLOAT2 point1 = XMFLOAT2(vertices[0].x, vertices[0].y);
+                XMFLOAT2 point2 = XMFLOAT2(vertices[1].x, vertices[1].y);
+
+                generate_shore_mesh(point1, point2, terrain.get(), shore_meshes);
+            }
+            // Case for more than 2 vertices
+            else if (vertices.size() > 2) {
+                // Handle the first segment separately
+                XMFLOAT2 firstPoint = XMFLOAT2(vertices[0].x, vertices[0].y);
+                XMFLOAT2 secondPoint = XMFLOAT2(vertices[1].x, vertices[1].y);
+                generate_shore_mesh(firstPoint, secondPoint, terrain.get(), shore_meshes);
+
+                // Handle intermediate vertices
+                for (int j = 1; j < vertices.size() - 1; j++) {
+                    const auto& prev_vertex = vertices[j - 1];
+                    const auto& vertex = vertices[j];
+                    const auto& next_vertex = vertices[j + 1];
+
+                    // Calculate interpolated direction for the shore mesh between current and next vertex
+                    XMFLOAT2 diff_prev{ vertex.x - prev_vertex.x, vertex.y - prev_vertex.y };
+                    XMFLOAT2 diff_next{ next_vertex.x - vertex.x, next_vertex.y - vertex.y };
+                    XMFLOAT2 diff_avg{ (diff_prev.x + diff_next.x) / 2, (diff_prev.y + diff_next.y) / 2 };
+
+                    // Use the average direction to find the terrain heights
+                    float height0 = terrain->get_height_at(vertex.x - diff_avg.y, vertex.y + diff_avg.x);
+                    float height1 = terrain->get_height_at(vertex.x + diff_avg.y, vertex.y - diff_avg.x);
+
+                    // Depending on the heights, adjust the vertex positions for the shore mesh
+                    if (height0 < height1) {
+                        // Extend the mesh towards the lower terrain side
+                        generate_shore_mesh(
+                            XMFLOAT2{ vertex.x - diff_avg.y, vertex.y + diff_avg.x },
+                            XMFLOAT2{ vertex.x, vertex.y },
+                            terrain.get(), shore_meshes);
+                    }
+                    else {
+                        // Extend the mesh towards the other side
+                        generate_shore_mesh(
+                            XMFLOAT2{ vertex.x, vertex.y },
+                            XMFLOAT2{ vertex.x + diff_avg.y, vertex.y - diff_avg.x },
+                            terrain.get(), shore_meshes);
+                    }
+                }
+
+                // Handle the last segment separately
+                XMFLOAT2 lastButOnePoint = XMFLOAT2(vertices[vertices.size() - 2].x, vertices[vertices.size() - 2].y);
+                XMFLOAT2 lastPoint = XMFLOAT2(vertices.back().x, vertices.back().y);
+                generate_shore_mesh(lastButOnePoint, lastPoint, terrain.get(), shore_meshes);
+            }
+        }
+
+        const auto& shore_filenames = selected_ffna_map_file.shore_filenames.array;
+        std::vector<ID3D11ShaderResourceView*> shore_textures(shore_filenames.size(), nullptr);
+        for (int i = 0; i < shore_filenames.size(); i++) {
+            const auto& filename = shore_filenames[i].filename;
+            auto decoded_filename = decode_filename(filename.id0, filename.id1);
+
+            auto mft_entry_it = hash_index.find(decoded_filename);
+            if (mft_entry_it != hash_index.end())
+            {
+                auto type = dat_manager->get_MFT()[mft_entry_it->second.at(0)].type;
+                const DatTexture dat_texture = dat_manager->parse_ffna_texture_file(mft_entry_it->second.at(0));
+                int texture_id = -1;
+                if (dat_texture.width > 0 && dat_texture.height > 0) {
+
+                    auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+                        dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
+                        &texture_id, decoded_filename);
+                    if (SUCCEEDED(HR) && texture_id >= 0) {
+                        shore_textures[i] = map_renderer->GetTextureManager()->GetTexture(texture_id);
+                    }
+                }
+            }
+        }
+        map_renderer->SetShore(shore_meshes, shore_textures, PixelShaderType::OldModel);
+
 
         //for (int i = 0; i < selected_ffna_map_file.big_chunk.vertices0.size(); i++) {
         //    auto color1 = CheckerboardTexture::GetColorForIndex(3);
@@ -2559,4 +2633,44 @@ DirectX::XMFLOAT4 GetAverageColorOfBottomRow(const DatTexture& dat_texture) {
 
     // Return average color as XMFLOAT4
     return DirectX::XMFLOAT4(avg_b, avg_g, avg_r, 1.0f); // Alpha set to 1.0f (fully opaque)
+}
+
+void generate_shore_mesh(const XMFLOAT2& point1, const XMFLOAT2& point2, Terrain* terrain, std::vector<Mesh>& meshes, float height) {
+    XMFLOAT2 diff_vec{ point2.x - point1.x, point2.y - point1.y };
+    // Calculate the length of diff_vec for normalization
+    float length = sqrt(diff_vec.x * diff_vec.x + diff_vec.y * diff_vec.y);
+
+    // Normalize diff_vec
+    XMFLOAT2 normalized_diff_vec{ diff_vec.x / length, diff_vec.y / length };
+
+    // Apply shore_offset
+    float shore_offset = 180.0f; // The offset distance for the shore vertices
+    XMFLOAT2 offset_vec{ normalized_diff_vec.y * shore_offset, -normalized_diff_vec.x * shore_offset };
+
+    // Calculate heights at offset points
+    float height0 = terrain->get_height_at(point1.x - offset_vec.x, point1.y - offset_vec.y);
+    float height1 = terrain->get_height_at(point2.x + offset_vec.x, point2.y + offset_vec.y);
+
+    Mesh shore_mesh;
+
+    // Determine the direction of the shore mesh based on the terrain height
+    if (height0 < height1) {
+        // Extend the mesh outwards from point1 and point2 in the counter-clockwise direction
+        shore_mesh.vertices.emplace_back(GWVertex({ point1.x, height, point1.y }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }));
+        shore_mesh.vertices.emplace_back(GWVertex({ point2.x, height, point2.y }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f }));
+        shore_mesh.vertices.emplace_back(GWVertex({ point1.x - offset_vec.x, height, point1.y - offset_vec.y }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f }));
+        shore_mesh.vertices.emplace_back(GWVertex({ point2.x - offset_vec.x, height, point2.y - offset_vec.y }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f }));
+    }
+    else {
+        // Extend the mesh outwards from point1 and point2 in the clockwise direction
+        shore_mesh.vertices.emplace_back(GWVertex({ point1.x, height, point1.y }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }));
+        shore_mesh.vertices.emplace_back(GWVertex({ point2.x, height, point2.y }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f }));
+        shore_mesh.vertices.emplace_back(GWVertex({ point1.x + offset_vec.x, height, point1.y + offset_vec.y }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f }));
+        shore_mesh.vertices.emplace_back(GWVertex({ point2.x + offset_vec.x, height, point2.y + offset_vec.y }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f }));
+    }
+
+    // Define indices for the two triangles that make up the rectangular section of the shore mesh
+    shore_mesh.indices.insert(shore_mesh.indices.end(), { 0, 2, 3, 0, 3, 1 });
+
+    meshes.push_back(shore_mesh);
 }
