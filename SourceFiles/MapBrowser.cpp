@@ -517,9 +517,19 @@ void MapBrowser::RenderWaterReflection()
         water_mesh_instance->SetTextures({ reflectionSRV }, 2);
 
         // Restore settings
-        m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
-        m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
+        if (camera_type == CameraType::Perspective)
+        {
+            m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
+            m_map_renderer->GetCamera()->SetFrustumAsPerspective(camera_fovY, camera_aspect_ration, camera_near, camera_far);
+            m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
 
+        }
+        else
+        {
+            m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
+            m_map_renderer->GetCamera()->SetFrustumAsOrthographic(camera_frustrum_width, camera_frustrum_height, camera_near, camera_far);
+            m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
+        }
 
         m_map_renderer->Update(0); // Update camera CB
 
@@ -645,8 +655,8 @@ void MapBrowser::RenderShadows()
         else
         {
             m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
-            m_map_renderer->GetCamera()->SetFrustumAsOrthographic(camera_frustrum_width, camera_frustrum_height / camera_aspect_ration, camera_near, camera_far);
-            m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
+            m_map_renderer->GetCamera()->SetFrustumAsOrthographic(camera_frustrum_width, camera_frustrum_height, camera_near, camera_far);
+            m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
         }
 
         m_map_renderer->Update(0); // Update camera CB
