@@ -1558,11 +1558,12 @@ constexpr uint32_t CHUNK_ID_PROPS_INFO = 0x20000004;
 constexpr uint32_t CHUNK_ID_PATH_INFO = 0x20000008;
 constexpr uint32_t CHUNK_ID_ENVIRONMENT_INFO = 0x20000009;
 constexpr uint32_t CHUNK_ID_MAP_INFO = 0x2000000C;
-constexpr uint32_t CHUNK_ID_SHOR = 0x20000010;
+constexpr uint32_t CHUNK_ID_SHORE = 0x20000010;
 constexpr uint32_t CHUNK_ID_TERRAIN_FILENAMES = 0x21000002;
 constexpr uint32_t CHUNK_ID_PROPS_FILENAMES0 = 0x21000003;
 constexpr uint32_t CHUNK_ID_PROPS_FILENAMES = 0x21000004;
 constexpr uint32_t CHUNK_ID_ENVIRONMENT_INFO_FILENAMES = 0x21000009;
+constexpr uint32_t CHUNK_ID_SHORE_FILENAMES = 0x21000010;
 
 struct FFNA_MapFile
 {
@@ -1580,6 +1581,7 @@ struct FFNA_MapFile
     EnvironmentInfoChunk environment_info_chunk;
     EnvironmentInfoFilenamesChunk environment_info_filenames_chunk;
     ShoreChunk shore_chunk;
+    Chunk4 shore_filenames;
     BigChunk big_chunk;
 
     std::unordered_map<uint32_t, int> riff_chunks;
@@ -1678,13 +1680,21 @@ struct FFNA_MapFile
             environment_info_filenames_chunk = EnvironmentInfoFilenamesChunk(offset, data.data());
         }
 
-        // Check if the CHUNK_ID_SHOR is in the riff_chunks map
-        //it = riff_chunks.find(CHUNK_ID_SHOR);
-        //if (it != riff_chunks.end())
-        //{
-        //    int offset = it->second;
-        //    shore_chunk = ShoreChunk(offset, data.data());
-        //}
+        // Check if the CHUNK_ID_SHORE_FILENAMES is in the riff_chunks map
+        it = riff_chunks.find(CHUNK_ID_SHORE_FILENAMES);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            shore_filenames = Chunk4(offset, data.data());
+        }
+
+        // Check if the CHUNK_ID_SHORE is in the riff_chunks map
+        it = riff_chunks.find(CHUNK_ID_SHORE);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            shore_chunk = ShoreChunk(offset, data.data());
+        }
 
         //// Check if the CHUNK_ID_PATH_INFO is in the riff_chunks map
         //it = riff_chunks.find(CHUNK_ID_PATH_INFO);
