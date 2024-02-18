@@ -541,7 +541,6 @@ struct EnvironmentInfoChunk {
  - 0x14 - sizeof(enb_sub_chunk8) - 4 - sizeof(structs9)];*/
 };
 
-
 enum FFNAType : u8 {
   Type0,
   Type1,
@@ -593,6 +592,9 @@ struct Chunk {
  }
  else if (chunk_id == 0x20000010){
    ShoreChunk shore_chunk;
+ }
+ else if (chunk_id == 0x21000010){
+   Chunk4 shore_filenames;
  }
  else if (chunk_id == 0x20000008){
    BigChunk big_chunk;
