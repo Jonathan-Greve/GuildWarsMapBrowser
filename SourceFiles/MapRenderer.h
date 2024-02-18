@@ -458,6 +458,26 @@ public:
         m_prop_mesh_ids.clear();
     }
 
+    void SetShore(std::vector<Mesh> shore_meshes, std::vector<ID3D11ShaderResourceView*> textures, PixelShaderType pixel_shader_type)
+    {
+        m_shore_mesh_ids.clear();
+
+        PerObjectCB per_object_data;
+        per_object_data.texture_indices[0][0] = 0;
+        per_object_data.texture_types[0][0] = 0;
+        per_object_data.num_uv_texture_pairs = 1;
+
+        for (int i = 0; i < shore_meshes.size(); i++)
+        {
+            const auto& mesh = shore_meshes[i];
+
+            int mesh_id = m_mesh_manager->AddCustomMesh(mesh, pixel_shader_type);
+            m_mesh_manager->SetTexturesForMesh(mesh_id, textures, 3);
+            m_mesh_manager->UpdateMeshPerObjectData(mesh_id, per_object_data);
+            m_shore_mesh_ids.push_back(mesh_id);
+        }
+    }
+
     int GetObjectId(ID3D11Texture2D* picking_target, const int x, const int y) const
     {
         return m_mesh_manager->GetPickedObjectId(m_deviceContext, picking_target, x, y);
@@ -716,6 +736,13 @@ public:
                 m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_water_mesh_id);
         }
 
+        if (m_shore_mesh_ids.size() > 0) {
+            for (auto& mesh_id : m_shore_mesh_ids) {
+                m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                    m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, mesh_id);
+            }
+        }
+
         if (m_should_use_picking_shader_for_models) {
             m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
             m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
@@ -885,6 +912,7 @@ private:
     int m_sky_mesh_id = -1;
     int m_clouds_mesh_id = -1;
     int m_water_mesh_id = -1;
+    std::vector<int> m_shore_mesh_ids;
 
     DirectionalLight m_directionalLight;
     bool m_per_frame_cb_changed = true;
