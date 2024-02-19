@@ -292,6 +292,7 @@
     <ClInclude Include="SourceFiles\RenderCommand.h" />
     <ClInclude Include="SourceFiles\RenderConstants.h" />
     <ClInclude Include="SourceFiles\resource.h" />
+    <ClInclude Include="SourceFiles\ShoreWaterPixelShader.h" />
     <ClInclude Include="SourceFiles\show_how_to_use_dat_comparer_guide.h" />
     <ClInclude Include="SourceFiles\SkyPixelShader.h" />
     <ClInclude Include="SourceFiles\Sphere.h" />
@@ -503,6 +504,13 @@
     <ClCompile Include="SourceFiles\RenderBatch.cpp" />
     <ClCompile Include="SourceFiles\RenderCommand.cpp" />
     <ClCompile Include="SourceFiles\RenderConstants.cpp" />
+    <FxCompile Include="SourceFiles\ShoreWaterPixelShader.hlsl">
+      <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+    </FxCompile>
     <ClCompile Include="SourceFiles\show_how_to_use_dat_comparer_guide.cpp" />
     <ClCompile Include="SourceFiles\Sphere.cpp" />
     <ClCompile Include="SourceFiles\Terrain.cpp" />

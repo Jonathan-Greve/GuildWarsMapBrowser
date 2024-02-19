@@ -16,6 +16,7 @@
 #include <TerrainShadowMapPixelShader.h>
 #include <NewModelReflectionPixelShader.h>
 #include <NewModelShadowMapPixelShader.h>
+#include <ShoreWaterPixelShader.h>
 
 enum class PixelShaderType
 {
@@ -30,6 +31,7 @@ enum class PixelShaderType
     Sky,
     Clouds,
     Water,
+    Shore,
     OldModelShadowMap,
     OldModelReflection,
     NewModelShadowMap,
@@ -110,6 +112,11 @@ public:
         case PixelShaderType::Water:
             hr = D3DCompile(WaterPixelShader::shader_ps,
                 strlen(WaterPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
+            break;
+        case PixelShaderType::Shore:
+            hr = D3DCompile(ShoreWaterPixelShader::shader_ps,
+                strlen(ShoreWaterPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
                 "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         case PixelShaderType::OldModelShadowMap:
