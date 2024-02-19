@@ -644,6 +644,12 @@ void MapBrowser::RenderShadows()
             }
         }
 
+        //const auto& shore_mesh_ids = m_map_renderer->GetShoreMeshIds();
+        //for (const auto shore_mesh_id : shore_mesh_ids) {
+        //    auto shore_mesh_instance = m_map_renderer->GetMeshManager()->GetMesh(shore_mesh_id);
+        //    shore_mesh_instance->SetTextures({ shadowMapSRV }, 0);
+        //}
+
         // Restore settings
         if (camera_type == CameraType::Perspective)
         {

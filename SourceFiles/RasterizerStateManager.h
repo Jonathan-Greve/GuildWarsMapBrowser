@@ -52,6 +52,8 @@ private:
         rsDesc.CullMode = D3D11_CULL_NONE;
         rsDesc.FrontCounterClockwise = false;
         rsDesc.DepthClipEnable = true;
+        rsDesc.MultisampleEnable = true;
+        rsDesc.AntialiasedLineEnable = true;
 
         HRESULT hr = m_device->CreateRasterizerState(&rsDesc, m_solid_no_cull_rs.GetAddressOf());
         if (FAILED(hr))

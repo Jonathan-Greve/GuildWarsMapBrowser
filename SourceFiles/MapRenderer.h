@@ -129,6 +129,13 @@ public:
             m_pixel_shaders[PixelShaderType::Water]->Initialize(PixelShaderType::Water);
         }
 
+        if (!m_pixel_shaders.contains(PixelShaderType::Shore))
+        {
+            m_pixel_shaders[PixelShaderType::Shore] =
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::Shore]->Initialize(PixelShaderType::Shore);
+        }
+
         if (!m_pixel_shaders.contains(PixelShaderType::OldModelShadowMap))
         {
             m_pixel_shaders[PixelShaderType::OldModelShadowMap] =
@@ -463,8 +470,6 @@ public:
         m_shore_mesh_ids.clear();
 
         PerObjectCB per_object_data;
-        per_object_data.texture_indices[0][0] = 0;
-        per_object_data.texture_types[0][0] = 0;
         per_object_data.num_uv_texture_pairs = 1;
 
         for (int i = 0; i < shore_meshes.size(); i++)
@@ -484,6 +489,7 @@ public:
     }
 
     std::unordered_map<uint32_t, std::vector<int>>& GetPropsMeshIds() { return m_prop_mesh_ids; }
+    std::vector<int>& GetShoreMeshIds() { return m_shore_mesh_ids; }
 
     PixelShaderType GetTerrainPixelShaderType() { return m_terrain_current_pixel_shader_type; }
     void SetTerrainPixelShaderType(PixelShaderType pixel_shader_type)
@@ -737,6 +743,7 @@ public:
         }
 
         if (m_shore_mesh_ids.size() > 0) {
+            m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
             for (auto& mesh_id : m_shore_mesh_ids) {
                 m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
                     m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, mesh_id);

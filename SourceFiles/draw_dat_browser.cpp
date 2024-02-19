@@ -1198,17 +1198,17 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         //}
 
         std::vector<Mesh> shore_meshes;
-        float shore_height = 1;
+        float shore_height = 20;
         for (int i = 0; i < selected_ffna_map_file.shore_chunk.subchunks.size(); i++) {
             auto& sub_chunk_i = selected_ffna_map_file.shore_chunk.subchunks[i];
             auto& vertices = sub_chunk_i.vertices;
 
             // Case for exactly 2 vertices
             if (vertices.size() == 2) {
-                XMFLOAT2 point1 = XMFLOAT2(vertices[0].x, vertices[0].y);
-                XMFLOAT2 point2 = XMFLOAT2(vertices[1].x, vertices[1].y);
+                //XMFLOAT2 point1 = XMFLOAT2(vertices[0].x, vertices[0].y);
+                //XMFLOAT2 point2 = XMFLOAT2(vertices[1].x, vertices[1].y);
 
-                generate_shore_mesh(point1, point2, terrain.get(), shore_meshes, shore_height);
+                //generate_shore_mesh(point1, point2, terrain.get(), shore_meshes, shore_height);
             }
             // Case for more than 2 vertices
             else if (vertices.size() > 2) {
@@ -1233,7 +1233,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                     const auto& next_vertex = vertices[j + 1];
 
                     // Compute the u texture coordinate. The v coordinate is always 0 for the shore vertex points and 1 for the offset points.
-                    float u = 1.0f / j;
+                    float u = j % 2;
 
                     // Add the current shore vertex.
                     shore_vertices.push_back(GWVertex({ vertex.x, shore_height, vertex.y }, { 0, 1, 0 }, { u, 0 }));
@@ -1250,11 +1250,11 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 }
 
                 // Add last shore vertex
-                shore_vertices.push_back(GWVertex({ vertices.back().x, shore_height, vertices.back().y}, {0, 1, 0}, {1, 0}));
+                shore_vertices.push_back(GWVertex({ vertices.back().x, shore_height, vertices.back().y}, {0, 1, 0}, {(float)((vertices.size() - 1) % 2), 0}));
 
                 // And add the last shore offset vertex out in the water.
                 GWVertex offset_vertex_last = get_shore_vertex_for_2_points(vertices.back(), vertices[vertices.size() - 2]);
-                offset_vertex_last.tex_coord0 = { 1,1 };
+                offset_vertex_last.tex_coord0 = { (float)((vertices.size() - 1) % 2), 1 };
                 shore_vertices.push_back(offset_vertex_last);
 
                 // Add last triangle
@@ -1266,6 +1266,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 shore_mesh.indices = shore_indices;
                 shore_mesh.num_textures = 1;
                 shore_mesh.should_cull = false;
+                shore_mesh.blend_state = BlendState::AlphaBlend;
                 shore_meshes.push_back(shore_mesh);
             }
         }
@@ -1293,7 +1294,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 }
             }
         }
-        map_renderer->SetShore(shore_meshes, shore_textures, PixelShaderType::OldModel);
+        map_renderer->SetShore(shore_meshes, shore_textures, PixelShaderType::Shore);
 
 
         //for (int i = 0; i < selected_ffna_map_file.big_chunk.vertices0.size(); i++) {
