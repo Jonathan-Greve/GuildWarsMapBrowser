@@ -104,23 +104,27 @@ float4 main(PixelInputType input) : SV_TARGET
 {
     float4 final_color = float4(1, 1, 1, 1);
 
-    // Water animation based on time
-    // Water animation based on time, modified to oscillate
-    float scaled_time = abs(sin(time_elapsed / 3));
+    float oscillation = 0.5 * (sin(time_elapsed) + 1);
 
+    // Calculate the UV coordinates
     float2 uv = input.tex_coords0;
-    uv.y *= scaled_time; // Use the oscillating scaled_time for the y coordinate
-    
+
+    // Adjust the Y coordinate of the UVs based on the oscillation
+    uv.y = uv.y - oscillation;
+
+    // Sample the texture with the adjusted UV coordinates
     float4 sample0 = shaderTextures[0].Sample(ss, uv);
-    
-    float a = sample0.a;
-    
-    if (a <= 0)
+    sample0.a *= (1 - oscillation);
+    // Check if the UV coordinates are outside the texture bounds and handle transparency or discard
+    if (uv.y > 1.0 || uv.y < 0.0 || sample0.a <= 0)
     {
         discard;
     }
-    
-    final_color *= a;
+    else
+    {
+        // Apply the texture sample to the final color
+        final_color *= sample0;
+    }
 
     float3 viewDirection = normalize(cam_position - input.world_position.xyz);
     float3 normal = float3(0, 1, 0);
