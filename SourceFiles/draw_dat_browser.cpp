@@ -1198,7 +1198,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         //}
 
         std::vector<Mesh> shore_meshes;
-        float shore_height = 20;
+        float shore_height = 5;
         for (int i = 0; i < selected_ffna_map_file.shore_chunk.subchunks.size(); i++) {
             auto& sub_chunk_i = selected_ffna_map_file.shore_chunk.subchunks[i];
             auto& vertices = sub_chunk_i.vertices;
