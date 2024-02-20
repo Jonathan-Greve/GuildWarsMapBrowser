@@ -104,53 +104,105 @@ struct PSOutput
     float4 rt_1_output : SV_TARGET1; // Goes to second render target
 };
 
+// Function to calculate the wave with an offset c
+float Wave(float x, float c)
+{
+    x = fmod(x - c, 15.0); // Apply offset c and ensure cyclicity within 0 to 15 range
+    if (x < 0)
+        x += 15.0; // Adjust for negative values after applying the offset
+
+    if (x < 5)
+    {
+        return 0.16 * x;
+    }
+    else if (x < 8)
+    {
+        return -0.0889 * x * x + 1.1556 * x - 2.7556;
+    }
+    else
+    {
+        return -0.1143 * x + 1.7143;
+    }
+}
+
 // Main Pixel Shader function
 float4 main(PixelInputType input) : SV_TARGET
 {
     float4 final_color = float4(1, 1, 1, 1);
+    
+    float x = time_elapsed * 0.5;
 
-    float oscillation = 0.5 * (sin(time_elapsed) + 1);
+    // Calculate the wave values with different offsets
+    float wave0 = Wave(x, 0.0);
+    float wave1 = Wave(x, 4.0);
+    float wave2 = Wave(x, 8.0);
+    float wave3 = Wave(x, 12.0);
 
     // Calculate the UV coordinates
-    float2 uv = input.tex_coords0;
+    float2 uv0 = input.tex_coords0;
+    float2 uv1 = uv0;
+    float2 uv2 = uv0;
+    float2 uv3 = uv0;
 
     // Adjust the Y coordinate of the UVs based on the oscillation
-    uv.y = uv.y - oscillation;
+    uv0.y -= wave0;
+    uv1.y -= wave1;
+    uv2.y -= wave2;
+    uv3.y -= wave3;
 
     // Sample the texture with the adjusted UV coordinates
-    float4 sample0 = shaderTextures[0].Sample(ss, uv);
-    sample0.a *= (1 - oscillation);
-    // Check if the UV coordinates are outside the texture bounds and handle transparency or discard
-    if (uv.y > 1.0 || uv.y < 0.0 || sample0.a <= 0)
-    {
-        discard;
-    }
-    else
-    {
-        // Apply the texture sample to the final color
-        final_color *= sample0;
-    }
-
-    float3 viewDirection = normalize(cam_position - input.world_position.xyz);
-    float3 normal = float3(0, 1, 0);
+    float4 sample0 = shaderTextures[0].Sample(ss, uv0);
+    float4 sample1 = shaderTextures[1].Sample(ss, uv1);
+    float4 sample2 = shaderTextures[0].Sample(ss, uv2);
+    float4 sample3 = shaderTextures[1].Sample(ss, uv3);
     
-    // Ensure directionalLight.direction is normalized
-    float3 lightDir = normalize(-directionalLight.direction);
-    float NdotL = max(dot(normal, lightDir), 0.0);
+    sample0.a *= 1 - uv0.y - wave0 * 2;
+    sample1.a *= 1 - uv1.y - wave1 * 2;
+    sample2.a *= 1 - uv2.y - wave2 * 2;
+    sample3.a *= 1 - uv3.y - wave3 * 2;
+    
+    // Check if the UV coordinates are outside the texture bounds and handle transparency or discard
+    float wave_end = 0.9;
+    if (uv0.y > 1.0 || uv0.y < 0.0 || sample0.a <= 0)
+    {
+        sample0.a = 0;
+    }
+    if (uv1.y > 1.0 || uv1.y < 0.0 || sample1.a <= 0)
+    {
+        sample1.a = 0;
+    }
+    if (uv2.y > 1.0 || uv2.y < 0.0 || sample2.a <= 0)
+    {
+        sample2.a = 0;
+    }
+    
+    if (uv3.y > 1.0 || uv3.y < 0.0 || sample3.a <= 0)
+    {
+        sample3.a = 0;
+    }
+    
+    final_color *= (sample0 * sample0.a + sample1 * sample1.a + sample2 * sample2.a + sample3 * sample3.a) / (sample0.a + sample1.a + sample2.a + sample3.a);;
 
-    float4 ambientComponent = directionalLight.ambient;
-    float4 diffuseComponent = directionalLight.diffuse * NdotL;
+    //float3 viewDirection = normalize(cam_position - input.world_position.xyz);
+    //float3 normal = float3(0, 1, 0);
+    
+    //// Ensure directionalLight.direction is normalized
+    //float3 lightDir = normalize(-directionalLight.direction);
+    //float NdotL = max(dot(normal, lightDir), 0.0);
 
-    // Compute half vector and ensure normalization
-    float3 halfVector = normalize(lightDir + viewDirection);
-    float NdotH = max(dot(normal, halfVector), 0.0);
+    //float4 ambientComponent = directionalLight.ambient;
+    //float4 diffuseComponent = directionalLight.diffuse * NdotL;
 
-    float shininess = 80.0; // Shininess factor
-    float specularIntensity = pow(NdotH, shininess);
-    float4 specularComponent = float4(1, 1, 1, 1) * specularIntensity;
+    //// Compute half vector and ensure normalization
+    //float3 halfVector = normalize(lightDir + viewDirection);
+    //float NdotH = max(dot(normal, halfVector), 0.0);
 
-    // Combine lighting components
-    final_color *= ambientComponent + diffuseComponent * 0.1 + specularComponent * 0.2;
+    //float shininess = 80.0; // Shininess factor
+    //float specularIntensity = pow(NdotH, shininess);
+    //float4 specularComponent = float4(1, 1, 1, 1) * specularIntensity;
+
+    //// Combine lighting components
+    //final_color *= ambientComponent + diffuseComponent * 0.1 + specularComponent * 0.2;
     
     // Fog effect
     bool should_render_fog = should_render_flags & 4;
