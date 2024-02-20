@@ -768,9 +768,9 @@ struct EnvironmentInfoFilenamesChunk {
 
 struct ShoreSubChunk {
     float float0;
-    float float1;
-    float float2;
-    float float3;
+    float shore_land_vertex_height;
+    float max_alpha;
+    float wave_speed;
     uint32_t vertices_count;
     std::vector<Vertex2> vertices;
     uint32_t integer0;
@@ -780,14 +780,14 @@ struct ShoreSubChunk {
         std::memcpy(&float0, &data[offset], sizeof(float0));
         offset += sizeof(float0);
 
-        std::memcpy(&float1, &data[offset], sizeof(float1));
-        offset += sizeof(float1);
+        std::memcpy(&shore_land_vertex_height, &data[offset], sizeof(shore_land_vertex_height));
+        offset += sizeof(shore_land_vertex_height);
 
-        std::memcpy(&float2, &data[offset], sizeof(float2));
-        offset += sizeof(float2);
+        std::memcpy(&max_alpha, &data[offset], sizeof(max_alpha));
+        offset += sizeof(max_alpha);
 
-        std::memcpy(&float3, &data[offset], sizeof(float3));
-        offset += sizeof(float3);
+        std::memcpy(&wave_speed, &data[offset], sizeof(wave_speed));
+        offset += sizeof(wave_speed);
 
         std::memcpy(&vertices_count, &data[offset], sizeof(vertices_count));
         offset += sizeof(vertices_count);
