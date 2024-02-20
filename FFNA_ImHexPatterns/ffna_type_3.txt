@@ -291,9 +291,9 @@ struct WaterAndSkyFilenamesChunk {
 
 struct ShoreSubChunk {
   float float0;
-  float float1;
-  float float2;
-  float float3;
+  float shore_land_vertex_height; // The height of the vertex furthest from water
+  float max_alpha; // values between 0 and 1. 0 means no shore and 1 means very visible shore waves. Anything higher than 1 and the game freezes.
+  float wave_speed; // 0 is stopped and 1 is very fast. Less than 0 and the shore doesn't render. It can exceed 1 and get even faster.
   u32 vertices_count;
   Vertex2 vertices[vertices_count];
   u32 integer0;
