@@ -113,21 +113,24 @@ float Wave(float x, float c)
 
     if (x < 5)
     {
-        return 0.16 * x;
+        return 1 - 0.2 * x; // Adjusted slope to reach 1
     }
     else if (x < 8)
     {
-        return -0.0889 * x * x + 1.1556 * x - 2.7556;
+        return 0; // Constant 1
     }
     else
     {
-        return -0.1143 * x + 1.7143;
+        return 1.0 / 7.0 * (x - 8); // Adjusted to start at 1 and decrease to 0
     }
 }
 
 // Main Pixel Shader function
 float4 main(PixelInputType input) : SV_TARGET
 {
+    bool use_wave_tex0 = num_uv_texture_pairs > 0 && texture_types[0][0] == 0;
+    bool use_wave_tex1 = num_uv_texture_pairs > 1 && texture_types[0][1] == 0;
+    
     float4 final_color = float4(1, 1, 1, 1);
     
     float x = time_elapsed * 0.5;
@@ -151,10 +154,66 @@ float4 main(PixelInputType input) : SV_TARGET
     uv3.y -= wave3;
 
     // Sample the texture with the adjusted UV coordinates
-    float4 sample0 = shaderTextures[0].Sample(ss, uv0);
-    float4 sample1 = shaderTextures[1].Sample(ss, uv1);
-    float4 sample2 = shaderTextures[0].Sample(ss, uv2);
-    float4 sample3 = shaderTextures[1].Sample(ss, uv3);
+    float4 sample0 = float4(0, 0, 0, 0);
+    float4 sample1 = float4(0, 0, 0, 0);
+    float4 sample2 = float4(0, 0, 0, 0);
+    float4 sample3 = float4(0, 0, 0, 0);
+    
+    // Sample 0
+    if (use_wave_tex0)
+    {
+        sample0 = shaderTextures[0].Sample(ss, uv0);
+    }
+    else if (use_wave_tex1)
+    {
+        sample0 = shaderTextures[1].Sample(ss, uv0);
+    }
+    else
+    {
+        discard;
+    }
+    
+    // Sample 1
+    if (use_wave_tex1)
+    {
+        sample1 = shaderTextures[1].Sample(ss, uv1);
+    }
+    else if (use_wave_tex0)
+    {
+        sample1 = shaderTextures[0].Sample(ss, uv1);
+    }
+    else
+    {
+        discard;
+    }
+    
+    // Sample 2
+    if (use_wave_tex0)
+    {
+        sample2 = shaderTextures[0].Sample(ss, uv2);
+    }
+    else if (use_wave_tex1)
+    {
+        sample2 = shaderTextures[1].Sample(ss, uv2);
+    }
+    else
+    {
+        discard;
+    }
+    
+    // Sample 3
+    if (use_wave_tex1)
+    {
+        sample3 = shaderTextures[1].Sample(ss, uv3);
+    }
+    else if (use_wave_tex0)
+    {
+        sample3 = shaderTextures[0].Sample(ss, uv3);
+    }
+    else
+    {
+        discard;
+    }
     
     sample0.a *= 1 - uv0.y - wave0 * 2;
     sample1.a *= 1 - uv1.y - wave1 * 2;
@@ -162,7 +221,6 @@ float4 main(PixelInputType input) : SV_TARGET
     sample3.a *= 1 - uv3.y - wave3 * 2;
     
     // Check if the UV coordinates are outside the texture bounds and handle transparency or discard
-    float wave_end = 0.9;
     if (uv0.y > 1.0 || uv0.y < 0.0 || sample0.a <= 0)
     {
         sample0.a = 0;

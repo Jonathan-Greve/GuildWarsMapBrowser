@@ -29,10 +29,20 @@ inline float LengthXMFLOAT3(const XMFLOAT3& v) {
     return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
+// Function to calculate the length of an XMFLOAT2 vector
+inline float LengthXMFLOAT2(const XMFLOAT2& v) {
+    return sqrt(v.x * v.x + v.y * v.y);
+}
+
 // Function to normalize an XMFLOAT3 vector
 inline XMFLOAT3 NormalizeXMFLOAT3(const XMFLOAT3& v) {
     float len = LengthXMFLOAT3(v);
     return XMFLOAT3(v.x / len, v.y / len, v.z / len);
+}
+
+inline XMFLOAT2 NormalizeXMFLOAT2(const XMFLOAT2& v) {
+    float len = LengthXMFLOAT2(v);
+    return XMFLOAT2(v.x / len, v.y / len);
 }
 
 inline XMFLOAT3 Vertex3ToXMFLOAT3(const Vertex3& vertex) {
