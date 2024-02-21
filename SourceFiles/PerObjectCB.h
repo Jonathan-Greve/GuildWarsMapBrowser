@@ -1,10 +1,10 @@
 struct PerObjectCB
 {
     DirectX::XMFLOAT4X4 world;
-    uint32_t uv_indices[8][4];
-    uint32_t texture_indices[8][4];
-    uint32_t blend_flags[8][4];
-    uint32_t texture_types[8][4];
+    uint32_t uv_indices[2][4];
+    uint32_t texture_indices[2][4];
+    uint32_t blend_flags[2][4];
+    uint32_t texture_types[2][4];
     uint32_t num_uv_texture_pairs;
     uint32_t object_id;
     uint32_t highlight_state;
@@ -15,7 +15,7 @@ struct PerObjectCB
     {
         DirectX::XMStoreFloat4x4(&world, DirectX::XMMatrixIdentity());
 
-        for (int i = 0; i < 8; ++i)
+        for (int i = 0; i < 2; ++i)
         {
             for (int j = 0; j < 4; ++j)
             {
