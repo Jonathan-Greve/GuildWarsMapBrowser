@@ -43,7 +43,9 @@ cbuffer PerObjectCB : register(b1)
     uint num_uv_texture_pairs;
     uint object_id;
     uint highlight_state; // 0 is not hightlight, 1 is dark green, 2 is lightgreen
-    float pad1[1];
+    float shore_max_alpha;
+    float shore_wave_speed;
+    float pad[3];
 };
 
 cbuffer PerCameraCB : register(b2)
@@ -124,7 +126,7 @@ float4 main(PixelInputType input) : SV_TARGET
     
     float4 final_color = float4(1, 1, 1, 1);
     
-    float x = time_elapsed * 0.2;
+    float x = time_elapsed * shore_wave_speed * 4;
 
     // Calculate the wave values with different offsets
     float wave0 = Wave(x, 0.0);
@@ -139,10 +141,10 @@ float4 main(PixelInputType input) : SV_TARGET
     float2 uv3 = uv0;
 
     // Adjust the Y coordinate of the UVs based on the oscillation
-    uv0.y -= wave0;
-    uv1.y -= wave1;
-    uv2.y -= wave2;
-    uv3.y -= wave3;
+    uv0.y -= wave0 - 0.01;
+    uv1.y -= wave1 - 0.01;
+    uv2.y -= wave2 - 0.01;
+    uv3.y -= wave3 - 0.01;
 
     // Sample the texture with the adjusted UV coordinates
     float4 sample0 = float4(0, 0, 0, 0);
@@ -206,10 +208,11 @@ float4 main(PixelInputType input) : SV_TARGET
         discard;
     }
     
-    sample0.a *= 1 - uv0.y - wave0 * 2;
-    sample1.a *= 1 - uv1.y - wave1 * 2;
-    sample2.a *= 1 - uv2.y - wave2 * 2;
-    sample3.a *= 1 - uv3.y - wave3 * 2;
+    float alpha_factor = 2;
+    sample0.a *= 1 - uv0.y - wave0;
+    sample1.a *= 1 - uv1.y - wave1;
+    sample2.a *= 1 - uv2.y - wave2;
+    sample3.a *= 1 - uv3.y - wave3;
     
     // Check if the UV coordinates are outside the texture bounds and handle transparency or discard
     if (uv0.y > 1.0 || uv0.y < 0.0 || sample0.a <= 0)
@@ -230,7 +233,8 @@ float4 main(PixelInputType input) : SV_TARGET
         sample3.a = 0;
     }
     
-    final_color *= (sample0 * sample0.a + sample1 * sample1.a + sample2 * sample2.a + sample3 * sample3.a) / (sample0.a + sample1.a + sample2.a + sample3.a);;
+    final_color *= (sample0 * sample0.a + sample1 * sample1.a + sample2 * sample2.a + sample3 * sample3.a) / (sample0.a + sample1.a + sample2.a + sample3.a);
+    final_color.a = clamp(final_color.a, 0, shore_max_alpha);
     
     // Fog effect
     bool should_render_fog = should_render_flags & 4;

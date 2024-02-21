@@ -8,10 +8,12 @@ struct PerObjectCB
     uint32_t num_uv_texture_pairs;
     uint32_t object_id;
     uint32_t highlight_state;
-    float pad[1];
+    float shore_max_alpha;
+    float shore_wave_speed;
+    float pad[3];
 
     PerObjectCB()
-        : num_uv_texture_pairs(0), object_id(0), highlight_state(0)
+        : num_uv_texture_pairs(0), object_id(0), highlight_state(0), shore_max_alpha(0.0f)
     {
         DirectX::XMStoreFloat4x4(&world, DirectX::XMMatrixIdentity());
 
