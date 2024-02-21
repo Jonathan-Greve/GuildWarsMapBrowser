@@ -476,6 +476,7 @@ public:
             int mesh_id = m_mesh_manager->AddCustomMesh(mesh, pixel_shader_type);
             m_mesh_manager->SetTexturesForMesh(mesh_id, textures, 3);
             m_mesh_manager->UpdateMeshPerObjectData(mesh_id, object_cbs[i]);
+            SetMeshShouldRender(mesh_id, false); // don't render with props. Will only render when called "manually".
             m_shore_mesh_ids.push_back(mesh_id);
         }
     }
