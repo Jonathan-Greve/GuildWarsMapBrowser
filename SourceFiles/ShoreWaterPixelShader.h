@@ -4,7 +4,7 @@ struct ShoreWaterPixelShader
 {
     static constexpr char shader_ps[] = R"(
 #define CHECK_TEXTURE_SET(TYPE) TYPE == texture_type
-
+#define PI 3.141592653589793
 sampler ss : register(s0);
 
 Texture2D shaderTextures[8] : register(t3);
@@ -36,10 +36,10 @@ cbuffer PerFrameCB : register(b0)
 cbuffer PerObjectCB : register(b1)
 {
     matrix World;
-    uint4 uv_indices[8];
-    uint4 texture_indices[8];
-    uint4 blend_flags[8];
-    uint4 texture_types[8];
+    uint4 uv_indices[2];
+    uint4 texture_indices[2];
+    uint4 blend_flags[2];
+    uint4 texture_types[2];
     uint num_uv_texture_pairs;
     uint object_id;
     uint highlight_state; // 0 is not hightlight, 1 is dark green, 2 is lightgreen
@@ -105,24 +105,15 @@ struct PSOutput
 };
 
 // Function to calculate the wave with an offset c
+// Modified Wave function using a sine wave for smoother transitions
 float Wave(float x, float c)
 {
-    x = fmod(x - c, 15.0); // Apply offset c and ensure cyclicity within 0 to 15 range
-    if (x < 0)
-        x += 15.0; // Adjust for negative values after applying the offset
+    x = fmod(x - c, 2 * PI); // Use a full sine wave cycle (2*PI)
 
-    if (x < 5)
-    {
-        return 1 - 0.2 * x; // Adjusted slope to reach 1
-    }
-    else if (x < 8)
-    {
-        return 0; // Constant 1
-    }
-    else
-    {
-        return 1.0 / 7.0 * (x - 8); // Adjusted to start at 1 and decrease to 0
-    }
+    // Scale and shift the sine wave to ensure it stays within the 0 to 1 range
+    float wave = 0.5 + 0.5 * sin(x);
+
+    return wave;
 }
 
 // Main Pixel Shader function
@@ -133,13 +124,13 @@ float4 main(PixelInputType input) : SV_TARGET
     
     float4 final_color = float4(1, 1, 1, 1);
     
-    float x = time_elapsed * 0.5;
+    float x = time_elapsed * 0.2;
 
     // Calculate the wave values with different offsets
     float wave0 = Wave(x, 0.0);
-    float wave1 = Wave(x, 4.0);
-    float wave2 = Wave(x, 8.0);
-    float wave3 = Wave(x, 12.0);
+    float wave1 = Wave(x, PI / 2);
+    float wave2 = Wave(x, PI);
+    float wave3 = Wave(x, 3 * PI / 2);
 
     // Calculate the UV coordinates
     float2 uv0 = input.tex_coords0;
@@ -240,27 +231,6 @@ float4 main(PixelInputType input) : SV_TARGET
     }
     
     final_color *= (sample0 * sample0.a + sample1 * sample1.a + sample2 * sample2.a + sample3 * sample3.a) / (sample0.a + sample1.a + sample2.a + sample3.a);;
-
-    //float3 viewDirection = normalize(cam_position - input.world_position.xyz);
-    //float3 normal = float3(0, 1, 0);
-    
-    //// Ensure directionalLight.direction is normalized
-    //float3 lightDir = normalize(-directionalLight.direction);
-    //float NdotL = max(dot(normal, lightDir), 0.0);
-
-    //float4 ambientComponent = directionalLight.ambient;
-    //float4 diffuseComponent = directionalLight.diffuse * NdotL;
-
-    //// Compute half vector and ensure normalization
-    //float3 halfVector = normalize(lightDir + viewDirection);
-    //float NdotH = max(dot(normal, halfVector), 0.0);
-
-    //float shininess = 80.0; // Shininess factor
-    //float specularIntensity = pow(NdotH, shininess);
-    //float4 specularComponent = float4(1, 1, 1, 1) * specularIntensity;
-
-    //// Combine lighting components
-    //final_color *= ambientComponent + diffuseComponent * 0.1 + specularComponent * 0.2;
     
     // Fog effect
     bool should_render_fog = should_render_flags & 4;
