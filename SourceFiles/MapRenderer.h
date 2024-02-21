@@ -465,12 +465,9 @@ public:
         m_prop_mesh_ids.clear();
     }
 
-    void SetShore(std::vector<Mesh> shore_meshes, std::vector<ID3D11ShaderResourceView*> textures, PixelShaderType pixel_shader_type)
+    void SetShore(std::vector<Mesh>& shore_meshes, std::vector<ID3D11ShaderResourceView*> textures, std::vector<PerObjectCB>& object_cbs, PixelShaderType pixel_shader_type)
     {
         m_shore_mesh_ids.clear();
-
-        PerObjectCB per_object_data;
-        per_object_data.num_uv_texture_pairs = 1;
 
         for (int i = 0; i < shore_meshes.size(); i++)
         {
@@ -478,7 +475,7 @@ public:
 
             int mesh_id = m_mesh_manager->AddCustomMesh(mesh, pixel_shader_type);
             m_mesh_manager->SetTexturesForMesh(mesh_id, textures, 3);
-            m_mesh_manager->UpdateMeshPerObjectData(mesh_id, per_object_data);
+            m_mesh_manager->UpdateMeshPerObjectData(mesh_id, object_cbs[i]);
             m_shore_mesh_ids.push_back(mesh_id);
         }
     }
