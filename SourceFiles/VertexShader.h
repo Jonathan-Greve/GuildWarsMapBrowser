@@ -28,10 +28,10 @@ cbuffer PerFrameCB : register(b0)
 cbuffer PerObjectCB : register(b1)
 {
     matrix World;
-    uint4 uv_indices[8];
-    uint4 texture_indices[8];
-    uint4 blend_flags[8];
-    uint4 texture_types[8];
+    uint4 uv_indices[2];
+    uint4 texture_indices[2];
+    uint4 blend_flags[2];
+    uint4 texture_types[2];
     uint num_uv_texture_pairs;
     uint object_id;
     float pad1[2];
