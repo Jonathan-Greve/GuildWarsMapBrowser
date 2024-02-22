@@ -163,7 +163,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float4 specularComponent = float4(1, 1, 1, 1) * specularIntensity;
 
     // Combine lighting components
-    final_color *= ambientComponent + diffuseComponent * 0.1 + specularComponent * 0.2;
+    final_color *= ambientComponent + diffuseComponent * 0.1 + specularComponent * 0.05;
 
     // Fog effect
     bool should_render_fog = should_render_flags & 4;

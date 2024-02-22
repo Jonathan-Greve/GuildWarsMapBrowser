@@ -2689,7 +2689,7 @@ GWVertex get_shore_vertex_for_2_points(Vertex2 point1, Vertex2 point2, float hei
     XMFLOAT2 normalized_diff_vec{ diff_vec.x / length, diff_vec.y / length };
 
     // Apply shore_offset
-    float shore_offset = 270.0f; // The offset distance for the shore vertices
+    float shore_offset = 180.0f; // The offset distance for the shore vertices
     XMFLOAT2 offset_vec{ normalized_diff_vec.y * shore_offset, -normalized_diff_vec.x * shore_offset };
 
     // Calculate heights at offset points
@@ -2718,7 +2718,7 @@ GWVertex get_shore_vertex_for_3_points(Vertex2 point1, Vertex2 point2, Vertex2 p
     XMFLOAT2 normalized_diff_vec{ diff_vec.x / length, diff_vec.y / length };
 
     // Apply shore_offset
-    float shore_offset = 270.0f; // The offset distance for the shore vertices
+    float shore_offset = 180.0f; // The offset distance for the shore vertices
     XMFLOAT2 offset_vec{ normalized_diff_vec.y * shore_offset, -normalized_diff_vec.x * shore_offset };
 
     // Calculate heights at offset points. I.e. we rotate the vector 90 degrees in either direction to find where the water is.
@@ -2744,7 +2744,7 @@ void generate_shore_mesh(const XMFLOAT2& point1, const XMFLOAT2& point2, Terrain
     XMFLOAT2 normalized_diff_vec{ diff_vec.x / length, diff_vec.y / length };
 
     // Apply shore_offset
-    float shore_offset = 270.0f; // The offset distance for the shore vertices
+    float shore_offset = 180.0f; // The offset distance for the shore vertices
     XMFLOAT2 offset_vec{ normalized_diff_vec.y * shore_offset, -normalized_diff_vec.x * shore_offset };
 
     // Calculate heights at offset points
