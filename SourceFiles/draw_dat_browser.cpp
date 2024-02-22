@@ -1222,7 +1222,9 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
         }
 
         // Used as height for vertices out in the water.
-        float water_vertex_height = 2;
+        float water_vertex_height = 3;
+
+        float u_factor = 0.00228122458f;
 
         std::vector<Mesh> shore_meshes;
         std::vector<PerObjectCB> shore_per_object_cbs;
@@ -1256,6 +1258,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 shore_vertices.push_back(GWVertex({ vertices[0].x, shore_height, vertices[0].y}, { 0, 1, 0 }, { 0, 0 }));
                 shore_vertices.push_back(offset_vertex_0);
 
+                float shore_len = LengthXMFLOAT2({ vertices[0].x - vertices[1].x, vertices[0].y - vertices[1].y });
+
                 // Add first triangle
                 shore_indices.insert(shore_indices.end(), { 1,0,2 });
 
@@ -1266,7 +1270,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                     const auto& next_vertex = vertices[j + 1];
 
                     // Compute the u texture coordinate. The v coordinate is always 0 for the shore vertex points and 1 for the offset points.
-                    float u = j % 2;
+                    float u = u_factor * shore_len;
+                    shore_len += LengthXMFLOAT2({ vertex.x - next_vertex.x, vertex.y - next_vertex.y });
 
                     // Compute offset vertex (the one out in the water)
                     GWVertex offset_vertex_j = get_shore_vertex_for_3_points(prev_vertex, vertex, next_vertex, water_vertex_height);
@@ -1284,13 +1289,14 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                     shore_indices.insert(shore_indices.end(), { vertex_index - 1, vertex_index, vertex_index + 1, vertex_index + 1, vertex_index, vertex_index + 2 });
                 }
 
+                float u = u_factor * shore_len;
 
                 // And compute the last shore offset vertex out in the water.
                 GWVertex offset_vertex_last = get_shore_vertex_for_2_points(vertices.back(), vertices[vertices.size() - 2], water_vertex_height);
-                offset_vertex_last.tex_coord0 = { (float)((vertices.size() - 1) % 2), 1 };
+                offset_vertex_last.tex_coord0 = { u, 1 };
 
                 // Add last shore vertex and offset vertex
-                shore_vertices.push_back(GWVertex({ vertices.back().x, shore_height, vertices.back().y }, { 0, 1, 0 }, { (float)((vertices.size() - 1) % 2), 0 }));
+                shore_vertices.push_back(GWVertex({ vertices.back().x, shore_height, vertices.back().y }, { 0, 1, 0 }, { u, 0 }));
                 shore_vertices.push_back(offset_vertex_last);
 
                 // Add last triangle
@@ -2689,7 +2695,7 @@ GWVertex get_shore_vertex_for_2_points(Vertex2 point1, Vertex2 point2, float hei
     XMFLOAT2 normalized_diff_vec{ diff_vec.x / length, diff_vec.y / length };
 
     // Apply shore_offset
-    float shore_offset = 180.0f; // The offset distance for the shore vertices
+    float shore_offset = 220.0f; // The offset distance for the shore vertices
     XMFLOAT2 offset_vec{ normalized_diff_vec.y * shore_offset, -normalized_diff_vec.x * shore_offset };
 
     // Calculate heights at offset points
@@ -2718,7 +2724,7 @@ GWVertex get_shore_vertex_for_3_points(Vertex2 point1, Vertex2 point2, Vertex2 p
     XMFLOAT2 normalized_diff_vec{ diff_vec.x / length, diff_vec.y / length };
 
     // Apply shore_offset
-    float shore_offset = 180.0f; // The offset distance for the shore vertices
+    float shore_offset = 220.0f; // The offset distance for the shore vertices
     XMFLOAT2 offset_vec{ normalized_diff_vec.y * shore_offset, -normalized_diff_vec.x * shore_offset };
 
     // Calculate heights at offset points. I.e. we rotate the vector 90 degrees in either direction to find where the water is.
@@ -2744,7 +2750,7 @@ void generate_shore_mesh(const XMFLOAT2& point1, const XMFLOAT2& point2, Terrain
     XMFLOAT2 normalized_diff_vec{ diff_vec.x / length, diff_vec.y / length };
 
     // Apply shore_offset
-    float shore_offset = 180.0f; // The offset distance for the shore vertices
+    float shore_offset = 220.0f; // The offset distance for the shore vertices
     XMFLOAT2 offset_vec{ normalized_diff_vec.y * shore_offset, -normalized_diff_vec.x * shore_offset };
 
     // Calculate heights at offset points
