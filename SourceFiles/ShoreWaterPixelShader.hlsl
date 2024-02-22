@@ -113,6 +113,16 @@ float Wave(float x, float c)
     return wave;
 }
 
+float WaveDerivative(float x, float c)
+{
+    x = fmod(x - c, 2 * PI); // Match the cycle used in Wave function
+
+    // Derivative of sine is cosine
+    float derivative = cos(x);
+
+    return derivative;
+}
+
 // Main Pixel Shader function
 float4 main(PixelInputType input) : SV_TARGET
 {
@@ -121,7 +131,7 @@ float4 main(PixelInputType input) : SV_TARGET
     
     float4 final_color = float4(1, 1, 1, 1);
     
-    float x = time_elapsed * shore_wave_speed * 4;
+    float x = time_elapsed * shore_wave_speed * 3;
 
     // Calculate the wave values with different offsets
     float wave0 = Wave(x, 0.0);
@@ -203,11 +213,52 @@ float4 main(PixelInputType input) : SV_TARGET
         discard;
     }
     
-    float alpha_factor = 2;
-    sample0.a *= 1 - uv0.y - wave0;
-    sample1.a *= 1 - uv1.y - wave1;
-    sample2.a *= 1 - uv2.y - wave2;
-    sample3.a *= 1 - uv3.y - wave3;
+    float waveDerivative0 = WaveDerivative(x, 0.0);
+    float waveDerivative1 = WaveDerivative(x, PI / 2);
+    float waveDerivative2 = WaveDerivative(x, PI);
+    float waveDerivative3 = WaveDerivative(x, 3 * PI / 2);
+
+    // Conditionally adjust the UVs and alphas based on the wave derivatives
+    if (waveDerivative0 >= 0)
+    {
+        sample0.a *= 1 - uv0.y - wave0 * 5;
+        sample0.rbg *= 1.5;
+    }
+    else
+    {
+        sample0.a *= 1 - uv0.y - wave0 * 1.5;
+    }
+
+    if (waveDerivative1 >= 0)
+    {
+        sample1.a *= 1 - uv1.y - wave1 * 5;
+        sample1.rbg *= 1.5;
+    }
+    else
+    {
+        sample1.a *= 1 - uv1.y - wave1 * 1.5;
+    }
+
+    if (waveDerivative2 >= 0)
+    {
+        sample2.a *= 1 - uv2.y - wave2 * 5;
+        sample2.rbg *= 1.5;
+    }
+    else
+    {
+        sample2.a *= 1 - uv2.y - wave2 * 1.5;
+    }
+
+    if (waveDerivative3 >= 0)
+    {
+        sample3.a *= 1 - uv3.y - wave3 * 5;
+        sample3.rbg *= 1.5;
+    }
+    else
+    {
+        sample3.a *= 1 - uv3.y - wave3 * 1.5;
+    }
+
     
     // Check if the UV coordinates are outside the texture bounds and handle transparency or discard
     if (uv0.y > 1.0 || uv0.y < 0.0 || sample0.a <= 0)
@@ -229,7 +280,7 @@ float4 main(PixelInputType input) : SV_TARGET
     }
     
     final_color *= (sample0 * sample0.a + sample1 * sample1.a + sample2 * sample2.a + sample3 * sample3.a) / (sample0.a + sample1.a + sample2.a + sample3.a);
-    final_color.a = clamp(final_color.a, 0, shore_max_alpha);
+    final_color.a = clamp(final_color.a, 0, shore_max_alpha) * 0.7;
     
     // Fog effect
     bool should_render_fog = should_render_flags & 4;
