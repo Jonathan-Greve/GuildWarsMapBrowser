@@ -486,7 +486,7 @@ public:
         return m_mesh_manager->GetPickedObjectId(m_deviceContext, picking_target, x, y);
     }
 
-    std::unordered_map<uint32_t, std::vector<int>>& GetPropsMeshIds() { return m_prop_mesh_ids; }
+    std::map<uint32_t, std::vector<int>>& GetPropsMeshIds() { return m_prop_mesh_ids; }
     std::vector<int>& GetShoreMeshIds() { return m_shore_mesh_ids; }
 
     PixelShaderType GetTerrainPixelShaderType() { return m_terrain_current_pixel_shader_type; }
@@ -904,7 +904,7 @@ private:
     Terrain* m_terrain = nullptr;
     PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainTexturedWithShadows;
 
-    std::unordered_map<uint32_t, std::vector<int>> m_prop_mesh_ids;
+    std::map<uint32_t, std::vector<int>> m_prop_mesh_ids;
     std::vector<int> extra_mesh_ids; // For stuff like spheres and boxes.
 
     bool m_is_terrain_mesh_set = false;
