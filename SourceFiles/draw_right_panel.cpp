@@ -301,10 +301,26 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
 
     if (selected_file_type == FFNA_Type3)
     {
+        static bool is_props_visibility_window_open = false;
+        static bool is_shore_visibility_window_open = false;
+
+        float num_visibility_windows_open = 0;
+        if (is_props_visibility_window_open) {
+            num_visibility_windows_open++;
+        }
+
+        if (is_shore_visibility_window_open) {
+            num_visibility_windows_open++;
+        }
+
+        float max_height_factor = 1;
+        if (num_visibility_windows_open > 0) {
+            max_height_factor /= num_visibility_windows_open;
+        }
 
         max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
             (3 *
-                GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
+                GuiGlobalConstants::panel_padding) * max_height_factor; // Calculate max height based on app window size and padding
 
         // Set up the props visibility settings window
         ImGui::SetNextWindowPos(
@@ -314,7 +330,7 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
         ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
         ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
             ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
-        if (ImGui::Begin("Props Visibility", NULL, window_flags))
+        if (ImGui::Begin("Props Visibility", &is_props_visibility_window_open, window_flags))
         {
             auto& propsMeshIds = map_renderer->GetPropsMeshIds();
 
@@ -383,8 +399,54 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
                     ImGui::TreePop();
                 }
             }
+            window_height += ImGui::GetWindowSize().y;
         }
         ImGui::End();
+
+        max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
+            (3 * GuiGlobalConstants::panel_padding) * max_height_factor;
+
+
+        ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
+            GuiGlobalConstants::panel_padding,
+            GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+        ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
+        ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
+        if (ImGui::Begin("Shore Visibility", NULL, window_flags))
+        {
+            auto& shoreMeshIds = map_renderer->GetShoreMeshIds();
+
+            // Set all and Clear all buttons
+            if (ImGui::Button("Set all"))
+            {
+                for (int mesh_id : shoreMeshIds)
+                {
+                    map_renderer->SetShoreMeshIdShouldRender(mesh_id, true);
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Clear all"))
+            {
+                for (int mesh_id : shoreMeshIds)
+                {
+                    map_renderer->SetShoreMeshIdShouldRender(mesh_id, false);
+                }
+            }
+
+            // Shore visibility checkboxes
+            for (uint32_t i = 0; i < shoreMeshIds.size(); i++)
+            {
+                auto mesh_id = shoreMeshIds[i];
+
+                bool should_render = map_renderer->GetShoreMeshIdShouldRender(mesh_id);
+
+                auto label = std::format("Mesh id: {}", mesh_id);
+                if (ImGui::Checkbox(label.c_str(), &should_render))
+                {
+                    map_renderer->SetShoreMeshIdShouldRender(mesh_id, should_render);
+                }
+            }
+        }
     }
 
     ImGui::PopStyleVar();
