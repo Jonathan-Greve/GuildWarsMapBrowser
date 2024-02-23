@@ -594,6 +594,9 @@ public:
     void SetShouldUsePickingShaderForModels(bool should_use_picking_shader_for_models) { m_should_use_picking_shader_for_models = should_use_picking_shader_for_models; }
     bool GetShouldUsePickingShaderForModels() { return m_should_use_picking_shader_for_models; }
 
+    void SetShouldRenderShoreWaves(bool should_render_shore_waves) { m_should_render_shore_waves = should_render_shore_waves; }
+    bool GetShouldRenderShoreWaves() { return m_should_render_shore_waves; }
+
     PerCameraCB GetPerCameraCB() { return m_per_camera_cb_data; }
     void SetPerCameraCB(const PerCameraCB& per_camera_cb_data) { m_per_camera_cb_data = per_camera_cb_data; }
 
@@ -740,7 +743,7 @@ public:
                 m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, m_water_mesh_id);
         }
 
-        if (m_shore_mesh_ids.size() > 0) {
+        if (m_shore_mesh_ids.size() > 0 && m_should_render_shore_waves) {
             m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
             for (auto& mesh_id : m_shore_mesh_ids) {
                 m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
@@ -931,6 +934,8 @@ private:
     bool m_should_render_water_reflection = true;
     bool m_should_render_fog = true;
     bool m_should_render_shadows_for_models = true;
+
+    bool m_should_render_shore_waves = true;
 
     bool m_should_rerender_shadows = false;
 

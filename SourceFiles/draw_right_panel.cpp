@@ -127,6 +127,11 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
                 map_renderer->SetShouldRenderWaterReflection(should_render_water_reflection);
             }
 
+            bool should_render_shore = map_renderer->GetShouldRenderShoreWaves();
+            if (ImGui::Checkbox("Show shore waves", &should_render_shore)) {
+                map_renderer->SetShouldRenderShoreWaves(should_render_shore);
+            }
+
             bool should_use_picking_shader_for_models = map_renderer->GetShouldUsePickingShaderForModels();
             if (ImGui::Checkbox("Show model picking colors", &should_use_picking_shader_for_models)) {
                 map_renderer->SetShouldUsePickingShaderForModels(should_use_picking_shader_for_models);
