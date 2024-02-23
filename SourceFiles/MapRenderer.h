@@ -468,6 +468,7 @@ public:
     void SetShore(std::vector<Mesh>& shore_meshes, std::vector<ID3D11ShaderResourceView*> textures, std::vector<PerObjectCB>& object_cbs, PixelShaderType pixel_shader_type)
     {
         m_shore_mesh_ids.clear();
+        should_render_shore_mesh_id.clear();
 
         for (int i = 0; i < shore_meshes.size(); i++)
         {
@@ -478,7 +479,24 @@ public:
             m_mesh_manager->UpdateMeshPerObjectData(mesh_id, object_cbs[i]);
             SetMeshShouldRender(mesh_id, false); // don't render with props. Will only render when called "manually".
             m_shore_mesh_ids.push_back(mesh_id);
+            should_render_shore_mesh_id.insert({ mesh_id, true }); // this is how we can select individually which shore meshes to render.
         }
+    }
+
+    void SetShoreMeshIdShouldRender(int mesh_id, bool should_render) {
+        auto it = should_render_shore_mesh_id.find(mesh_id);
+        if (it != should_render_shore_mesh_id.end()) {
+            it->second = should_render;
+        }
+    }
+
+    bool GetShoreMeshIdShouldRender(int mesh_id) {
+        auto it = should_render_shore_mesh_id.find(mesh_id);
+        if (it != should_render_shore_mesh_id.end()) {
+            return it->second;
+        }
+
+        return false;
     }
 
     int GetObjectId(ID3D11Texture2D* picking_target, const int x, const int y) const
@@ -746,8 +764,11 @@ public:
         if (m_shore_mesh_ids.size() > 0 && m_should_render_shore_waves) {
             m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
             for (auto& mesh_id : m_shore_mesh_ids) {
-                m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-                    m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, mesh_id);
+                const auto it = should_render_shore_mesh_id.find(mesh_id);
+                if (it != should_render_shore_mesh_id.end() && it->second) {
+                    m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                        m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, mesh_id);
+                }
             }
         }
 
@@ -936,6 +957,7 @@ private:
     bool m_should_render_shadows_for_models = true;
 
     bool m_should_render_shore_waves = true;
+    std::map<int, bool> should_render_shore_mesh_id;
 
     bool m_should_rerender_shadows = false;
 
