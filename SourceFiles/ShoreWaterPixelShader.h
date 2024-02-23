@@ -292,9 +292,11 @@ float4 main(PixelInputType input) : SV_TARGET
     if (should_render_fog)
     {
         float distance = length(cam_position - input.world_position.xyz);
+
         float fogFactor = (fog_end - distance) / (fog_end - fog_start);
-        fogFactor = clamp(fogFactor, 0.0, 1.0);
-        final_color = lerp(float4(fog_color_rgb, 1.0), final_color, fogFactor);
+        fogFactor = clamp(fogFactor, 0.20, 1);
+
+        final_color = lerp(float4(fog_color_rgb, final_color.a), final_color, fogFactor);
     }
     
 
