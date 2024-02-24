@@ -18,10 +18,10 @@ Browse the Guild Wars .dat file. Included features:
 
 ## Preview
  
- Here is an preview of Monastery Overlook as seen rendered in GuildWarsMapBrowser:
-![Monastery Overlook](images/v5_0_monastery_overlook.png)
-and pre-Searing Ascalon City:
-![Ascalon City](images/v5_0_pre_ascalon_city.png)
+ Here is an preview of Monastery Overlook as seen rendered in GuildWarsMapBrowser (with fog disabled):
+![Monastery Overlook](images/v6_0_1_monastery_overlook.png)
+and pre-Searing Ascalon City (with fog enabled):
+![Ascalon City](images/v6_0_1_pre_ascalon_city.png)
 And here is an example of rendering some models:
 ![A Golem](images/v5_0_view_model_golem.png)
 ![Lich](images/v5_0_view_model_lich.png)
