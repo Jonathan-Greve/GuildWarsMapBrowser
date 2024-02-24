@@ -285,7 +285,7 @@ float4 main(PixelInputType input) : SV_TARGET
     }
     
     final_color *= (sample0 * sample0.a + sample1 * sample1.a + sample2 * sample2.a + sample3 * sample3.a) / (sample0.a + sample1.a + sample2.a + sample3.a);
-    final_color.a = clamp(final_color.a, 0, shore_max_alpha) * 0.7;
+    final_color.a = clamp(final_color.a, 0, shore_max_alpha) * 0.5;
     
     // Fog effect
     bool should_render_fog = should_render_flags & 4;
