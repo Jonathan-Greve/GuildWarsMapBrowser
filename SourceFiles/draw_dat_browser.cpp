@@ -2734,10 +2734,10 @@ GWVertex get_shore_vertex_for_3_points(Vertex2 point1, Vertex2 point2, Vertex2 p
     float height1 = terrain->get_height_at(point2.x + offset_vec.x, point2.y + offset_vec.y);
 
     if (height0 < height1) {
-        return GWVertex({ point1.x - offset_vec.x, height, point1.y - offset_vec.y }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f });
+        return GWVertex({ point2.x - offset_vec.x, height, point2.y - offset_vec.y }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f });
     }
     else {
-        return GWVertex({ point1.x + offset_vec.x, height, point1.y + offset_vec.y }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f });
+        return GWVertex({ point2.x + offset_vec.x, height, point2.y + offset_vec.y }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f });
     }
 }
 
