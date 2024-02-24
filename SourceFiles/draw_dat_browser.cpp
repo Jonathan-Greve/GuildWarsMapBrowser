@@ -519,8 +519,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 auto diffuse_hls = RGBAtoHSL(directional_light.diffuse);
 
                 // Increase lightness
-                ambient_hls.z = ambient_intensity * 0.9;
-                diffuse_hls.z = diffuse_intensity * 0.9;
+                ambient_hls.z = std::max(ambient_intensity * 0.9, 0.7);
+                diffuse_hls.z = std::max(diffuse_intensity * 0.9, 0.5);
 
                 directional_light.ambient = HSLtoRGBA(ambient_hls);
                 directional_light.diffuse = HSLtoRGBA(diffuse_hls);
