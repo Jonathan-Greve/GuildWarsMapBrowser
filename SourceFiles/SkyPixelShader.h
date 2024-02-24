@@ -99,7 +99,7 @@ float4 main(PixelInputType input) : SV_TARGET
     if (use_sky_background)
     {
         float4 sampledTextureColor = shaderTextures[0].Sample(ss, input.tex_coords0);
-        final_color.rgb = sampledTextureColor.rgb;
+        final_color.rgb = sampledTextureColor.rgb * 1.4;
     }
     
     if (use_clouds_0)
@@ -108,7 +108,7 @@ float4 main(PixelInputType input) : SV_TARGET
         float v = input.tex_coords0.y;
         
         float4 sampledTextureColor = shaderTextures[1].Sample(ss, float2(u, v));
-        final_color.rgb = lerp(final_color.rgb, sampledTextureColor.rgb, sampledTextureColor.a);
+        final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a;
     }
     
     if (use_clouds_1)
@@ -117,7 +117,7 @@ float4 main(PixelInputType input) : SV_TARGET
         float v = input.tex_coords0.y;
         
         float4 sampledTextureColor = shaderTextures[2].Sample(ss, float2(u, v));
-        final_color.rgb = lerp(final_color.rgb, sampledTextureColor.rgb, sampledTextureColor.a);
+        final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a;
     }
     
     //if (use_sun)
@@ -134,7 +134,7 @@ float4 main(PixelInputType input) : SV_TARGET
 
         fogFactor = clamp(fogFactor, 0, 1);
 
-        float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
+        float3 fogColor = lerp(fog_color_rgb, final_color.rgb, fogFactor); // Fog color defined in the constant buffer
         final_color = lerp(float4(fogColor, final_color.a), final_color, fogFactor);
     }
     
