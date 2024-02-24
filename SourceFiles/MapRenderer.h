@@ -224,10 +224,19 @@ public:
 
     void SetDirectionalLight(DirectionalLight new_directional_light)
     {
-        m_should_rerender_shadows = true;
+        // Compare the new direction with the current direction
+        if (m_directionalLight.direction.x != new_directional_light.direction.x ||
+            m_directionalLight.direction.y != new_directional_light.direction.y ||
+            m_directionalLight.direction.z != new_directional_light.direction.z)
+        {
+            m_should_rerender_shadows = true; // Set to true only if the direction has changed
+        }
+
         m_directionalLight = new_directional_light;
         m_per_frame_cb_changed = true;
     }
+
+
     const DirectionalLight GetDirectionalLight() { return m_directionalLight; }
 
     void UpdateTerrainWaterLevel(float new_water_level)
