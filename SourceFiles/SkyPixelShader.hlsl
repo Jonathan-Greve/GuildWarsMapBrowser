@@ -94,7 +94,7 @@ float4 main(PixelInputType input) : SV_TARGET
     if (use_sky_background)
     {
         float4 sampledTextureColor = shaderTextures[0].Sample(ss, input.tex_coords0);
-        final_color.rgb = sampledTextureColor.rgb * 1.4;
+        final_color.rgb = sampledTextureColor.rgb * 1.1;
     }
     
     if (use_clouds_0)
@@ -103,7 +103,7 @@ float4 main(PixelInputType input) : SV_TARGET
         float v = input.tex_coords0.y;
         
         float4 sampledTextureColor = shaderTextures[1].Sample(ss, float2(u, v));
-        final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a;
+        final_color.rgb += saturate(sampledTextureColor.rgb) * sampledTextureColor.a;
     }
     
     if (use_clouds_1)
@@ -112,7 +112,7 @@ float4 main(PixelInputType input) : SV_TARGET
         float v = input.tex_coords0.y;
         
         float4 sampledTextureColor = shaderTextures[2].Sample(ss, float2(u, v));
-        final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a;
+        final_color.rgb += saturate(sampledTextureColor.rgb) * sampledTextureColor.a;
     }
     
     //if (use_sun)
