@@ -851,8 +851,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 
                 map_renderer->SetFogStart(std::max((int)sub2_0.fog_distance_start, 3000));
-                map_renderer->SetFogEnd(std::max((float)sub2_0.fog_distance_end, map_renderer->GetFogStart()+10000));
-                map_renderer->SetFogStartY(-5000);
+                map_renderer->SetFogEnd(std::max((float)sub2_0.fog_distance_end, map_renderer->GetFogStart()+15000));
+                map_renderer->SetFogStartY(-10000);
                 map_renderer->SetFogEndY(1500);
 
                 map_renderer->SetClearColor(clear_and_fog_color);
