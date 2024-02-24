@@ -139,7 +139,7 @@ float4 main(PixelInputType input) : SV_TARGET
 
         // Transform position to shadow map texture space
         float2 reflectionCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
-        float4 reflectionColor = shaderTextures[2].Sample(ss, reflectionCoord + normal_g * water_distortion_scale / 30);
+        float4 reflectionColor = shaderTextures[2].Sample(ss, reflectionCoord + lerp(normal_g * water_distortion_scale / 30, normal_r * water_distortion_scale / 60, 0.5));
     
         // Combine the reflection color with the final color
         // This can be adjusted based on the desired reflection intensity and blending mode
