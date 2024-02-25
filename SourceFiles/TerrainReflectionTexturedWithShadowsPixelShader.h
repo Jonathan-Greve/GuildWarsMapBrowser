@@ -175,7 +175,7 @@ float2 AdjustUVForQuadrant1(float2 uv, bool isTopRight)
 
 float4 main(PixelInputType input) : SV_TARGET0
 {
-    if (input.world_position.y <= 0)
+    if (input.world_position.y <= water_level)
     {
         discard;
     }

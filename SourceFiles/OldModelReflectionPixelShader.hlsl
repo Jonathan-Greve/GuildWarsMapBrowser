@@ -84,7 +84,7 @@ struct PixelInputType
 
 float4 main(PixelInputType input) : SV_TARGET
 {
-    if (input.world_position.y <= 0)
+    if (input.world_position.y <= water_level)
     {
         discard;
     }

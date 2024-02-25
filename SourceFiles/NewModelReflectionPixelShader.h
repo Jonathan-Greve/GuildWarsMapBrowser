@@ -3,8 +3,6 @@
 struct NewModelReflectionPixelShader
 {
     static constexpr char shader_ps[] = R"(
-#define CHECK_TEXTURE_SET(TYPE) TYPE == texture_type
-
 sampler ss : register(s0);
 Texture2D shaderTextures[8] : register(t3);
 
@@ -87,107 +85,97 @@ struct PixelInputType
     float3x3 TBN : TEXCOORD9;
 };
 
+float3 compute_normalmap_lighting(const float3 normalmap_sample, const float3x3 TBN, const float3 pos)
+{
+    // Transform the normal from tangent space to world space
+    const float3 normal = normalize(mul(normalmap_sample, TBN));
+
+    // Compute lighting with the Phong reflection model for a directional light
+    const float3 light_dir = -directionalLight.direction; // The light direction points towards the light source
+    const float3 view_dir = normalize(cam_position - pos);
+    const float3 reflect_dir = reflect(-light_dir, normal);
+
+    const float shininess = 2;
+
+    const float diff = max(dot(normal, light_dir), 0.0);
+    const float spec = pow(max(dot(view_dir, reflect_dir), 0.0), shininess);
+
+    const float3 diffuse = diff * directionalLight.ambient.rbg;
+    const float3 specular = spec * directionalLight.specular.rgb;
+
+    return float3(1, 1, 1) + diffuse + specular;
+};
+
 float4 main(PixelInputType input) : SV_TARGET
 {
-    if (input.world_position.y <= 0)
+    if (input.world_position.y <= water_level)
     {
         discard;
     }
     
-    float4 finalColor = input.lightingColor;
-
-    float2 texCoordsArray[6] =
+    float4 sampled_texture_color = float4(1, 1, 1, 1);
+    float2 tex_coords_array[6] =
     {
         input.tex_coords0, input.tex_coords1, input.tex_coords2, input.tex_coords3,
                                  input.tex_coords4, input.tex_coords5
     };
-    float a = 0;
 
-    float mult_val = 1;
+    float3 lighting_color = float3(1, 1, 1);
 
-    uint prev_texture_type = -1;
-    uint prev_blend_flag = -1;
+    bool first_non_normalmap_texture_applied = false;
     for (int i = 0; i < num_uv_texture_pairs; ++i)
     {
         uint uv_set_index = uv_indices[i / 4][i % 4];
         uint texture_index = texture_indices[i / 4][i % 4];
         uint blend_flag = blend_flags[i / 4][i % 4];
         uint texture_type = texture_types[i / 4][i % 4] & 0xFF;
-        uint texture_flag0 = texture_types[i / 4][i % 4] >> 8;
 
         for (int t = 0; t < 6; ++t)
         {
             if (t == texture_index)
             {
-                float4 currentSampledTextureColor = shaderTextures[t].Sample(ss, texCoordsArray[uv_set_index]);
-                float alpha = currentSampledTextureColor.a;
-                if (blend_flag == 3 || blend_flag == 6 || blend_flag == 7)
+                if (texture_type == 2)
                 {
-                    alpha = 1 - alpha;
-                }
-                else if (blend_flag == 0)
-                {
-                    alpha = 1;
-                }
-                if (blend_flag == 8 && alpha == 0 || (blend_flag == 7 && a == 0))
-                {
-                    continue;
-                }
-
-                a += alpha * (1.0 - a);
-
-                if ((blend_flag == 7 && prev_blend_flag == 8) || blend_flag == 6 || blend_flag == 0)
-                {
-                    mult_val = 1;
+						// Compute normal map lighting
+                    const float3 normal_from_map = shaderTextures[t].Sample(ss, tex_coords_array[uv_set_index]).rgb * 2.0 - 1.0;
+                    float3 pos = input.position.xyz;
+                    lighting_color = compute_normalmap_lighting(normal_from_map, input.TBN, pos);
                 }
                 else
                 {
-                    mult_val = 2;
-                }
-
-                if (blend_flag == 3 || blend_flag == 5)
-                {
-                    if (prev_texture_type == 1)
+                    if (!first_non_normalmap_texture_applied)
                     {
-                        finalColor = saturate(currentSampledTextureColor.a * finalColor + currentSampledTextureColor);
-                    }
-                    else
-                    {
-                        finalColor = saturate(finalColor.a * currentSampledTextureColor + finalColor);
-                    }
-                }
-                else if (blend_flag == 4 && texture_index > 0)
-                {
-                    finalColor = saturate(lerp(finalColor, currentSampledTextureColor, currentSampledTextureColor.a));
-                }
-                else
-                {
-                    finalColor = saturate(finalColor * currentSampledTextureColor * mult_val);
-                }
+                        float4 current_sampled_texture_color = shaderTextures[t].Sample(ss, tex_coords_array[uv_set_index]);
+                        if (blend_flag == 0)
+                        {
+                            current_sampled_texture_color.a = 1;
+                        }
 
-                prev_texture_type = texture_type;
-                prev_blend_flag = blend_flag;
-                break;
+                        sampled_texture_color = saturate(sampled_texture_color * current_sampled_texture_color);
+                        first_non_normalmap_texture_applied = true;
+                        break;
+                    }
+                }
             }
         }
     }
 
-    if (a <= 0.0f)
+    if (sampled_texture_color.a <= 0.0f)
     {
         discard;
     }
 
-    finalColor.a = a;
+    float3 final_color = lighting_color * sampled_texture_color.rgb;
     
     if (highlight_state == 1)
     {
-        finalColor.rgb = lerp(finalColor.rgb, DARKGREEN, 0.7);
+        final_color.rgb = lerp(final_color.rgb, DARKGREEN, 0.7);
     }
     else if (highlight_state == 2)
     {
-        finalColor.rgb = lerp(finalColor.rgb, LIGHTGREEN, 0.4);
+        final_color.rgb = lerp(final_color.rgb, LIGHTGREEN, 0.4);
     }
-    
+
     bool should_render_fog = should_render_flags & 4;
     if (should_render_fog)
     {
@@ -197,10 +185,10 @@ float4 main(PixelInputType input) : SV_TARGET
         fogFactor = clamp(fogFactor, 0.20, 1);
 
         float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer
-        finalColor = lerp(float4(fogColor, finalColor.a), finalColor, fogFactor);
+        final_color = lerp(fogColor, final_color, fogFactor);
     }
     
-    return finalColor;
+    return float4(final_color, sampled_texture_color.a);
 }
 )";
 };
