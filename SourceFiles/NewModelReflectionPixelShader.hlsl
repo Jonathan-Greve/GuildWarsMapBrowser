@@ -80,12 +80,6 @@ struct PixelInputType
     float3x3 TBN : TEXCOORD9;
 };
 
-struct PSOutput
-{
-    float4 rt_0_output : SV_TARGET0; // Goes to first render target (usually the screen)
-    float4 rt_1_output : SV_TARGET1; // Goes to second render target
-};
-
 float3 compute_normalmap_lighting(const float3 normalmap_sample, const float3x3 TBN, const float3 pos)
 {
     // Transform the normal from tangent space to world space
@@ -107,9 +101,9 @@ float3 compute_normalmap_lighting(const float3 normalmap_sample, const float3x3 
     return float3(1, 1, 1) + diffuse + specular;
 };
 
-PSOutput main(PixelInputType input)
+float4 main(PixelInputType input) : SV_TARGET
 {
-    if (input.world_position.y <= 0)
+    if (input.world_position.y <= water_level)
     {
         discard;
     }
@@ -189,16 +183,5 @@ PSOutput main(PixelInputType input)
         final_color = lerp(fogColor, final_color, fogFactor);
     }
     
-    PSOutput output;
-    output.rt_0_output = float4(final_color, sampled_texture_color.a);
-
-    float4 color_id = float4(0, 0, 0, 1);
-    color_id.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
-    color_id.g = (float) ((object_id & 0x0000FF00) >> 8) / 255.0f;
-    color_id.b = (float) ((object_id & 0x000000FF)) / 255.0f;
-
-    // Render target for picking
-    output.rt_1_output = color_id;
-
-    return output;
+    return float4(final_color, sampled_texture_color.a);
 }
