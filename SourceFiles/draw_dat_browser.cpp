@@ -380,7 +380,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                     std::vector<uint8_t> mesh_tex_indices;
                     for (int j = 0; j < prop_meshes[i].tex_indices.size(); j++)
                     {
-                        int tex_index = prop_meshes[i].tex_indices[j];
+                        int tex_index = std::min(prop_meshes[i].tex_indices[j], (uint8_t)(texture_ids.size() - 1));
                         if (tex_index < texture_ids.size())
                         {
                             per_mesh_tex_ids[i].push_back(texture_ids[tex_index]);
@@ -824,7 +824,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                 const float map_center_z = (map_bounds.map_min_z + map_bounds.map_max_z) / 2.0f;
 
                 DirectX::XMFLOAT4X4 clouds_world_matrix;
-                DirectX::XMStoreFloat4x4(&clouds_world_matrix, DirectX::XMMatrixTranslation(map_center_x, map_bounds.map_max_y + 2000, map_center_z));
+                DirectX::XMStoreFloat4x4(&clouds_world_matrix, DirectX::XMMatrixTranslation(map_center_x, map_bounds.map_max_y + 2400, map_center_z));
                 PerObjectCB clouds_per_object_data;
                 clouds_per_object_data.world = clouds_world_matrix;
                 for (int i = 0; i < cloud_textures.size(); i++) {
@@ -1023,7 +1023,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                                 std::vector<uint8_t> mesh_tex_indices;
                                 for (int j = 0; j < prop_meshes[k].tex_indices.size(); j++)
                                 {
-                                    int tex_index = prop_meshes[k].tex_indices[j];
+                                    int tex_index = std::min(prop_meshes[k].tex_indices[j], (uint8_t)(texture_ids.size() - 1));
                                     if (tex_index < texture_ids.size())
                                     {
                                         per_mesh_tex_ids[k].push_back(texture_ids[tex_index]);
