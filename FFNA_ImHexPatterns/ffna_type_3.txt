@@ -602,6 +602,12 @@ struct Chunk {
  else if (chunk_id == 0x20000009){
    EnvironmentInfoChunk env_info_chunk;
  }
+ else if (chunk_id == 0x21000012){
+   Chunk4 map_audio_related_filenames; // You can change the sound to other maps by changing the data here
+ }
+ else if (chunk_id == 0x21000006){
+   Chunk4 unknown_chunk;
+ }
  else{
    UnknownChunk unknown_chunk;
  }
