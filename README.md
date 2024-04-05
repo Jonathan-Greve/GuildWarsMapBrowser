@@ -14,7 +14,7 @@ Browse the Guild Wars .dat file. Included features:
 
 ## How to use
 - Acquire a Guild Wars .dat file. It is automatically downloaded to the same folder as Gw.exe when you first launch Guild Wars.
-  You can download Guild Wars at: https://www.guildwars.com/en/download. It doesn't require an account to get the .dat file.
+  You can download Guild Wars at: https://www.guildwars.com/en/download. It doesn't require an account.
 - Download GuildWarsMapBrowser.exe from [releases](https://github.com/Jonathan-Greve/GuildWarsMapBrowser/releases) and run it.
 - To import into Blender see the guide in the release notes or check [this reddit post](https://www.reddit.com/r/GuildWars/comments/17wnlj3/guild_wars_map_browser_v50_exporting_to_blender)
 
