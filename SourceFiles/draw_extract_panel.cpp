@@ -62,11 +62,13 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_ma
 
             if (ImGui::CollapsingHeader("Extract decompressed files", ImGuiTreeNodeFlags_DefaultOpen)) {
                 const auto& mft = dat_manager->get_MFT();
-
                 static std::map<int, bool> fileTypeSelections;
-
                 static bool initialized = false;
                 static int num_files_to_extract = 0;
+                static bool saveToSubfolders = false;
+                static bool useMP3Extension = false;
+                static bool useTxtExtension = false;
+                static bool useDdsExtension = false;
 
                 if (!initialized) {
                     for (FileType type : GetAllFileTypes()) {
@@ -76,13 +78,15 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_ma
                     initialized = true;
                 }
 
-                static std::string num_files_to_extract_ui_str = std::format("Number of files to extract : {}", num_files_to_extract);
+                static std::string num_files_to_extract_ui_str = std::format("Number of files to extract: {}", num_files_to_extract);
+
                 int checkboxCounter = 0;
                 for (FileType type : GetAllFileTypes()) {
                     std::string typeName = typeToString(type);
                     if (typeName.empty() || type == NONE) continue;
 
                     if (checkboxCounter > 0) ImGui::SameLine();
+
                     if (ImGui::Checkbox(typeName.c_str(), &fileTypeSelections[static_cast<int>(type)])) {
                         num_files_to_extract = 0;
                         for (FileType type : GetAllFileTypes()) {
@@ -90,13 +94,17 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_ma
                                 num_files_to_extract += dat_manager->get_num_files_for_type(type);
                             }
                         }
-
-                        num_files_to_extract_ui_str = std::format("Number of files to extract : {}", num_files_to_extract);
+                        num_files_to_extract_ui_str = std::format("Number of files to extract: {}", num_files_to_extract);
                     }
-                    checkboxCounter++;
 
+                    checkboxCounter++;
                     if (checkboxCounter % 5 == 0) checkboxCounter = 0;
                 }
+
+                ImGui::Checkbox("Save each file type into its own subfolder", &saveToSubfolders);
+                ImGui::Checkbox("Use .mp3 extension for AMP and SOUND files", &useMP3Extension);
+                ImGui::Checkbox("Use .txt extension for Text files", &useTxtExtension);
+                ImGui::Checkbox("Use .dds extension for DDS files", &useDdsExtension);
 
                 ImGui::Text(num_files_to_extract_ui_str.c_str());
 
@@ -111,9 +119,26 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_ma
                                 for (std::size_t i = t; i < mft.size(); i += num_threads) {
                                     const auto& entry = mft[i];
                                     if (fileTypeSelections[entry.type]) {
-                                        const auto filename = std::format(L"{}_{}_{}_{}.gwraw", i, entry.Hash, entry.murmurhash3, typeToWString(entry.type));
-                                        if (!std::filesystem::exists(std::filesystem::path(saveDir) / filename)) {
-                                            dat_manager->save_raw_decompressed_data_to_file(i, std::filesystem::path(saveDir) / filename);
+                                        std::wstring subfolder = L"";
+                                        if (saveToSubfolders) {
+                                            subfolder = typeToWString(entry.type);
+                                            std::filesystem::create_directories(std::filesystem::path(saveDir) / subfolder);
+                                        }
+
+                                        std::wstring extension = L".gwraw";
+                                        if (useMP3Extension && (entry.type == AMP || entry.type == SOUND)) {
+                                            extension = L".mp3";
+                                        }
+                                        else if (useTxtExtension && (entry.type == TEXT)) {
+                                            extension = L".txt";
+                                        }
+                                        else if (useDdsExtension && (entry.type == DDS)) {
+                                            extension = L".dds";
+                                        }
+
+                                        const auto filename = std::format(L"{}_{}_{}_{}{}", i, entry.Hash, entry.murmurhash3, typeToWString(entry.type), extension);
+                                        if (!std::filesystem::exists(std::filesystem::path(saveDir) / subfolder / filename)) {
+                                            dat_manager->save_raw_decompressed_data_to_file(i, std::filesystem::path(saveDir) / subfolder / filename);
                                         }
                                     }
                                 }
