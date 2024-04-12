@@ -669,7 +669,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                         size_t ddsDataSize = ddsData.size();
                         const auto HR = map_renderer->GetTextureManager()->
                             CreateTextureFromDDSInMemory(ddsData.data(), ddsDataSize, &texture_id, &dat_texture.width,
-                                &dat_texture.height, dat_texture.rgba_data, entry->Hash);
+                                &dat_texture.height, dat_texture.rgba_data, decoded_filename);
                         if (SUCCEEDED(HR) && texture_id >= 0) {
                             water_textures[i] = map_renderer->GetTextureManager()->GetTexture(texture_id);
                             dat_texture.texture_type = DDSt;
