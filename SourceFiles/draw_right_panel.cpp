@@ -447,6 +447,7 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
                 }
             }
         }
+        ImGui::End();
     }
 
     ImGui::PopStyleVar();
