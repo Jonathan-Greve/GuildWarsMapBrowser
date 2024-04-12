@@ -371,6 +371,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                         data(), &selected_dat_texture.texture_id,
                         entry->Hash);
 
+                    selected_dat_texture.file_id = entry->Hash;
                 }
 
                 // The number of textures might exceed 8 for a model since each submodel might use up to 8 separate textures.
@@ -752,6 +753,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
                         selected_dat_texture.dat_texture.rgba_data.
                         data(), &selected_dat_texture.texture_id,
                         entry->Hash);
+
+                    selected_dat_texture.file_id = entry->Hash;
                 }
             }
             else
