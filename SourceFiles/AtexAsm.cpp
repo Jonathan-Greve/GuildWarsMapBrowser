@@ -5,7 +5,6 @@ struct SImageData;
 void AtexSubCode1_(uint32_t* array1, uint32_t* array2, unsigned int count);
 void AtexSubCode1New(uint32_t* array1, uint32_t* array2, unsigned int count);
 void AtexSubCode2_(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
-void AtexSubCode2New(uint32_t* outBuffer, int dcmpBuffer1, int dcmpBuffer2, int imageData, int blockCount, int blockSize);
 void AtexSubCode2New(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
 void AtexSubCode3_(unsigned int a, unsigned int b, unsigned int c, unsigned int d, unsigned int e,
                    unsigned int f);
@@ -52,7 +51,7 @@ int ImgFmt(unsigned int Format)
 
 struct SImageData
 {
-    unsigned int *DataPos, *EndPos, _44, _40, _3C, xres, yres;
+    unsigned int *DataPos, *EndPos, remainingBits, currentBits, nextBits, xres, yres;
 };
 
 void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned int ImageFormat,
@@ -117,12 +116,12 @@ void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned
 
     if (CompressionCode)
     {
-        ImageData._40 = ImageData._44 = ImageData._3C = 0;
+        ImageData.currentBits = ImageData.remainingBits = ImageData.nextBits = 0;
         ImageData.EndPos = ImageData.DataPos + ((DataSize - 8) >> 2);
 
         if (ImageData.DataPos != ImageData.EndPos)
         {
-            ImageData._40 = ImageData.DataPos[0];
+            ImageData.currentBits = ImageData.DataPos[0];
             ImageData.DataPos++;
         }
 
@@ -133,8 +132,7 @@ void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned
         }
         if (CompressionCode & 1 && ColorDataSize && ! AlphaDataSize && ! AlphaDataSize2)
         {
-            AtexSubCode2_((unsigned int)OutBuffer, (unsigned int)DcmpBuffer1, (unsigned int)DcmpBuffer2,
-                          (unsigned int)&ImageData, BlockCount, BlockSize);
+            AtexSubCode2New(OutBuffer, DcmpBuffer1, DcmpBuffer2, &ImageData, BlockCount, BlockSize);
         }
         if (CompressionCode & 2 && ImageFormat >= 0x10 && ImageFormat <= 0x11)
         {
@@ -155,7 +153,7 @@ void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned
         ImageData.DataPos--;
     }
 
-    unsigned int* DataEnd = InputBuffer + ((HeaderSize + DataSize) >> 2);
+    [[maybe_unused]] unsigned int* DataEnd = InputBuffer + ((HeaderSize + DataSize) >> 2);
 
     if ((AlphaDataSize || AlphaDataSize2) && BlockCount)
     {
@@ -285,6 +283,114 @@ void AtexSubCode1_(unsigned int a, unsigned int b, unsigned int c)
         mov edx, b
         push c
         call AtexSubCode1
+    }
+}
+
+void AtexSubCode2New(uint32_t *outBuffer, uint32_t *dcmpBuffer1, uint32_t *dcmpBuffer2, SImageData *imageData, uint32_t blockCount, uint32_t blockSize)
+{
+    if (blockCount == 0) {
+        return;
+    }
+
+    uint32_t block_index = 0;
+    int extractedBits;
+    uint32_t* dataPosition;
+    uint32_t currentWord;
+
+    while (block_index < blockCount)
+    {
+        const auto shiftLeft = imageData->currentBits >> 26;
+        const auto shiftValue = byte_79053C[2 * shiftLeft];
+        int remainingBits = byte_79053D[2 * shiftLeft] + 1;
+
+        if (shiftValue) {
+            imageData->currentBits = (imageData->currentBits << shiftValue) | (imageData->nextBits >> (32 - shiftValue));
+        }
+
+        uint32_t bitCount = imageData->remainingBits;
+
+        if (shiftValue > bitCount)
+        {
+            dataPosition = imageData->DataPos;
+
+            if (dataPosition == imageData->EndPos)
+            {
+                extractedBits = 0;
+                imageData->nextBits = 0;
+            }
+            else
+            {
+                currentWord = *dataPosition;
+                imageData->DataPos = dataPosition + 1;
+                imageData->nextBits = currentWord;
+                imageData->currentBits |= currentWord >> (bitCount - shiftValue + 32);
+                imageData->nextBits = currentWord << (shiftValue - bitCount);
+                extractedBits = bitCount - shiftValue + 32;
+            }
+        }
+        else
+        {
+            extractedBits = bitCount - shiftValue;
+            imageData->nextBits <<= shiftValue;
+        }
+
+        const uint64_t combinedValue = (static_cast<uint64_t>(imageData->currentBits) << 32) | imageData->nextBits;
+        imageData->remainingBits = extractedBits;
+        imageData->currentBits = static_cast<uint32_t>(combinedValue >> 31);
+        int bitMask = static_cast<int>(combinedValue >> 63);
+
+        if (imageData->remainingBits)
+        {
+            imageData->nextBits = static_cast<uint32_t>(combinedValue << 1);
+            imageData->remainingBits -= 1;
+        }
+        else
+        {
+            dataPosition = imageData->DataPos;
+
+            if (dataPosition == imageData->EndPos)
+            {
+                imageData->nextBits = 0;
+                imageData->remainingBits = 0;
+            }
+            else
+            {
+                const auto curPos = *dataPosition;
+                imageData->DataPos = dataPosition + 1;
+                currentWord = curPos;
+                imageData->currentBits |= currentWord >> 31;
+                imageData->remainingBits = 31;
+                imageData->nextBits = 2 * currentWord;
+            }
+        }
+
+        while (remainingBits > 0 && block_index < blockCount)
+        {
+            const int bitPosition = 1 << (block_index & 0x1F);
+            const int bufferIndex = block_index >> 5;
+
+            if ((bitPosition & dcmpBuffer2[bufferIndex]) == 0)
+            {
+                if (bitMask)
+                {
+                    outBuffer[0] = static_cast<uint32_t>(-2);
+                    outBuffer[1] = static_cast<uint32_t>(-1);
+                    dcmpBuffer2[bufferIndex] |= bitPosition;
+                    dcmpBuffer1[bufferIndex] |= bitPosition;
+                    bitMask = static_cast<int>(combinedValue >> 63);
+                }
+                remainingBits -= 1;
+            }
+
+            block_index++;
+            outBuffer += blockSize;
+        }
+
+        while (block_index < blockCount && (1 << (block_index & 0x1F) & dcmpBuffer2[block_index >> 5]) != 0)
+        {
+            block_index++;
+            outBuffer += blockSize;
+        }
     }
 }
 
