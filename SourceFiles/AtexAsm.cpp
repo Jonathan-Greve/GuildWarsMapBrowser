@@ -1,9 +1,12 @@
 #include "pch.h"
 #include "AtexAsm.h"
 
-void AtexSubCode1_(unsigned int a, unsigned int b, unsigned int c);
-void AtexSubCode2_(unsigned int a, unsigned int b, unsigned int c, unsigned int d, unsigned int e,
-                   unsigned int f);
+struct SImageData;
+void AtexSubCode1_(uint32_t* array1, uint32_t* array2, unsigned int count);
+void AtexSubCode1New(uint32_t* array1, uint32_t* array2, unsigned int count);
+void AtexSubCode2_(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
+void AtexSubCode2New(uint32_t* outBuffer, int dcmpBuffer1, int dcmpBuffer2, int imageData, int blockCount, int blockSize);
+void AtexSubCode2New(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
 void AtexSubCode3_(unsigned int a, unsigned int b, unsigned int c, unsigned int d, unsigned int e,
                    unsigned int f);
 void AtexSubCode4_(unsigned int a, unsigned int b, unsigned int c, unsigned int d, unsigned int e,
@@ -126,7 +129,7 @@ void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned
         if (CompressionCode & 0x10 && ImageData.xres == 256 && ImageData.yres == 256 &&
             (ImageFormat == 0x11 || ImageFormat == 0x10))
         {
-            AtexSubCode1_((unsigned int)DcmpBuffer1, (unsigned int)DcmpBuffer2, BlockCount);
+            AtexSubCode1New(DcmpBuffer1, DcmpBuffer2, BlockCount);
         }
         if (CompressionCode & 1 && ColorDataSize && ! AlphaDataSize && ! AlphaDataSize2)
         {
@@ -204,6 +207,18 @@ void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned
     }
 
     delete[] (unsigned char*)DcmpBuffer1;
+}
+
+void AtexSubCode1New(uint32_t* array1, uint32_t* array2, unsigned int count)
+{
+    for (auto i = 0u; i < count; ++i) {
+        const uint32_t mask = 1 << (i & 0x1F);
+        if ((mask & 0xC0000003) != 0 || ((1 << ((i >> 6) & 0x1F)) & 0xC0000003) != 0) {
+            const uint32_t array_index = i >> 5; // 4 * (i >> 5), but uint32_t* points to 4 bytes
+            array1[array_index] |= mask;
+            array2[array_index] |= mask;
+        }
+    }
 }
 
 void __declspec(naked) AtexSubCode1()
