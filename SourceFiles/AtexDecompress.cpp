@@ -91,15 +91,15 @@ void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned
         if (CompressionCode & 0x10 && ImageData.xres == 256 && ImageData.yres == 256 &&
             (ImageFormat == 0x11 || ImageFormat == 0x10))
         {
-            DecompressUnknownAtexRoutine(DcmpBuffer1, DcmpBuffer2, BlockCount);
+            AtexSubCode1_Asm(DcmpBuffer1, DcmpBuffer2, BlockCount);
         }
         if (CompressionCode & 1 && ColorDataSize && ! AlphaDataSize && ! AlphaDataSize2)
         {
-            DecompressAtex1Routine(OutBuffer, DcmpBuffer1, DcmpBuffer2, &ImageData, BlockCount, BlockSize);
+            AtexSubCode2_Asm(OutBuffer, DcmpBuffer1, DcmpBuffer2, &ImageData, BlockCount, BlockSize);
         }
         if (CompressionCode & 2 && ImageFormat >= 0x10 && ImageFormat <= 0x11)
         {
-            DecompressAtex2Routine(OutBuffer, DcmpBuffer1, DcmpBuffer2, &ImageData, BlockCount, BlockSize);
+            AtexSubCode3_Asm(OutBuffer, DcmpBuffer1, DcmpBuffer2, &ImageData, BlockCount, BlockSize);
         }
         if (CompressionCode & 4 && ImageFormat >= 0x12 && ImageFormat <= 0x15)
         {
