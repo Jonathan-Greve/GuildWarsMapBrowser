@@ -6,8 +6,8 @@ void AtexSubCode1_(uint32_t* array1, uint32_t* array2, unsigned int count);
 void AtexSubCode1New(uint32_t* array1, uint32_t* array2, unsigned int count);
 void AtexSubCode2_(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
 void AtexSubCode2New(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
-void AtexSubCode3_(unsigned int a, unsigned int b, unsigned int c, unsigned int d, unsigned int e,
-                   unsigned int f);
+void AtexSubCode3_(unsigned int a, unsigned int b, unsigned int c, unsigned int d, unsigned int e, unsigned int f);
+void AtexSubCode3New(uint32_t* outBuffer, uint32_t* dcmpBuffer1, const uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
 void AtexSubCode4_(unsigned int a, unsigned int b, unsigned int c, unsigned int d, unsigned int e,
                    unsigned int f);
 void AtexSubCode5_(unsigned int a, unsigned int b, unsigned int c, unsigned int d, unsigned int e,
@@ -136,8 +136,7 @@ void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned
         }
         if (CompressionCode & 2 && ImageFormat >= 0x10 && ImageFormat <= 0x11)
         {
-            AtexSubCode3_((unsigned int)OutBuffer, (unsigned int)DcmpBuffer1, (unsigned int)DcmpBuffer2,
-                          (unsigned int)&ImageData, BlockCount, BlockSize);
+            AtexSubCode3New(OutBuffer, DcmpBuffer1, DcmpBuffer2, &ImageData, BlockCount, BlockSize);
         }
         if (CompressionCode & 4 && ImageFormat >= 0x12 && ImageFormat <= 0x15)
         {
@@ -636,6 +635,187 @@ void AtexSubCode2_(unsigned int a, unsigned int b, unsigned int c, unsigned int 
         push d
         push c
         call AtexSubCode2
+    }
+}
+
+void AtexSubCode3New(uint32_t* outBuffer, uint32_t* dcmpBuffer1, const uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize)
+{
+    const unsigned int current_bits = imageData->currentBits;
+    const int currentDataPos = (16 * current_bits) | (imageData->nextBits >> 28);
+    const unsigned int remainingBits = imageData->remainingBits;
+    unsigned int tempBits = 0;
+    int bitDifference;
+    int bufferArray[4]{};
+    int bitCounter;
+    uint32_t* bufferPos = outBuffer;
+
+    imageData->currentBits = currentDataPos;
+
+    if (remainingBits < 4)
+    {
+        unsigned int* dataPtr = imageData->DataPos;
+        if (imageData->DataPos == imageData->EndPos)
+        {
+            imageData->nextBits = 0;
+            imageData->remainingBits = 0;
+        }
+        else
+        {
+            unsigned int newBits = *dataPtr;
+            imageData->DataPos = dataPtr + 1;
+            imageData->nextBits = newBits;
+            imageData->currentBits = (newBits >> (remainingBits + 28)) | currentDataPos;
+            imageData->remainingBits = remainingBits + 28;
+            imageData->nextBits = newBits << (4 - remainingBits);
+        }
+    }
+    else
+    {
+        imageData->nextBits *= 16;
+        imageData->remainingBits = remainingBits - 4;
+    }
+
+    if (blockCount == 0)
+    {
+        return;
+    }
+
+    while (tempBits != blockCount)
+    {
+        int bitShifted = imageData->currentBits >> 26;
+        int bitShiftedBy = byte_79053D[2 * bitShifted] + 1;
+        unsigned int bitField = byte_79053C[2 * bitShifted];
+
+        if (byte_79053C[2 * bitShifted])
+        {
+            imageData->currentBits = (imageData->currentBits << bitField) | (imageData->nextBits >> (32 - bitField));
+        }
+
+        int flagBits = imageData->remainingBits;
+        unsigned int bitMask = flagBits;
+
+        if (bitField > flagBits)
+        {
+            if (imageData->DataPos == imageData->EndPos)
+            {
+                bitDifference = 0;
+                imageData->nextBits = 0;
+            }
+            else
+            {
+                unsigned int dataOffset = *imageData->DataPos++;
+                imageData->nextBits = dataOffset;
+                bitCounter = bitMask - bitField + 32;
+                imageData->currentBits |= dataOffset >> bitCounter;
+                imageData->nextBits = dataOffset << (bitField - flagBits);
+                bitDifference = bitCounter;
+            }
+        }
+        else
+        {
+            bitDifference = flagBits - bitField;
+            imageData->nextBits <<= bitField;
+        }
+
+        imageData->remainingBits = bitDifference;
+        unsigned int curBits = imageData->currentBits;
+        imageData->currentBits = (2 * curBits) | (imageData->nextBits >> 31);
+        flagBits = curBits >> 31;
+
+        if (imageData->remainingBits)
+        {
+            imageData->nextBits *= 2;
+            imageData->remainingBits -= 1;
+        }
+        else
+        {
+            unsigned int* bufferPtr = imageData->DataPos;
+            if (imageData->DataPos == imageData->EndPos)
+            {
+                imageData->nextBits = 0;
+                imageData->remainingBits = 0;
+            }
+            else
+            {
+                unsigned int finalShift = *bufferPtr;
+                imageData->DataPos = bufferPtr + 1;
+                imageData->nextBits = finalShift;
+                int bufferOffset = (finalShift >> 31) | imageData->currentBits;
+                imageData->currentBits = bufferOffset;
+                imageData->nextBits = 2 * finalShift;
+                imageData->remainingBits = 31;
+            }
+        }
+
+        int bitIndex = flagBits;
+        bitCounter = flagBits;
+
+        if (flagBits)
+        {
+            unsigned int combinedBitsShifted = imageData->currentBits;
+            imageData->currentBits = (2 * combinedBitsShifted) | (imageData->nextBits >> 31);
+            const int bitRemainingShift = imageData->remainingBits;
+            int finalBitShift = combinedBitsShifted >> 31;
+
+            if (bitRemainingShift)
+            {
+                imageData->nextBits *= 2;
+                imageData->remainingBits = bitRemainingShift - 1;
+            }
+            else
+            {
+                if (imageData->DataPos == imageData->EndPos)
+                {
+                    imageData->nextBits = 0;
+                    imageData->remainingBits = 0;
+                }
+                else
+                {
+                    imageData->nextBits = *imageData->DataPos++;
+                    imageData->currentBits |= imageData->nextBits >> 31;
+                    imageData->nextBits *= 2;
+                    imageData->remainingBits = 31;
+                }
+            }
+
+            bitIndex = finalBitShift + flagBits;
+            bitCounter = finalBitShift + flagBits;
+        }
+
+        while (bitShiftedBy)
+        {
+            while (tempBits != blockCount)
+            {
+                const int nextBitOffset = 1 << (tempBits & 0x1F);
+                const int finalShiftedBits = tempBits >> 5;
+
+                if ((nextBitOffset & dcmpBuffer2[finalShiftedBits]) == 0)
+                {
+                    if (bitIndex)
+                    {
+                        bufferPos[0] = bufferArray[2 * bitIndex];
+                        bufferPos[1] = bufferArray[2 * bitCounter + 1];
+                        dcmpBuffer1[finalShiftedBits] |= nextBitOffset;
+                        bitIndex = bitCounter;
+                    }
+                    bitShiftedBy--;
+                }
+
+                tempBits++;
+                bufferPos += blockSize;
+
+                if (!bitShiftedBy)
+                    break;
+            }
+
+            while (((1 << (tempBits & 0x1F)) & dcmpBuffer2[tempBits >> 5]) != 0)
+            {
+                bufferPos += blockSize;
+
+                if (++tempBits == blockCount)
+                    return;
+            }
+        }
     }
 }
 
