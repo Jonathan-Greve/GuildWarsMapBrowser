@@ -6,6 +6,7 @@ struct SImageData;
 
 void AtexSubCode1_Cpp(uint32_t* array1, uint32_t* array2, unsigned int count);
 void AtexSubCode2_Cpp(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
+// currently loses some highlights, but I have no idea why. even a direct translation has this issue
 void AtexSubCode3_Cpp(uint32_t* outBuffer, uint32_t* dcmpBuffer1, const uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
 
 int ImgFmt(unsigned int Format)
@@ -99,7 +100,7 @@ void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned
         }
         if (CompressionCode & 2 && ImageFormat >= 0x10 && ImageFormat <= 0x11)
         {
-            AtexSubCode3_Cpp(OutBuffer, DcmpBuffer1, DcmpBuffer2, &ImageData, BlockCount, BlockSize);
+            AtexSubCode3_Asm(OutBuffer, DcmpBuffer1, DcmpBuffer2, &ImageData, BlockCount, BlockSize);
         }
         if (CompressionCode & 4 && ImageFormat >= 0x12 && ImageFormat <= 0x15)
         {
