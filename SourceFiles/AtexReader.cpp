@@ -1,6 +1,6 @@
 
 #include "pch.h"
-#include "AtexAsm.h"
+#include "AtexDecompress.h"
 
 #pragma pack(1)
 
