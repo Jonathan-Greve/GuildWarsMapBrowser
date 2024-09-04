@@ -59,12 +59,12 @@ void __declspec(naked) AtexSubCode1()
     }
 }
 
-void AtexSubCode1_Asm(unsigned int a, unsigned int b, unsigned int c)
+void AtexSubCode1_Asm(uint32_t* array1, uint32_t* array2, unsigned int count)
 {
     __asm {
-        mov ecx, a
-        mov edx, b
-        push c
+        mov ecx, array1
+        mov edx, array2
+        push count
         call AtexSubCode1
     }
 }
@@ -300,16 +300,15 @@ void __declspec(naked) AtexSubCode2()
     }
 }
 
-void AtexSubCode2_Asm(unsigned int a, unsigned int b, unsigned int c, unsigned int d, unsigned int e,
-                   unsigned int f)
+void AtexSubCode2_Asm(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize)
 {
     __asm {
-        mov ecx, a
-        mov edx, b
-        push f
-        push e
-        push d
-        push c
+        mov ecx, outBuffer
+        mov edx, dcmpBuffer1
+        push blockSize
+        push blockCount
+        push imageData
+        push dcmpBuffer2
         call AtexSubCode2
     }
 }
@@ -669,16 +668,15 @@ void __declspec(naked) AtexSubCode3()
     }
 }
 
-void AtexSubCode3_(unsigned int a, unsigned int b, unsigned int c, unsigned int d, unsigned int e,
-                   unsigned int f)
+void AtexSubCode3_Asm(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize)
 {
     __asm {
-        mov ecx, a
-        mov edx, b
-        push f
-        push e
-        push d
-        push c
+        mov ecx, outBuffer
+        mov edx, dcmpBuffer1
+        push blockSize
+        push blockCount
+        push imageData
+        push dcmpBuffer2
         call AtexSubCode3
     }
 }
