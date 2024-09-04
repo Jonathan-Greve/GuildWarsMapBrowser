@@ -4,9 +4,9 @@
 
 struct SImageData;
 
-void DecompressUnknownAtexRoutine(uint32_t* array1, uint32_t* array2, unsigned int count);
-void DecompressAtex1Routine(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
-void DecompressAtex2Routine(uint32_t* outBuffer, uint32_t* dcmpBuffer1, const uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
+void AtexSubCode1_Cpp(uint32_t* array1, uint32_t* array2, unsigned int count);
+void AtexSubCode2_Cpp(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
+void AtexSubCode3_Cpp(uint32_t* outBuffer, uint32_t* dcmpBuffer1, const uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize);
 
 int ImgFmt(unsigned int Format)
 {
@@ -18,7 +18,7 @@ int ImgFmt(unsigned int Format)
     return ImageFormats[Format];
 }
 
-void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned int ImageFormat, SImageDescriptor ImageDescriptor, unsigned int* OutBuffer)
+void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned int ImageFormat, const SImageDescriptor& ImageDescriptor, unsigned int* OutBuffer)
 {
     unsigned int HeaderSize = 12;
 
@@ -91,15 +91,15 @@ void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned
         if (CompressionCode & 0x10 && ImageData.xres == 256 && ImageData.yres == 256 &&
             (ImageFormat == 0x11 || ImageFormat == 0x10))
         {
-            AtexSubCode1_Asm(DcmpBuffer1, DcmpBuffer2, BlockCount);
+            AtexSubCode1_Cpp(DcmpBuffer1, DcmpBuffer2, BlockCount);
         }
         if (CompressionCode & 1 && ColorDataSize && ! AlphaDataSize && ! AlphaDataSize2)
         {
-            AtexSubCode2_Asm(OutBuffer, DcmpBuffer1, DcmpBuffer2, &ImageData, BlockCount, BlockSize);
+            AtexSubCode2_Cpp(OutBuffer, DcmpBuffer1, DcmpBuffer2, &ImageData, BlockCount, BlockSize);
         }
         if (CompressionCode & 2 && ImageFormat >= 0x10 && ImageFormat <= 0x11)
         {
-            AtexSubCode3_Asm(OutBuffer, DcmpBuffer1, DcmpBuffer2, &ImageData, BlockCount, BlockSize);
+            AtexSubCode3_Cpp(OutBuffer, DcmpBuffer1, DcmpBuffer2, &ImageData, BlockCount, BlockSize);
         }
         if (CompressionCode & 4 && ImageFormat >= 0x12 && ImageFormat <= 0x15)
         {
@@ -168,7 +168,7 @@ void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned
     delete[] (unsigned char*)DcmpBuffer1;
 }
 
-void DecompressUnknownAtexRoutine(uint32_t* array1, uint32_t* array2, unsigned int count)
+void AtexSubCode1_Cpp(uint32_t* array1, uint32_t* array2, unsigned int count)
 {
     for (auto i = 0u; i < count; ++i) {
         const uint32_t mask = 1 << (i & 0x1F);
@@ -180,7 +180,7 @@ void DecompressUnknownAtexRoutine(uint32_t* array1, uint32_t* array2, unsigned i
     }
 }
 
-void DecompressAtex1Routine(uint32_t *outBuffer, uint32_t *dcmpBuffer1, uint32_t *dcmpBuffer2, SImageData *imageData, uint32_t blockCount, uint32_t blockSize)
+void AtexSubCode2_Cpp(uint32_t *outBuffer, uint32_t *dcmpBuffer1, uint32_t *dcmpBuffer2, SImageData *imageData, uint32_t blockCount, uint32_t blockSize)
 {
     if (blockCount == 0) {
         return;
@@ -288,7 +288,7 @@ void DecompressAtex1Routine(uint32_t *outBuffer, uint32_t *dcmpBuffer1, uint32_t
     }
 }
 
-void DecompressAtex2Routine(uint32_t* outBuffer, uint32_t* dcmpBuffer1, const uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize)
+void AtexSubCode3_Cpp(uint32_t* outBuffer, uint32_t* dcmpBuffer1, const uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize)
 {
     const unsigned int current_bits = imageData->currentBits;
     const int currentDataPos = (16 * current_bits) | (imageData->nextBits >> 28);
