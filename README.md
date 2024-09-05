@@ -60,3 +60,4 @@ Decompressing the .dat file uses the source code from:
  - [GWDatBrowser](https://github.com/kytulendu/GWDatBrowser)
      - Specifically I use: AtexAsm.h/cpp, AtexReader.h/cpp, GWUnpacker.h/cpp, xentax.h/cpp
  - The Guild Wars community for being supportive, reporting bugs and showing interest in the project.
+ - Thanks to [Dubble](https://github.com/DubbleClick) for rewriting some texture decoding functions from ASM to C++.
