@@ -214,6 +214,7 @@
     <ClInclude Include="peglib\peglib.h" />
     <ClInclude Include="SourceFiles\AMAT_file.h" />
     <ClInclude Include="SourceFiles\AtexAsm.h" />
+    <ClInclude Include="SourceFiles\AtexDecompress.h" />
     <ClInclude Include="SourceFiles\AtexReader.h" />
     <ClInclude Include="SourceFiles\BlendStateManager.h" />
     <ClInclude Include="SourceFiles\Box.h" />
@@ -395,6 +396,7 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\AMAT_file.cpp" />
     <ClCompile Include="SourceFiles\AtexAsm.cpp" />
+    <ClCompile Include="SourceFiles\AtexDecompress.cpp" />
     <ClCompile Include="SourceFiles\AtexReader.cpp" />
     <ClCompile Include="SourceFiles\BlendStateManager.cpp" />
     <ClCompile Include="SourceFiles\Box.cpp" />

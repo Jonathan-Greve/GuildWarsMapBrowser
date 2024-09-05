@@ -71,7 +71,7 @@
 #include "ImGuiFileDialog.h"
 
 #include "GWUnpacker.h"
-#include "AtexAsm.h"
+#include "AtexDecompress.h"
 #include "AtexReader.h"
 
 #ifdef _DEBUG
