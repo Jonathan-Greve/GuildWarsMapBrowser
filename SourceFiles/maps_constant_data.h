@@ -503,6 +503,8 @@ std::unordered_map<int, std::vector<MapConstantInfo>> constant_maps_info = {
    {{68, 0x1f265, "Frozen Isle", false}}},
   {0x1f268,
    {{69, 0x1f268, "Nomads Isle", false}}},
+  { 0x1f27a,
+   {{70, 0x1f27a, "Druid's Isle", true}}},
   {0x1f29b,
    {{71, 0x1f29b, "Isle of the Dead", false}}},
   {0x29ba,
