@@ -38,7 +38,7 @@ namespace DX
         DeviceResources& operator= (DeviceResources const&) = delete;
 
         void CreateDeviceResources();
-        void UpdateOffscreenResources(int width, int height);
+        void UpdateOffscreenResources(int width, int height, float aspecRatio);
         void CreateWindowSizeDependentResources();
         void SetWindow(HWND window, int width, int height) noexcept;
         bool WindowSizeChanged(int width, int height);
