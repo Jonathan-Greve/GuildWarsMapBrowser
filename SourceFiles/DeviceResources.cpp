@@ -250,9 +250,8 @@ void DeviceResources::CreateDeviceResources()
     }
 }
 
-void DeviceResources::UpdateOffscreenResources(int width, int height) {
+void DeviceResources::UpdateOffscreenResources(int width, int height, float aspecRatio) {
     m_d3dOffscreenRenderTargetView.Reset();
-    //m_offscreenRenderTarget.Reset();
     m_d3dOffscreenDepthStencilView.Reset();
     m_offscreenDepthStencil.Reset();
     m_d3dContext->Flush();
@@ -271,29 +270,41 @@ void DeviceResources::UpdateOffscreenResources(int width, int height) {
         m_d3dDevice->CheckMultisampleQualityLevels(backBufferFormat, count, &qualityLevels);
         if (qualityLevels > 0) {
             msaaLevel = count;
-            msaaQuality = qualityLevels - 1; // Highest quality level
+            msaaQuality = qualityLevels - 1;
             break;
         }
     }
 
-    const int maxWidth = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION; // Dx11 maximum texture dimension
-    const int maxHeight = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION; // Dx11 maximum texture dimension
-    width = std::min(width, maxWidth);
-    height = std::min(height, maxHeight);
+    // Determine max texture dimension based on MSAA
+    const int maxTextureDimension = (msaaLevel > 1) ? 8192 : D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 
+    if (aspecRatio > 1.0f) {
+        width = std::min(width, maxTextureDimension);
+        height = width / aspecRatio;
+    }
+    else {
+        height = std::min(height, maxTextureDimension);
+        width = height * aspecRatio;
+    }
+    
+    width = std::min(width, maxTextureDimension);
+    height = std::min(height, maxTextureDimension);
+
+
+    // --- Rest of the code remains unchanged ---
     // Create the offscreen render target texture
     CD3D11_TEXTURE2D_DESC offscreenTextureDesc(
-        backBufferFormat, // This format should match your requirements
-        width,            // Texture width
-        height,           // Texture height
-        1,                // Mip levels
-        1,                // Array size
-        D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE, // Bind flags
+        backBufferFormat,
+        width,
+        height,
+        1,
+        1,
+        D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,
         D3D11_USAGE_DEFAULT,
         0,
-        msaaLevel,        // MSAA sample count
-        msaaQuality,      // MSAA quality
-        0                 // Misc flags
+        msaaLevel,
+        msaaQuality,
+        0
     );
     ThrowIfFailed(m_d3dDevice->CreateTexture2D(&offscreenTextureDesc, nullptr, &m_offscreenRenderTarget));
 
@@ -305,7 +316,7 @@ void DeviceResources::UpdateOffscreenResources(int width, int height) {
         1,
         D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE
     );
-    
+
     ThrowIfFailed(m_d3dDevice->CreateTexture2D(&nonMsaaDesc, nullptr, &m_offscreenNonMsaaTexture));
 
     // Create a render target view for the offscreen render target
@@ -316,13 +327,13 @@ void DeviceResources::UpdateOffscreenResources(int width, int height) {
         m_depthBufferFormat,
         width,
         height,
-        1, // This depth stencil view has only one texture.
-        1, // Use a single mipmap level.
+        1,
+        1,
         D3D11_BIND_DEPTH_STENCIL,
         D3D11_USAGE_DEFAULT,
         0,
-        msaaLevel, // MSAA sample count
-        msaaQuality, // MSAA quality
+        msaaLevel,
+        msaaQuality,
         0
     );
 
@@ -332,8 +343,7 @@ void DeviceResources::UpdateOffscreenResources(int width, int height) {
     CD3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc(D3D11_DSV_DIMENSION_TEXTURE2DMS);
     ThrowIfFailed(m_d3dDevice->CreateDepthStencilView(m_offscreenDepthStencil.Get(), &dsvDesc, &m_d3dOffscreenDepthStencilView));
 
-    m_offscreenViewport = { 0.0f, 0.0f, static_cast<float>(offscreenTextureDesc.Width), static_cast<float>(offscreenTextureDesc.Height),
-                        0.f,  1.f };
+    m_offscreenViewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.f, 1.f };
 }
 
 
