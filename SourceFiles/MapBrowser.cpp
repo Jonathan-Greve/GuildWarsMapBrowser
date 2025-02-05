@@ -335,7 +335,7 @@ void MapBrowser::Render()
             case ExtractPanel::AllMapsTopDownOrthographic:
             case ExtractPanel::CurrentMapTopDownOrthographic:
             {
-                m_deviceResources->UpdateOffscreenResources(dim_x * m_extract_panel_info.pixels_per_tile_x, dim_z * m_extract_panel_info.pixels_per_tile_y);
+                m_deviceResources->UpdateOffscreenResources(dim_x * m_extract_panel_info.pixels_per_tile_x, dim_z * m_extract_panel_info.pixels_per_tile_y, (float)dim_x / dim_z);
                 m_map_renderer->SetShouldRenderSky(false);
                 m_map_renderer->SetShouldRenderFog(false);
                 m_map_renderer->SetShouldRenderShadows(false);
@@ -346,7 +346,7 @@ void MapBrowser::Render()
             {
                 int res_x = dim_x * m_extract_panel_info.pixels_per_tile_x;
                 int res_y = res_x / m_map_renderer->GetCamera()->GetAspectRatio();
-                m_deviceResources->UpdateOffscreenResources(res_x, res_y);
+                m_deviceResources->UpdateOffscreenResources(res_x, res_y, (float)dim_x / dim_z);
                 break;
             }
             default:
