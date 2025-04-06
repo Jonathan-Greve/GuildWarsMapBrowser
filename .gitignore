@@ -366,3 +366,5 @@ FodyWeavers.xsd
 /imgui.ini
 /dat_browser_last_filepath.txt
 /bass.dll
+/SourceFiles/Consolidate-TextFiles.ps1
+/SourceFiles/consolidated_output.txt
