@@ -1,6 +1,4 @@
-//
 // MapBrowser.cpp
-//
 
 #include "pch.h"
 #include "MapBrowser.h"
@@ -14,8 +12,10 @@
 extern void ExitMapBrowser() noexcept;
 
 using namespace DirectX;
-
 using Microsoft::WRL::ComPtr;
+using std::chrono::duration;
+using std::chrono::high_resolution_clock;
+using std::chrono::milliseconds;
 
 extern std::unordered_map<uint32_t, uint32_t> object_id_to_prop_index;
 extern std::unordered_map<uint32_t, uint32_t> object_id_to_submodel_index;
@@ -23,57 +23,52 @@ extern int selected_map_file_index;
 
 MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
     : m_input_manager(input_manager),
-    m_dat_manager_to_show_in_dat_browser(0)
+    m_dat_manager_to_show_in_dat_browser(0),
+    m_total_textures_to_extract(0),
+    m_hash_index_initialized(false),
+    m_FPS_target(60),
+    m_show_error_msg(false),
+    m_is_texture_error_log_open(false)
 {
     m_deviceResources = std::make_unique<DX::DeviceResources>(DXGI_FORMAT_R8G8B8A8_UNORM);
-
     m_dat_managers.emplace(0, std::make_unique<DATManager>()); // Dat manager to store first dat file (more can be loaded later in comparison panel)
-
     m_deviceResources->RegisterDeviceNotify(this);
-
-    last_frame_time = std::chrono::high_resolution_clock::now();
+    last_frame_time = high_resolution_clock::now();
 }
+
+MapBrowser::~MapBrowser()
+{
+    CloseTextureErrorLog(); // Ensure log file is closed on exit
+}
+
 
 // Initialize the Direct3D resources required to run.
 void MapBrowser::Initialize(HWND window, int width, int height)
 {
     m_deviceResources->SetWindow(window, width, height);
-
     m_deviceResources->CreateDeviceResources();
     CreateDeviceDependentResources();
-
     m_deviceResources->CreateWindowSizeDependentResources();
     CreateWindowSizeDependentResources();
 
     m_map_renderer = std::make_unique<MapRenderer>(m_deviceResources->GetD3DDevice(),
         m_deviceResources->GetD3DDeviceContext(), m_input_manager);
-    m_map_renderer->Initialize(m_deviceResources->GetScreenViewport().Width,
-        m_deviceResources->GetScreenViewport().Height);
+    m_map_renderer->Initialize(static_cast<float>(width), static_cast<float>(height));
 
-    // TODO: Change the timer settings if you want something other than the default variable timestep mode.
-    // e.g. for 60 FPS fixed timestep update logic, call:
-    //m_timer.SetFixedTimeStep(true);
-    //m_timer.SetTargetElapsedSeconds(1.0 / m_FPS_target);
 
-    // Setup Dear ImGui context
+    // Setup Dear ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-    // Setup Dear ImGui style
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
-
-    // Modify the style to have rounded corners
     style.WindowRounding = 5.0f;
     style.ChildRounding = 5.0f;
     style.FrameRounding = 5.0f;
     style.GrabRounding = 5.0f;
-
-    ImGui::PushStyleColor(ImGuiCol_TitleBg, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
-    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, ImGui::GetStyle().Colors[ImGuiCol_WindowBg]);
+    ImGui::PushStyleColor(ImGuiCol_TitleBg, style.Colors[ImGuiCol_WindowBg]);
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, style.Colors[ImGuiCol_WindowBg]);
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(window);
@@ -84,19 +79,18 @@ void MapBrowser::Initialize(HWND window, int width, int height)
 // Executes the basic render loop.
 void MapBrowser::Tick()
 {
-    // Check if the window is minimized
-    if (m_mft_indices_to_extract.empty()) { // Only stop updates and rendering if we are not extracting stuff.
-        if (IsIconic(m_deviceResources->GetWindow()))
-        {
-            return;  // Don't proceed with the rest of the function if the window is minimized
-        }
+    // Check if extraction is in progress; if so, don't skip frames
+    bool is_extracting = !m_mft_indices_to_extract.empty() || !m_mft_indices_to_extract_textures.empty();
 
-        // Check if the window is not the foreground window
-        if (GetForegroundWindow() != m_deviceResources->GetWindow())
-        {
-            return;  // Don't proceed with the rest of the function if the window is not in focus
+    if (!is_extracting) {
+        if (IsIconic(m_deviceResources->GetWindow())) {
+            return;
+        }
+        if (GetForegroundWindow() != m_deviceResources->GetWindow()) {
+            return;
         }
     }
+
 
     // Calculate the desired frame duration
     milliseconds frame_duration(1000 / m_FPS_target);
@@ -107,8 +101,10 @@ void MapBrowser::Tick()
     // Calculate the duration since the last frame
     duration<double, std::milli> elapsed = now - last_frame_time;
 
-    // Check if the elapsed time is less than the frame duration
-    if (elapsed < frame_duration) {
+    // Check if the elapsed time is less than the frame duration (unless extracting)
+    if (elapsed < frame_duration && !is_extracting) {
+        // Sleep for a short duration if not extracting to yield CPU time
+        std::this_thread::sleep_for(milliseconds(1));
         return;
     }
 
@@ -134,16 +130,24 @@ void MapBrowser::Update(duration<double, std::milli> elapsed)
         }
     }
 
-    if (m_dat_managers[0]->m_initialization_state == InitializationState::Completed && !m_hash_index_initialized) {
+    // Check if the currently shown DAT manager is fully initialized before building hash index
+    if (m_dat_managers.count(m_dat_manager_to_show_in_dat_browser) > 0 &&
+        m_dat_managers[m_dat_manager_to_show_in_dat_browser]->m_initialization_state == InitializationState::Completed &&
+        !m_hash_index_initialized)
+    {
         const auto& mft = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT();
+        m_hash_index.clear(); // Clear previous index if switching DAT
         for (int i = 0; i < mft.size(); i++) {
-            m_hash_index[mft[i].Hash].push_back(i);
+            // Only add entries with non-zero hash, as hash 0 can have duplicates
+            if (mft[i].Hash != 0) {
+                m_hash_index[mft[i].Hash].push_back(i);
+            }
         }
-
         m_hash_index_initialized = true;
     }
 
-    m_map_renderer->Update(elapsed.count() / 1000);
+
+    m_map_renderer->Update(elapsed.count() / 1000.0);
 }
 #pragma endregion
 
@@ -157,17 +161,23 @@ void MapBrowser::Render()
         return;
     }
 
-    // If it is the first time rendering a map generate a shadow map
+    // Render shadows if needed
     RenderShadows();
 
+    // Render reflections if needed
     RenderWaterReflection();
 
+    // Clear the back buffer and depth stencil
     Clear();
 
-    m_deviceResources->PIXBeginEvent(L"Render");
+    // Render the main scene
+    m_deviceResources->PIXBeginEvent(L"Render Scene");
     m_map_renderer->Render(m_deviceResources->GetRenderTargetView(), m_deviceResources->GetPickingRenderTargetView(), m_deviceResources->GetDepthStencilView());
+    m_deviceResources->PIXEndEvent();
 
-    // Resolve multisampled picking texture if neccessary
+
+    // --- Process Picking ---
+    // Resolve multisampled picking texture if necessary
     if (m_deviceResources->GetMsaaLevelIndex() > 0) {
         m_deviceResources->GetD3DDeviceContext()->ResolveSubresource(
             m_deviceResources->GetPickingNonMsaaTexture(),
@@ -211,14 +221,17 @@ void MapBrowser::Render()
     picking_info.prop_submodel_index = submodel_index;
     picking_info.camera_pos = m_map_renderer->GetCamera()->GetPosition3f();
 
+
+    // --- Start ImGui Frame ---
+    ImGui_ImplDX11_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
     bool msaa_changed = false;
     int msaa_level_index = m_deviceResources->GetMsaaLevelIndex();
     const auto& msaa_levels = m_deviceResources->GetMsaaLevels();
 
-    // Start the Dear ImGui frame
-    ImGui_ImplDX11_NewFrame();
-    ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
+    // Draw the main UI
     if (m_show_error_msg) {
         ShowErrorMessage();
     }
@@ -226,98 +239,172 @@ void MapBrowser::Render()
         draw_ui(m_dat_managers, m_dat_manager_to_show_in_dat_browser, m_map_renderer.get(), picking_info, m_csv_data, m_FPS_target, m_timer, m_extract_panel_info,
             msaa_changed, msaa_level_index, msaa_levels, m_hash_index);
 
-        if (!m_mft_indices_to_extract.empty()) {
-            draw_dat_load_progress_bar(m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3) - m_mft_indices_to_extract.size(),
-                m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3));
+        // --- Draw extraction progress UI *inside* the ImGui frame ---
+        // Check if either extraction queue is active
+        bool is_map_extracting = !m_mft_indices_to_extract.empty();
+        bool is_texture_extracting = !m_mft_indices_to_extract_textures.empty();
+        if (is_map_extracting || is_texture_extracting) {
+            int total_items = is_map_extracting ?
+                m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_num_files_for_type(FFNA_Type3) :
+                m_total_textures_to_extract;
+            int remaining_items = is_map_extracting ?
+                static_cast<int>(m_mft_indices_to_extract.size()) : // Cast size_t to int
+                static_cast<int>(m_mft_indices_to_extract_textures.size()); // Cast size_t to int
 
-            DrawStopExtractionButton();
+            // Only draw if there are items to process
+            if (total_items > 0) {
+                draw_dat_load_progress_bar(total_items - remaining_items, total_items);
+                DrawStopExtractionButton(); // Draw the stop button as well
+            }
         }
+        // --- End extraction progress UI ---
 
         static bool show_demo_window = false;
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
     }
 
-    // Dear ImGui Render
+    // --- Render ImGui ---
+    m_deviceResources->PIXBeginEvent(L"Render ImGui");
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
     m_deviceResources->PIXEndEvent();
 
-    // Show the new frame.
+    // --- Present Frame ---
     m_deviceResources->Present();
 
+    // --- Post-Present Logic (Safe to do non-UI work here) ---
     if (msaa_changed) {
         m_deviceResources->SetMsaaLevel(msaa_level_index);
     }
 
+    // Trigger map extraction if requested
     if (m_extract_panel_info.pixels_per_tile_changed) {
         m_extract_panel_info.pixels_per_tile_changed = false;
         m_mft_indices_to_extract.clear();
+        m_mft_indices_to_extract_textures.clear();
+        CloseTextureErrorLog();
 
-        const auto& mft = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT();
+        // Check if the current DAT manager is initialized
+        if (m_dat_managers.count(m_dat_manager_to_show_in_dat_browser) > 0 &&
+            m_dat_managers[m_dat_manager_to_show_in_dat_browser]->m_initialization_state == InitializationState::Completed) {
 
-        switch (m_extract_panel_info.map_render_extract_map_type) {
-        case ExtractPanel::AllMapsTopDownOrthographic:
-            for (int i = 0; i < mft.size(); i++) {
-                if (mft[i].type == FFNA_Type3) {
-                    m_mft_indices_to_extract.emplace(i);
+            const auto& mft = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT();
+
+            switch (m_extract_panel_info.map_render_extract_map_type) {
+            case ExtractPanel::AllMapsTopDownOrthographic:
+                for (int i = 0; i < mft.size(); i++) {
+                    if (mft[i].type == FFNA_Type3) {
+                        m_mft_indices_to_extract.emplace(i);
+                    }
                 }
+                break;
+            case ExtractPanel::CurrentMapTopDownOrthographic:
+            case ExtractPanel::CurrentMapNoViewChange:
+                if (selected_map_file_index >= 0) {
+                    m_mft_indices_to_extract.emplace(selected_map_file_index);
+                }
+                else {
+                    m_error_msg = "No map selected. Make sure to select a map before extracting or select extract all maps.";
+                    m_show_error_msg = true;
+                }
+                break;
+            default:
+                break;
             }
-            break;
-        case ExtractPanel::CurrentMapTopDownOrthographic:
-        case ExtractPanel::CurrentMapNoViewChange:
-            // Add the indice for the current map
-            if (selected_map_file_index >= 0) {
-                m_mft_indices_to_extract.emplace(selected_map_file_index);
-            }
-            else {
-                m_error_msg = "No map selected. Make sure to select a map before extracting or select extract all maps.";
-                m_show_error_msg = true;
-            }
-            break;
-        default:
-            break;
+        }
+        else {
+            m_error_msg = "Current DAT file is not fully loaded yet. Please wait.";
+            m_show_error_msg = true;
         }
     }
 
+
+    // Trigger texture extraction if requested
+    if (m_extract_panel_info.extract_all_textures_requested) {
+        m_extract_panel_info.extract_all_textures_requested = false;
+        m_mft_indices_to_extract_textures.clear();
+        m_mft_indices_to_extract.clear();
+        CloseTextureErrorLog();
+        OpenTextureErrorLog(m_extract_panel_info.save_directory);
+        m_total_textures_to_extract = 0;
+
+        // Check if the current DAT manager is initialized
+        if (m_dat_managers.count(m_dat_manager_to_show_in_dat_browser) > 0 &&
+            m_dat_managers[m_dat_manager_to_show_in_dat_browser]->m_initialization_state == InitializationState::Completed) {
+
+            const auto& mft = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT();
+            for (int i = 0; i < mft.size(); ++i) {
+                if (is_type_texture(static_cast<FileType>(mft[i].type))) {
+                    m_mft_indices_to_extract_textures.insert(i);
+                }
+            }
+            m_total_textures_to_extract = static_cast<int>(m_mft_indices_to_extract_textures.size());
+
+            if (m_total_textures_to_extract == 0) {
+                m_error_msg = "No texture files found in the DAT to extract.";
+                m_show_error_msg = true;
+                CloseTextureErrorLog();
+            }
+        }
+        else {
+            m_error_msg = "Current DAT file is not fully loaded yet. Please wait.";
+            m_show_error_msg = true;
+            CloseTextureErrorLog();
+        }
+    }
+
+
+    // Process one map extraction per frame if requested
     if (!m_mft_indices_to_extract.empty()) {
         const auto index = *m_mft_indices_to_extract.begin();
-        m_mft_indices_to_extract.erase(index);
+        m_mft_indices_to_extract.erase(m_mft_indices_to_extract.begin()); // Use begin() iterator
 
         bool should_save = true;
 
         if ((m_extract_panel_info.map_render_extract_map_type == ExtractPanel::AllMapsTopDownOrthographic ||
-            m_extract_panel_info.map_render_extract_map_type == ExtractPanel::CurrentMapTopDownOrthographic)) {
-            if ((m_extract_panel_info.map_render_extract_map_type == ExtractPanel::CurrentMapTopDownOrthographic ||
-                parse_file(m_dat_managers[m_dat_manager_to_show_in_dat_browser].get(), index, m_map_renderer.get(), m_hash_index)
-                ) && m_map_renderer->GetTerrain()) {
-                const auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
-                const auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
+            m_extract_panel_info.map_render_extract_map_type == ExtractPanel::CurrentMapTopDownOrthographic))
+        {
+            // Ensure the DAT manager exists and is initialized
+            if (m_dat_managers.count(m_dat_manager_to_show_in_dat_browser) > 0 &&
+                m_dat_managers[m_dat_manager_to_show_in_dat_browser]->m_initialization_state == InitializationState::Completed)
+            {
+                if ((m_extract_panel_info.map_render_extract_map_type == ExtractPanel::CurrentMapTopDownOrthographic ||
+                    parse_file(m_dat_managers[m_dat_manager_to_show_in_dat_browser].get(), index, m_map_renderer.get(), m_hash_index)) && m_map_renderer->GetTerrain())
+                {
+                    const auto dim_x = m_map_renderer->GetTerrain()->m_grid_dim_x;
+                    const auto dim_z = m_map_renderer->GetTerrain()->m_grid_dim_z;
 
-                const float map_width = (dim_x - 1) * 96;
-                const float map_height = (dim_z - 1) * 96;
+                    const float map_width = (dim_x - 1) * 96;
+                    const float map_height = (dim_z - 1) * 96;
 
-                const auto terrain_bounds = m_map_renderer->GetTerrain()->m_bounds;
+                    const auto terrain_bounds = m_map_renderer->GetTerrain()->m_bounds;
 
-                const float cam_pos_x = terrain_bounds.map_min_x + map_width / 2;
-                const float cam_pos_z = terrain_bounds.map_min_z + map_height / 2;
+                    const float cam_pos_x = terrain_bounds.map_min_x + map_width / 2;
+                    const float cam_pos_z = terrain_bounds.map_min_z + map_height / 2;
 
-                m_map_renderer->SetFrustumAsOrthographic(map_width - 48, map_height - 48, 100, 100000);
-                m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
-                m_map_renderer->GetCamera()->SetPosition(cam_pos_x, 80000, cam_pos_z - 48);
+                    m_map_renderer->SetFrustumAsOrthographic(map_width - 48, map_height - 48, 100, 100000);
+                    m_map_renderer->GetCamera()->SetOrientation(-90.0f * XM_PI / 180, 0 * XM_PI / 180);
+                    m_map_renderer->GetCamera()->SetPosition(cam_pos_x, 80000, cam_pos_z - 48);
 
-                m_map_renderer->Update(0); // Update camera
+                    m_map_renderer->Update(0); // Update camera
+                }
+                else {
+                    should_save = false;
+                }
             }
             else {
-                should_save = false;
+                should_save = false; // Don't save if DAT manager isn't ready
             }
         }
 
+
         if (m_map_renderer->GetTerrain() == nullptr) {
             should_save = false;
-            m_error_msg = "Terrain data not found.";
-            m_show_error_msg = true;
+            if (m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT()[index].uncompressedSize > 0) {
+                m_error_msg = std::format("Terrain data not found for MFT index {}.", index);
+                m_show_error_msg = true;
+            }
         }
 
         if (should_save) {
@@ -370,23 +457,26 @@ void MapBrowser::Render()
             ID3D11ShaderResourceView* shaderResourceView = nullptr;
             ID3D11Texture2D* texture = m_deviceResources->GetOffscreenRenderTarget();
 
-            ID3D11Texture2D* resolvedTexture = m_deviceResources->GetOffscreenNonMsaaRenderTarget();
+            ComPtr<ID3D11Texture2D> resolvedTextureCom;
+            ID3D11Texture2D* textureToSave = nullptr;
 
-            m_deviceResources->GetD3DDeviceContext()->ResolveSubresource(
-                resolvedTexture,  // Destination texture
-                0,  // Destination subresource
-                texture,  // Source texture (MSAA)
-                0,  // Source subresource
-                m_deviceResources->GetBackBufferFormat()  // Format
-            );
+            if (m_deviceResources->GetMsaaLevelIndex() > 0) {
+                resolvedTextureCom = m_deviceResources->GetOffscreenNonMsaaRenderTarget();
+                m_deviceResources->GetD3DDeviceContext()->ResolveSubresource(
+                    resolvedTextureCom.Get(), 0, texture, 0, m_deviceResources->GetBackBufferFormat());
+                textureToSave = resolvedTextureCom.Get();
+            }
+            else {
+                textureToSave = texture;
+                textureToSave->AddRef();
+            }
 
-            texture->Release();
 
             if (m_extract_panel_info.map_render_extract_file_type == ExtractPanel::PNG) {
                 D3D11_TEXTURE2D_DESC textureDesc;
-                resolvedTexture->GetDesc(&textureDesc);
+                textureToSave->GetDesc(&textureDesc);
 
-                D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+                D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
                 ZeroMemory(&srvDesc, sizeof(srvDesc));
                 srvDesc.Format = textureDesc.Format;
                 srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
@@ -395,22 +485,26 @@ void MapBrowser::Render()
 
                 // Create the shader resource view.
                 HRESULT hr = m_deviceResources->GetD3DDevice()->CreateShaderResourceView(
-                    resolvedTexture, &srvDesc, &shaderResourceView);
+                    textureToSave, &srvDesc, &shaderResourceView);
                 if (SUCCEEDED(hr))
                 {
                     const auto file_id = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT()[index].Hash;
-                    auto filename = std::format(L"{}\\map_texture_{}.png", m_extract_panel_info.save_directory, file_id);
-                    SaveTextureToPng(shaderResourceView, filename, m_map_renderer->GetTextureManager());
+                    auto filename = std::format(L"{}\\map_texture_0x{:X}.png", m_extract_panel_info.save_directory, file_id);
+                    std::wstring wsFilename = filename;
+                    SaveTextureToPng(shaderResourceView, wsFilename, m_map_renderer->GetTextureManager());
 
                     shaderResourceView->Release();
                 }
                 else {
                     // Handle error (unable to save to png)
+                    m_error_msg = std::format("Failed to create SRV for map extraction (PNG). HRESULT: 0x{:X}", hr);
+                    m_show_error_msg = true;
+                    m_mft_indices_to_extract.clear();
                 }
             }
-            else {
+            else { // DDS
                 DirectX::ScratchImage capturedImage;
-                HRESULT hrCapture = DirectX::CaptureTexture(m_deviceResources->GetD3DDevice(), m_deviceResources->GetD3DDeviceContext(), texture, capturedImage);
+                HRESULT hrCapture = DirectX::CaptureTexture(m_deviceResources->GetD3DDevice(), m_deviceResources->GetD3DDeviceContext(), textureToSave, capturedImage);
 
                 if (SUCCEEDED(hrCapture)) {
                     DirectX::ScratchImage mipmappedImage;
@@ -420,38 +514,50 @@ void MapBrowser::Render()
                         HRESULT hrCompress = DirectX::Compress(mipmappedImage.GetImages(), mipmappedImage.GetImageCount(), mipmappedImage.GetMetadata(), DXGI_FORMAT_BC3_UNORM, DirectX::TEX_COMPRESS_DEFAULT, 0.5f, compressedImage);
                         if (SUCCEEDED(hrCompress)) {
                             const auto file_id = m_dat_managers[m_dat_manager_to_show_in_dat_browser]->get_MFT()[index].Hash;
-                            auto filename = std::format(L"{}\\map_texture_{}.dds", m_extract_panel_info.save_directory, file_id);
+                            auto filename = std::format(L"{}\\map_texture_0x{:X}.dds", m_extract_panel_info.save_directory, file_id);
 
-                            HRESULT hrSave = DirectX::SaveToDDSFile(compressedImage.GetImages(), compressedImage.GetImageCount(), compressedImage.GetMetadata(), DDS_FLAGS_NONE, filename.c_str());
+                            HRESULT hrSave = DirectX::SaveToDDSFile(compressedImage.GetImages(), compressedImage.GetImageCount(), compressedImage.GetMetadata(), DirectX::DDS_FLAGS_NONE, filename.c_str());
                             if (FAILED(hrSave)) {
                                 m_mft_indices_to_extract.clear();
-
-                                m_error_msg = std::format("SaveToDDSFile failed. Try lowering the resolution (i.e. use less pixels per tile).");
+                                m_error_msg = std::format("SaveToDDSFile failed. HRESULT: 0x{:X}. Try lowering the resolution (i.e. use less pixels per tile).", hrSave);
                                 m_show_error_msg = true;
                             }
                         }
                         else {
                             m_mft_indices_to_extract.clear();
-
-                            m_error_msg = std::format("Compress failed. Try lowering the resolution (i.e. use less pixels per tile).");
+                            m_error_msg = std::format("Compress failed. HRESULT: 0x{:X}. Try lowering the resolution (i.e. use less pixels per tile).", hrCompress);
                             m_show_error_msg = true;
                         }
                     }
                     else {
                         m_mft_indices_to_extract.clear();
-
-                        m_error_msg = std::format("GenerateMipMaps failed. Try lowering the resolution (i.e. use less pixels per tile).");
+                        m_error_msg = std::format("GenerateMipMaps failed. HRESULT: 0x{:X}. Try lowering the resolution (i.e. use less pixels per tile).", hrMip);
                         m_show_error_msg = true;
                     }
                 }
                 else {
                     m_mft_indices_to_extract.clear();
-
-                    m_error_msg = std::format("CaptureTexture failed. Not enough VRAM, try lowering the resolution (i.e. use less pixels per tile).");
+                    m_error_msg = std::format("CaptureTexture failed. HRESULT: 0x{:X}. Not enough VRAM, try lowering the resolution (i.e. use less pixels per tile).", hrCapture);
                     m_show_error_msg = true;
                 }
             }
 
+            // Release resolved texture if it was used and we added a ref
+            if (textureToSave && m_deviceResources->GetMsaaLevelIndex() == 0) {
+                textureToSave->Release();
+            }
+        }
+    }
+    // Process one texture extraction per frame if requested
+    if (!m_mft_indices_to_extract_textures.empty()) {
+        int index_to_process = *m_mft_indices_to_extract_textures.begin();
+        ProcessTextureExtraction(index_to_process, m_extract_panel_info.save_directory);
+        m_mft_indices_to_extract_textures.erase(index_to_process);
+
+
+        if (m_mft_indices_to_extract_textures.empty()) {
+            OutputDebugStringA("Texture extraction complete.\n");
+            CloseTextureErrorLog();
         }
     }
 }
@@ -503,7 +609,7 @@ void MapBrowser::RenderWaterReflection()
 
         m_map_renderer->Update(0); // Update camera CB
 
-        m_deviceResources->CreateReflectionResources(reflection_width, reflection_height);
+        m_deviceResources->CreateReflectionResources(static_cast<UINT>(reflection_width), static_cast<UINT>(reflection_height)); // Cast to UINT
         ClearReflection();
         m_map_renderer->RenderForReflection(m_deviceResources->GetReflectionRTV(), m_deviceResources->GetReflectionDSV());
 
@@ -622,7 +728,7 @@ void MapBrowser::RenderShadows()
 
         m_map_renderer->Update(0); // Update camera CB
 
-        m_deviceResources->CreateShadowResources(shadowmap_width, shadowmap_height);
+        m_deviceResources->CreateShadowResources(static_cast<UINT>(shadowmap_width), static_cast<UINT>(shadowmap_height));
         ClearShadow();
         m_map_renderer->RenderForShadowMap(m_deviceResources->GetShadowMapDSV());
 
@@ -680,6 +786,9 @@ void MapBrowser::Clear()
 
     const auto& clear_color = m_map_renderer->GetClearColor();
     context->ClearRenderTargetView(renderTarget, (float*)(&clear_color));
+    // Clear picking target with a color that represents "no object" (e.g., black or white with alpha 1)
+    float pickingClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // Or {1,1,1,1}
+    context->ClearRenderTargetView(pickingRenderTarget, pickingClearColor);
     context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
     ID3D11RenderTargetView* multipleRenderTargets[] = { renderTarget, pickingRenderTarget };
@@ -720,7 +829,6 @@ void MapBrowser::ClearShadow()
     context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 
-    context->OMSetRenderTargets(0, nullptr, depthStencil);
 
     auto const viewport = m_deviceResources->GetShadowViewport();
     context->RSSetViewports(1, &viewport);
@@ -729,7 +837,7 @@ void MapBrowser::ClearShadow()
 
 void MapBrowser::ClearReflection()
 {
-    m_deviceResources->PIXBeginEvent(L"Clear");
+    m_deviceResources->PIXBeginEvent(L"ClearReflection");
 
     // Clear the views.
     auto context = m_deviceResources->GetD3DDeviceContext();
@@ -758,9 +866,11 @@ void MapBrowser::ShowErrorMessage() {
 
         // Set the window to have a red border
         ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2.0f); // Set border size
+
 
         // Create a window that is not resizable, not movable and with a title bar
-        ImGui::Begin("Error", &m_show_error_msg, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+        ImGui::Begin("Error", &m_show_error_msg, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
 
         // Display the error message with TextWrapped
         ImGui::TextWrapped("%s", m_error_msg.c_str());
@@ -768,13 +878,15 @@ void MapBrowser::ShowErrorMessage() {
         // Close button
         if (ImGui::Button("Close")) {
             m_show_error_msg = false;
+            m_error_msg = ""; // Clear error message after closing
         }
 
         // End the window
         ImGui::End();
 
-        // Pop the style color for the border
+        // Pop the style color and style var for the border
         ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
     }
 }
 
@@ -817,14 +929,12 @@ void MapBrowser::OnWindowSizeChanged(int width, int height)
 
     CreateWindowSizeDependentResources();
 
-    // TODO: MapBrowser window is being resized.
-    m_map_renderer->OnViewPortChanged(width, height);
+    m_map_renderer->OnViewPortChanged(static_cast<float>(width), static_cast<float>(height));
 }
 
 // Properties
 void MapBrowser::GetDefaultSize(int& width, int& height) const noexcept
 {
-    // TODO: Change to desired default window size (note minimum size is 320x200).
     width = 1600;
     height = 900;
 }
@@ -835,9 +945,6 @@ void MapBrowser::GetDefaultSize(int& width, int& height) const noexcept
 void MapBrowser::CreateDeviceDependentResources()
 {
     auto device = m_deviceResources->GetD3DDevice();
-
-    // TODO: Initialize device dependent objects here (independent of window size).
-    device;
 }
 
 // Allocate all memory resources that change on a window SizeChanged event.
@@ -859,7 +966,8 @@ void MapBrowser::OnDeviceRestored()
 }
 
 void MapBrowser::DrawStopExtractionButton() {
-    if (!m_mft_indices_to_extract.empty()) {
+    bool is_extracting = !m_mft_indices_to_extract.empty() || !m_mft_indices_to_extract_textures.empty();
+    if (is_extracting) {
         // Set the window to be centered on the screen
         ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f,
             ImGui::GetIO().DisplaySize.y * 0.5f),
@@ -874,9 +982,21 @@ void MapBrowser::DrawStopExtractionButton() {
         // Begin a new window for the button
         ImGui::Begin("Stop Extraction", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
 
+        // Determine button label based on which extraction is running
+        const char* buttonLabel = "Stop Extraction"; // Generic default
+        if (!m_mft_indices_to_extract_textures.empty()) {
+            buttonLabel = "Stop Texture Extraction";
+        }
+        else if (!m_mft_indices_to_extract.empty()) {
+            buttonLabel = "Stop Map Extraction";
+        }
+
         // Render the button and handle its press
-        if (ImGui::Button("Stop Extracting")) {
-            m_mft_indices_to_extract.clear();
+        if (ImGui::Button(buttonLabel)) {
+            m_mft_indices_to_extract.clear(); // Clear map extraction queue
+            m_mft_indices_to_extract_textures.clear(); // Clear texture extraction queue
+            m_total_textures_to_extract = 0; // Reset texture count
+            CloseTextureErrorLog(); // Close log file if stopped manually
         }
 
         // End the window
@@ -887,4 +1007,213 @@ void MapBrowser::DrawStopExtractionButton() {
         ImGui::PopStyleVar();
     }
 }
+
+
+void MapBrowser::ProcessTextureExtraction(int index, const std::wstring& save_directory)
+{
+    DATManager* dat_manager = m_dat_managers[m_dat_manager_to_show_in_dat_browser].get();
+    const auto& mft = dat_manager->get_MFT();
+    if (index < 0 || index >= mft.size()) {
+        std::wstring error_str = std::format(L"Invalid MFT index {} provided for texture extraction.", index);
+        OutputDebugStringW(error_str.c_str());
+        WriteToTextureErrorLog(index, -1, error_str);
+        return; // Continue to next item without stopping the whole process
+    }
+
+    const auto& entry = mft[index];
+    unsigned char* raw_data = nullptr;
+    ComPtr<ID3D11Texture2D> localTexture;
+    ComPtr<ID3D11ShaderResourceView> localSrv;
+    int texWidth = 0, texHeight = 0;
+    std::vector<RGBA> rgba_data; // Needed for DDS parsing result
+    DirectX::ScratchImage ddsImage; // To hold data from DDS
+
+    try {
+        // Always read raw file data for extraction
+        raw_data = dat_manager->read_file(index);
+        if (!raw_data) {
+            throw std::runtime_error(std::format("Failed to read file data for index {}.", index));
+        }
+
+        DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
+        const void* pixelDataPtr = nullptr;
+        UINT bytesPerPixel = 0;
+        ComPtr<ID3D11Device> device = m_deviceResources->GetD3DDevice();
+
+        if (entry.type == DDS) {
+            DirectX::TexMetadata metadata;
+            HRESULT hr = DirectX::LoadFromDDSMemory(raw_data, entry.uncompressedSize, DirectX::DDS_FLAGS_NONE, &metadata, ddsImage);
+            if (FAILED(hr)) {
+                throw std::runtime_error(std::format("LoadFromDDSMemory failed for index {}. HRESULT: 0x{:X}", index, hr));
+            }
+
+            DXGI_FORMAT targetFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
+            if (metadata.format != targetFormat)
+            {
+                DirectX::ScratchImage convertedImage;
+                hr = DirectX::Convert(*ddsImage.GetImage(0, 0, 0), targetFormat, DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, convertedImage);
+                if (FAILED(hr)) {
+                    throw std::runtime_error(std::format("DDS Convert failed for index {}. HRESULT: 0x{:X}", index, hr));
+                }
+                // ddsImage is already a ScratchImage, no need to Release, just move assign
+                ddsImage = std::move(convertedImage); // Replace original with converted
+                metadata = ddsImage.GetMetadata(); // Get updated metadata
+            }
+
+            format = metadata.format;
+            texWidth = static_cast<int>(metadata.width);
+            texHeight = static_cast<int>(metadata.height);
+            pixelDataPtr = ddsImage.GetPixels();
+            bytesPerPixel = BytesPerPixel(format);
+
+        }
+        else if (is_type_texture(static_cast<FileType>(entry.type))) {
+            DatTexture dat_texture = dat_manager->parse_ffna_texture_file(index);
+            if (dat_texture.width > 0 && dat_texture.height > 0) {
+                texWidth = dat_texture.width;
+                texHeight = dat_texture.height;
+                format = DXGI_FORMAT_B8G8R8A8_UNORM;
+                rgba_data = std::move(dat_texture.rgba_data);
+                pixelDataPtr = rgba_data.data();
+                bytesPerPixel = sizeof(RGBA);
+            }
+            else {
+                throw std::runtime_error(std::format("ProcessImageFile failed or returned invalid dimensions for index {}.", index));
+            }
+        }
+        else {
+            throw std::runtime_error(std::format("Attempting to extract non-texture file at index {} as texture.", index));
+        }
+
+        if (!pixelDataPtr || texWidth <= 0 || texHeight <= 0 || bytesPerPixel == 0) {
+            throw std::runtime_error(std::format("Invalid texture data derived for index {}.", index));
+        }
+
+
+        // Create temporary D3D11Texture2D
+        D3D11_TEXTURE2D_DESC texDesc = {};
+        texDesc.Width = texWidth;
+        texDesc.Height = texHeight;
+        texDesc.MipLevels = 1; // Create only one mip level for saving
+        texDesc.ArraySize = 1;
+        texDesc.Format = format; // Use the determined format
+        texDesc.SampleDesc.Count = 1;
+        texDesc.Usage = D3D11_USAGE_DEFAULT;
+        texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        texDesc.CPUAccessFlags = 0;
+        texDesc.MiscFlags = 0;
+
+        D3D11_SUBRESOURCE_DATA initData = {};
+        initData.pSysMem = pixelDataPtr;
+        initData.SysMemPitch = texWidth * bytesPerPixel;
+        initData.SysMemSlicePitch = initData.SysMemPitch * texHeight;
+
+        HRESULT hr = device->CreateTexture2D(&texDesc, &initData, localTexture.GetAddressOf());
+        if (FAILED(hr)) throw std::runtime_error(std::format("CreateTexture2D failed for index {}. HRESULT: 0x{:X}", index, hr));
+
+        // Create temporary ID3D11ShaderResourceView
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = texDesc.Format;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = 1;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+
+        hr = device->CreateShaderResourceView(localTexture.Get(), &srvDesc, localSrv.GetAddressOf());
+        if (FAILED(hr)) throw std::runtime_error(std::format("CreateShaderResourceView failed for index {}. HRESULT: 0x{:X}", index, hr));
+
+        // --- Create Subfolder ---
+        FileType fileTypeEnum = static_cast<FileType>(entry.type);
+        std::wstring typeSubfolderName = typeToWString(fileTypeEnum);
+        if (typeSubfolderName == L" ") {
+            typeSubfolderName = L"UnknownType";
+        }
+        std::filesystem::path subFolderPath = std::filesystem::path(save_directory) / typeSubfolderName;
+
+        // Create directory if it doesn't exist
+        std::error_code ec;
+        if (!std::filesystem::exists(subFolderPath)) {
+            if (!std::filesystem::create_directories(subFolderPath, ec)) {
+                // Handle error - couldn't create directory
+                throw std::runtime_error(std::format("Failed to create directory: {}. Error code: {}", subFolderPath.string(), ec.value()));
+            }
+        }
+        // --- End Create Subfolder ---
+
+
+        // Construct filename and save
+        std::wstring filename = std::format(L"texture_0x{:X}.png", entry.Hash);
+        std::filesystem::path fullPath = subFolderPath / filename;
+
+        std::wstring fullPathStr = fullPath.wstring();
+        if (!m_map_renderer || !m_map_renderer->GetTextureManager()) {
+            throw std::runtime_error("TextureManager is not available for saving.");
+        }
+        if (!SaveTextureToPng(localSrv.Get(), fullPathStr, m_map_renderer->GetTextureManager())) {
+            throw std::runtime_error(std::format("Failed to save texture to PNG for index {}.", index));
+        }
+
+        // Cleanup raw data if allocated
+        if (raw_data) {
+            delete[] raw_data;
+            raw_data = nullptr;
+        }
+        // ComPtrs handle D3D resource release automatically
+    }
+    catch (const std::exception& e) {
+        // Log the error instead of showing a popup and stopping
+        std::string error_what = e.what();
+        std::wstring error_msg_w(error_what.begin(), error_what.end());
+        std::wstring log_entry = std::format(L"MFT Index: {}, File Hash: 0x{:X}, Error: {}", index, entry.Hash, error_msg_w);
+        OutputDebugStringW(log_entry.c_str());
+        OutputDebugStringA("\n"); // For VS Output Window clarity
+        WriteToTextureErrorLog(index, entry.Hash, error_msg_w);
+        if (raw_data) { delete[] raw_data; } // Ensure cleanup even on exception
+    }
+    catch (...) {
+        // Log the unknown error
+        std::wstring log_entry = std::format(L"MFT Index: {}, File Hash: 0x{:X}, Error: Unknown error.", index, entry.Hash);
+        OutputDebugStringW(log_entry.c_str());
+        OutputDebugStringA("\n"); // For VS Output Window clarity
+        WriteToTextureErrorLog(index, entry.Hash, L"Unknown error.");
+        if (raw_data) { delete[] raw_data; } // Ensure cleanup even on exception
+    }
+}
+
+
+void MapBrowser::OpenTextureErrorLog(const std::wstring& save_directory) {
+    if (m_is_texture_error_log_open) {
+        m_texture_error_log_file.close();
+    }
+    std::filesystem::path logPath = std::filesystem::path(save_directory) / L"texture_extraction_errors.log";
+    m_texture_error_log_file.open(logPath, std::ios::out | std::ios::trunc); // Open in truncate mode
+    if (m_texture_error_log_file.is_open()) {
+        m_is_texture_error_log_open = true;
+        m_texture_error_log_file << L"Texture Extraction Errors Log\n";
+        m_texture_error_log_file << L"-----------------------------\n";
+        m_texture_error_log_file.flush();
+    }
+    else {
+        OutputDebugStringA("Failed to open texture error log file.\n");
+    }
+}
+
+void MapBrowser::CloseTextureErrorLog() {
+    if (m_is_texture_error_log_open) {
+        m_texture_error_log_file.close();
+        m_is_texture_error_log_open = false;
+    }
+}
+
+void MapBrowser::WriteToTextureErrorLog(int mft_index, int file_hash, const std::wstring& error_message) {
+    if (m_is_texture_error_log_open && m_texture_error_log_file.is_open()) {
+        m_texture_error_log_file << L"MFT Index: " << mft_index;
+        if (file_hash >= 0) {
+            m_texture_error_log_file << L", File Hash: 0x" << std::hex << file_hash << std::dec;
+        }
+        m_texture_error_log_file << L", Error: " << error_message << L"\n";
+        m_texture_error_log_file.flush(); // Ensure it's written immediately
+    }
+}
+
+
 #pragma endregion

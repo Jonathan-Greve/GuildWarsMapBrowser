@@ -20,7 +20,7 @@ class MapBrowser final : public DX::IDeviceNotify
 {
 public:
     MapBrowser(InputManager* input_manager) noexcept(false);
-    ~MapBrowser() = default;
+    ~MapBrowser();
 
     MapBrowser(MapBrowser&&) = default;
     MapBrowser& operator=(MapBrowser&&) = default;
@@ -70,6 +70,13 @@ private:
     void CreateWindowSizeDependentResources();
 
     void DrawStopExtractionButton();
+    void ProcessTextureExtraction(int index, const std::wstring& save_directory);
+
+    // Texture Error Logging Helpers
+    void OpenTextureErrorLog(const std::wstring& save_directory);
+    void CloseTextureErrorLog();
+    void WriteToTextureErrorLog(int mft_index, int file_hash, const std::wstring& error_message);
+
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources> m_deviceResources;
@@ -92,6 +99,13 @@ private:
     std::set<uint32_t> m_mft_indices_to_extract;
     std::unordered_map<int, std::vector<int>> m_hash_index;
     bool m_hash_index_initialized = false;
+
+    //Texture extraction state
+    std::set<int> m_mft_indices_to_extract_textures;
+    int m_total_textures_to_extract = 0;
+    std::wofstream m_texture_error_log_file; // Log file stream
+    bool m_is_texture_error_log_open; // Flag for log file state
+
 
     std::vector<std::vector<std::string>> m_csv_data;
 

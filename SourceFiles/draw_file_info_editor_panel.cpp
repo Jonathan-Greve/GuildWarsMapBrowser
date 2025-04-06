@@ -177,31 +177,7 @@ bool create_empty_csv(const std::filesystem::path& csv_filepath) {
     }
 }
 
-bool is_type_texture(FileType type) {
-    switch (type)
-    {
-    case ATEXDXT1:
-    case ATEXDXT2:
-    case ATEXDXT3:
-    case ATEXDXT4:
-    case ATEXDXT5:
-    case ATEXDXTN:
-    case ATEXDXTA:
-    case ATEXDXTL:
-    case ATTXDXT1:
-    case ATTXDXT3:
-    case ATTXDXT5:
-    case ATTXDXTN:
-    case ATTXDXTA:
-    case ATTXDXTL:
-    case DDS:
-        return true;
-    default:
-        break;
-    }
 
-    return false;
-}
 
 std::wstring open_file_dialog(bool saveAs = false) {
     OPENFILENAME ofn;
