@@ -218,6 +218,7 @@
     <ClInclude Include="SourceFiles\AtexReader.h" />
     <ClInclude Include="SourceFiles\BlendStateManager.h" />
     <ClInclude Include="SourceFiles\Box.h" />
+    <ClInclude Include="SourceFiles\byte_pattern_search_panel.h" />
     <ClInclude Include="SourceFiles\Camera.h" />
     <ClInclude Include="SourceFiles\CheckerboardTexture.h" />
     <ClInclude Include="SourceFiles\CloudsPixelShader.h" />
@@ -400,6 +401,7 @@
     <ClCompile Include="SourceFiles\AtexReader.cpp" />
     <ClCompile Include="SourceFiles\BlendStateManager.cpp" />
     <ClCompile Include="SourceFiles\Box.cpp" />
+    <ClCompile Include="SourceFiles\byte_pattern_search_panel.cpp" />
     <ClCompile Include="SourceFiles\Camera.cpp" />
     <ClCompile Include="SourceFiles\CheckerboardTexture.cpp" />
     <ClCompile Include="SourceFiles\comparer_dsl.cpp" />
