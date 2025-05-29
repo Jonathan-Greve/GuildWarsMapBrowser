@@ -164,6 +164,9 @@
     <Filter Include="Render\Shaders\Pixel shaders\Shore">
       <UniqueIdentifier>{3e8ad143-1e49-4ebb-b70f-1199e7dd550b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="GUI\BytePatternSearchPanel">
+      <UniqueIdentifier>{12d893d0-227d-4e90-b848-646744092761}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -544,6 +547,10 @@
     <ClInclude Include="SourceFiles\ShoreWaterPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Shore</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\AtexDecompress.h" />
+    <ClInclude Include="SourceFiles\byte_pattern_search_panel.h">
+      <Filter>GUI\BytePatternSearchPanel</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -836,6 +843,10 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\show_how_to_use_dat_comparer_guide.cpp">
       <Filter>GUI\DatComparePanel</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\AtexDecompress.cpp" />
+    <ClCompile Include="SourceFiles\byte_pattern_search_panel.cpp">
+      <Filter>GUI\BytePatternSearchPanel</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

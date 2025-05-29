@@ -1782,7 +1782,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 					map_id_filter_text.empty() && name_filter_text.empty() && pvp_filter_value == -1 && filename_filter_text.empty() &&
 					murmurhash3_filter_text.empty()) {
 					for (const auto& item : items) {
-						if (dat_compare_filter_result.contains(item.hash) || dat_compare_filter_result.empty())
+						if (dat_compare_filter_result.contains(item.murmurhash3) || dat_compare_filter_result.empty())
 						{
 							filtered_items.push_back(item);
 						}
@@ -1793,7 +1793,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 					for (const auto& id : intersection)
 					{
 						const auto& item = items[id];
-						if (dat_compare_filter_result.contains(item.hash) || dat_compare_filter_result.empty()) {
+						if (dat_compare_filter_result.contains(item.murmurhash3) || dat_compare_filter_result.empty()) {
 							filtered_items.push_back(item);
 						}
 					}
