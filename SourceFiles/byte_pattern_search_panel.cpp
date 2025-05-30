@@ -107,6 +107,12 @@ static std::atomic<int> g_matches_cleared{ 0 };
 static std::mutex g_results_mutex;
 static std::future<void> g_search_future;
 
+// Type filtering globals
+static std::unordered_set<std::string> g_enabled_types;
+static std::unordered_set<std::string> g_discovered_types;
+static bool g_types_initialized = false;
+static std::atomic<int> g_files_skipped{ 0 };
+
 std::vector<std::optional<uint8_t>> parse_hex_pattern(std::string_view hex_sv) {
 	std::vector<std::optional<uint8_t>> result_pattern;
 	size_t current_pos = 0;
@@ -147,6 +153,31 @@ std::vector<std::optional<uint8_t>> parse_hex_pattern(std::string_view hex_sv) {
 	return result_pattern;
 }
 
+void initialize_file_types(std::map<int, std::unique_ptr<DATManager>>& dat_managers) {
+	if (g_types_initialized) return;
+
+	g_discovered_types.clear();
+	g_enabled_types.clear();
+
+	// Discover all file types in the DAT files
+	for (const auto& pair_entry : dat_managers) {
+		if (!pair_entry.second) continue;
+
+		const auto& mft = pair_entry.second->get_MFT();
+		for (size_t j = 0; j < mft.size(); ++j) {
+			const auto& entry = mft[j];
+			std::string type_str = typeToString(entry.type);
+			if (!type_str.empty()) {
+				g_discovered_types.insert(type_str);
+			}
+		}
+	}
+
+	// Enable all types by default
+	g_enabled_types = g_discovered_types;
+	g_types_initialized = true;
+}
+
 void search_dat_files_worker(DATManager* dat_manager, int dat_alias,
 	const BytePatternMatcher& matcher) {
 	const auto& mft = dat_manager->get_MFT();
@@ -161,6 +192,14 @@ void search_dat_files_worker(DATManager* dat_manager, int dat_alias,
 
 		if (entry.uncompressedSize <= 0 || (current_pattern_size > 0 && static_cast<size_t>(entry.uncompressedSize) < current_pattern_size)) {
 			g_files_processed.fetch_add(1, std::memory_order_relaxed);
+			continue;
+		}
+
+		// Check if this file type should be searched
+		std::string type_str = typeToString(entry.type);
+		if (g_enabled_types.find(type_str) == g_enabled_types.end()) {
+			g_files_processed.fetch_add(1, std::memory_order_relaxed);
+			g_files_skipped.fetch_add(1, std::memory_order_relaxed);
 			continue;
 		}
 
@@ -180,7 +219,7 @@ void search_dat_files_worker(DATManager* dat_manager, int dat_alias,
 				current_result.dat_alias = dat_alias;
 				current_result.match_positions = std::move(matches);
 				current_result.uncompressed_size = entry.uncompressedSize;
-				current_result.type = typeToString(entry.type);
+				current_result.type = type_str;
 				current_result.id = static_cast<int32_t>(j);
 				current_result.murmurhash3 = entry.murmurhash3;
 
@@ -217,6 +256,7 @@ void perform_pattern_search(std::map<int, std::unique_ptr<DATManager>>& dat_mana
 
 	g_files_processed.store(0, std::memory_order_relaxed);
 	g_matches_found.store(0, std::memory_order_relaxed);
+	g_files_skipped.store(0, std::memory_order_relaxed);
 
 	int total_files_to_scan = 0;
 	for (const auto& pair_entry : dat_managers) {
@@ -309,6 +349,9 @@ void draw_byte_pattern_search_panel(std::map<int, std::unique_ptr<DATManager>>& 
 
 	if (!GuiGlobalConstants::is_byte_search_panel_open) return;
 
+	// Initialize file types if needed
+	initialize_file_types(dat_managers);
+
 	if (ImGui::Begin("Byte Pattern Search", &GuiGlobalConstants::is_byte_search_panel_open)) {
 		static std::string pattern_input_str;
 		static std::string last_valid_pattern_str;
@@ -339,6 +382,58 @@ void draw_byte_pattern_search_panel(std::map<int, std::unique_ptr<DATManager>>& 
 
 		ImGui::Separator();
 
+		// File Type Filter Section
+		if (!g_discovered_types.empty()) {
+			if (ImGui::CollapsingHeader("File Type Filters", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::Text("Select file types to search:");
+
+				// Helper buttons
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.7f, 0.2f, 0.6f));
+				if (ImGui::Button("Select All")) {
+					g_enabled_types = g_discovered_types;
+				}
+				ImGui::PopStyleColor();
+
+				ImGui::SameLine();
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 0.6f));
+				if (ImGui::Button("Deselect All")) {
+					g_enabled_types.clear();
+				}
+				ImGui::PopStyleColor();
+
+				// Display checkboxes in columns for better space usage
+				const int columns = 4;
+				std::vector<std::string> sorted_types(g_discovered_types.begin(), g_discovered_types.end());
+				std::sort(sorted_types.begin(), sorted_types.end());
+
+				if (ImGui::BeginTable("TypeFilters", columns, ImGuiTableFlags_SizingStretchProp)) {
+					int column = 0;
+					for (const auto& type : sorted_types) {
+						if (column == 0) {
+							ImGui::TableNextRow();
+						}
+						ImGui::TableSetColumnIndex(column);
+
+						bool is_enabled = g_enabled_types.find(type) != g_enabled_types.end();
+						if (ImGui::Checkbox(type.c_str(), &is_enabled)) {
+							if (is_enabled) {
+								g_enabled_types.insert(type);
+							}
+							else {
+								g_enabled_types.erase(type);
+							}
+						}
+
+						column = (column + 1) % columns;
+					}
+					ImGui::EndTable();
+				}
+
+				ImGui::Text("Selected types: %zu/%zu", g_enabled_types.size(), g_discovered_types.size());
+			}
+			ImGui::Separator();
+		}
+
 		if (g_search_future.valid() &&
 			g_search_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
 			try { g_search_future.get(); }
@@ -346,7 +441,8 @@ void draw_byte_pattern_search_panel(std::map<int, std::unique_ptr<DATManager>>& 
 			catch (...) {}
 		}
 
-		bool can_start_search = !current_parsed_pattern.empty() && !dat_managers.empty() && !g_search_in_progress.load();
+		bool can_start_search = !current_parsed_pattern.empty() && !dat_managers.empty() &&
+			!g_search_in_progress.load() && !g_enabled_types.empty();
 
 		if (g_search_in_progress.load()) {
 			if (ImGui::Button("Cancel Search")) {
@@ -361,10 +457,16 @@ void draw_byte_pattern_search_panel(std::map<int, std::unique_ptr<DATManager>>& 
 				g_files_processed.store(0);
 				g_matches_found.store(0);
 				g_matches_cleared.store(0);
+				g_files_skipped.store(0);
 
 				g_search_future = std::async(std::launch::async, perform_pattern_search, std::ref(dat_managers));
 			}
 			ImGui::EndDisabled();
+
+			if (!can_start_search && g_enabled_types.empty()) {
+				ImGui::SameLine();
+				ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.0f, 1.0f), "(No file types selected)");
+			}
 		}
 
 		if (g_search_in_progress.load() || g_files_processed.load(std::memory_order_relaxed) > 0 || !g_search_results.empty() || g_matches_cleared.load(std::memory_order_relaxed) > 0) {
@@ -372,6 +474,7 @@ void draw_byte_pattern_search_panel(std::map<int, std::unique_ptr<DATManager>>& 
 			int total_count = g_total_files.load(std::memory_order_relaxed);
 			int matches_count = g_matches_found.load(std::memory_order_relaxed);
 			int cleared_count = g_matches_cleared.load(std::memory_order_relaxed);
+			int skipped_count = g_files_skipped.load(std::memory_order_relaxed);
 
 			char progress_buffer[128];
 
@@ -386,10 +489,20 @@ void draw_byte_pattern_search_panel(std::map<int, std::unique_ptr<DATManager>>& 
 				}
 
 				if (cleared_count > 0) {
-					snprintf(progress_buffer, sizeof(progress_buffer), "%d/%d files (some results cleared)", processed_count, total_count > 0 ? total_count : processed_count);
+					if (skipped_count > 0) {
+						snprintf(progress_buffer, sizeof(progress_buffer), "%d/%d files (%d skipped, some results cleared)", processed_count, total_count > 0 ? total_count : processed_count, skipped_count);
+					}
+					else {
+						snprintf(progress_buffer, sizeof(progress_buffer), "%d/%d files (some results cleared)", processed_count, total_count > 0 ? total_count : processed_count);
+					}
 				}
 				else {
-					snprintf(progress_buffer, sizeof(progress_buffer), "%d/%d files", processed_count, total_count > 0 ? total_count : processed_count);
+					if (skipped_count > 0) {
+						snprintf(progress_buffer, sizeof(progress_buffer), "%d/%d files (%d skipped)", processed_count, total_count > 0 ? total_count : processed_count, skipped_count);
+					}
+					else {
+						snprintf(progress_buffer, sizeof(progress_buffer), "%d/%d files", processed_count, total_count > 0 ? total_count : processed_count);
+					}
 				}
 
 				if (g_search_in_progress.load() && total_count == 0 && processed_count == 0) {
