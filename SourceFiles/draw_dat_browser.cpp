@@ -374,6 +374,36 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 					selected_dat_texture.file_id = entry->Hash;
 				}
 
+				// If the number of textures is 0 we add a placeholder texture to make the object visible
+				if (texture_ids.size() == 0)
+				{
+					int texture_tile_size = 8;
+					int texture_width = texture_tile_size * 2;
+					int texture_height = texture_tile_size * 2;
+					CheckerboardTexture::ColorChoice color_choice0 = CheckerboardTexture::ColorChoice::Silver;
+
+					CheckerboardTexture checkerboard_texture_0(texture_width, texture_height, texture_tile_size, color_choice0, color_choice0);
+
+					const auto checkered_tex_id_0 =
+						map_renderer->GetTextureManager()->AddTexture((void*)checkerboard_texture_0.getData().data(), texture_width,
+							texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 3214234 + (int)color_choice0 * 20 + (int)color_choice0);
+
+					model_texture_types.insert({ checkered_tex_id_0, BC1 });
+
+
+					texture_ids.push_back(checkered_tex_id_0);
+
+
+					for (int i = 0; i < prop_meshes.size(); i++)
+					{
+						// set blend flag to 0 to make it opaque
+						for (int j = 0; j < prop_meshes[i].blend_flags.size(); j++)
+						{
+							prop_meshes[i].blend_flags[j] = 0;
+						}
+					}
+				}
+
 				// The number of textures might exceed 8 for a model since each submodel might use up to 8 separate textures.
 				// So for each submodel's Mesh we must make sure that the uv_indices[i] < 8 and tex_indices[i] < 8.
 				for (int i = 0; i < prop_meshes.size(); i++)

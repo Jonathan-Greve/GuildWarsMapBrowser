@@ -316,7 +316,6 @@ unsigned int GWDat::readDat(const TCHAR* file)
 		}
 		else
 		{
-			ME.Hash = 0;
 			MFT.push_back(ME);
 		}
 	}
