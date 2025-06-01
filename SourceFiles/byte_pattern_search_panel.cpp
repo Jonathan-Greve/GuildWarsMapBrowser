@@ -612,6 +612,9 @@ void draw_byte_pattern_search_panel(std::map<int, std::unique_ptr<DATManager>>& 
 				g_matches_cleared.fetch_add(matches_in_cleared_results, std::memory_order_relaxed);
 				g_search_results.clear();
 				g_search_results.shrink_to_fit();
+
+				dat_compare_filter_result_out.clear();
+				filter_result_changed_out = true;
 			}
 
 			ImGui::SameLine();
