@@ -1,0 +1,489 @@
+#include <std/mem.pat>
+#include <std/math.pat>
+#include <std/io.pat>
+#pragma pattern_limit 500000
+std::mem::Section provider = std::mem::create_section("Memory provider");
+u32 fvf_array_0[22] @0x00 in provider;
+u32 fvf_array_1[8] @0x00+sizeof(fvf_array_0) in provider;
+u32 fvf_array_2[16] @0x00+sizeof(fvf_array_0)+sizeof(fvf_array_1) in provider;
+
+fvf_array_0[0] = 0x0;
+fvf_array_0[1] = 0x8;
+fvf_array_0[2] = 0x8;
+fvf_array_0[3] = 0x10;
+fvf_array_0[4] = 0x8;
+fvf_array_0[5] = 0x10;
+fvf_array_0[6] = 0x10;
+fvf_array_0[7] = 0x18;
+fvf_array_0[8] = 0x8;
+fvf_array_0[9] = 0x10;
+fvf_array_0[10] = 0x10;
+fvf_array_0[11] = 0x18;
+fvf_array_0[12] = 0x10;
+fvf_array_0[13] = 0x18;
+fvf_array_0[14] = 0x18;
+fvf_array_0[15] = 0x20;
+fvf_array_0[16] = 0x0;
+fvf_array_0[17] = 0x0;
+fvf_array_0[18] = 0x0;
+fvf_array_0[19] = 0x1;
+fvf_array_0[20] = 0xFFFFFFFF;
+fvf_array_0[21] = 0xFFFFFFFF;
+
+fvf_array_1[0] = 0x0;
+fvf_array_1[1] = 0xC;
+fvf_array_1[2] = 0xC;
+fvf_array_1[3] = 0x18;
+fvf_array_1[4] = 0xC;
+fvf_array_1[5] = 0x18;
+fvf_array_1[6] = 0x18;
+fvf_array_1[7] = 0x24;
+
+fvf_array_2[0] = 0x0;
+fvf_array_2[1] = 0xC;
+fvf_array_2[2] = 0x4;
+fvf_array_2[3] = 0x10;
+fvf_array_2[4] = 0xC;
+fvf_array_2[5] = 0x18;
+fvf_array_2[6] = 0x10;
+fvf_array_2[7] = 0x1C;
+fvf_array_2[8] = 0x4;
+fvf_array_2[9] = 0x10;
+fvf_array_2[10] = 0x8;
+fvf_array_2[11] = 0x14;
+fvf_array_2[12] = 0x10;
+fvf_array_2[13] = 0x1C;
+fvf_array_2[14] = 0x14;
+fvf_array_2[15] = 0x20;
+
+fn get_fvf(u32 dat_fvf)
+{
+    return (dat_fvf & 0xff0) << 4 | dat_fvf >> 8 & 0x30 | dat_fvf & 0xf;
+};
+
+fn get_vertex_size_from_fvf(u32 fvf)
+{
+  return fvf_array_0[fvf >> 0xc & 0xf] + fvf_array_0[fvf >> 8 & 0xf] + fvf_array_1[fvf >> 4 & 7] +
+      fvf_array_2[fvf & 0xf];
+};
+
+struct Vertex<auto dat_fvf> {
+  u32 FVF = get_fvf(dat_fvf);
+  u32 vertex_size = get_vertex_size_from_fvf(FVF);
+  u32 used_bytes = 0;
+  if (FVF & 1){
+    used_bytes += sizeof(float)*3;
+    float x,y,z;
+  }
+  if (FVF & 2){
+    used_bytes += 4;
+    u32 group;
+  }
+  if (FVF & 4){
+    used_bytes += sizeof(float)*3;
+    float normal_x,normal_y,normal_z;
+  }
+  float data[(vertex_size-used_bytes)/4];
+};
+
+fn compute_str_len_plus_one(u32 address){
+  u32 counter = 0;
+  bool found = false;
+  while (!found){
+    u8 curr_char @ address + counter;
+    if (curr_char == 0){
+      found = true;
+    }
+    
+    counter += 1;
+  }
+  
+  return counter;
+};
+
+fn read_u32(u32 address) {
+    u32 value @ address;
+
+    return value;
+};
+
+fn get_some_size(u32 address, u32 sub_1_0x52){
+  u32 iVar3 = 0;
+  u32 iVar5 = 0;
+  u32 iVar6 = 0;
+  u32 iVar7 = 0;
+  u32 local_c = 0;
+  
+  std::print("address: {}", address);
+  std::print("sub_1_0x52: {}", sub_1_0x52);
+  
+  if (1 < sub_1_0x52){
+    s32 iVar4 = (sub_1_0x52 - 2 >> 1) + 1;
+    std::print("iVar4: {}", iVar4);
+    
+    local_c = iVar4 * 2;
+    std::print("local_c: {}", local_c);
+      
+    u32 piVar1 = address + 0x2C;
+      
+    
+    while (true){
+      std::print("--------- iVar4: {} ---------", iVar4);
+      u32 v3 @ (piVar1 + 0xC * 4);
+      iVar3 += v3;
+      std::print("iVar3: {}", iVar3);
+        
+      u32 v5 @ (piVar1 - 4);
+      iVar5 += v5;
+      std::print("iVar5: {}", iVar5);
+        
+      u32 v6 @ piVar1;
+      iVar6 += v6;
+      std::print("iVar6: {}", iVar6);
+        
+      u32 v7 @ (piVar1 + 0xB * 4);
+      iVar7 += v7;
+      std::print("iVar7 : {}", iVar7);
+        
+      piVar1 += 0x60;
+        
+      iVar4 -= 1;
+      if (iVar4 <= 0){
+        break;
+      }
+    }
+  }
+  
+  u32 iVar4 = 0;
+  u32 local_18;
+  if (local_c < sub_1_0x52){
+    local_18 = read_u32(address + 0x28 + local_c*6*8);
+    iVar4 = read_u32(address + 0x2C + local_c*6*8);
+  }
+  
+  local_18 += iVar7 + iVar5;
+  iVar4 += iVar3 + iVar6;
+  
+  u32 size = iVar4 * 0x10 + local_18 * 0x18;
+  
+  std::print("{}", size);
+  
+  return size;
+};
+
+struct String {
+  char string[compute_str_len_plus_one($)];
+};
+
+struct Chunk1_sub1 {
+  u32 some_type_maybe; // always 0x26? It's also checked for this value in the source.
+  u32 f0x4;
+  s32 f0x8;
+  u32 f0xC;
+  u32 f0x10;
+  u8 f0x14;
+  u8 f0x15;
+  u8 f0x16;
+  u8 f0x17;
+  u8 some_num0; // Num pixel shaders?
+  u8 f0x19;
+  u8 f0x1a;
+  u8 f0x1b;
+  u8 some_num1;
+  u8 f0x1d;
+  u8 f0x1e;
+  u8 f0x1f;
+  u32 f0x20;
+  u32 f0x24;
+  u32 magic_num0;
+  u32 magic_num;
+};
+
+struct Chunkfa1_sub1 {
+  u32 some_type_maybe; // always 0x26? It's also checked for this value in the source.
+  u32 f0x4;
+  s32 f0x8;
+  u32 f0xC;
+  u32 f0x10;
+  u32 f0x14;
+  u8 some_num0; // Num pixel shaders?
+  u8 f0x19;
+  u8 f0x1a;
+  u8 f0x1b;
+  u8 some_num1;
+  u8 f0x1d;
+  u8 f0x1e;
+  u8 f0x1f;
+  u32 f0x20;
+  u32 f0x24;
+  u32 magic_num0;
+  u32 animation_count;
+  u8 num_some_struct; // the structs have size 0x1c
+  u8 f0x31[3];
+  u32 f0x34;
+  u32 f0x38;
+  u32 f0x3C;
+  u32 f0x40;
+  u32 num_models;
+  u32 f0x48;
+  u16 f0x4C;
+  u8 f0x4E[2];
+  u16 num_some_struct2;
+  u16 f0x52;
+};
+
+struct geometry_sub_chunk {
+  u32 unknown_0x00;
+  u32 sub_model_index;
+  u32 num_indices;
+  u32 num_vertices;
+  u32 unknown_0x10;
+  u32 unknown_0x14;
+  u32 FVF;
+  u32 unknown_0x1C;
+  u16 indices[num_indices];
+  Vertex<FVF> vertices[num_vertices];
+  u8 data[156];
+};
+
+struct InteractiveModelMaybe {
+  u32 num_indices;
+  u32 num_vertices;
+  u16 indices[num_indices];
+  Vertex<1> vertices[num_vertices];
+};
+
+u32 sub_1_f0x8;
+u32 sub_1_address;
+u32 chunk1_size;
+struct complex_struct{
+    //0072116e: call geometry_models =LoadPropGeometryModels((uint *)&curr_file_ptr,(uint)chunk2,num_models,0x2e,CalledWhenLoadingSomeModelFiles0);
+    
+    if (sub_1_address+chunk1_size < addressof($)+0x2E){
+      // return 0. CANNOT PARSE
+    }
+    u32 u0x0;
+    u32 u0x4;
+    u32 u0x8;
+    u32 u0xC;
+    u16 u0x10;
+    u8 u0x12;
+    u8 u0x13;
+    u16 u0x14;
+    u32 u0x16;     
+    u32 u0x1A;
+    u32 u0x1E;
+    u16 u0x22;
+    u16 u0x24;
+    u16 u0x26;
+    u16 u0x28;
+    u32 u0x2A;
+    
+    u32 uVar2 = u0x14;
+    u32 iVar3 = 0;
+    if ((u0xC & 2) == 0){
+      iVar3 = uVar2 - u0x28;
+    }
+    u32 uVar4 = uVar2;
+    if ((u0xC & 0x40 == 0)){
+      uVar4 = u0x1A;
+    }
+    u32 term0 = (u0x13 * 8 + 0xC) * uVar2;
+    u32 term1_0 = (iVar3 + u0x1E * 2) * 9;
+    u32 term1_1_0 = u0x22;
+    u32 term1_1_1 = (u0x26 + u0x24) * 2;
+    u32 term1_1_2 = u0x4;
+    u32 term1_1_3 = uVar4;
+    u32 term1_1_4 = u0x0;
+    u32 term1 = (term1_1_0 + term1_1_1 + term1_1_2 + term1_1_3 + term1_1_4) * 2;
+    
+    u32 size0 = term0 + term1;
+    
+    u32 res0 = (u0x26 +u0x24) * 2;
+    res0 += u0x22;
+    res0 += u0x4;
+    res0 += uVar4;
+    res0+= u0x0;
+    
+    u32 res1 = (iVar3 + u0x1E*2) * 9;
+    u32 res2 = res1 + res0 * 2 + u0x2A + u0x16;
+    u32 res3 = (u0x13*8 + 0xC) * uVar2;
+    
+    u32 size = res3 + res2 * 2;
+    
+    u8 data[size];
+};
+
+// To get file hash from name do:
+// (id0 - 0xff00ff) + (id2 * 0xff00);
+struct FileName{
+  u16 id0;
+  u16 id1;
+  u16 unknown;
+};
+
+struct UnknownTexStruct0{
+  u8 using_no_cull; // 0 if cull enabled, 1 if no culling enabled.
+  u8 f0x1;
+  u32 f0x2;
+  u8 pixel_shader_id;
+  u8 num_uv_coords_to_use;
+};
+
+struct UnknownTexStruct1{
+  u16 some_flags0; // 0x60A converted to 0x622
+  u16 some_flags1; // 0x600 converted to 0x600
+  u8 f0x4;   
+  u8 f0x5;
+  u8 f0x6;
+  u8 f0x7;
+  u8 f0x8;
+};
+
+struct TextureAndVertexShader<auto num_textures, auto num1, auto f0x20> {
+  UnknownTexStruct0 uts0[num_textures];
+  u16 flags0[num1];
+  u8 tex_array[num1];
+  u8 zeros[num1*4];
+  u8 blend_state[num1]; // 0 is no blend/no transparency, 6/7 is reversed alpha? 8 ir normal alpha. 3 is another type of reversed alpha? it shows more of the partt where alpha is 0.
+                        // So if flag 0 then textures alpha component is ignored and the texture is non-seethrough.
+                        // if flag set to 6 or 7 the alpha is reversed. So alpha=1 is fully transparent, alpha=0 is still slightly transparent. the transparent part is darker than when flag is set to 3.
+                        // if flag set to 8 then the alpha component is normal so alpha=1 is non-transparent, alpha=0 is fully transparent.
+  u8 texture_index_UV_mapping_maybe[num1];
+  u8 u1[(-(f0x20 != 0) & num1)];
+};
+
+struct f0x48_data
+{
+  u32 count;
+  u8 data[count*8];
+};
+
+struct SomeStruct2{
+  u8 unknown[8];
+  u32 f0x8;
+  u32 f0xC;
+  u32 f0x10;
+  u32 f0x14;
+  
+  u32 data_size = f0x8 * 7 + (f0xC + f0x10 + f0x14)*8;
+  u8 data[data_size];
+};
+
+struct GeometryChunk {
+  u32 chunk_id;
+  u32 chunk_size; chunk1_size=chunk_size;
+  // Data start
+  Chunk1_sub1 sub_1; sub_1_address=addressof(sub_1); sub_1_f0x8=sub_1.f0x8;
+
+  TextureAndVertexShader<sub_1.some_num0, sub_1.some_num1, sub_1.f0x20 > TaVS;
+  
+  u32 extra_bytes = 0; // Used for counting bytes read in inner scopes.
+  
+  u32 data_size_here = 0;
+  if (sub_1.f0x19 > 0){
+  
+      u32 puVar15 = sub_1.f0x19*9;
+      if (addressof(chunk_id) + puVar15 < addressof(chunk_id)+8+chunk_size){
+        u32 puVar16 = sub_1.f0x1d * ((sub_1.f0x20 != 0)+3) + puVar15;
+        if (addressof(chunk_id) + puVar16 < addressof(chunk_id)+8+chunk_size){
+          u32 _Src = puVar16 + sub_1.f0x1a * 8;
+          if (addressof(chunk_id) + _Src < addressof(chunk_id)+8+chunk_size){
+            UnknownTexStruct1 uts1[sub_1.f0x19];
+            u16 unknown_tex_stuff0[sub_1.f0x1d];
+            u8 unknown_tex_stuff1[sub_1.f0x1d];
+            u8 unknown_data0[_Src-sizeof(uts1)-sizeof(unknown_tex_stuff0)-sizeof(unknown_tex_stuff1)];
+            
+            String strings[sub_1.f0x1a];
+            u8 unknown_data1[sub_1.f0x1e*2*4];
+            
+            extra_bytes += sizeof(uts1) + sizeof(unknown_tex_stuff0) + sizeof(unknown_tex_stuff1) + sizeof(unknown_data0) + sizeof(strings) + sizeof(unknown_data1);
+          }
+          else{
+          u8 unknown_data0[puVar16];// cannot parse model
+        }
+        }
+        else{
+          u8 unknown_data0[puVar15]; // cannot parse model.
+        }
+      }
+  }
+  
+  if (sub_1_f0x8 & 0x20){
+    // If address of the current offset + 8 is outside chunk1 then
+    if (sub_1_address+chunk1_size < addressof($)+8){
+    }
+    else{
+      u32 unknown2;
+      u32 unknown1;
+      complex_struct cs[unknown1];
+      
+      extra_bytes += 8 + sizeof(cs);
+    }
+  }
+  
+  u32 num_models;
+  geometry_sub_chunk geometry[num_models];
+  
+  
+  u8 chunk_data[chunk_size - sizeof(sub_1) - sizeof(TaVS) - extra_bytes - sizeof(geometry) - sizeof(num_models)];
+};
+
+
+
+struct FileNamesChunk {
+  u32 chunk_id;
+  u32 chunk_size;
+  u32 num_filenames;
+    u32 actual_num_filenames = std::math::min(num_filenames, (chunk_size-4) / sizeof(FileName));
+  FileName filenames[actual_num_filenames];
+  u8 chunk_data[chunk_size-4-sizeof(filenames)];
+};
+
+struct SomeAnimationStruct<auto anim_count> {
+  u8 some_data[anim_count << 4];
+  u32 loop_counter = 0;
+  
+};
+
+struct ChunkFA1 {
+  u32 chunk_id;
+  u32 chunk_size;
+  Chunkfa1_sub1 sub_1; 
+  u32 unknown;
+  u8 unknown_data[sub_1.f0x14 << 4];
+  u8 unknown_data1[sub_1.f0x34*0x18];
+  SomeAnimationStruct<sub_1.animation_count> some_anim_struct;
+  u8 chunk_data[chunk_size-sizeof(sub_1)-4-sizeof(unknown_data)
+  -sizeof(unknown_data1)-sizeof(some_anim_struct)];
+};
+
+struct UnknownChunk {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+struct Chunk {
+ u32 chunk_id = std::mem::read_unsigned($, 4);
+ if (chunk_id == 0xFA0 || chunk_id == 3000){
+   GeometryChunk geometry_chunk;
+ }
+ else if (chunk_id == 0xFA1){
+   ChunkFA1 fa1_chunk;
+ }
+ else if (chunk_id == 0xFA5 || chunk_id == 0xfa6 || chunk_id == 0xfad){
+   FileNamesChunk filenames_chunk;
+ }
+ else{
+   UnknownChunk unknown_chunk;
+ }
+};
+
+struct ModelFile {
+  char ffna[4];
+  u8 file_tpe;
+  Chunk chunks[while($ < sizeof($))];
+};
+
+ModelFile modelfile @ 0;
