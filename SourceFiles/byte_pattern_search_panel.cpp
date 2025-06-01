@@ -546,13 +546,49 @@ void draw_byte_pattern_search_panel(std::map<int, std::unique_ptr<DATManager>>& 
 
 					ImGui::TableSetupColumn("DAT", ImGuiTableColumnFlags_WidthFixed);
 					ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed);
-					ImGui::TableSetupColumn("File Hash", ImGuiTableColumnFlags_WidthFixed);
+					ImGui::TableSetupColumn("File Id", ImGuiTableColumnFlags_WidthFixed);
 					ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed);
 					ImGui::TableSetupColumn("Size", ImGuiTableColumnFlags_WidthFixed);
 					ImGui::TableSetupColumn("Murmur", ImGuiTableColumnFlags_WidthFixed);
 					ImGui::TableSetupColumn("#Matches", ImGuiTableColumnFlags_WidthFixed);
 					ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_NoReorder | ImGuiTableColumnFlags_NoSort);
 					ImGui::TableHeadersRow();
+
+					ImGuiTableSortSpecs* sort_specs = ImGui::TableGetSortSpecs();
+					if (sort_specs != nullptr && sort_specs->SpecsDirty) {
+						std::lock_guard<std::mutex> lock(g_results_mutex);
+
+						// Sort the results based on the current sort specification
+						if (sort_specs->SpecsCount > 0) {
+							const ImGuiTableColumnSortSpecs& sort_spec = sort_specs->Specs[0];
+
+							std::sort(g_search_results.begin(), g_search_results.end(),
+								[&sort_spec](const SearchResult& a, const SearchResult& b) {
+									bool ascending = sort_spec.SortDirection == ImGuiSortDirection_Ascending;
+
+									switch (sort_spec.ColumnIndex) {
+									case 0: // DAT column
+										return ascending ? (a.dat_alias < b.dat_alias) : (a.dat_alias > b.dat_alias);
+									case 1: // Index column  
+										return ascending ? (a.id < b.id) : (a.id > b.id);
+									case 2: // File Id column
+										return ascending ? (a.file_id < b.file_id) : (a.file_id > b.file_id);
+									case 3: // Type column
+										return ascending ? (a.type < b.type) : (a.type > b.type);
+									case 4: // Size column
+										return ascending ? (a.uncompressed_size < b.uncompressed_size) : (a.uncompressed_size > b.uncompressed_size);
+									case 5: // Murmur column
+										return ascending ? (a.murmurhash3 < b.murmurhash3) : (a.murmurhash3 > b.murmurhash3);
+									case 6: // #Matches column
+										return ascending ? (a.match_positions.size() < b.match_positions.size()) : (a.match_positions.size() > b.match_positions.size());
+									default:
+										return false;
+									}
+								});
+						}
+
+						sort_specs->SpecsDirty = false;
+					}
 
 					std::lock_guard<std::mutex> lock(g_results_mutex);
 					for (size_t i = 0; i < g_search_results.size(); ++i) {
@@ -575,7 +611,7 @@ void draw_byte_pattern_search_panel(std::map<int, std::unique_ptr<DATManager>>& 
 							ImGui::Text("%.1f MB", result_item.uncompressed_size / (1024.0f * 1024.0f));
 						}
 						ImGui::TableNextColumn(); ImGui::Text("%u", result_item.murmurhash3);
-						ImGui::TableNextColumn(); ImGui::Text("%zu", result_item.match_positions.size());
+						ImGui::TableNextColumn(); ImGui::Text("%zu (hover to see offsets)", result_item.match_positions.size());
 
 						if (ImGui::IsItemHovered() && !result_item.match_positions.empty()) {
 							ImGui::BeginTooltip();
