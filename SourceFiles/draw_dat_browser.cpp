@@ -238,6 +238,23 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 			const auto& geometry_chunk = selected_ffna_model_file.geometry_chunk;
 			auto& models = selected_ffna_model_file.geometry_chunk.models;
+			auto& models_other = selected_ffna_model_file.geometry_chunk_other.models;
+
+			for (int i = 0; i < models_other.size(); i++)
+			{
+				Mesh prop_mesh = selected_ffna_model_file.GetMeshOther(i);
+				prop_mesh.center = {
+					(models_other[i].maxX - models_other[i].minX) / 2.0f, (models_other[i].maxY - models_other[i].minY) / 2.0f,
+					(models_other[i].maxZ - models_other[i].minZ) / 2.0f
+				};
+				overallMinX = std::min(overallMinX, models_other[i].minX);
+				overallMinY = std::min(overallMinY, models_other[i].minY);
+				overallMinZ = std::min(overallMinZ, models_other[i].minZ);
+				overallMaxX = std::max(overallMaxX, models_other[i].maxX);
+				overallMaxY = std::max(overallMaxY, models_other[i].maxY);
+				overallMaxZ = std::max(overallMaxZ, models_other[i].maxZ);
+				if ((prop_mesh.indices.size() % 3) == 0) { prop_meshes.push_back(prop_mesh); }
+			}
 
 			std::vector<int> sort_orders;
 			for (int i = 0; i < models.size(); i++)
@@ -284,24 +301,26 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				if ((prop_mesh.indices.size() % 3) == 0) { prop_meshes.push_back(prop_mesh); }
 			}
 
-			std::vector<size_t> indices(sort_orders.size());
-			std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
+			if (sort_orders.size() > 0) {
+				std::vector<size_t> indices(sort_orders.size());
+				std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
 
-			std::sort(indices.begin(), indices.end(),
-				[&sort_orders](size_t i1, size_t i2) { return sort_orders[i1] < sort_orders[i2]; });
+				std::sort(indices.begin(), indices.end(),
+					[&sort_orders](size_t i1, size_t i2) { return sort_orders[i1] < sort_orders[i2]; });
 
-			// Create new vectors with sorted elements
-			std::vector<Mesh> sorted_prop_meshes(prop_meshes.size());
-			std::vector<int> sorted_sort_orders(sort_orders.size());
+				// Create new vectors with sorted elements
+				std::vector<Mesh> sorted_prop_meshes(prop_meshes.size());
+				std::vector<int> sorted_sort_orders(sort_orders.size());
 
-			for (size_t i = 0; i < indices.size(); ++i) {
-				sorted_prop_meshes[i] = prop_meshes[indices[i]];
-				sorted_sort_orders[i] = sort_orders[indices[i]];
+				for (size_t i = 0; i < indices.size(); ++i) {
+					sorted_prop_meshes[i] = prop_meshes[indices[i]];
+					sorted_sort_orders[i] = sort_orders[indices[i]];
+				}
+
+				// If you want, you can now swap the sorted vectors with the original ones
+				prop_meshes.swap(sorted_prop_meshes);
+				sort_orders.swap(sorted_sort_orders);
 			}
-
-			// If you want, you can now swap the sorted vectors with the original ones
-			prop_meshes.swap(sorted_prop_meshes);
-			sort_orders.swap(sorted_sort_orders);
 
 			// Load textures
 			std::vector<int> texture_ids;
@@ -359,6 +378,48 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 					}
 				}
 
+				if (model_dat_textures.size() == 0 && !selected_ffna_model_file.atexdxt3_plain_texture.rgba_data.empty())
+				{
+
+					// If no textures were found, we use the plain texture.
+					DatTexture dat_texture = selected_ffna_model_file.atexdxt3_plain_texture;
+					int texture_id = -1;
+					map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+						dat_texture.width, dat_texture.height, dat_texture.rgba_data.data(),
+						&texture_id, entry->Hash);
+					model_dat_textures.push_back(dat_texture);
+					texture_ids.push_back(texture_id);
+
+					model_texture_types.insert({ texture_id, BC1 });
+
+					for (int i = 0; i < prop_meshes.size(); i++)
+					{
+						// set blend flag to 0 to make it opaque
+						if (prop_meshes[i].blend_flags.empty())
+						{
+							prop_meshes[i].blend_flags.resize(1);
+							prop_meshes[i].blend_flags[0] = 0;
+						}
+
+						if (prop_meshes[i].uv_coord_indices.empty())
+						{
+							prop_meshes[i].uv_coord_indices.resize(1);
+							prop_meshes[i].uv_coord_indices[0] = 0;
+						}
+
+						if (prop_meshes[i].tex_indices.empty())
+						{
+							prop_meshes[i].tex_indices.resize(1);
+							prop_meshes[i].tex_indices[0] = 0;
+						}
+
+						for (int j = 0; j < prop_meshes[i].blend_flags.size(); j++)
+						{
+							prop_meshes[i].blend_flags[j] = 0;
+						}
+					}
+				}
+
 				selected_dat_texture.dat_texture =
 					map_renderer->GetTextureManager()->BuildTextureAtlas(model_dat_textures, -1, -1);
 
@@ -380,7 +441,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 					int texture_tile_size = 8;
 					int texture_width = texture_tile_size * 2;
 					int texture_height = texture_tile_size * 2;
-					CheckerboardTexture::ColorChoice color_choice0 = CheckerboardTexture::ColorChoice::Silver;
+					CheckerboardTexture::ColorChoice color_choice0 = CheckerboardTexture::ColorChoice::Red;
 
 					CheckerboardTexture checkerboard_texture_0(texture_width, texture_height, texture_tile_size, color_choice0, color_choice0);
 
@@ -393,10 +454,27 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 					texture_ids.push_back(checkered_tex_id_0);
 
-
 					for (int i = 0; i < prop_meshes.size(); i++)
 					{
 						// set blend flag to 0 to make it opaque
+						if (prop_meshes[i].blend_flags.empty())
+						{
+							prop_meshes[i].blend_flags.resize(1);
+							prop_meshes[i].blend_flags[0] = 0;
+						}
+
+						if (prop_meshes[i].uv_coord_indices.empty())
+						{
+							prop_meshes[i].uv_coord_indices.resize(1);
+							prop_meshes[i].uv_coord_indices[0] = 0;
+						}
+
+						if (prop_meshes[i].tex_indices.empty())
+						{
+							prop_meshes[i].tex_indices.resize(1);
+							prop_meshes[i].tex_indices[0] = 0;
+						}
+
 						for (int j = 0; j < prop_meshes[i].blend_flags.size(); j++)
 						{
 							prop_meshes[i].blend_flags[j] = 0;
