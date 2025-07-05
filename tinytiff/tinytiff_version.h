@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2008-2020 Jan W. Krieger (<jan@jkrieger.de>), German Cancer Research Center (DKFZ) & IWR, University of Heidelberg
+    Copyright (c) 2008-2024 Jan W. Krieger (<jan@jkrieger.de>), German Cancer Research Center (DKFZ) & IWR, University of Heidelberg
 
     This software is free software: you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License (LGPL) as published by
@@ -20,11 +20,11 @@
 #ifndef TINYTIFF_VERSION_DEFINES_H
 #define TINYTIFF_VERSION_DEFINES_H
 
-#define TINYTIFF_VERSION "3.0.0.0"
-#define TINYTIFF_COMPILETIME "2023-08-22 16:17:10"
-#define TINYTIFF_GITVERSION "f13ce29"
+#define TINYTIFF_VERSION "5.0.0.0"
+#define TINYTIFF_COMPILETIME "2025-07-05 15:16:52"
+#define TINYTIFF_GITVERSION "d5f6582"
 
-#define TINYTIFF_FULLVERSION "3.0.0.0 (2023-08-22 16:17:10, Git: f13ce29)"
+#define TINYTIFF_FULLVERSION "5.0.0.0 (2025-07-05 15:16:52, Git: d5f6582)"
 
 #endif //TINYTIFF_VERSION_DEFINES_H
 
