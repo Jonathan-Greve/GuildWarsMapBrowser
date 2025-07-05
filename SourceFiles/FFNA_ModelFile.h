@@ -1103,7 +1103,7 @@ struct TextureFileNamesChunk
         std::memcpy(&chunk_size, &data[offset + 4], sizeof(chunk_size));
         std::memcpy(&num_texture_filenames, &data[offset + 8], sizeof(num_texture_filenames));
 
-        actual_num_texture_filenames = std::min(num_texture_filenames, (chunk_size - 4) / sizeof(TextureFileName));
+        actual_num_texture_filenames = std::min(num_texture_filenames, static_cast<uint32_t>((chunk_size - 4) / sizeof(TextureFileName)));
 
         uint32_t curr_offset = offset + 12;
         texture_filenames.resize(actual_num_texture_filenames);

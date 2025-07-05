@@ -33,6 +33,7 @@
 #  define TINYTIFF_DEPRECATED_NO_EXPORT TINYTIFF_NO_EXPORT TINYTIFF_DEPRECATED
 #endif
 
+/* NOLINTNEXTLINE(readability-avoid-unconditional-preprocessor-if) */
 #if 0 /* DEFINE_NO_DEPRECATED */
 #  ifndef TINYTIFF_NO_DEPRECATED
 #    define TINYTIFF_NO_DEPRECATED

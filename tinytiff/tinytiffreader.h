@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2008-2020 Jan W. Krieger (<jan@jkrieger.de>), German Cancer Research Center (DKFZ) & IWR, University of Heidelberg
+    Copyright (c) 2008-2024 Jan W. Krieger (<jan@jkrieger.de>), German Cancer Research Center (DKFZ) & IWR, University of Heidelberg
 
     This software is free software: you can redistribute it and/or modify
     it under the terms of the GNU Lesser General Public License (LGPL) as published by
@@ -23,16 +23,13 @@
 
 #include "tinytiff_export.h"
 #include "tinytiff_defs.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <inttypes.h>
+#include <stdint.h>
 
 
 /*! \defgroup tinytiffreader Tiny TIFF reader library
    \ingroup tinytiff_maingroup
 
-   The methods in this file allow to read TIFF files with limited capabilites.	 
+   The methods in this file allow to read TIFF files with limited capabilites.     
    
    \see \ref mainpagetinytiff_reader for details on how this library works
 
@@ -207,11 +204,26 @@ extern "C" {
         \param sample the sample to read [default: 0]
         \return \c TINYTIFF_TRUE (non-zero) on success, if an error occured \c TINYTIFF_FALSE is returned and the error message can be retrieved with TinyTIFFReader_getLastError()
 
-        \note The user is responsible for providing the correct buffer size
-              (taking width, height and bitsPerSample into account).
+        \warning The user is responsible for providing the correct buffer size
+              (taking width, height and bitsPerSample into account). BUT: There is a security-hardened version TinyTIFFReader_getSampleData_s() of this function!
 
      */
     TINYTIFF_EXPORT int TinyTIFFReader_getSampleData(TinyTIFFReaderFile* tiff, void* buffer, uint16_t sample);
+    /*! \brief read the given sample from the current frame into the given buffer,
+               the byteorder is transformed to the byteorder of the system!
+               This is a secure version of TinyTIFFReader_getSampleData() that also accepts the size of the output buffer for additional security checks!
+        \ingroup tinytiffreader_C
+
+        \param tiff TIFF file
+        \param buffer the buffer this function writes into, the size has to be at least <code>TinyTIFFReader_getWidth() * TinyTIFFReader_getHeight() * TinyTIFFReader_getBitsPerSample() / 8 </code>
+        \param buffer_size size of \a buffer
+        \param sample the sample to read [default: 0]
+        \return \c TINYTIFF_TRUE (non-zero) on success, if an error occured \c TINYTIFF_FALSE is returned and the error message can be retrieved with TinyTIFFReader_getLastError()
+
+
+
+     */
+    TINYTIFF_EXPORT int TinyTIFFReader_getSampleData_s(TinyTIFFReaderFile* tiff, void* buffer, unsigned long buffer_size, uint16_t sample);
 
 
 
