@@ -107,8 +107,8 @@ void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned
         }
         if (CompressionCode & 8 && ColorDataSize)
         {
-            AtexSubCode5_Asm((unsigned int)OutBuffer + AlphaDataSize2 + AlphaDataSize * 4,
-                          (unsigned int)DcmpBuffer1, (unsigned int)DcmpBuffer2, (unsigned int)&ImageData,
+            AtexSubCode5_Cpp(OutBuffer + AlphaDataSize2 + AlphaDataSize,
+                          DcmpBuffer1, DcmpBuffer2, &ImageData,
                           BlockCount, BlockSize, ImageFormat == 0xf);
         }
         ImageData.DataPos--;
