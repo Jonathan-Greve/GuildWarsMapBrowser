@@ -2,1041 +2,345 @@
 #include "AtexAsm.h"
 #include "AtexDecompress.h"
 
-void __declspec(naked) AtexSubCode1()
+// C++ implementation of AtexSubCode3
+void AtexSubCode3_Cpp(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2,
+                      SImageData* imageData, unsigned int blockCount, unsigned int blockSize)
 {
-    __asm {
-        push    ebp
-        mov ebp, esp
+    if (blockCount == 0) {
+        return;
+    }
 
-        mov eax, [ebp + 0x08]
-        push    ebx
-        push    edi
-        xor edi, edi
-        test    eax, eax
-        mov ebx, ecx
-        jbe short loc_61019C
-        push    esi
-
-        loc_610151 :
-        mov ecx, edi
-            mov esi, 1
-            and ecx, 1Fh
-            shl esi, cl
-            test    esi, 0C0000003h
-            jnz short loc_61017B
-            mov ecx, edi
-            mov eax, 1
-            shr ecx, 6
-            and ecx, 1Fh
-            shl eax, cl
-            test    eax, 0C0000003h
-            jz  short loc_610193
-            ; -------------------------------------------------------------------------- -
-
-            loc_61017B:
-        mov eax, edi
-            shr eax, 5
-            shl eax, 2
-            mov ecx, [eax + ebx]
-            or ecx, esi
-            mov[eax + ebx], ecx
-            mov ecx, [eax + edx]
-            or ecx, esi
-            mov[eax + edx], ecx
-
-            loc_610193 :
-        mov eax, [ebp + 0x08]
-            inc edi
-            cmp edi, eax
-            jb  short loc_610151
-            pop esi
-
-            loc_61019C :
-        pop edi
-            pop ebx
-            pop ebp
-            retn    4
+    // Extract 4 bits from the bit stream
+    uint32_t nextBits = imageData->nextBits;
+    uint32_t currentBits = imageData->currentBits;
+    uint32_t remainingBits = imageData->remainingBits;
+    
+    uint32_t extractedBits = (currentBits >> 28) & 0xF;
+    currentBits = (currentBits << 4) | (nextBits >> 28);
+    
+    // Refill bit buffer if needed
+    if (remainingBits < 4) {
+        if (imageData->DataPos != imageData->EndPos) {
+            uint32_t newData = *imageData->DataPos++;
+            currentBits |= newData >> (remainingBits + 28);
+            nextBits = newData << (4 - remainingBits);
+            remainingBits += 28;
+        } else {
+            nextBits = 0;
+            remainingBits = 0;
+        }
+    } else {
+        nextBits <<= 4;
+        remainingBits -= 4;
+    }
+    
+    // Update image data
+    imageData->currentBits = currentBits;
+    imageData->nextBits = nextBits;
+    imageData->remainingBits = remainingBits;
+    
+    // Build color palette
+    uint32_t colorPattern = extractedBits;
+    colorPattern = (colorPattern << 4) | extractedBits;
+    colorPattern = (colorPattern << 8) | colorPattern;
+    colorPattern = (colorPattern << 16) | colorPattern;
+    
+    // Color table structure
+    uint32_t colorTable[8];
+    colorTable[0] = 0;          // Index 0, word 0 (not used)
+    colorTable[1] = 0;          // Index 0, word 1 (not used)
+    colorTable[2] = 0;          // Index 1, word 0
+    colorTable[3] = 0;          // Index 1, word 1
+    colorTable[4] = colorPattern; // Index 2, word 0
+    colorTable[5] = colorPattern; // Index 2, word 1
+    colorTable[6] = 0;          // Index 3, word 0
+    colorTable[7] = 0;          // Index 3, word 1
+    
+    unsigned int blockIndex = 0;
+    
+    // Main decompression loop
+    while (blockIndex < blockCount) {
+        // Decode huffman code
+        currentBits = imageData->currentBits;
+        unsigned int shiftIndex = currentBits >> 26;
+        unsigned int bitsToRead = byte_79053D[shiftIndex * 2] + 1;
+        unsigned int shiftAmount = byte_79053C[shiftIndex * 2];
+        
+        // Shift bits
+        if (shiftAmount != 0) {
+            currentBits = (currentBits << shiftAmount) | 
+                         (imageData->nextBits >> (32 - shiftAmount));
+        }
+        
+        // Refill bit buffer if needed
+        remainingBits = imageData->remainingBits;
+        if (shiftAmount > remainingBits) {
+            if (imageData->DataPos != imageData->EndPos) {
+                uint32_t newData = *imageData->DataPos++;
+                currentBits |= newData >> (remainingBits + 32 - shiftAmount);
+                imageData->nextBits = newData << (shiftAmount - remainingBits);
+                imageData->remainingBits = remainingBits + 32 - shiftAmount;
+            } else {
+                imageData->nextBits = 0;
+                imageData->remainingBits = 0;
+            }
+        } else {
+            imageData->remainingBits = remainingBits - shiftAmount;
+            imageData->nextBits <<= shiftAmount;
+        }
+        
+        imageData->currentBits = currentBits;
+        
+        // Extract first flag bit
+        currentBits = imageData->currentBits;
+        uint32_t flagBit1 = currentBits >> 31;
+        imageData->currentBits = (currentBits << 1) | (imageData->nextBits >> 31);
+        
+        // Update bit buffer
+        if (imageData->remainingBits > 0) {
+            imageData->nextBits <<= 1;
+            imageData->remainingBits--;
+        } else {
+            if (imageData->DataPos != imageData->EndPos) {
+                uint32_t newData = *imageData->DataPos++;
+                imageData->currentBits |= newData >> 31;
+                imageData->nextBits = newData << 1;
+                imageData->remainingBits = 31;
+            } else {
+                imageData->nextBits = 0;
+                imageData->remainingBits = 0;
+            }
+        }
+        
+        uint32_t colorIndex = flagBit1;
+        
+        // If first flag bit was set, read another bit
+        if (flagBit1 != 0) {
+            currentBits = imageData->currentBits;
+            uint32_t flagBit2 = currentBits >> 31;
+            imageData->currentBits = (currentBits << 1) | (imageData->nextBits >> 31);
+            
+            if (imageData->remainingBits > 0) {
+                imageData->nextBits <<= 1;
+                imageData->remainingBits--;
+            } else {
+                if (imageData->DataPos != imageData->EndPos) {
+                    uint32_t newData = *imageData->DataPos++;
+                    imageData->currentBits |= newData >> 31;
+                    imageData->nextBits = newData << 1;
+                    imageData->remainingBits = 31;
+                } else {
+                    imageData->nextBits = 0;
+                    imageData->remainingBits = 0;
+                }
+            }
+            
+            colorIndex = flagBit1 + flagBit2;
+        }
+        
+        // Process blocks
+        while (bitsToRead > 0 && blockIndex < blockCount) {
+            uint32_t bitMask = 1u << (blockIndex & 0x1F);
+            uint32_t arrayIndex = blockIndex >> 5;
+            
+            // Check if this block needs processing
+            if ((dcmpBuffer2[arrayIndex] & bitMask) == 0) {
+                if (colorIndex != 0) {
+                    // Write color data to output
+                    outBuffer[0] = colorTable[colorIndex * 2];
+                    outBuffer[1] = colorTable[colorIndex * 2 + 1];
+                    // Mark block as processed in dcmpBuffer1
+                    dcmpBuffer1[arrayIndex] |= bitMask;
+                }
+                bitsToRead--;
+            }
+            
+            blockIndex++;
+            outBuffer += blockSize;
+        }
+        
+        // Skip already processed blocks
+        while (blockIndex < blockCount) {
+            uint32_t bitMask = 1u << (blockIndex & 0x1F);
+            uint32_t arrayIndex = blockIndex >> 5;
+            
+            if ((dcmpBuffer2[arrayIndex] & bitMask) == 0) {
+                break;
+            }
+            
+            blockIndex++;
+            outBuffer += blockSize;
+        }
     }
 }
 
-void AtexSubCode1_Asm(uint32_t* array1, uint32_t* array2, unsigned int count)
+// C++ implementation of AtexSubCode4
+void AtexSubCode4_Cpp(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2,
+                      SImageData* imageData, unsigned int blockCount, unsigned int blockSize)
 {
-    __asm {
-        mov ecx, array1
-        mov edx, array2
-        push count
-        call AtexSubCode1
+    if (blockCount == 0) {
+        return;
     }
-}
 
-void __declspec(naked) AtexSubCode2()
-{
-    __asm {
-        push    ebp
-        mov ebp, esp
-
-        sub esp, 10h
-        mov eax, [ebp + 0x10]
-        push    ebx
-        push    esi
-        push    edi
-        xor edi, edi
-        mov[ebp + -0x10], edx
-        test    eax, eax
-        mov[ebp + -0x4], ecx
-        jz  loc_610581
-        mov esi, [ebp + 0x0c]
-
-        loc_6103BF:
-        mov eax, [esi + 0Ch]
-            xor ecx, ecx
-            shr eax, 1Ah
-            xor ebx, ebx
-            mov cl, ds : byte_79053D[eax * 2]
-            mov bl, ds : byte_79053C[eax * 2]
-            inc ecx
-            cmp ebx, 20h
-            mov[ebp + 0x0c], ecx
-            jb  short loc_6103F1
-            ; -------------------------------------------------------------------------- -
-
-            loc_6103F1:
-        test    ebx, ebx
-            jz  short loc_61040D
-            mov eax, [esi + 10h]
-            mov edx, [esi + 0Ch]
-            mov ecx, 20h
-            sub ecx, ebx
-            shr eax, cl
-            mov ecx, ebx
-            shl edx, cl
-            or eax, edx
-            mov[esi + 0Ch], eax
-
-            loc_61040D :
-        mov eax, [esi + 8]
-            cmp ebx, eax
-            mov[ebp + -0x8], eax
-            ja  short loc_610425
-            mov edx, [esi + 10h]
-            mov ecx, ebx
-            shl edx, cl
-            sub eax, ebx
-            mov[esi + 10h], edx
-            jmp short loc_610460
-            ; -------------------------------------------------------------------------- -
-
-            loc_610425:
-        mov ecx, [esi]
-            mov edx, [esi + 4]
-            cmp ecx, edx
-            jz  short loc_61045B
-            mov edx, [ecx]
-            add ecx, 4
-            sub eax, ebx
-            mov[esi], ecx
-            mov[esi + 10h], edx
-            lea ecx, [eax + 20h]
-            mov eax, edx
-            shr edx, cl
-            mov[ebp + -0xC], ecx
-            mov ecx, [esi + 0Ch]
-            or ecx, edx
-            mov[esi + 0Ch], ecx
-            mov ecx, ebx
-            sub ecx, [ebp + -0x8]
-            shl eax, cl
-            mov[esi + 10h], eax
-            mov eax, [ebp + -0xC]
-            jmp short loc_610460
-            ; -------------------------------------------------------------------------- -
-
-            loc_61045B:
-        xor eax, eax
-            mov[esi + 10h], eax
-
-            loc_610460 :
-        mov ecx, [esi + 10h]
-            mov[esi + 8], eax
-            mov eax, [esi + 0Ch]
-            mov edx, ecx
-            mov ebx, eax
-            add eax, eax
-            shr edx, 1Fh
-            or edx, eax
-            mov[esi + 0Ch], edx
-            mov edx, [esi + 8]
-            shr ebx, 1Fh
-            cmp edx, 1
-            mov[ebp + -0x8], ebx
-            jb  short loc_610490
-            add ecx, ecx
-            dec edx
-            mov[esi + 10h], ecx
-            mov[esi + 8], edx
-            jmp short loc_6104D7
-            ; -------------------------------------------------------------------------- -
-
-            loc_610490:
-        mov eax, [esi]
-            mov ecx, [esi + 4]
-            cmp eax, ecx
-            jz  short loc_6104CF
-            mov ecx, [eax]
-            add eax, 4
-            mov[esi + 10h], ecx
-            mov[esi], eax
-            mov eax, [esi + 10h]
-            lea ecx, [edx + 1Fh]
-            mov ebx, eax
-            mov[ebp + -0xC], ecx
-            shr ebx, cl
-            mov ecx, [esi + 0Ch]
-            or ecx, ebx
-            mov ebx, [ebp + -0x8]
-            mov[esi + 0Ch], ecx
-            mov ecx, 1
-            sub ecx, edx
-            mov edx, [ebp + -0xC]
-            shl eax, cl
-            mov[esi + 8], edx
-            mov[esi + 10h], eax
-            jmp short loc_6104D7
-            ; -------------------------------------------------------------------------- -
-
-            loc_6104CF:
-        xor eax, eax
-            mov[esi + 10h], eax
-            mov[esi + 8], eax
-
-            loc_6104D7 :
-        mov eax, [ebp + 0x0c]
-            test    eax, eax
-            jz  short loc_610546
-            ; -------------------------------------------------------------------------- -
-
-            loc_6104DE:
-        cmp edi, [ebp + 0x10]
-            jz  loc_610581
-            mov ecx, edi
-            mov eax, edi
-            and ecx, 1Fh
-            mov edx, 1
-            shr eax, 5
-            shl edx, cl
-            mov ecx, [ebp + 0x08]
-            shl eax, 2
-            mov ecx, [eax + ecx]
-            test    edx, ecx
-            jnz short loc_610532
-            test    ebx, ebx
-            jz  short loc_61052F
-            mov ebx, [ebp + -0x4]
-            or ecx, edx
-            mov dword ptr[ebx], 0FFFFFFFEh
-            mov dword ptr[ebx + 4], 0FFFFFFFFh
-            mov ebx, [ebp + 0x08]
-            mov[eax + ebx], ecx
-            mov ecx, [ebp + -0x10]
-            mov ebx, [eax + ecx]
-            or ebx, edx
-            mov[eax + ecx], ebx
-            mov ebx, [ebp + -0x8]
-
-            loc_61052F:
-        dec[ebp + 0x0c]
-
-            loc_610532 :
-            mov edx, [ebp + -0x4]
-            mov eax, [ebp + 0x14]
-            inc edi
-            lea ecx, [edx + eax * 4]
-            mov eax, [ebp + 0x0c]
-            test    eax, eax
-            mov[ebp + -0x4], ecx
-            jnz short loc_6104DE
-            ; -------------------------------------------------------------------------- -
-
-            loc_610546:
-        mov eax, [ebp + 0x10]
-            cmp edi, eax
-            jz  short loc_610581
-            ; -------------------------------------------------------------------------- -
-
-            loc_61054D:
-        mov ebx, [ebp + 0x08]
-            mov ecx, edi
-            and ecx, 1Fh
-            mov edx, 1
-            shl edx, cl
-            mov ecx, edi
-            shr ecx, 5
-            test[ebx + ecx * 4], edx
-            jz  short loc_610579
-            mov edx, [ebp + 0x14]
-            mov ecx, [ebp + -0x4]
-            inc edi
-            lea edx, [ecx + edx * 4]
-            cmp edi, eax
-            mov[ebp + -0x4], edx
-            jz  short loc_610581
-            jmp short loc_61054D
-            ; -------------------------------------------------------------------------- -
-
-            loc_610579:
-        cmp edi, eax
-            jnz loc_6103BF
-            ; -------------------------------------------------------------------------- -
-
-            loc_610581:
-        pop edi
-            pop esi
-            pop ebx
-
-            mov esp, ebp
-            pop ebp
-
-            retn    10h
+    // Extract 8 bits from the bit stream (vs 4 bits in SubCode3)
+    uint32_t nextBits = imageData->nextBits;
+    uint32_t currentBits = imageData->currentBits;
+    uint32_t remainingBits = imageData->remainingBits;
+    
+    uint32_t extractedBits = (currentBits >> 24) & 0xFF;
+    currentBits = (currentBits << 8) | (nextBits >> 24);
+    
+    // Refill bit buffer if needed
+    if (remainingBits < 8) {
+        if (imageData->DataPos != imageData->EndPos) {
+            uint32_t newData = *imageData->DataPos++;
+            currentBits |= newData >> (remainingBits + 24);
+            nextBits = newData << (8 - remainingBits);
+            remainingBits += 24;
+        } else {
+            nextBits = 0;
+            remainingBits = 0;
+        }
+    } else {
+        nextBits <<= 8;
+        remainingBits -= 8;
     }
-}
-
-void AtexSubCode2_Asm(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize)
-{
-    __asm {
-        mov ecx, outBuffer
-        mov edx, dcmpBuffer1
-        push blockSize
-        push blockCount
-        push imageData
-        push dcmpBuffer2
-        call AtexSubCode2
-    }
-}
-
-void __declspec(naked) AtexSubCode3()
-{
-    __asm {
-        push    ebp
-        mov ebp, esp
-
-        sub esp, 2Ch
-        push    ebx
-        push    esi
-        mov esi, [ebp + 0x0c]
-        mov[ebp + -0x4], ecx
-        push    edi
-        mov[ebp + -0x14], edx
-        mov ecx, [esi + 10h]
-        mov eax, [esi + 0Ch]
-        mov edi, ecx
-        mov edx, eax
-        shr edi, 1Ch
-        shl eax, 4
-        or edi, eax
-        mov eax, [esi + 8]
-        shr edx, 1Ch
-        cmp eax, 4
-        mov[esi + 0Ch], edi
-        jb  short loc_60F932
-        shl ecx, 4
-        add eax, 0FFFFFFFCh
-        mov[esi + 10h], ecx
-        mov[esi + 8], eax
-        xor ebx, ebx
-        jmp short loc_60F975
-        ; -------------------------------------------------------------------------- -
-
-        loc_60F932:
-        mov ecx, [esi]
-            mov edi, [esi + 4]
-            cmp ecx, edi
-            jz  short loc_60F96D
-            mov edi, [ecx]
-            add ecx, 4
-            mov[esi], ecx
-            lea ecx, [eax + 1Ch]
-            mov ebx, edi
-            mov[ebp + 0x0c], ecx
-            shr ebx, cl
-            mov ecx, [esi + 0Ch]
-            mov[esi + 10h], edi
-            or ecx, ebx
-            mov[esi + 0Ch], ecx
-            mov ecx, 4
-            sub ecx, eax
-            mov eax, [ebp + 0x0c]
-            shl edi, cl
-            mov[esi + 8], eax
-            xor ebx, ebx
-            mov[esi + 10h], edi
-            jmp short loc_60F975
-            ; -------------------------------------------------------------------------- -
-
-            loc_60F96D:
-        xor ebx, ebx
-            mov[esi + 10h], ebx
-            mov[esi + 8], ebx
-
-            loc_60F975 :
-        mov eax, edx
-            mov[ebp + -0x24], ebx
-            shl eax, 4
-            or eax, edx
-            mov[ebp + -0x20], ebx
-            mov ecx, eax
-            shl ecx, 8
-            or eax, ecx
-            mov edx, eax
-            shl edx, 10h
-            or eax, edx
-            mov[ebp + -0x1C], eax
-            mov[ebp + -0x18], eax
-            cmp[ebp + 0x10], ebx
-            jz  loc_60FBDE
-            ; -------------------------------------------------------------------------- -
-
-            loc_60F99F:
-        mov eax, [esi + 0Ch]
-            xor ecx, ecx
-            shr eax, 1Ah
-            mov cl, ds : byte_79053D[eax * 2]
-            inc ecx
-            mov[ebp + 0x0c], ecx
-            xor ecx, ecx
-            mov cl, ds : byte_79053C[eax * 2]
-            mov edi, ecx
-            cmp edi, 20h
-            jb  short loc_60F9D3
-            ; -------------------------------------------------------------------------- -
-
-            loc_60F9D3:
-        test    edi, edi
-            jz  short loc_60F9EF
-            mov edx, [esi + 10h]
-            mov eax, [esi + 0Ch]
-            mov ecx, 20h
-            sub ecx, edi
-            shr edx, cl
-            mov ecx, edi
-            shl eax, cl
-            or edx, eax
-            mov[esi + 0Ch], edx
-
-            loc_60F9EF :
-        mov eax, [esi + 8]
-            cmp edi, eax
-            mov[ebp + -0xC], eax
-            ja  short loc_60FA07
-            mov edx, [esi + 10h]
-            mov ecx, edi
-            shl edx, cl
-            sub eax, edi
-            mov[esi + 10h], edx
-            jmp short loc_60FA42
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FA07:
-        mov ecx, [esi]
-            mov edx, [esi + 4]
-            cmp ecx, edx
-            jz  short loc_60FA3D
-            mov edx, [ecx]
-            add ecx, 4
-            sub eax, edi
-            mov[esi], ecx
-            mov[esi + 10h], edx
-            lea ecx, [eax + 20h]
-            mov eax, edx
-            shr edx, cl
-            mov[ebp + -0x8], ecx
-            mov ecx, [esi + 0Ch]
-            or ecx, edx
-            mov[esi + 0Ch], ecx
-            mov ecx, edi
-            sub ecx, [ebp + -0xC]
-            shl eax, cl
-            mov[esi + 10h], eax
-            mov eax, [ebp + -0x8]
-            jmp short loc_60FA42
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FA3D:
-        xor eax, eax
-            mov[esi + 10h], eax
-
-            loc_60FA42 :
-        mov ecx, [esi + 10h]
-            mov[esi + 8], eax
-            mov eax, [esi + 0Ch]
-            mov edi, ecx
-            mov edx, eax
-            add eax, eax
-            shr edi, 1Fh
-            or edi, eax
-            mov[esi + 0Ch], edi
-            mov edi, [esi + 8]
-            shr edx, 1Fh
-            cmp edi, 1
-            mov[ebp + -0xC], edx
-            jb  short loc_60FA72
-            add ecx, ecx
-            dec edi
-            mov[esi + 10h], ecx
-            mov[esi + 8], edi
-            jmp short loc_60FAB6
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FA72:
-        mov eax, [esi]
-            mov ecx, [esi + 4]
-            cmp eax, ecx
-            jz  short loc_60FAAE
-            mov edx, [eax]
-            add eax, 4
-            mov[esi], eax
-            lea ecx, [edi + 1Fh]
-            mov[esi + 10h], edx
-            mov eax, edx
-            shr edx, cl
-            mov[ebp + -0x8], ecx
-            mov ecx, [esi + 0Ch]
-            or ecx, edx
-            mov edx, [ebp + -0xC]
-            mov[esi + 0Ch], ecx
-            mov ecx, 1
-            sub ecx, edi
-            shl eax, cl
-            mov[esi + 10h], eax
-            mov eax, [ebp + -0x8]
-            mov[esi + 8], eax
-            jmp short loc_60FAB6
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FAAE:
-        xor eax, eax
-            mov[esi + 10h], eax
-            mov[esi + 8], eax
-
-            loc_60FAB6 :
-        mov edi, edx
-            test    edx, edx
-            mov[ebp + -0x8], edi
-            jz  short loc_60FB3B
-            mov eax, [esi + 0Ch]
-            mov edi, [esi + 10h]
-            mov ecx, eax
-            add eax, eax
-            shr edi, 1Fh
-            or edi, eax
-            mov[esi + 0Ch], edi
-            mov edi, [esi + 8]
-            shr ecx, 1Fh
-            cmp edi, 1
-            mov[ebp + -0x10], ecx
-            jb  short loc_60FAED
-            mov eax, [esi + 10h]
-            add eax, eax
-            dec edi
-            mov[esi + 10h], eax
-            mov[esi + 8], edi
-            jmp short loc_60FB35
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FAED:
-        mov eax, [esi]
-            cmp eax, [esi + 4]
-            jz  short loc_60FB2D
-            mov ecx, [eax]
-            add eax, 4
-            mov[esi + 10h], ecx
-            mov[esi], eax
-            mov eax, [esi + 10h]
-            lea ecx, [edi + 1Fh]
-            mov edx, eax
-            mov[ebp + -0x8], ecx
-            shr edx, cl
-            mov ecx, [esi + 0Ch]
-            or ecx, edx
-            mov edx, [ebp + -0xC]
-            mov[esi + 0Ch], ecx
-            mov ecx, 1
-            sub ecx, edi
-            shl eax, cl
-            mov ecx, [ebp + -0x10]
-            mov[esi + 10h], eax
-            mov eax, [ebp + -0x8]
-            mov[esi + 8], eax
-            jmp short loc_60FB35
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FB2D:
-        xor eax, eax
-            mov[esi + 10h], eax
-            mov[esi + 8], eax
-
-            loc_60FB35 :
-        lea edi, [ecx + edx]
-            mov[ebp + -0x8], edi
-
-            loc_60FB3B :
-        mov eax, [ebp + 0x0c]
-            test    eax, eax
-            jz  short loc_60FBA3
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FB42:
-        cmp ebx, [ebp + 0x10]
-            jz  loc_60FBDE
-            mov ecx, ebx
-            mov edx, 1
-            and ecx, 1Fh
-            mov eax, ebx
-            shl edx, cl
-            mov ecx, [ebp + 0x08]
-            shr eax, 5
-            shl eax, 2
-            test[eax + ecx], edx
-            jnz short loc_60FB8F
-            test    edi, edi
-            jz  short loc_60FB8C
-            mov ecx, [ebp + -0x4]
-            mov edi, [ebp + edi * 8 + -0x2C]
-            mov[ecx], edi
-            mov edi, [ebp + -0x8]
-            mov edi, [ebp + edi * 8 + -0x28]
-            mov[ecx + 4], edi
-            mov ecx, [ebp + -0x14]
-            mov edi, [eax + ecx]
-            or edi, edx
-            mov[eax + ecx], edi
-            mov edi, [ebp + -0x8]
-
-            loc_60FB8C:
-        dec[ebp + 0x0c]
-
-            loc_60FB8F :
-            mov edx, [ebp + 0x14]
-            mov eax, [ebp + -0x4]
-            inc ebx
-            lea ecx, [eax + edx * 4]
-            mov eax, [ebp + 0x0c]
-            test    eax, eax
-            mov[ebp + -0x4], ecx
-            jnz short loc_60FB42
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FBA3:
-        mov eax, [ebp + 0x10]
-            cmp ebx, eax
-            jz  short loc_60FBDE
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FBAA:
-        mov edi, [ebp + 0x08]
-            mov ecx, ebx
-            and ecx, 1Fh
-            mov edx, 1
-            shl edx, cl
-            mov ecx, ebx
-            shr ecx, 5
-            test[edi + ecx * 4], edx
-            jz  short loc_60FBD6
-            mov edx, [ebp + 0x14]
-            mov ecx, [ebp + -0x4]
-            inc ebx
-            lea edx, [ecx + edx * 4]
-            cmp ebx, eax
-            mov[ebp + -0x4], edx
-            jz  short loc_60FBDE
-            jmp short loc_60FBAA
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FBD6:
-        cmp ebx, eax
-            jnz loc_60F99F
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FBDE:
-        pop edi
-            pop esi
-            pop ebx
-
-            mov esp, ebp
-            pop ebp
-
-            retn    10h
-    }
-}
-
-void AtexSubCode3_Asm(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize)
-{
-    __asm {
-        mov ecx, outBuffer
-        mov edx, dcmpBuffer1
-        push blockSize
-        push blockCount
-        push imageData
-        push dcmpBuffer2
-        call AtexSubCode3
-    }
-}
-
-void __declspec(naked) AtexSubCode4()
-{
-    __asm {
-        push    ebp
-        mov ebp, esp
-
-        sub esp, 2Ch
-        push    ebx
-        push    esi
-        mov esi, [ebp + 0x0c]
-        mov[ebp + -0x4], ecx
-        mov[ebp + -0x14], edx
-        push    edi
-        mov ecx, [esi + 10h]
-        mov eax, [esi + 0Ch]
-        mov edx, ecx
-        mov edi, eax
-        shr edx, 18h
-        shl eax, 8
-        or edx, eax
-        mov eax, [esi + 8]
-        shr edi, 18h
-        cmp eax, 8
-        mov[esi + 0Ch], edx
-        jb  short loc_60FC2D
-        shl ecx, 8
-        mov[esi + 10h], ecx
-        add eax, 0FFFFFFF8h
-        jmp short loc_60FC68
-        ; -------------------------------------------------------------------------- -
-
-        loc_60FC2D:
-        mov ecx, [esi]
-            mov edx, [esi + 4]
-            cmp ecx, edx
-            jz  short loc_60FC63
-            mov edx, [ecx]
-            add ecx, 4
-            mov[esi], ecx
-            lea ecx, [eax + 18h]
-            mov ebx, edx
-            mov[ebp + 0x0c], ecx
-            shr ebx, cl
-            mov ecx, [esi + 0Ch]
-            mov[esi + 10h], edx
-            or ecx, ebx
-            mov[esi + 0Ch], ecx
-            mov ecx, 8
-            sub ecx, eax
-            mov eax, [ebp + 0x0c]
-            shl edx, cl
-            mov[esi + 10h], edx
-            jmp short loc_60FC68
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FC63:
-        xor eax, eax
-            mov[esi + 10h], eax
-
-            loc_60FC68 :
-        mov ecx, edi
-            mov[esi + 8], eax
-            mov eax, [ebp + 0x10]
-            xor ebx, ebx
-            shl ecx, 8
-            or ecx, edi
-            cmp eax, ebx
-            mov[ebp + -0x24], ebx
-            mov[ebp + -0x20], ebx
-            mov[ebp + -0x1C], ecx
-            mov[ebp + -0x18], ebx
-            jz  loc_60FECA
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FC8B:
-        mov eax, [esi + 0Ch]
-            xor edx, edx
-            shr eax, 1Ah
-            xor ecx, ecx
-            mov dl, ds : byte_79053C[eax * 2]
-            mov cl, ds : byte_79053D[eax * 2]
-            mov edi, edx
-            inc ecx
-            cmp edi, 20h
-            mov[ebp + 0x0c], ecx
-            jb  short loc_60FCBF
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FCBF:
-        test    edi, edi
-            jz  short loc_60FCDB
-            mov eax, [esi + 10h]
-            mov edx, [esi + 0Ch]
-            mov ecx, 20h
-            sub ecx, edi
-            shr eax, cl
-            mov ecx, edi
-            shl edx, cl
-            or eax, edx
-            mov[esi + 0Ch], eax
-
-            loc_60FCDB :
-        mov eax, [esi + 8]
-            cmp edi, eax
-            mov[ebp + -0xC], eax
-            ja  short loc_60FCF3
-            mov edx, [esi + 10h]
-            mov ecx, edi
-            shl edx, cl
-            sub eax, edi
-            mov[esi + 10h], edx
-            jmp short loc_60FD2E
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FCF3:
-        mov ecx, [esi]
-            mov edx, [esi + 4]
-            cmp ecx, edx
-            jz  short loc_60FD29
-            mov edx, [ecx]
-            add ecx, 4
-            sub eax, edi
-            mov[esi], ecx
-            mov[esi + 10h], edx
-            lea ecx, [eax + 20h]
-            mov eax, edx
-            shr edx, cl
-            mov[ebp + -0x8], ecx
-            mov ecx, [esi + 0Ch]
-            or ecx, edx
-            mov[esi + 0Ch], ecx
-            mov ecx, edi
-            sub ecx, [ebp + -0xC]
-            shl eax, cl
-            mov[esi + 10h], eax
-            mov eax, [ebp + -0x8]
-            jmp short loc_60FD2E
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FD29:
-        xor eax, eax
-            mov[esi + 10h], eax
-
-            loc_60FD2E :
-        mov ecx, [esi + 10h]
-            mov[esi + 8], eax
-            mov eax, [esi + 0Ch]
-            mov edi, ecx
-            mov edx, eax
-            add eax, eax
-            shr edi, 1Fh
-            or edi, eax
-            mov[esi + 0Ch], edi
-            mov edi, [esi + 8]
-            shr edx, 1Fh
-            cmp edi, 1
-            mov[ebp + -0xC], edx
-            jb  short loc_60FD5E
-            add ecx, ecx
-            dec edi
-            mov[esi + 10h], ecx
-            mov[esi + 8], edi
-            jmp short loc_60FDA2
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FD5E:
-        mov eax, [esi]
-            mov ecx, [esi + 4]
-            cmp eax, ecx
-            jz  short loc_60FD9A
-            mov edx, [eax]
-            add eax, 4
-            mov[esi], eax
-            lea ecx, [edi + 1Fh]
-            mov[esi + 10h], edx
-            mov eax, edx
-            shr edx, cl
-            mov[ebp + -0x8], ecx
-            mov ecx, [esi + 0Ch]
-            or ecx, edx
-            mov edx, [ebp + -0xC]
-            mov[esi + 0Ch], ecx
-            mov ecx, 1
-            sub ecx, edi
-            shl eax, cl
-            mov[esi + 10h], eax
-            mov eax, [ebp + -0x8]
-            mov[esi + 8], eax
-            jmp short loc_60FDA2
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FD9A:
-        xor eax, eax
-            mov[esi + 10h], eax
-            mov[esi + 8], eax
-
-            loc_60FDA2 :
-        mov edi, edx
-            test    edx, edx
-            mov[ebp + -0x8], edi
-            jz  short loc_60FE27
-            mov eax, [esi + 0Ch]
-            mov edi, [esi + 10h]
-            mov ecx, eax
-            add eax, eax
-            shr edi, 1Fh
-            or edi, eax
-            mov[esi + 0Ch], edi
-            mov edi, [esi + 8]
-            shr ecx, 1Fh
-            cmp edi, 1
-            mov[ebp + -0x10], ecx
-            jb  short loc_60FDD9
-            mov eax, [esi + 10h]
-            add eax, eax
-            dec edi
-            mov[esi + 10h], eax
-            mov[esi + 8], edi
-            jmp short loc_60FE21
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FDD9:
-        mov eax, [esi]
-            cmp eax, [esi + 4]
-            jz  short loc_60FE19
-            mov ecx, [eax]
-            add eax, 4
-            mov[esi + 10h], ecx
-            mov[esi], eax
-            mov eax, [esi + 10h]
-            lea ecx, [edi + 1Fh]
-            mov edx, eax
-            mov[ebp + -0x8], ecx
-            shr edx, cl
-            mov ecx, [esi + 0Ch]
-            or ecx, edx
-            mov edx, [ebp + -0xC]
-            mov[esi + 0Ch], ecx
-            mov ecx, 1
-            sub ecx, edi
-            shl eax, cl
-            mov ecx, [ebp + -0x10]
-            mov[esi + 10h], eax
-            mov eax, [ebp + -0x8]
-            mov[esi + 8], eax
-            jmp short loc_60FE21
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FE19:
-        xor eax, eax
-            mov[esi + 10h], eax
-            mov[esi + 8], eax
-
-            loc_60FE21 :
-        lea edi, [ecx + edx]
-            mov[ebp + -0x8], edi
-
-            loc_60FE27 :
-        mov eax, [ebp + 0x0c]
-            test    eax, eax
-            jz  short loc_60FE8F
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FE2E:
-        cmp ebx, [ebp + 0x10]
-            jz  loc_60FECA
-            mov ecx, ebx
-            mov edx, 1
-            and ecx, 1Fh
-            mov eax, ebx
-            shl edx, cl
-            mov ecx, [ebp + 0x08]
-            shr eax, 5
-            shl eax, 2
-            test[eax + ecx], edx
-            jnz short loc_60FE7B
-            test    edi, edi
-            jz  short loc_60FE78
-            mov ecx, [ebp + -0x4]
-            mov edi, [ebp + edi * 8 + -0x2C]
-            mov[ecx], edi
-            mov edi, [ebp + -0x8]
-            mov edi, [ebp + edi * 8 + -0x28]
-            mov[ecx + 4], edi
-            mov ecx, [ebp + -0x14]
-            mov edi, [eax + ecx]
-            or edi, edx
-            mov[eax + ecx], edi
-            mov edi, [ebp + -0x8]
-
-            loc_60FE78:
-        dec[ebp + 0x0c]
-
-            loc_60FE7B :
-            mov edx, [ebp + 0x14]
-            mov eax, [ebp + -0x4]
-            inc ebx
-            lea ecx, [eax + edx * 4]
-            mov eax, [ebp + 0x0c]
-            test    eax, eax
-            mov[ebp + -0x4], ecx
-            jnz short loc_60FE2E
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FE8F:
-        mov eax, [ebp + 0x10]
-            cmp ebx, eax
-            jz  short loc_60FECA
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FE96:
-        mov edi, [ebp + 0x08]
-            mov ecx, ebx
-            and ecx, 1Fh
-            mov edx, 1
-            shl edx, cl
-            mov ecx, ebx
-            shr ecx, 5
-            test[edi + ecx * 4], edx
-            jz  short loc_60FEC2
-            mov edx, [ebp + 0x14]
-            mov ecx, [ebp + -0x4]
-            inc ebx
-            lea edx, [ecx + edx * 4]
-            cmp ebx, eax
-            mov[ebp + -0x4], edx
-            jz  short loc_60FECA
-            jmp short loc_60FE96
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FEC2:
-        cmp ebx, eax
-            jnz loc_60FC8B
-            ; -------------------------------------------------------------------------- -
-
-            loc_60FECA:
-        pop edi
-            pop esi
-            pop ebx
-            mov esp, ebp
-
-            pop ebp
-            retn    10h
-    }
-}
-
-void AtexSubCode4_Asm(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmpBuffer2, SImageData* imageData, unsigned int blockCount, unsigned int blockSize)
-{
-    __asm {
-        mov ecx, outBuffer
-        mov edx, dcmpBuffer1
-        push blockSize
-        push blockCount
-        push imageData
-        push dcmpBuffer2
-        call AtexSubCode4
+    
+    // Update image data
+    imageData->currentBits = currentBits;
+    imageData->nextBits = nextBits;
+    imageData->remainingBits = remainingBits;
+    
+    // Build color palette
+    // The assembly builds a different pattern from the 8-bit value
+    uint32_t colorPattern = (extractedBits << 8) | extractedBits;
+    
+    // Color table structure
+    uint32_t colorTable[8];
+    colorTable[0] = 0;           // Index 0, word 0 (not used)
+    colorTable[1] = 0;           // Index 0, word 1 (not used)
+    colorTable[2] = 0;           // Index 1, word 0
+    colorTable[3] = 0;           // Index 1, word 1
+    colorTable[4] = colorPattern; // Index 2, word 0
+    colorTable[5] = 0;           // Index 2, word 1
+    colorTable[6] = 0;           // Index 3, word 0
+    colorTable[7] = 0;           // Index 3, word 1
+    
+    unsigned int blockIndex = 0;
+    
+    // Main decompression loop
+    while (blockIndex < blockCount) {
+        // Decode huffman code
+        currentBits = imageData->currentBits;
+        unsigned int shiftIndex = currentBits >> 26;
+        unsigned int bitsToRead = byte_79053D[shiftIndex * 2] + 1;
+        unsigned int shiftAmount = byte_79053C[shiftIndex * 2];
+        
+        // Shift bits
+        if (shiftAmount != 0) {
+            currentBits = (currentBits << shiftAmount) | 
+                         (imageData->nextBits >> (32 - shiftAmount));
+        }
+        
+        // Refill bit buffer if needed
+        remainingBits = imageData->remainingBits;
+        if (shiftAmount > remainingBits) {
+            if (imageData->DataPos != imageData->EndPos) {
+                uint32_t newData = *imageData->DataPos++;
+                currentBits |= newData >> (remainingBits + 32 - shiftAmount);
+                imageData->nextBits = newData << (shiftAmount - remainingBits);
+                imageData->remainingBits = remainingBits + 32 - shiftAmount;
+            } else {
+                imageData->nextBits = 0;
+                imageData->remainingBits = 0;
+            }
+        } else {
+            imageData->remainingBits = remainingBits - shiftAmount;
+            imageData->nextBits <<= shiftAmount;
+        }
+        
+        imageData->currentBits = currentBits;
+        
+        // Extract first flag bit
+        currentBits = imageData->currentBits;
+        uint32_t flagBit1 = currentBits >> 31;
+        imageData->currentBits = (currentBits << 1) | (imageData->nextBits >> 31);
+        
+        // Update bit buffer
+        if (imageData->remainingBits > 0) {
+            imageData->nextBits <<= 1;
+            imageData->remainingBits--;
+        } else {
+            if (imageData->DataPos != imageData->EndPos) {
+                uint32_t newData = *imageData->DataPos++;
+                imageData->currentBits |= newData >> 31;
+                imageData->nextBits = newData << 1;
+                imageData->remainingBits = 31;
+            } else {
+                imageData->nextBits = 0;
+                imageData->remainingBits = 0;
+            }
+        }
+        
+        uint32_t colorIndex = flagBit1;
+        
+        // If first flag bit was set, read another bit
+        if (flagBit1 != 0) {
+            currentBits = imageData->currentBits;
+            uint32_t flagBit2 = currentBits >> 31;
+            imageData->currentBits = (currentBits << 1) | (imageData->nextBits >> 31);
+            
+            if (imageData->remainingBits > 0) {
+                imageData->nextBits <<= 1;
+                imageData->remainingBits--;
+            } else {
+                if (imageData->DataPos != imageData->EndPos) {
+                    uint32_t newData = *imageData->DataPos++;
+                    imageData->currentBits |= newData >> 31;
+                    imageData->nextBits = newData << 1;
+                    imageData->remainingBits = 31;
+                } else {
+                    imageData->nextBits = 0;
+                    imageData->remainingBits = 0;
+                }
+            }
+            
+            colorIndex = flagBit1 + flagBit2;
+        }
+        
+        // Process blocks
+        while (bitsToRead > 0 && blockIndex < blockCount) {
+            uint32_t bitMask = 1u << (blockIndex & 0x1F);
+            uint32_t arrayIndex = blockIndex >> 5;
+            
+            // Check if this block needs processing
+            if ((dcmpBuffer2[arrayIndex] & bitMask) == 0) {
+                if (colorIndex != 0) {
+                    // Write color data to output
+                    outBuffer[0] = colorTable[colorIndex * 2];
+                    outBuffer[1] = colorTable[colorIndex * 2 + 1];
+                    // Mark block as processed in dcmpBuffer1
+                    dcmpBuffer1[arrayIndex] |= bitMask;
+                }
+                bitsToRead--;
+            }
+            
+            blockIndex++;
+            outBuffer += blockSize;
+        }
+        
+        // Skip already processed blocks
+        while (blockIndex < blockCount) {
+            uint32_t bitMask = 1u << (blockIndex & 0x1F);
+            uint32_t arrayIndex = blockIndex >> 5;
+            
+            if ((dcmpBuffer2[arrayIndex] & bitMask) == 0) {
+                break;
+            }
+            
+            blockIndex++;
+            outBuffer += blockSize;
+        }
     }
 }
 
