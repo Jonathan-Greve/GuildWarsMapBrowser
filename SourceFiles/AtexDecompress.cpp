@@ -162,7 +162,7 @@ void AtexDecompress(unsigned int* InputBuffer, unsigned int BufferSize, unsigned
     if (CompressionCode & 0x10 && ImageData.xres == 256 && ImageData.yres == 256 &&
         (ImageFormat == 0x10 || ImageFormat == 0x11))
     {
-        AtexSubCode7_Asm((unsigned int)OutBuffer, BlockCount);
+        AtexSubCode7_Cpp(OutBuffer, BlockCount);
     }
 
     delete[] (unsigned char*)DcmpBuffer1;
