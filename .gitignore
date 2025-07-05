@@ -368,3 +368,5 @@ FodyWeavers.xsd
 /bass.dll
 /SourceFiles/Consolidate-TextFiles.ps1
 /SourceFiles/consolidated_output.txt
+/tinytiff/TinyTIFF-4.0.1.0
+/.claude
