@@ -710,195 +710,132 @@ void AtexSubCode5_Cpp(uint32_t* outBuffer, uint32_t* dcmpBuffer1, uint32_t* dcmp
     }
 }
 
-void __declspec(naked) AtexSubCode7()
+void AtexSubCode7_Cpp(uint32_t* outBuffer, unsigned int blockCount)
 {
-    __asm {
-
-        push    ebp
-        mov ebp, esp
-
-        sub esp, 14h
-        mov eax, edx
-        mov[ebp + -0x8], ecx
-        xor edx, edx
-        mov[ebp + -0x14], eax
-        test    eax, eax
-        mov[ebp + -0x10], ecx
-        mov[ebp + -0xC], edx
-        jbe loc_610392
-        push    ebx
-        push    esi
-        push    edi
-
-        loc_6101D1 :
-        mov eax, edx
-            mov esi, edx
-            and eax, 3Fh
-            mov edi, 1
-            mov ecx, eax
-            mov ebx, 1
-            and ecx, 1Fh
-            shr esi, 6
-            shl edi, cl
-            mov ecx, esi
-            and ecx, 1Fh
-            shl ebx, cl
-            and edi, 0C0000003h
-            and ebx, 0C0000003h
-            test    edi, edi
-            jnz short loc_61020D
-            test    ebx, ebx
-            jz  loc_610377
-            jmp short loc_610210
-            ; -------------------------------------------------------------------------- -
-
-            loc_61020D:
-        xor eax, 3
-
-            loc_610210 :
-            test    ebx, ebx
-            mov[ebp + -0x4], eax
-            jz  short loc_61021A
-            xor esi, 3
-
-            loc_61021A :
-            mov ecx, [ebp + -0x4]
-            mov eax, 1
-            and ecx, 1Fh
-            shl eax, cl
-            test    eax, 0C0000003h
-            jz  short loc_610242
-            ; -------------------------------------------------------------------------- -
-
-            loc_610242:
-        mov ecx, esi
-            mov edx, 1
-            and ecx, 1Fh
-            shl edx, cl
-            test    edx, 0C0000003h
-            jz  short loc_61026A
-            ; -------------------------------------------------------------------------- -
-
-            loc_61026A:
-        mov edx, [ebp + -0x4]
-            mov eax, [ebp + -0x10]
-            shl esi, 6
-            add esi, edx
-            shl esi, 4
-            add esi, eax
-            test    edi, edi
-            mov edx, [esi + 8]
-            mov eax, [esi]
-            mov ecx, [esi + 4]
-            mov[ebp + -0x4], edx
-            mov edx, [esi + 0Ch]
-            jz  loc_610323
-            mov ecx, eax
-            mov esi, eax
-            shr ecx, 8
-            and ecx, 0F000F0h
-            and esi, 0F000F00h
-            or ecx, esi
-            mov esi, eax
-            and esi, 0FFFF000Fh
-            and eax, 0F000F0h
-            shl esi, 8
-            or esi, eax
-            shr ecx, 4
-            shl esi, 4
-            or ecx, esi
-            mov eax, ecx
-            shr ecx, 8
-            mov esi, eax
-            and ecx, 0F000F0h
-            and esi, 0F000F00h
-            mov edi, eax
-            or ecx, esi
-            mov esi, eax
-            and esi, 0FFFF000Fh
-            and edi, 0F000F0h
-            shl esi, 8
-            or esi, edi
-            mov edi, edx
-            shr ecx, 4
-            shl esi, 4
-            or ecx, esi
-            mov esi, edx
-            and esi, 0FF030303h
-            and edi, 0C0C0C0Ch
-            shl esi, 4
-            or esi, edi
-            mov edi, edx
-            shr edi, 4
-            and edi, 0C0C0C0Ch
-            and edx, 30303030h
-            or edi, edx
-            shl esi, 2
-            shr edi, 2
-            or esi, edi
-            mov edx, esi
-
-            loc_610323 :
-        test    ebx, ebx
-            jz  short loc_610363
-            mov esi, eax
-            mov eax, ecx
-            shr eax, 10h
-            shl ecx, 10h
-            or eax, ecx
-            mov ecx, esi
-            shr ecx, 10h
-            shl esi, 10h
-            or ecx, esi
-            mov esi, edx
-            mov edi, edx
-            and esi, 0FF0000h
-            shr edi, 10h
-            or esi, edi
-            mov edi, edx
-            shl edi, 10h
-            and edx, 0FF00h
-            or edi, edx
-            shr esi, 8
-            shl edi, 8
-            or esi, edi
-            mov edx, esi
-
-            loc_610363 :
-        mov esi, [ebp + -0x8]
-            mov[esi], eax
-            mov eax, [ebp + -0x4]
-            mov[esi + 0Ch], edx
-            mov edx, [ebp + -0xC]
-            mov[esi + 4], ecx
-            mov[esi + 8], eax
-
-            loc_610377 :
-        mov ecx, [ebp + -0x8]
-            mov eax, [ebp + -0x14]
-            inc edx
-            add ecx, 10h
-            cmp edx, eax
-            mov[ebp + -0xC], edx
-            mov[ebp + -0x8], ecx
-            jb  loc_6101D1
-            pop edi
-            pop esi
-            pop ebx
-
-            loc_610392 :
-        mov esp, ebp
-            pop ebp
-
-            retn
+    if (blockCount == 0) {
+        return;
     }
-}
 
-void AtexSubCode7_Asm(unsigned int a, unsigned int b)
-{
-    __asm {
-        mov ecx, a
-        mov edx, b
-        call AtexSubCode7
+    // Save the starting address
+    uint32_t* baseBuffer = outBuffer;
+
+    // Process each 16-byte block (4 DWORDs)
+    for (unsigned int blockIdx = 0; blockIdx < blockCount; blockIdx++) {
+        // Calculate position indices
+        unsigned int posLow = blockIdx & 0x3F;         // Low 6 bits
+        unsigned int posHigh = blockIdx >> 6;          // High bits
+
+        // Calculate bit masks for position checks
+        unsigned int maskLow = 1 << (posLow & 0x1F);
+        unsigned int maskHigh = 1 << (posHigh & 0x1F);
+
+        // Check if positions need special handling
+        bool needsLowSwizzle = (maskLow & 0xC0000003) != 0;
+        bool needsHighSwizzle = (maskHigh & 0xC0000003) != 0;
+
+        // Skip this block if neither position needs swizzling
+        if (!needsLowSwizzle && !needsHighSwizzle) {
+            outBuffer += 4;
+            continue;
+        }
+
+        // Adjust positions based on swizzle flags
+        unsigned int srcPosLow = posLow;
+        unsigned int srcPosHigh = posHigh;
+
+        if (needsLowSwizzle) {
+            srcPosLow ^= 3;
+        }
+
+        if (needsHighSwizzle) {
+            srcPosHigh ^= 3;
+        }
+
+        // Calculate source position (the block we're reading FROM)
+        unsigned int srcPos = (srcPosHigh << 6) + srcPosLow;
+
+        // Check if source position is within bounds
+        if (srcPos >= blockCount) {
+            // Out of bounds - skip this block
+            outBuffer += 4;
+            continue;
+        }
+
+        uint32_t* srcPtr = baseBuffer + (srcPos * 4);
+
+        // Read source data
+        uint32_t data0 = srcPtr[0];
+        uint32_t data1 = srcPtr[1];
+        uint32_t data2 = srcPtr[2];
+        uint32_t data3 = srcPtr[3];
+
+        // Apply swizzling transformations
+        if (needsLowSwizzle) {
+            // Complex bit manipulation for low swizzle
+            // This appears to be reordering nibbles within the data
+
+            // First transformation on data0
+            uint32_t temp0 = data0;
+            uint32_t t1 = (temp0 >> 8) & 0x0F000F0;
+            uint32_t t2 = temp0 & 0x0F000F00;
+            uint32_t t3 = t1 | t2;
+
+            uint32_t t4 = temp0 & 0xFFFF000F;
+            uint32_t t5 = temp0 & 0x0F000F0;
+            uint32_t t6 = (t4 << 8) | t5;
+
+            data0 = ((t3 >> 4) | (t6 << 4));
+
+            // Second transformation on data0
+            temp0 = data0;
+            t1 = (temp0 >> 8) & 0x0F000F0;
+            t2 = temp0 & 0x0F000F00;
+            t3 = t1 | t2;
+
+            t4 = temp0 & 0xFFFF000F;
+            t5 = temp0 & 0x0F000F0;
+            t6 = (t4 << 8) | t5;
+
+            data0 = ((t3 >> 4) | (t6 << 4));
+
+            // Transform data3
+            uint32_t temp3 = data3;
+            uint32_t t7 = temp3 & 0xFF030303;
+            uint32_t t8 = temp3 & 0x0C0C0C0C;
+            uint32_t t9 = (t7 << 4) | t8;
+
+            uint32_t t10 = (temp3 >> 4) & 0x0C0C0C0C;
+            uint32_t t11 = temp3 & 0x30303030;
+            uint32_t t12 = t10 | t11;
+
+            data3 = ((t9 << 2) | (t12 >> 2));
+        }
+
+        if (needsHighSwizzle) {
+            // Swap high and low words
+            uint32_t temp0 = data0;
+            data0 = (data1 >> 16) | (data1 << 16);
+            data1 = (temp0 >> 16) | (temp0 << 16);
+
+            // Transform data3 differently for high swizzle
+            uint32_t temp3 = data3;
+            uint32_t t1 = temp3 & 0x00FF0000;
+            uint32_t t2 = temp3 >> 16;
+            uint32_t t3 = t1 | t2;
+
+            uint32_t t4 = temp3 << 16;
+            uint32_t t5 = temp3 & 0x0000FF00;
+            uint32_t t6 = t4 | t5;
+
+            data3 = ((t3 >> 8) | (t6 << 8));
+        }
+
+        // Write transformed data to current position
+        outBuffer[0] = data0;
+        outBuffer[1] = data1;
+        outBuffer[2] = data2;
+        outBuffer[3] = data3;
+
+        outBuffer += 4;
     }
 }
