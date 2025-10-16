@@ -50,7 +50,7 @@ Select props and get info about them, hide/show them or cleanup maps to your pre
 
 
 ## Building
-To build just clone the repository and open the .Sln in Visual Studio. Build in x86 mode (release or debug). Cannot build 64-bit.
+To build just clone the repository and open the .Sln in Visual Studio. It's suggested to build in x86 mode. x64 was recently made possible but the executable runs slower than the 32 bit version
 
 ## Contributing
 See *CONTRIBUTING.MD*
