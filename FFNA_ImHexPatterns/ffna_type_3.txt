@@ -42,10 +42,10 @@ struct PropInfo {
   float f4;
   float f5;
   float f6;
-  float cos_angle; // cos of angle in radians
   float sin_angle; // sin of angle in radians
+  float cos_angle; // cos of angle in radians
   float f9;
-  float f10;
+  float scaling_factor;
   float f11;
   u8 f12;
   u8 num_some_structs;
@@ -246,7 +246,7 @@ struct Chunk8 {
   float some_float2;
   u8 tag1;
   u32 terrain_height_size_bytes;
-  float terrain_height_vertices[terrain_x_dims*terrain_y_dims]; // same as [terrain_height_size_bytes/4]
+  float terrain_heightmap[terrain_x_dims*terrain_y_dims]; // same as [terrain_height_size_bytes/4]
   u8 tag2;
   u32 num_terrain_tiles; // num terrain height vertices
   u8 terrain_texture_indices_maybe[num_terrain_tiles];
@@ -263,15 +263,15 @@ struct Chunk8 {
   u8 some_data5[some_size5];
   u8 tag6;
   u32 num_terrain_tiles1;
-  u8 something_for_each_tile1[num_terrain_tiles1];
+  u8 terrain_shadow_map[num_terrain_tiles1];
   u8 tag7;
   u32 some_size7;
   SomeData8 some_per_32x32_tiles_data[terrain_x_dims*terrain_y_dims / 32 / 32];
   u32 unknown1;
   u8 zero;
-  u8 chunk_data[chunk_size-76-sizeof(terrain_height_vertices)
+  u8 chunk_data[chunk_size-76-sizeof(terrain_heightmap)
     -sizeof(terrain_texture_indices_maybe)-sizeof(some_data3)-sizeof(some_data4)
-    -sizeof(some_data5)-sizeof(something_for_each_tile1)
+    -sizeof(some_data5)-sizeof(terrain_shadow_map)
     -sizeof(some_per_32x32_tiles_data)-5];
 };
 
@@ -280,7 +280,7 @@ struct FileNameWith2Zeros{
   u16 zero;
 };
 
-struct WaterAndSkyFilenamesChunk {
+struct EnvironmentInfoFilenamesChunk {
   u32 chunk_id;
   u32 chunk_size;
   u16 unknown0;
@@ -465,8 +465,8 @@ struct EnvSubChunk6 {
    u8 green_color1;
    u8 red_color1;
    u8 alpha1;
-   u16 water_color_texture;
-   u16 water_distortion_texture;
+   u16 water_color_texture_index;
+   u16 water_distortion_texture_index;
 };
 
 struct EnvSubChunk7 {
@@ -576,7 +576,7 @@ struct Chunk {
    Chunk2 chunk2;
  }
  else if (chunk_id == 0x21000002){
-   Chunk4 terrain_textures_filename;
+   Chunk4 terrain_texture_filenames;
  }
  else if (chunk_id == 0x21000003){
    Chunk4 more_filenames_chunk;
@@ -588,7 +588,7 @@ struct Chunk {
    Chunk2 chunk2;
  }
  else if (chunk_id == 0x21000009){
-   WaterAndSkyFilenamesChunk water_and_sky_chunk;
+   EnvironmentInfoFilenamesChunk environment_info_filenames_chunk;
  }
  else if (chunk_id == 0x20000010){
    ShoreChunk shore_chunk;
@@ -600,7 +600,7 @@ struct Chunk {
    BigChunk big_chunk;
  }
  else if (chunk_id == 0x20000009){
-   EnvironmentInfoChunk env_info_chunk;
+   EnvironmentInfoChunk environment_info_chunk;
  }
  else if (chunk_id == 0x21000012){
    Chunk4 map_audio_related_filenames; // You can change the sound to other maps by changing the data here
