@@ -422,7 +422,11 @@ void MapBrowser::Render()
             case ExtractPanel::AllMapsTopDownOrthographic:
             case ExtractPanel::CurrentMapTopDownOrthographic:
             {
-                m_deviceResources->UpdateOffscreenResources(dim_x * m_extract_panel_info.pixels_per_tile_x, dim_z * m_extract_panel_info.pixels_per_tile_y, (float)dim_x / dim_z);
+                int res_x = dim_x * m_extract_panel_info.pixels_per_tile_x;
+                int res_y = dim_z * m_extract_panel_info.pixels_per_tile_y;
+                float aspectRatio = static_cast<float>(res_x) / static_cast<float>(res_y);
+                // Disable MSAA for exports to allow higher resolution (up to 16384x16384 instead of 8192x8192)
+                m_deviceResources->UpdateOffscreenResources(res_x, res_y, aspectRatio, true);
                 m_map_renderer->SetShouldRenderSky(false);
                 m_map_renderer->SetShouldRenderFog(false);
                 m_map_renderer->SetShouldRenderShadows(false);
@@ -432,8 +436,10 @@ void MapBrowser::Render()
             case ExtractPanel::CurrentMapNoViewChange:
             {
                 int res_x = dim_x * m_extract_panel_info.pixels_per_tile_x;
-                int res_y = res_x / m_map_renderer->GetCamera()->GetAspectRatio();
-                m_deviceResources->UpdateOffscreenResources(res_x, res_y, (float)dim_x / dim_z);
+                float cameraAspectRatio = m_map_renderer->GetCamera()->GetAspectRatio();
+                int res_y = static_cast<int>(res_x / cameraAspectRatio);
+                // Disable MSAA for exports to allow higher resolution
+                m_deviceResources->UpdateOffscreenResources(res_x, res_y, cameraAspectRatio, true);
                 break;
             }
             default:
@@ -460,7 +466,11 @@ void MapBrowser::Render()
             ComPtr<ID3D11Texture2D> resolvedTextureCom;
             ID3D11Texture2D* textureToSave = nullptr;
 
-            if (m_deviceResources->GetMsaaLevelIndex() > 0) {
+            // UpdateOffscreenResources always creates MSAA textures when hardware supports it,
+            // regardless of the user's MSAA setting. So we must always resolve to non-MSAA.
+            D3D11_TEXTURE2D_DESC offscreenDesc;
+            texture->GetDesc(&offscreenDesc);
+            if (offscreenDesc.SampleDesc.Count > 1) {
                 resolvedTextureCom = m_deviceResources->GetOffscreenNonMsaaRenderTarget();
                 m_deviceResources->GetD3DDeviceContext()->ResolveSubresource(
                     resolvedTextureCom.Get(), 0, texture, 0, m_deviceResources->GetBackBufferFormat());
@@ -542,8 +552,8 @@ void MapBrowser::Render()
                 }
             }
 
-            // Release resolved texture if it was used and we added a ref
-            if (textureToSave && m_deviceResources->GetMsaaLevelIndex() == 0) {
+            // Release texture if we added a ref (non-MSAA case)
+            if (textureToSave && offscreenDesc.SampleDesc.Count == 1) {
                 textureToSave->Release();
             }
         }
