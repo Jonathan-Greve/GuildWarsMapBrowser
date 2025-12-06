@@ -15,11 +15,11 @@ struct gwmb_map_vertex
     // Most models have this.
     gwmb_vec3f normal;
 
-    // UV coord
-    gwmb_vec2f uv_coord;
-
-    // Texture index, i.e. which of the textures to use for the tile starting at the top left vertex.
-    int texture_index;
+    // UV coordinates - 4 layers pre-computed during terrain generation
+    gwmb_vec2f uv_coord0;  // Primary texture layer (atlas UV)
+    gwmb_vec2f uv_coord1;  // Secondary texture layer (for blending)
+    gwmb_vec2f uv_coord2;  // Tertiary texture layer
+    gwmb_vec2f uv_coord3;  // Shadow map / local chunk UV
 };
 
 struct gwmb_terrain
@@ -58,16 +58,20 @@ namespace nlohmann {
             j = json{
                 {"pos", mv.pos},
                 {"normal", mv.normal},
-                {"uv_coord", mv.uv_coord},
-                {"texture_index", mv.texture_index}
+                {"uv_coord0", mv.uv_coord0},
+                {"uv_coord1", mv.uv_coord1},
+                {"uv_coord2", mv.uv_coord2},
+                {"uv_coord3", mv.uv_coord3}
             };
         }
 
         static void from_json(const json& j, gwmb_map_vertex& mv) {
             j.at("pos").get_to(mv.pos);
             j.at("normal").get_to(mv.normal);
-            j.at("uv_coord").get_to(mv.uv_coord);
-            j.at("texture_index").get_to(mv.texture_index);
+            j.at("uv_coord0").get_to(mv.uv_coord0);
+            j.at("uv_coord1").get_to(mv.uv_coord1);
+            j.at("uv_coord2").get_to(mv.uv_coord2);
+            j.at("uv_coord3").get_to(mv.uv_coord3);
         }
     };
 
@@ -228,6 +232,15 @@ private:
                 }
             }
 
+            // Insert transparent texture at slot 0 (neutral texture)
+            // The terrain generation uses tex_idx -1 -> atlas_idx 0 for neutral/transparent
+            // and tex_idx 0+ -> atlas_idx 1+ for actual textures
+            DatTexture neutral_texture;
+            neutral_texture.width = 256;
+            neutral_texture.height = 256;
+            neutral_texture.rgba_data.resize(256 * 256, {0, 0, 0, 0}); // Fully transparent
+            terrain_dat_textures.insert(terrain_dat_textures.begin(), neutral_texture);
+
             // Save terrain textures in texture atlas
             int terrain_tex_atlas_tex_id = -1;
             const auto terrain_tex_atlas = texture_manager->BuildTextureAtlas(terrain_dat_textures, 8, 8);
@@ -278,22 +291,20 @@ private:
             map.min_z = terrain->m_bounds.map_min_z;
             map.max_z = terrain->m_bounds.map_max_z;
 
-            const auto& terrain_tex_index_grid = terrain->get_texture_index_grid();
-
             const auto terrain_mesh = terrain->get_mesh();
             new_terrain.vertices.resize(terrain_mesh->vertices.size());
             for (int i = 0; i < terrain_mesh->vertices.size(); i++) {
-                const auto texture_index = terrain_tex_index_grid[terrain->m_grid_dim_z - (i / terrain->m_grid_dim_x) - 1][i % terrain->m_grid_dim_x];
-
-                const auto vertex = terrain_mesh->vertices[i];
+                const auto& vertex = terrain_mesh->vertices[i];
 
                 gwmb_map_vertex new_gwmb_map_vertex;
-                new_gwmb_map_vertex.texture_index = texture_index;
-
-                new_gwmb_map_vertex.normal = { vertex.normal.x, vertex.normal.y, vertex.normal.z };
                 new_gwmb_map_vertex.pos = { vertex.position.x, vertex.position.y, vertex.position.z };
+                new_gwmb_map_vertex.normal = { vertex.normal.x, vertex.normal.y, vertex.normal.z };
 
-                new_gwmb_map_vertex.uv_coord = { vertex.tex_coord0.x , vertex.tex_coord0.y };
+                // Copy all 4 UV coordinates pre-computed during terrain generation
+                new_gwmb_map_vertex.uv_coord0 = { vertex.tex_coord0.x, vertex.tex_coord0.y };
+                new_gwmb_map_vertex.uv_coord1 = { vertex.tex_coord1.x, vertex.tex_coord1.y };
+                new_gwmb_map_vertex.uv_coord2 = { vertex.tex_coord2.x, vertex.tex_coord2.y };
+                new_gwmb_map_vertex.uv_coord3 = { vertex.tex_coord3.x, vertex.tex_coord3.y };
 
                 new_terrain.vertices[i] = new_gwmb_map_vertex;
             }
