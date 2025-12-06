@@ -393,15 +393,6 @@
     <ClInclude Include="SourceFiles\OldModelPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Model</Filter>
     </ClInclude>
-    <ClInclude Include="SourceFiles\TerrainCheckeredPixelShader.h">
-      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\TerrainDefaultPixelShader.h">
-      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\TerrainTexturedPixelShader.h">
-      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\FFNAType.h">
       <Filter>Dat reader\Dat file parsers\Texture</Filter>
     </ClInclude>
@@ -447,9 +438,6 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\MapRenderer.h">
       <Filter>Render\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\TerrainTexturedWithShadowsPixelShader.h">
-      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\PickingPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Picking</Filter>
@@ -552,6 +540,9 @@
       <Filter>GUI\BytePatternSearchPanel</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\TerrainRevPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\TerrainTileCheckerPixelShader.h">
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </ClInclude>
   </ItemGroup>
@@ -910,18 +901,6 @@
     <FxCompile Include="SourceFiles\OldModelPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Model</Filter>
     </FxCompile>
-    <FxCompile Include="SourceFiles\TerrainCheckeredPixelShader.hlsl">
-      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
-    </FxCompile>
-    <FxCompile Include="SourceFiles\TerrainDefaultPixelShader.hlsl">
-      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
-    </FxCompile>
-    <FxCompile Include="SourceFiles\TerrainTexturedPixelShader.hlsl">
-      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
-    </FxCompile>
-    <FxCompile Include="SourceFiles\TerrainTexturedWithShadowsPixelShader.hlsl">
-      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
-    </FxCompile>
     <FxCompile Include="SourceFiles\PickingPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Picking</Filter>
     </FxCompile>
@@ -959,6 +938,9 @@
       <Filter>Render\Shaders\Pixel shaders\Shore</Filter>
     </FxCompile>
     <FxCompile Include="SourceFiles\TerrainRevPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\TerrainTileCheckerPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
   </ItemGroup>

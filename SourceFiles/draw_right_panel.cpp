@@ -95,12 +95,12 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
                 map_renderer->UpdateTerrainTexturePadding(terrain_tex_pad_x, terrain_tex_pad_y);
             }
 
-            int terrain_pixel_shader_type = static_cast<int>(map_renderer->GetTerrainPixelShaderType());
-            if (ImGui::Combo("Terrain pixel shader", &terrain_pixel_shader_type,
-                "Default\0Terrain Default\0Terrain Checkered\0Terrain textured\0Terrain textured /w shadows\0Terrain Rev\0"))
+            // Terrain pixel shader selection
+            int terrain_shader_idx = (map_renderer->GetTerrainPixelShaderType() == PixelShaderType::TerrainTileChecker) ? 1 : 0;
+            if (ImGui::Combo("Terrain shader", &terrain_shader_idx, "Textured\0Tile Checker\0"))
             {
-                map_renderer->SetTerrainPixelShaderType(
-                    static_cast<PixelShaderType>(terrain_pixel_shader_type));
+                PixelShaderType new_shader = (terrain_shader_idx == 1) ? PixelShaderType::TerrainTileChecker : PixelShaderType::TerrainRev;
+                map_renderer->SetTerrainPixelShaderType(new_shader);
             }
 
             if (ImGui::Checkbox("Show sky", &should_render_sky)) {

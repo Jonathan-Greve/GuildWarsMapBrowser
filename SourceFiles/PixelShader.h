@@ -3,10 +3,6 @@
 #include "OldModelPixelShader.h"
 #include "NewModelPixelShader.h"
 #include "PickingPixelShader.h"
-#include "TerrainCheckeredPixelShader.h"
-#include "TerrainDefaultPixelShader.h"
-#include "TerrainTexturedPixelShader.h"
-#include "TerrainTexturedWithShadowsPixelShader.h"
 #include <SkyPixelShader.h>
 #include <CloudsPixelShader.h>
 #include <OldModelShadowMapPixelShader.h>
@@ -18,15 +14,13 @@
 #include <NewModelShadowMapPixelShader.h>
 #include <ShoreWaterPixelShader.h>
 #include "TerrainRevPixelShader.h"
+#include "TerrainTileCheckerPixelShader.h"
 
 enum class PixelShaderType
 {
     Default,
-    TerrainDefault,
-    TerrainCheckered,
-    TerrainTextured,
-    TerrainTexturedWithShadows,
     TerrainRev, // New Reverse Engineered Shader
+    TerrainTileChecker, // Shows 96x96 tile grid as checkerboard
     PickingShader,
     OldModel, // Primarily Prophecies and Factions
     NewModel, // Primarily Nightfall and EotN
@@ -76,29 +70,14 @@ public:
                             nullptr, nullptr, "main", "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(),
                             error_blob.GetAddressOf());
             break;
-        case PixelShaderType::TerrainDefault:
-            hr = D3DCompile(TerrainDefaultPixelShader::shader_ps,
-                            strlen(TerrainDefaultPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
-                            "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
-            break;
-        case PixelShaderType::TerrainCheckered:
-            hr = D3DCompile(TerrainCheckeredPixelShader::shader_ps,
-                            strlen(TerrainCheckeredPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
-                            "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
-            break;
-        case PixelShaderType::TerrainTextured:
-            hr = D3DCompile(TerrainTexturedPixelShader::shader_ps,
-                            strlen(TerrainTexturedPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
-                            "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
-            break;
-        case PixelShaderType::TerrainTexturedWithShadows:
-            hr = D3DCompile(TerrainTexturedWithShadowsPixelShader::shader_ps,
-                            strlen(TerrainTexturedWithShadowsPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
-                            "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
-            break;
         case PixelShaderType::TerrainRev:
             hr = D3DCompile(TerrainRevPixelShader::shader_ps,
                             strlen(TerrainRevPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                            "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
+            break;
+        case PixelShaderType::TerrainTileChecker:
+            hr = D3DCompile(TerrainTileCheckerPixelShader::shader_ps,
+                            strlen(TerrainTileCheckerPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
                             "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         case PixelShaderType::PickingShader:
