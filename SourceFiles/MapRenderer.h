@@ -87,6 +87,13 @@ public:
             m_pixel_shaders[PixelShaderType::TerrainTexturedWithShadows]->Initialize(PixelShaderType::TerrainTexturedWithShadows);
         }
 
+        if (!m_pixel_shaders.contains(PixelShaderType::TerrainRev))
+        {
+            m_pixel_shaders[PixelShaderType::TerrainRev] =
+                std::make_unique<PixelShader>(m_device, m_deviceContext);
+            m_pixel_shaders[PixelShaderType::TerrainRev]->Initialize(PixelShaderType::TerrainRev);
+        }
+
         if (!m_pixel_shaders.contains(PixelShaderType::TerrainTextured))
         {
             m_pixel_shaders[PixelShaderType::TerrainTextured] =
@@ -545,6 +552,14 @@ public:
 
                 m_terrain_current_pixel_shader_type = pixel_shader_type;
             }
+            else if (pixel_shader_type == PixelShaderType::TerrainRev)
+            {
+                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
+                m_mesh_manager->SetTexturesForMesh(
+                    m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_texture_atlas_id) }, 0);
+
+                m_terrain_current_pixel_shader_type = pixel_shader_type;
+            }
             else
             {
                 m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, PixelShaderType::TerrainDefault);
@@ -935,7 +950,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_terrain_cb;
 
     Terrain* m_terrain = nullptr;
-    PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainTexturedWithShadows;
+    PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainRev;
 
     std::map<uint32_t, std::vector<int>> m_prop_mesh_ids;
     std::vector<int> extra_mesh_ids; // For stuff like spheres and boxes.

@@ -551,6 +551,9 @@
     <ClInclude Include="SourceFiles\byte_pattern_search_panel.h">
       <Filter>GUI\BytePatternSearchPanel</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\TerrainRevPixelShader.h">
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DearImGui\imgui.cpp">
@@ -954,6 +957,9 @@
     </FxCompile>
     <FxCompile Include="SourceFiles\ShoreWaterPixelShader.hlsl">
       <Filter>Render\Shaders\Pixel shaders\Shore</Filter>
+    </FxCompile>
+    <FxCompile Include="SourceFiles\TerrainRevPixelShader.hlsl">
+      <Filter>Render\Shaders\Pixel shaders\Terrain</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
