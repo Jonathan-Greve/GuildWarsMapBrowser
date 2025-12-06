@@ -80,13 +80,6 @@ public:
             m_pixel_shaders[PixelShaderType::PickingShader]->Initialize(PixelShaderType::PickingShader);
         }
 
-        if (!m_pixel_shaders.contains(PixelShaderType::TerrainTexturedWithShadows))
-        {
-            m_pixel_shaders[PixelShaderType::TerrainTexturedWithShadows] =
-                std::make_unique<PixelShader>(m_device, m_deviceContext);
-            m_pixel_shaders[PixelShaderType::TerrainTexturedWithShadows]->Initialize(PixelShaderType::TerrainTexturedWithShadows);
-        }
-
         if (!m_pixel_shaders.contains(PixelShaderType::TerrainRev))
         {
             m_pixel_shaders[PixelShaderType::TerrainRev] =
@@ -94,25 +87,11 @@ public:
             m_pixel_shaders[PixelShaderType::TerrainRev]->Initialize(PixelShaderType::TerrainRev);
         }
 
-        if (!m_pixel_shaders.contains(PixelShaderType::TerrainTextured))
+        if (!m_pixel_shaders.contains(PixelShaderType::TerrainTileChecker))
         {
-            m_pixel_shaders[PixelShaderType::TerrainTextured] =
+            m_pixel_shaders[PixelShaderType::TerrainTileChecker] =
                 std::make_unique<PixelShader>(m_device, m_deviceContext);
-            m_pixel_shaders[PixelShaderType::TerrainTextured]->Initialize(PixelShaderType::TerrainTextured);
-        }
-
-        if (!m_pixel_shaders.contains(PixelShaderType::TerrainCheckered))
-        {
-            m_pixel_shaders[PixelShaderType::TerrainCheckered] =
-                std::make_unique<PixelShader>(m_device, m_deviceContext);
-            m_pixel_shaders[PixelShaderType::TerrainCheckered]->Initialize(PixelShaderType::TerrainCheckered);
-        }
-
-        if (!m_pixel_shaders.contains(PixelShaderType::TerrainDefault))
-        {
-            m_pixel_shaders[PixelShaderType::TerrainDefault] =
-                std::make_unique<PixelShader>(m_device, m_deviceContext);
-            m_pixel_shaders[PixelShaderType::TerrainDefault]->Initialize(PixelShaderType::TerrainDefault);
+            m_pixel_shaders[PixelShaderType::TerrainTileChecker]->Initialize(PixelShaderType::TerrainTileChecker);
         }
 
         if (!m_pixel_shaders.contains(PixelShaderType::Sky))
@@ -360,8 +339,7 @@ public:
             m_texture_manager->AddTexture((void*)checkerboard_texture.getData().data(), texture_width,
                 texture_height, DXGI_FORMAT_R8G8B8A8_UNORM, 3214972 + (int)color_choice1 * 20 + (int)color_choice2);
 
-        if (m_terrain_current_pixel_shader_type == PixelShaderType::TerrainCheckered ||
-            m_terrain_texture_atlas_id < 0)
+        if (m_terrain_texture_atlas_id < 0)
         {
             m_mesh_manager->SetTexturesForMesh(
                 m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_checkered_texture_id) }, 0);
@@ -528,43 +506,17 @@ public:
     {
         if (m_is_terrain_mesh_set)
         {
-            if (pixel_shader_type == PixelShaderType::TerrainCheckered && m_terrain_checkered_texture_id >= 0)
+            if (pixel_shader_type == PixelShaderType::TerrainTileChecker)
             {
-                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
-                m_mesh_manager->SetTexturesForMesh(
-                    m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_checkered_texture_id) }, 0);
-
-                m_terrain_current_pixel_shader_type = pixel_shader_type;
-            }
-            else if (pixel_shader_type == PixelShaderType::TerrainTextured)
-            {
-                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
-                m_mesh_manager->SetTexturesForMesh(
-                    m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_texture_atlas_id) }, 0);
-
-                m_terrain_current_pixel_shader_type = pixel_shader_type;
-            }
-            else if (pixel_shader_type == PixelShaderType::TerrainTexturedWithShadows)
-            {
-                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
-                m_mesh_manager->SetTexturesForMesh(
-                    m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_texture_atlas_id) }, 0);
-
-                m_terrain_current_pixel_shader_type = pixel_shader_type;
-            }
-            else if (pixel_shader_type == PixelShaderType::TerrainRev)
-            {
-                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, pixel_shader_type);
-                m_mesh_manager->SetTexturesForMesh(
-                    m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_texture_atlas_id) }, 0);
-
-                m_terrain_current_pixel_shader_type = pixel_shader_type;
+                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, PixelShaderType::TerrainTileChecker);
+                m_terrain_current_pixel_shader_type = PixelShaderType::TerrainTileChecker;
             }
             else
             {
-                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, PixelShaderType::TerrainDefault);
-
-                m_terrain_current_pixel_shader_type = PixelShaderType::TerrainDefault;
+                m_mesh_manager->ChangeMeshPixelShaderType(m_terrain_mesh_id, PixelShaderType::TerrainRev);
+                m_mesh_manager->SetTexturesForMesh(
+                    m_terrain_mesh_id, { m_texture_manager->GetTexture(m_terrain_texture_atlas_id) }, 0);
+                m_terrain_current_pixel_shader_type = PixelShaderType::TerrainRev;
             }
         }
     }
