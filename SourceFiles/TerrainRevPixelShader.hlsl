@@ -120,7 +120,7 @@ PSOutput main(PixelInputType input)
     result = lerp(result, t2, t2.a);
     
     // Apply lighting
-    float4 color = result * input.lightingColor;
+    float4 color = result * 1.4 * input.lightingColor;
     color.a = 1.0f;
 
     bool should_render_shadow = should_render_flags & 1;
