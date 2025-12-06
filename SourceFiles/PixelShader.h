@@ -17,6 +17,7 @@
 #include <NewModelReflectionPixelShader.h>
 #include <NewModelShadowMapPixelShader.h>
 #include <ShoreWaterPixelShader.h>
+#include "TerrainRevPixelShader.h"
 
 enum class PixelShaderType
 {
@@ -25,6 +26,7 @@ enum class PixelShaderType
     TerrainCheckered,
     TerrainTextured,
     TerrainTexturedWithShadows,
+    TerrainRev, // New Reverse Engineered Shader
     PickingShader,
     OldModel, // Primarily Prophecies and Factions
     NewModel, // Primarily Nightfall and EotN
@@ -92,6 +94,11 @@ public:
         case PixelShaderType::TerrainTexturedWithShadows:
             hr = D3DCompile(TerrainTexturedWithShadowsPixelShader::shader_ps,
                             strlen(TerrainTexturedWithShadowsPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
+                            "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
+            break;
+        case PixelShaderType::TerrainRev:
+            hr = D3DCompile(TerrainRevPixelShader::shader_ps,
+                            strlen(TerrainRevPixelShader::shader_ps), nullptr, nullptr, nullptr, "main",
                             "ps_5_0", flags, 0, pixel_shader_blob.GetAddressOf(), error_blob.GetAddressOf());
             break;
         case PixelShaderType::PickingShader:
