@@ -459,6 +459,13 @@ public:
         m_prop_mesh_ids.clear();
     }
 
+    // Unbinds the shadow map SRV from slot 0 to avoid D3D11 validation errors
+    // when switching from map rendering to standalone model rendering
+    void ClearShadowMapBinding() {
+        ID3D11ShaderResourceView* nullSRV = nullptr;
+        m_deviceContext->PSSetShaderResources(0, 1, &nullSRV);
+    }
+
     void SetShore(std::vector<Mesh>& shore_meshes, std::vector<ID3D11ShaderResourceView*> textures, std::vector<PerObjectCB>& object_cbs, PixelShaderType pixel_shader_type)
     {
         m_shore_mesh_ids.clear();

@@ -231,6 +231,10 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 		if (selected_ffna_model_file.parsed_correctly)
 		{
 			map_renderer->UnsetTerrain();
+			// Disable shadows for models when viewing standalone (no terrain = no shadow map)
+			map_renderer->SetShouldRenderShadowsForModels(false);
+			// Clear the shadow map binding from slot 0 to avoid D3D11 validation errors
+			map_renderer->ClearShadowMapBinding();
 			prop_meshes.clear();
 
 			float overallMinX = FLT_MAX, overallMinY = FLT_MAX, overallMinZ = FLT_MAX;
