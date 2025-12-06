@@ -213,16 +213,22 @@ inline std::wstring OpenFileDialog(std::wstring filename, std::wstring fileType)
     ofn.lStructSize = sizeof(OPENFILENAME);
     ofn.hwndOwner = nullptr;
 
-    // prepare the filter string
-    std::wstring filter =
-        fileType + L" Files (*." + fileType + L")\0*." + fileType + L"\0All Files (*.*)\0*.*\0";
-    std::vector<wchar_t> filterNullTerm(filter.begin(), filter.end());
-    filterNullTerm.push_back('\0'); // Ensure null termination
+    // Build filter string with embedded nulls properly
+    // Format: "Description\0Pattern\0Description2\0Pattern2\0\0"
+    std::wstring filterDesc = fileType + L" Files (*." + fileType + L")";
+    std::wstring filterPattern = L"*." + fileType;
 
-    ofn.lpstrFilter = &filterNullTerm[0];
+    std::vector<wchar_t> filterNullTerm;
+    filterNullTerm.insert(filterNullTerm.end(), filterDesc.begin(), filterDesc.end());
+    filterNullTerm.push_back(L'\0');
+    filterNullTerm.insert(filterNullTerm.end(), filterPattern.begin(), filterPattern.end());
+    filterNullTerm.push_back(L'\0');
+    filterNullTerm.push_back(L'\0'); // Double null terminator at end
+
+    ofn.lpstrFilter = filterNullTerm.data();
     ofn.lpstrFile = fileName;
     ofn.nMaxFile = MAX_PATH;
-    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+    ofn.Flags = OFN_EXPLORER | OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
     ofn.lpstrDefExt = fileType.c_str();
 
     if (GetSaveFileName(&ofn))
@@ -249,8 +255,8 @@ inline std::wstring OpenDirectoryDialog()
         hr = pfd->GetOptions(&dwOptions);
         if (SUCCEEDED(hr))
         {
-            // Set the options to pick folders only.
-            hr = pfd->SetOptions(dwOptions | FOS_PICKFOLDERS);
+            // Set the options to pick folders only and don't change the working directory.
+            hr = pfd->SetOptions(dwOptions | FOS_PICKFOLDERS | FOS_NOCHANGEDIR);
             if (SUCCEEDED(hr))
             {
                 // Show the dialog.
