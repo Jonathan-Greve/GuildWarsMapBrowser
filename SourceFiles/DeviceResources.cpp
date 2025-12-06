@@ -250,7 +250,7 @@ void DeviceResources::CreateDeviceResources()
     }
 }
 
-void DeviceResources::UpdateOffscreenResources(int width, int height, float aspecRatio) {
+void DeviceResources::UpdateOffscreenResources(int width, int height, float aspecRatio, bool disableMsaa) {
     m_d3dOffscreenRenderTargetView.Reset();
     m_d3dOffscreenDepthStencilView.Reset();
     m_offscreenDepthStencil.Reset();
@@ -260,33 +260,39 @@ void DeviceResources::UpdateOffscreenResources(int width, int height, float aspe
         ? NoSRGB(m_backBufferFormat)
         : m_backBufferFormat;
 
-    std::vector<UINT> sampleCounts = { 16, 8, 4, 2, 1 };
     UINT msaaLevel = 1;
     UINT msaaQuality = 0;
 
-    // Find the best supported MSAA level
-    for (auto& count : sampleCounts) {
-        UINT qualityLevels;
-        m_d3dDevice->CheckMultisampleQualityLevels(backBufferFormat, count, &qualityLevels);
-        if (qualityLevels > 0) {
-            msaaLevel = count;
-            msaaQuality = qualityLevels - 1;
-            break;
+    // Only use MSAA if not disabled (for high-quality static exports, MSAA is not needed)
+    if (!disableMsaa) {
+        std::vector<UINT> sampleCounts = { 16, 8, 4, 2, 1 };
+        // Find the best supported MSAA level
+        for (auto& count : sampleCounts) {
+            UINT qualityLevels;
+            m_d3dDevice->CheckMultisampleQualityLevels(backBufferFormat, count, &qualityLevels);
+            if (qualityLevels > 0) {
+                msaaLevel = count;
+                msaaQuality = qualityLevels - 1;
+                break;
+            }
         }
     }
 
     // Determine max texture dimension based on MSAA
     const int maxTextureDimension = (msaaLevel > 1) ? 8192 : D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 
-    if (aspecRatio > 1.0f) {
-        width = std::min(width, maxTextureDimension);
-        height = width / aspecRatio;
+    // Clamp dimensions to max supported, maintaining aspect ratio
+    if (width > maxTextureDimension || height > maxTextureDimension) {
+        if (aspecRatio > 1.0f) {
+            width = std::min(width, maxTextureDimension);
+            height = static_cast<int>(width / aspecRatio);
+        }
+        else {
+            height = std::min(height, maxTextureDimension);
+            width = static_cast<int>(height * aspecRatio);
+        }
     }
-    else {
-        height = std::min(height, maxTextureDimension);
-        width = height * aspecRatio;
-    }
-    
+
     width = std::min(width, maxTextureDimension);
     height = std::min(height, maxTextureDimension);
 

@@ -119,6 +119,13 @@ public:
                 context->PSSetShaderResources(slot, m_textures[slot].size(),
                     m_textures[slot].data()->GetAddressOf());
             }
+            else
+            {
+                // Explicitly unbind empty slots to avoid stale SRV bindings
+                // (e.g., shadow map from previous map render causing validation errors)
+                ID3D11ShaderResourceView* nullSRV = nullptr;
+                context->PSSetShaderResources(slot, 1, &nullSRV);
+            }
         }
 
         context->DrawIndexed(num_indices, 0, 0);
