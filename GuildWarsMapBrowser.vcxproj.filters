@@ -369,6 +369,9 @@
     <ClInclude Include="SourceFiles\draw_texture_panel.h">
       <Filter>GUI\TexturePanel</Filter>
     </ClInclude>
+    <ClInclude Include="SourceFiles\draw_pathfinding_panel.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
     <ClInclude Include="SourceFiles\draw_terrain_chunk.h">
       <Filter>GUI\Draw map chunks info</Filter>
     </ClInclude>
@@ -744,6 +747,9 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\draw_texture_panel.cpp">
       <Filter>GUI\TexturePanel</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\draw_pathfinding_panel.cpp">
+      <Filter>GUI</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\draw_terrain_chunk.cpp">
       <Filter>GUI\Draw map chunks info</Filter>
