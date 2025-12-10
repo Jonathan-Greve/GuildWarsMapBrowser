@@ -12,6 +12,7 @@
 #include "draw_picking_info.h"
 #include "draw_dat_compare_panel.h"
 #include "draw_file_info_editor_panel.h"
+#include "draw_pathfinding_panel.h"
 #include <draw_gui_window_controller.h>
 #include <draw_extract_panel.h>
 #include <byte_pattern_search_panel.h>
@@ -78,6 +79,11 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
 				selected_file_type == FFNA_Type2)
 			{
 				draw_texture_panel(map_renderer);
+			}
+
+			if (selected_file_type == FFNA_Type3)
+			{
+				draw_pathfinding_panel(map_renderer);
 			}
 			else if (selected_file_type == AMP || selected_file_type == SOUND)
 			{
