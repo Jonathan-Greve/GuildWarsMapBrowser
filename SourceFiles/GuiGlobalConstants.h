@@ -98,6 +98,38 @@ public:
 		is_window_controller_open = prev_is_window_controller_open;
 	}
 
+	// Method to set the hide_all state and update panels accordingly
+	static void SetHideAll(bool hide)
+	{
+		if (hide)
+		{
+			if (!hide_all) {
+				SaveCurrentStates();
+			}
+			hide_all = true;
+			is_dat_browser_open = false;
+			is_dat_browser_resizeable = false;
+			is_dat_browser_movable = false;
+			is_left_panel_open = false;
+			is_right_panel_open = false;
+			is_hex_editor_open = false;
+			is_text_panel_open = false;
+			is_audio_controller_open = false;
+			is_texture_panel_open = false;
+			is_picking_panel_open = false;
+			is_compare_panel_open = false;
+			is_custom_file_info_editor_open = false;
+			is_extract_panel_open = false;
+			is_byte_search_panel_open = false;
+			is_pathfinding_panel_open = false;
+		}
+		else
+		{
+			RestorePreviousStates();
+			hide_all = false;
+		}
+	}
+
 	// Method to reset all panels to default visibility
 	static void ResetToDefaults()
 	{
