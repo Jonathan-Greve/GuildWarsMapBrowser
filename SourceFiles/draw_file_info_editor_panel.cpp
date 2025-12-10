@@ -431,6 +431,7 @@ bool draw_file_info_editor_panel(std::vector<std::vector<std::string>>& csv_data
 
     if (GuiGlobalConstants::is_custom_file_info_editor_open) {
         if (ImGui::Begin("Custom File Info", &GuiGlobalConstants::is_custom_file_info_editor_open)) {
+            GuiGlobalConstants::ClampWindowToScreen();
 
             if (csv_filepath.empty()) {
                 ImGui::Text("Loaded file: None");

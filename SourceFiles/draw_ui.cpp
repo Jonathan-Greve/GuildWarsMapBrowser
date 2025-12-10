@@ -38,7 +38,64 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
 	}
 	else
 	{
-		draw_gui_window_controller();
+		// Main menu bar
+		if (ImGui::BeginMainMenuBar()) {
+			if (ImGui::BeginMenu("View")) {
+				bool changed = false;
+				changed |= ImGui::MenuItem("DAT Browser", NULL, &GuiGlobalConstants::is_dat_browser_open);
+				changed |= ImGui::MenuItem("Left Panel (File Info)", NULL, &GuiGlobalConstants::is_left_panel_open);
+				changed |= ImGui::MenuItem("Right Panel (Render)", NULL, &GuiGlobalConstants::is_right_panel_open);
+				changed |= ImGui::MenuItem("Window Controller", NULL, &GuiGlobalConstants::is_window_controller_open);
+				ImGui::Separator();
+				changed |= ImGui::MenuItem("Hex Editor", NULL, &GuiGlobalConstants::is_hex_editor_open);
+				changed |= ImGui::MenuItem("Texture Panel", NULL, &GuiGlobalConstants::is_texture_panel_open);
+				changed |= ImGui::MenuItem("Picking Info", NULL, &GuiGlobalConstants::is_picking_panel_open);
+				changed |= ImGui::MenuItem("Pathfinding Map", NULL, &GuiGlobalConstants::is_pathfinding_panel_open);
+				ImGui::Separator();
+				changed |= ImGui::MenuItem("Audio Controller", NULL, &GuiGlobalConstants::is_audio_controller_open);
+				changed |= ImGui::MenuItem("Text Panel", NULL, &GuiGlobalConstants::is_text_panel_open);
+				ImGui::Separator();
+				changed |= ImGui::MenuItem("Extract Panel", NULL, &GuiGlobalConstants::is_extract_panel_open);
+				changed |= ImGui::MenuItem("Compare Panel", NULL, &GuiGlobalConstants::is_compare_panel_open);
+				changed |= ImGui::MenuItem("Byte Search", NULL, &GuiGlobalConstants::is_byte_search_panel_open);
+				changed |= ImGui::MenuItem("Custom File Info", NULL, &GuiGlobalConstants::is_custom_file_info_editor_open);
+				ImGui::Separator();
+				if (ImGui::MenuItem("DAT Browser Movable/Resizeable", NULL, &GuiGlobalConstants::is_dat_browser_movable)) {
+					GuiGlobalConstants::is_dat_browser_resizeable = GuiGlobalConstants::is_dat_browser_movable;
+					changed = true;
+				}
+				if (changed) GuiGlobalConstants::SaveSettings();
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu("Layout")) {
+				if (ImGui::MenuItem("Reset Window Visibility")) {
+					GuiGlobalConstants::ResetToDefaults();
+					GuiGlobalConstants::SaveSettings();
+				}
+				if (ImGui::MenuItem("Reset Window Positions")) {
+					if (ImGui::GetIO().IniFilename) {
+						std::filesystem::remove(ImGui::GetIO().IniFilename);
+					}
+				}
+				ImGui::Separator();
+				if (ImGui::MenuItem("Hide All", NULL, GuiGlobalConstants::hide_all)) {
+					if (GuiGlobalConstants::hide_all) {
+						GuiGlobalConstants::RestorePreviousStates();
+						GuiGlobalConstants::hide_all = false;
+					} else {
+						GuiGlobalConstants::SaveCurrentStates();
+						GuiGlobalConstants::hide_all = true;
+					}
+					GuiGlobalConstants::SaveSettings();
+				}
+				ImGui::EndMenu();
+			}
+			ImGui::EndMainMenuBar();
+		}
+
+		if (GuiGlobalConstants::is_window_controller_open) {
+			draw_gui_window_controller();
+		}
 
 		const auto& initialization_state = dat_managers[dat_manager_to_show]->m_initialization_state;
 		const auto& dat_files_read = dat_managers[dat_manager_to_show]->get_num_files_type_read();
@@ -73,31 +130,12 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
 
 			draw_picking_info(picking_info, map_renderer, dat_managers[dat_manager_to_show].get(), hash_index);
 
-			if (selected_file_type >= ATEXDXT1 && selected_file_type <= ATTXDXTL &&
-				selected_file_type != ATEXDXTA && selected_file_type != ATTXDXTA ||
-				selected_file_type == DDS || selected_file_type == FFNA_Type3 ||
-				selected_file_type == FFNA_Type2)
-			{
-				draw_texture_panel(map_renderer);
-			}
-
-			if (selected_file_type == FFNA_Type3)
-			{
-				draw_pathfinding_panel(map_renderer);
-			}
-			else if (selected_file_type == AMP || selected_file_type == SOUND)
-			{
-				draw_audio_controller_panel(selected_audio_stream_handle);
-			}
-			else if (selected_file_type == TEXT)
-			{
-				draw_text_panel(selected_text_file_str);
-			}
-
-			if (selected_raw_data.size() > 0)
-			{
-				draw_hex_editor_panel(selected_raw_data.data(), selected_raw_data.size());
-			}
+			// Always draw these panels when enabled - they show helpful messages when no content is loaded
+			draw_texture_panel(map_renderer);
+			draw_pathfinding_panel(map_renderer);
+			draw_audio_controller_panel(selected_audio_stream_handle);
+			draw_text_panel(selected_text_file_str);
+			draw_hex_editor_panel(selected_raw_data.data(), static_cast<int>(selected_raw_data.size()));
 		}
 	}
 

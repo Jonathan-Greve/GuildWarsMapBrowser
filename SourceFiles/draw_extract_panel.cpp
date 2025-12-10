@@ -9,6 +9,7 @@ void draw_extract_panel(ExtractPanelInfo& extract_panel_info, DATManager* dat_ma
 {
 	if (GuiGlobalConstants::is_extract_panel_open) {
 		if (ImGui::Begin("Extract Panel", &GuiGlobalConstants::is_extract_panel_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
+			GuiGlobalConstants::ClampWindowToScreen();
 
 			if (ImGui::CollapsingHeader("Extract maps to image file", ImGuiTreeNodeFlags_DefaultOpen)) {
 				static int selected_option = 2;

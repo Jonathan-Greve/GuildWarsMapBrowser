@@ -38,6 +38,7 @@ MapBrowser::MapBrowser(InputManager* input_manager) noexcept(false)
 
 MapBrowser::~MapBrowser()
 {
+    GuiGlobalConstants::SaveSettings(); // Save window visibility settings on exit
     CloseTextureErrorLog(); // Ensure log file is closed on exit
 }
 
@@ -61,6 +62,17 @@ void MapBrowser::Initialize(HWND window, int width, int height)
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    // Enable INI persistence for window positions/sizes
+    static std::string iniFilePath;
+    if (iniFilePath.empty()) {
+        wchar_t exePath[MAX_PATH];
+        GetModuleFileNameW(NULL, exePath, MAX_PATH);
+        std::filesystem::path exeDir = std::filesystem::path(exePath).parent_path();
+        iniFilePath = (exeDir / "imgui_layout.ini").string();
+    }
+    io.IniFilename = iniFilePath.c_str();
+
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding = 5.0f;
@@ -73,6 +85,9 @@ void MapBrowser::Initialize(HWND window, int width, int height)
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(window);
     ImGui_ImplDX11_Init(m_deviceResources->GetD3DDevice(), m_deviceResources->GetD3DDeviceContext());
+
+    // Load saved window visibility settings
+    GuiGlobalConstants::LoadSettings();
 }
 
 #pragma region Frame Update

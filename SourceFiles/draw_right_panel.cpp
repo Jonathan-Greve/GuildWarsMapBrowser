@@ -10,10 +10,10 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
 {
     constexpr auto window_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoFocusOnAppearing;
 
-    // Set up the right panel
+    // Set up the right panel (offset by menu bar height)
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
         GuiGlobalConstants::panel_padding,
-        GuiGlobalConstants::panel_padding));
+        GuiGlobalConstants::menu_bar_height + GuiGlobalConstants::panel_padding));
     ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
 
     ImGui::PushStyleVar(
@@ -150,13 +150,13 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
     ImGui::End();
 
     float max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
-        (3 * GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
+        GuiGlobalConstants::menu_bar_height - (3 * GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
 
     // Set up the second right panel
     ImGui::SetNextWindowPos(
         ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
             GuiGlobalConstants::panel_padding,
-            GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+            GuiGlobalConstants::menu_bar_height + GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
     ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
     ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
         ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
@@ -190,13 +190,13 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
     ImGui::End();
 
     max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
-        (3 * GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
+        GuiGlobalConstants::menu_bar_height - (3 * GuiGlobalConstants::panel_padding); // Calculate max height based on app window size and padding
 
-    // Set up the props visibility settings window
+    // Set up the camera and movement window
     ImGui::SetNextWindowPos(
         ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
             GuiGlobalConstants::panel_padding,
-            GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+            GuiGlobalConstants::menu_bar_height + GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
     ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
     ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
         ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
@@ -308,41 +308,21 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
 
     if (selected_file_type == FFNA_Type3)
     {
-        static bool is_props_visibility_window_open = false;
-        static bool is_shore_visibility_window_open = false;
-        static bool is_pathfinding_visibility_window_open = false;
-
-        float num_visibility_windows_open = 0;
-        if (is_props_visibility_window_open) {
-            num_visibility_windows_open++;
-        }
-
-        if (is_shore_visibility_window_open) {
-            num_visibility_windows_open++;
-        }
-
-        if (is_pathfinding_visibility_window_open) {
-            num_visibility_windows_open++;
-        }
-
         float max_height_factor = 1;
-        if (num_visibility_windows_open > 0) {
-            max_height_factor /= num_visibility_windows_open;
-        }
 
         max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
-            (3 *
-                GuiGlobalConstants::panel_padding) * max_height_factor; // Calculate max height based on app window size and padding
+            GuiGlobalConstants::menu_bar_height -
+            (4 * GuiGlobalConstants::panel_padding) * max_height_factor; // Calculate max height based on app window size and padding
 
         // Set up the props visibility settings window
         ImGui::SetNextWindowPos(
             ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
                 GuiGlobalConstants::panel_padding,
-                GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+                GuiGlobalConstants::menu_bar_height + GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
         ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
         ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0),
             ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
-        if (ImGui::Begin("Props Visibility", &is_props_visibility_window_open, window_flags))
+        if (ImGui::Begin("Props Visibility", NULL, window_flags))
         {
             auto& propsMeshIds = map_renderer->GetPropsMeshIds();
 
@@ -416,12 +396,13 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
         ImGui::End();
 
         max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
+            GuiGlobalConstants::menu_bar_height -
             (3 * GuiGlobalConstants::panel_padding) * max_height_factor;
 
 
         ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
             GuiGlobalConstants::panel_padding,
-            GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+            GuiGlobalConstants::menu_bar_height + GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
         ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
         ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
         if (ImGui::Begin("Shore Visibility", NULL, window_flags))
@@ -464,14 +445,15 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
 
         // Pathfinding Visibility window
         max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
+            GuiGlobalConstants::menu_bar_height -
             (3 * GuiGlobalConstants::panel_padding) * max_height_factor;
 
         ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
             GuiGlobalConstants::panel_padding,
-            GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+            GuiGlobalConstants::menu_bar_height + GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
         ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
         ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
-        if (ImGui::Begin("Pathfinding Visibility", &is_pathfinding_visibility_window_open, window_flags))
+        if (ImGui::Begin("Pathfinding Visibility", NULL, window_flags))
         {
             auto& pathfindingMeshIds = map_renderer->GetPathfindingMeshIds();
 

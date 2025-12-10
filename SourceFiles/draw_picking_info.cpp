@@ -66,6 +66,7 @@ void draw_picking_info(const PickingInfo& info, MapRenderer* map_renderer, DATMa
 
     if (GuiGlobalConstants::is_picking_panel_open) {
         if (ImGui::Begin("Picking Info", &GuiGlobalConstants::is_picking_panel_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
+            GuiGlobalConstants::ClampWindowToScreen();
             if (selected_prop_index >= 0 && ImGui::Button("Deselect")) {
                 RemoveHighlightFromProp(map_renderer, selected_prop_index);
                 selected_prop_index = -1;

@@ -24,118 +24,125 @@ extern LPFNBASSCHANNELSETATTRIBUTE lpfnBassChannelSetAttribute;
 
 void draw_audio_controller_panel(HSTREAM streamHandle)
 {
-    if (is_bass_working)
-    {
-        // Get current position and duration in seconds.
-        QWORD bytePos = lpfnBassChannelGetPosition(streamHandle, BASS_POS_BYTE);
-        double currPosDouble = lpfnBassChannelBytes2Seconds(streamHandle, bytePos);
-        QWORD byteLen = lpfnBassChannelGetLength(streamHandle, BASS_POS_BYTE);
-        double totalDurDouble = lpfnBassChannelBytes2Seconds(streamHandle, byteLen);
+    if (!GuiGlobalConstants::is_audio_controller_open) return;
 
-        // Convert to float for ImGui functions
-        float currPos = static_cast<float>(currPosDouble);
-        float totalDur = static_cast<float>(totalDurDouble);
+    if (ImGui::Begin("Audio Control", &GuiGlobalConstants::is_audio_controller_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
+        GuiGlobalConstants::ClampWindowToScreen();
 
-        if (GuiGlobalConstants::is_audio_controller_open) {
-            if (ImGui::Begin("Audio Control", &GuiGlobalConstants::is_audio_controller_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
+        if (!is_bass_working) {
+            ImGui::TextWrapped("Audio system not available.");
+            ImGui::TextWrapped("BASS audio library could not be initialized.");
+        }
+        else if (streamHandle == 0) {
+            ImGui::TextWrapped("No audio loaded.");
+            ImGui::TextWrapped("Select an audio file (AMP, SOUND) from the DAT browser to play audio here.");
+        }
+        else {
+            // Get current position and duration in seconds.
+            QWORD bytePos = lpfnBassChannelGetPosition(streamHandle, BASS_POS_BYTE);
+            double currPosDouble = lpfnBassChannelBytes2Seconds(streamHandle, bytePos);
+            QWORD byteLen = lpfnBassChannelGetLength(streamHandle, BASS_POS_BYTE);
+            double totalDurDouble = lpfnBassChannelBytes2Seconds(streamHandle, byteLen);
 
-                // Separate sections for better layout
-                ImGui::Text("Track Information");
-                ImGui::Separator();
-                ImGui::Text("%s", audio_info.c_str());
+            // Convert to float for ImGui functions
+            float currPos = static_cast<float>(currPosDouble);
+            float totalDur = static_cast<float>(totalDurDouble);
 
-                ImGui::Spacing();
-                ImGui::Text("Playback Controls");
-                ImGui::Separator();
+            // Separate sections for better layout
+            ImGui::Text("Track Information");
+            ImGui::Separator();
+            ImGui::Text("%s", audio_info.c_str());
 
-                ImGui::SetCursorPosX((ImGui::GetWindowSize().x - 220) / 2); // Center buttons
+            ImGui::Spacing();
+            ImGui::Text("Playback Controls");
+            ImGui::Separator();
 
-                if (ImGui::Button("Play"))
+            ImGui::SetCursorPosX((ImGui::GetWindowSize().x - 220) / 2); // Center buttons
+
+            if (ImGui::Button("Play"))
+            {
+                lpfnBassChannelPlay(streamHandle, FALSE);
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Pause"))
+            {
+                lpfnBassChannelPause(streamHandle);
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Restart"))
+            {
+                lpfnBassChannelPlay(streamHandle, TRUE);
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Checkbox("Repeat", &repeat_audio))
+            {
+                if (repeat_audio)
                 {
-                    lpfnBassChannelPlay(streamHandle, FALSE);
+                    // Turn on looping
+                    lpfnBassChannelFlags(streamHandle, BASS_SAMPLE_LOOP, BASS_SAMPLE_LOOP);
                 }
-
-                ImGui::SameLine();
-
-                if (ImGui::Button("Pause"))
+                else
                 {
-                    lpfnBassChannelPause(streamHandle);
-                }
-
-                ImGui::SameLine();
-
-                if (ImGui::Button("Restart"))
-                {
-                    lpfnBassChannelPlay(streamHandle, TRUE);
-                }
-
-                ImGui::SameLine();
-
-                if (ImGui::Checkbox("Repeat", &repeat_audio))
-                {
-                    if (repeat_audio)
-                    {
-                        // Turn on looping
-                        lpfnBassChannelFlags(streamHandle, BASS_SAMPLE_LOOP, BASS_SAMPLE_LOOP);
-                    }
-                    else
-                    {
-                        // Turn off looping
-                        lpfnBassChannelFlags(streamHandle, 0, BASS_SAMPLE_LOOP);
-                    }
-                }
-
-                ImGui::Spacing();
-                ImGui::Text("Track Navigation");
-                ImGui::Separator();
-
-                // Allow modification of the current position using a slider
-                auto label = std::format("{:02d}:{:02d} / {:02d}:{:02d}", static_cast<int>(currPos) / 60,
-                    static_cast<int>(currPos) % 60, static_cast<int>(totalDur) / 60,
-                    static_cast<int>(totalDur) % 60);
-
-                if (ImGui::SliderFloat(label.c_str(), &currPos, 0.0f, totalDur))
-                {
-                    // If the slider position has changed, update the audio position
-                    lpfnBassChannelSetPosition(
-                        streamHandle, lpfnBassChannelSeconds2Bytes(streamHandle, static_cast<double>(currPos)),
-                        BASS_POS_BYTE);
-                }
-
-                ImGui::Spacing();
-                ImGui::Text("Playback Speed");
-                ImGui::Separator();
-
-                // New control for playback speed
-                if (ImGui::SliderFloat("Speed", &playback_speed, 0.01f, 10.0f))
-                {
-                    lpfnBassChannelSetAttribute(streamHandle, BASS_ATTRIB_TEMPO, (playback_speed - 1.0f) * 100.0f);
-                }
-
-                // Add tooltips for additional user information
-                if (ImGui::IsItemHovered())
-                {
-                    ImGui::SetTooltip("Change the speed of the playback. 1.0 is normal speed.");
-                }
-
-                ImGui::Spacing();
-                ImGui::Text("Volume Control");
-                ImGui::Separator();
-
-                // New control for volume
-                if (ImGui::SliderFloat("Volume", &volume_level, 0.0f, 1.0f))
-                {
-                    lpfnBassChannelSetAttribute(streamHandle, BASS_ATTRIB_VOL, volume_level);
-                }
-
-                // Add tooltips for additional user information
-                if (ImGui::IsItemHovered())
-                {
-                    ImGui::SetTooltip("Change the volume of the playback. 0.0 is silent, 1.0 is maximum volume.");
+                    // Turn off looping
+                    lpfnBassChannelFlags(streamHandle, 0, BASS_SAMPLE_LOOP);
                 }
             }
 
-            ImGui::End();
+            ImGui::Spacing();
+            ImGui::Text("Track Navigation");
+            ImGui::Separator();
+
+            // Allow modification of the current position using a slider
+            auto label = std::format("{:02d}:{:02d} / {:02d}:{:02d}", static_cast<int>(currPos) / 60,
+                static_cast<int>(currPos) % 60, static_cast<int>(totalDur) / 60,
+                static_cast<int>(totalDur) % 60);
+
+            if (ImGui::SliderFloat(label.c_str(), &currPos, 0.0f, totalDur))
+            {
+                // If the slider position has changed, update the audio position
+                lpfnBassChannelSetPosition(
+                    streamHandle, lpfnBassChannelSeconds2Bytes(streamHandle, static_cast<double>(currPos)),
+                    BASS_POS_BYTE);
+            }
+
+            ImGui::Spacing();
+            ImGui::Text("Playback Speed");
+            ImGui::Separator();
+
+            // New control for playback speed
+            if (ImGui::SliderFloat("Speed", &playback_speed, 0.01f, 10.0f))
+            {
+                lpfnBassChannelSetAttribute(streamHandle, BASS_ATTRIB_TEMPO, (playback_speed - 1.0f) * 100.0f);
+            }
+
+            // Add tooltips for additional user information
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Change the speed of the playback. 1.0 is normal speed.");
+            }
+
+            ImGui::Spacing();
+            ImGui::Text("Volume Control");
+            ImGui::Separator();
+
+            // New control for volume
+            if (ImGui::SliderFloat("Volume", &volume_level, 0.0f, 1.0f))
+            {
+                lpfnBassChannelSetAttribute(streamHandle, BASS_ATTRIB_VOL, volume_level);
+            }
+
+            // Add tooltips for additional user information
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetTooltip("Change the volume of the playback. 0.0 is silent, 1.0 is maximum volume.");
+            }
         }
     }
+    ImGui::End();
 }

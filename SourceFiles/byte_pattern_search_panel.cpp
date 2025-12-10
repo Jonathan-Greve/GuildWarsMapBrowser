@@ -353,6 +353,7 @@ void draw_byte_pattern_search_panel(std::map<int, std::unique_ptr<DATManager>>& 
 	initialize_file_types(dat_managers);
 
 	if (ImGui::Begin("Byte Pattern Search", &GuiGlobalConstants::is_byte_search_panel_open)) {
+		GuiGlobalConstants::ClampWindowToScreen();
 		static std::string pattern_input_str;
 		static std::string last_valid_pattern_str;
 
