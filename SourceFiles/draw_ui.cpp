@@ -77,11 +77,6 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
 					GuiGlobalConstants::ResetToDefaults();
 					GuiGlobalConstants::SaveSettings();
 				}
-				if (ImGui::MenuItem("Reset Window Positions")) {
-					if (ImGui::GetIO().IniFilename) {
-						std::filesystem::remove(ImGui::GetIO().IniFilename);
-					}
-				}
 				ImGui::Separator();
 				if (ImGui::MenuItem("Hide All", NULL, GuiGlobalConstants::hide_all)) {
 					GuiGlobalConstants::SetHideAll(!GuiGlobalConstants::hide_all);
