@@ -86,14 +86,6 @@ void draw_gui_window_controller()
 	if (ImGui::IsItemHovered()) {
 		ImGui::SetTooltip("Reset all window visibility to default state");
 	}
-	if (ImGui::Button("Reset Window Positions", ImVec2(-FLT_MIN, 0))) {
-		if (ImGui::GetIO().IniFilename) {
-			std::filesystem::remove(ImGui::GetIO().IniFilename);
-		}
-	}
-	if (ImGui::IsItemHovered()) {
-		ImGui::SetTooltip("Reset all window positions and sizes (takes effect on restart)");
-	}
 
 	// End the ImGui window
 	ImGui::End();
