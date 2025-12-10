@@ -219,6 +219,15 @@ public:
 		if (it != m_triangleMeshes.end()) { it->second->SetTextures(textures, slot); }
 	}
 
+	void UpdateMeshVertices(int meshID, const std::vector<GWVertex>& vertices)
+	{
+		auto it = m_triangleMeshes.find(meshID);
+		if (it != m_triangleMeshes.end())
+		{
+			it->second->UpdateVertices(m_device, vertices);
+		}
+	}
+
 	void UpdateMeshPerObjectData(int meshID, const PerObjectCB& data)
 	{
 		auto it = m_triangleMeshes.find(meshID);

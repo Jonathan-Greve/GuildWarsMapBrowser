@@ -14,6 +14,7 @@
 #include "RasterizerStateManager.h"
 #include "DepthStencilStateManager.h"
 #include "DeviceResources.h"
+#include "FFNA_MapFile.h"
 
 using namespace DirectX;
 
@@ -598,6 +599,135 @@ public:
     void SetShouldRenderShoreWaves(bool should_render_shore_waves) { m_should_render_shore_waves = should_render_shore_waves; }
     bool GetShouldRenderShoreWaves() { return m_should_render_shore_waves; }
 
+    void SetShouldRenderPathfinding(bool should_render_pathfinding) { m_should_render_pathfinding = should_render_pathfinding; }
+    bool GetShouldRenderPathfinding() { return m_should_render_pathfinding; }
+
+    void SetPathfinding(std::vector<Mesh>& pathfinding_meshes, const std::vector<uint32_t>& plane_sizes, PixelShaderType pixel_shader_type)
+    {
+        m_pathfinding_mesh_ids.clear();
+        m_pathfinding_plane_mesh_ids.clear();
+        should_render_pathfinding_mesh_id.clear();
+
+        const float golden_ratio = 1.61803398875f;
+        const int texture_size = 4;  // Small solid color texture
+
+        // Initialize plane groupings
+        m_pathfinding_plane_mesh_ids.resize(plane_sizes.size());
+
+        size_t mesh_idx = 0;
+        for (size_t plane_idx = 0; plane_idx < plane_sizes.size(); plane_idx++)
+        {
+            for (uint32_t trap_idx = 0; trap_idx < plane_sizes[plane_idx]; trap_idx++)
+            {
+                if (mesh_idx >= pathfinding_meshes.size()) break;
+
+                const auto& mesh = pathfinding_meshes[mesh_idx];
+                int mesh_id = m_mesh_manager->AddCustomMesh(mesh, pixel_shader_type);
+
+                // Calculate hue using golden ratio for distinct colors (by plane for consistent plane colors)
+                float hue = fmodf(plane_idx * golden_ratio, 1.0f);
+
+                // HSV to RGB conversion (s=0.7, v=0.9)
+                float s = 0.7f, v = 0.9f;
+                float c = v * s;
+                float x = c * (1.0f - fabsf(fmodf(hue * 6.0f, 2.0f) - 1.0f));
+                float m = v - c;
+                float r, g, b;
+                int hi = (int)(hue * 6.0f);
+                switch (hi % 6) {
+                    case 0: r = c; g = x; b = 0; break;
+                    case 1: r = x; g = c; b = 0; break;
+                    case 2: r = 0; g = c; b = x; break;
+                    case 3: r = 0; g = x; b = c; break;
+                    case 4: r = x; g = 0; b = c; break;
+                    default: r = c; g = 0; b = x; break;
+                }
+                r += m; g += m; b += m;
+
+                // Create solid color texture data (RGBA format)
+                std::vector<uint8_t> texture_data(texture_size * texture_size * 4);
+                for (int p = 0; p < texture_size * texture_size; p++) {
+                    texture_data[p * 4 + 0] = static_cast<uint8_t>(r * 255);
+                    texture_data[p * 4 + 1] = static_cast<uint8_t>(g * 255);
+                    texture_data[p * 4 + 2] = static_cast<uint8_t>(b * 255);
+                    texture_data[p * 4 + 3] = 180;  // Semi-transparent
+                }
+
+                // Create texture and assign to mesh
+                int texture_id = m_texture_manager->AddTexture(
+                    texture_data.data(), texture_size, texture_size,
+                    DXGI_FORMAT_R8G8B8A8_UNORM, 9999000 + static_cast<int>(mesh_idx));
+
+                m_mesh_manager->SetTexturesForMesh(mesh_id, { m_texture_manager->GetTexture(texture_id) }, 3);
+
+                PerObjectCB meshPerObjectData;
+                meshPerObjectData.num_uv_texture_pairs = 1;
+                meshPerObjectData.blend_flags[0][0] = 8;  // Alpha blend
+                m_mesh_manager->UpdateMeshPerObjectData(mesh_id, meshPerObjectData);
+
+                SetMeshShouldRender(mesh_id, false); // don't render with props
+                m_pathfinding_mesh_ids.push_back(mesh_id);
+                m_pathfinding_plane_mesh_ids[plane_idx].push_back(mesh_id);
+                should_render_pathfinding_mesh_id.insert({ mesh_id, true });
+
+                mesh_idx++;
+            }
+        }
+    }
+
+    void SetPathfindingMeshIdShouldRender(int mesh_id, bool should_render) {
+        auto it = should_render_pathfinding_mesh_id.find(mesh_id);
+        if (it != should_render_pathfinding_mesh_id.end()) {
+            it->second = should_render;
+        }
+    }
+
+    bool GetPathfindingMeshIdShouldRender(int mesh_id) {
+        auto it = should_render_pathfinding_mesh_id.find(mesh_id);
+        if (it != should_render_pathfinding_mesh_id.end()) {
+            return it->second;
+        }
+        return false;
+    }
+
+    std::vector<int>& GetPathfindingMeshIds() { return m_pathfinding_mesh_ids; }
+    std::vector<std::vector<int>>& GetPathfindingPlaneMeshIds() { return m_pathfinding_plane_mesh_ids; }
+
+    void SetPathfindingHeightOffset(float offset) { m_pathfinding_height_offset = offset; }
+    float GetPathfindingHeightOffset() { return m_pathfinding_height_offset; }
+
+    void UpdatePathfindingMeshHeights(float height_offset, Terrain* terrain,
+        const std::vector<PathfindingTrapezoid>& trapezoids)
+    {
+        if (m_pathfinding_mesh_ids.size() != trapezoids.size()) return;
+
+        m_pathfinding_height_offset = height_offset;
+
+        for (size_t i = 0; i < m_pathfinding_mesh_ids.size(); i++)
+        {
+            const auto& trap = trapezoids[i];
+            int mesh_id = m_pathfinding_mesh_ids[i];
+
+            // Recalculate heights with new offset
+            float height_tl = terrain->get_height_at(trap.xtl, trap.yt) + height_offset;
+            float height_tr = terrain->get_height_at(trap.xtr, trap.yt) + height_offset;
+            float height_bl = terrain->get_height_at(trap.xbl, trap.yb) + height_offset;
+            float height_br = terrain->get_height_at(trap.xbr, trap.yb) + height_offset;
+
+            // Update mesh vertices
+            std::vector<GWVertex> vertices;
+            XMFLOAT3 normal(0.0f, 1.0f, 0.0f);
+            XMFLOAT2 tex00(0.0f, 0.0f), tex10(1.0f, 0.0f), tex01(0.0f, 1.0f), tex11(1.0f, 1.0f);
+
+            vertices.push_back(GWVertex(XMFLOAT3(trap.xtl, height_tl, trap.yt), normal, tex00));
+            vertices.push_back(GWVertex(XMFLOAT3(trap.xtr, height_tr, trap.yt), normal, tex10));
+            vertices.push_back(GWVertex(XMFLOAT3(trap.xbr, height_br, trap.yb), normal, tex11));
+            vertices.push_back(GWVertex(XMFLOAT3(trap.xbl, height_bl, trap.yb), normal, tex01));
+
+            m_mesh_manager->UpdateMeshVertices(mesh_id, vertices);
+        }
+    }
+
     PerCameraCB GetPerCameraCB() { return m_per_camera_cb_data; }
     void SetPerCameraCB(const PerCameraCB& per_camera_cb_data) { m_per_camera_cb_data = per_camera_cb_data; }
 
@@ -749,6 +879,18 @@ public:
             for (auto& mesh_id : m_shore_mesh_ids) {
                 const auto it = should_render_shore_mesh_id.find(mesh_id);
                 if (it != should_render_shore_mesh_id.end() && it->second) {
+                    m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
+                        m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, mesh_id);
+                }
+            }
+        }
+
+        // Render pathfinding trapezoids
+        if (m_pathfinding_mesh_ids.size() > 0 && m_should_render_pathfinding) {
+            m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
+            for (auto& mesh_id : m_pathfinding_mesh_ids) {
+                const auto it = should_render_pathfinding_mesh_id.find(mesh_id);
+                if (it != should_render_pathfinding_mesh_id.end() && it->second) {
                     m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
                         m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, mesh_id);
                 }
@@ -925,6 +1067,8 @@ private:
     int m_clouds_mesh_id = -1;
     int m_water_mesh_id = -1;
     std::vector<int> m_shore_mesh_ids;
+    std::vector<int> m_pathfinding_mesh_ids;
+    std::vector<std::vector<int>> m_pathfinding_plane_mesh_ids;  // Grouped by plane
 
     DirectionalLight m_directionalLight;
     bool m_per_frame_cb_changed = true;
@@ -941,6 +1085,10 @@ private:
 
     bool m_should_render_shore_waves = true;
     std::map<int, bool> should_render_shore_mesh_id;
+
+    bool m_should_render_pathfinding = false;
+    std::map<int, bool> should_render_pathfinding_mesh_id;
+    float m_pathfinding_height_offset = 50.0f;
 
     bool m_should_rerender_shadows = false;
 
