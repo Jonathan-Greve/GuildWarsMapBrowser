@@ -1,8 +1,10 @@
 #include "pch.h"
 #include "draw_right_panel.h"
 #include "MapRenderer.h"
+#include "FFNA_MapFile.h"
 
 extern FileType selected_file_type;
+extern FFNA_MapFile selected_ffna_map_file;
 
 void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer& timer, bool& msaa_changed, int& msaa_level_index, const std::vector<std::pair<int, int>>& msaa_levels)
 {
@@ -130,6 +132,11 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
             bool should_render_shore = map_renderer->GetShouldRenderShoreWaves();
             if (ImGui::Checkbox("Show shore waves", &should_render_shore)) {
                 map_renderer->SetShouldRenderShoreWaves(should_render_shore);
+            }
+
+            bool should_render_pathfinding = map_renderer->GetShouldRenderPathfinding();
+            if (ImGui::Checkbox("Show pathfinding", &should_render_pathfinding)) {
+                map_renderer->SetShouldRenderPathfinding(should_render_pathfinding);
             }
 
             bool should_use_picking_shader_for_models = map_renderer->GetShouldUsePickingShaderForModels();
@@ -303,6 +310,7 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
     {
         static bool is_props_visibility_window_open = false;
         static bool is_shore_visibility_window_open = false;
+        static bool is_pathfinding_visibility_window_open = false;
 
         float num_visibility_windows_open = 0;
         if (is_props_visibility_window_open) {
@@ -310,6 +318,10 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
         }
 
         if (is_shore_visibility_window_open) {
+            num_visibility_windows_open++;
+        }
+
+        if (is_pathfinding_visibility_window_open) {
             num_visibility_windows_open++;
         }
 
@@ -445,6 +457,114 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
                 {
                     map_renderer->SetShoreMeshIdShouldRender(mesh_id, should_render);
                 }
+            }
+            window_height += ImGui::GetWindowSize().y;
+        }
+        ImGui::End();
+
+        // Pathfinding Visibility window
+        max_window_height = ImGui::GetIO().DisplaySize.y - window_height -
+            (3 * GuiGlobalConstants::panel_padding) * max_height_factor;
+
+        ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - GuiGlobalConstants::right_panel_width -
+            GuiGlobalConstants::panel_padding,
+            GuiGlobalConstants::panel_padding + window_height + GuiGlobalConstants::panel_padding));
+        ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::right_panel_width, 0));
+        ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(GuiGlobalConstants::right_panel_width, max_window_height));
+        if (ImGui::Begin("Pathfinding Visibility", &is_pathfinding_visibility_window_open, window_flags))
+        {
+            auto& pathfindingMeshIds = map_renderer->GetPathfindingMeshIds();
+
+            // Global toggle for showing pathfinding
+            bool should_render_pathfinding = map_renderer->GetShouldRenderPathfinding();
+            if (ImGui::Checkbox("Show Pathfinding", &should_render_pathfinding))
+            {
+                map_renderer->SetShouldRenderPathfinding(should_render_pathfinding);
+            }
+
+            // Height offset slider
+            static float height_offset = 50.0f;
+            if (ImGui::SliderFloat("Height Offset", &height_offset, -500.0f, 2000.0f, "%.0f"))
+            {
+                if (selected_ffna_map_file.pathfinding_chunk.valid && map_renderer->GetTerrain())
+                {
+                    map_renderer->UpdatePathfindingMeshHeights(
+                        height_offset,
+                        map_renderer->GetTerrain(),
+                        selected_ffna_map_file.pathfinding_chunk.all_trapezoids);
+                }
+            }
+
+            auto& planeMeshIds = map_renderer->GetPathfindingPlaneMeshIds();
+
+            if (pathfindingMeshIds.size() > 0)
+            {
+                ImGui::Text("Planes: %zu, Trapezoids: %zu", planeMeshIds.size(), pathfindingMeshIds.size());
+
+                // Set all and Clear all buttons for all planes
+                if (ImGui::Button("Set all"))
+                {
+                    for (int mesh_id : pathfindingMeshIds)
+                    {
+                        map_renderer->SetPathfindingMeshIdShouldRender(mesh_id, true);
+                    }
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Clear all"))
+                {
+                    for (int mesh_id : pathfindingMeshIds)
+                    {
+                        map_renderer->SetPathfindingMeshIdShouldRender(mesh_id, false);
+                    }
+                }
+
+                // Planes with individual trapezoids
+                for (size_t plane_idx = 0; plane_idx < planeMeshIds.size(); plane_idx++)
+                {
+                    const auto& plane_mesh_ids = planeMeshIds[plane_idx];
+                    auto plane_label = std::format("Plane {} ({} traps)", plane_idx, plane_mesh_ids.size());
+
+                    if (ImGui::TreeNode(plane_label.c_str()))
+                    {
+                        // Set/Clear buttons for this plane
+                        std::string set_label = std::format("Set##plane{}", plane_idx);
+                        std::string clear_label = std::format("Clear##plane{}", plane_idx);
+
+                        if (ImGui::Button(set_label.c_str()))
+                        {
+                            for (int mesh_id : plane_mesh_ids)
+                            {
+                                map_renderer->SetPathfindingMeshIdShouldRender(mesh_id, true);
+                            }
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button(clear_label.c_str()))
+                        {
+                            for (int mesh_id : plane_mesh_ids)
+                            {
+                                map_renderer->SetPathfindingMeshIdShouldRender(mesh_id, false);
+                            }
+                        }
+
+                        // Individual trapezoid checkboxes
+                        for (size_t trap_idx = 0; trap_idx < plane_mesh_ids.size(); trap_idx++)
+                        {
+                            int mesh_id = plane_mesh_ids[trap_idx];
+                            bool should_render = map_renderer->GetPathfindingMeshIdShouldRender(mesh_id);
+
+                            auto label = std::format("Trap {}##plane{}trap{}", trap_idx, plane_idx, trap_idx);
+                            if (ImGui::Checkbox(label.c_str(), &should_render))
+                            {
+                                map_renderer->SetPathfindingMeshIdShouldRender(mesh_id, should_render);
+                            }
+                        }
+                        ImGui::TreePop();
+                    }
+                }
+            }
+            else
+            {
+                ImGui::Text("No pathfinding data");
             }
         }
         ImGui::End();

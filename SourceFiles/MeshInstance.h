@@ -74,6 +74,24 @@ public:
 
     const Mesh& GetMesh() { return m_mesh; }
 
+    void UpdateVertices(ID3D11Device* device, const std::vector<GWVertex>& vertices) {
+        if (vertices.empty()) return;
+
+        m_mesh.vertices = vertices;
+
+        // Recreate vertex buffer with new data
+        D3D11_BUFFER_DESC vbDesc = {};
+        vbDesc.Usage = D3D11_USAGE_IMMUTABLE;
+        vbDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        vbDesc.ByteWidth = sizeof(GWVertex) * m_mesh.vertices.size();
+        vbDesc.StructureByteStride = sizeof(GWVertex);
+        D3D11_SUBRESOURCE_DATA vbData = {};
+        vbData.pSysMem = m_mesh.vertices.data();
+
+        m_vertexBuffer.Reset();
+        device->CreateBuffer(&vbDesc, &vbData, &m_vertexBuffer);
+    }
+
     void SetShouldCull(const bool should_cull) {
         m_mesh.should_cull = should_cull;
     }

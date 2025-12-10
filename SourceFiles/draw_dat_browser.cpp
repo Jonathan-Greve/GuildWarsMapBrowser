@@ -1366,6 +1366,55 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 		map_renderer->SetShore(shore_meshes, shore_textures, shore_per_object_cbs, PixelShaderType::Shore);
 
+		// Create pathfinding meshes from trapezoids
+		if (selected_ffna_map_file.pathfinding_chunk.valid && selected_ffna_map_file.pathfinding_chunk.all_trapezoids.size() > 0) {
+			std::vector<Mesh> pathfinding_meshes;
+			std::vector<uint32_t> plane_sizes;
+			const float pathfinding_height_offset = 50.0f;  // Height above terrain
+
+			// Build plane sizes from planes data
+			for (const auto& plane : selected_ffna_map_file.pathfinding_chunk.planes) {
+				plane_sizes.push_back(plane.traps_count);
+			}
+
+			for (size_t i = 0; i < selected_ffna_map_file.pathfinding_chunk.all_trapezoids.size(); i++) {
+				const auto& trap = selected_ffna_map_file.pathfinding_chunk.all_trapezoids[i];
+
+				// Create quad mesh from trapezoid coordinates
+				// trap.yt = top Y, trap.yb = bottom Y (world Z)
+				// trap.xtl/xtr = top X coords, trap.xbl/xbr = bottom X coords (world X)
+				float height_tl = terrain->get_height_at(trap.xtl, trap.yt) + pathfinding_height_offset;
+				float height_tr = terrain->get_height_at(trap.xtr, trap.yt) + pathfinding_height_offset;
+				float height_bl = terrain->get_height_at(trap.xbl, trap.yb) + pathfinding_height_offset;
+				float height_br = terrain->get_height_at(trap.xbr, trap.yb) + pathfinding_height_offset;
+
+				XMFLOAT3 pos_tl(trap.xtl, height_tl, trap.yt);
+				XMFLOAT3 pos_tr(trap.xtr, height_tr, trap.yt);
+				XMFLOAT3 pos_bl(trap.xbl, height_bl, trap.yb);
+				XMFLOAT3 pos_br(trap.xbr, height_br, trap.yb);
+
+				// Calculate normal (facing up)
+				XMFLOAT3 normal(0.0f, 1.0f, 0.0f);
+
+				// Texture coordinates
+				XMFLOAT2 tex00(0.0f, 0.0f);
+				XMFLOAT2 tex10(1.0f, 0.0f);
+				XMFLOAT2 tex01(0.0f, 1.0f);
+				XMFLOAT2 tex11(1.0f, 1.0f);
+
+				Mesh mesh;
+				mesh.vertices.push_back(GWVertex(pos_tl, normal, tex00));
+				mesh.vertices.push_back(GWVertex(pos_tr, normal, tex10));
+				mesh.vertices.push_back(GWVertex(pos_br, normal, tex11));
+				mesh.vertices.push_back(GWVertex(pos_bl, normal, tex01));
+				mesh.indices = { 0, 1, 2, 0, 2, 3 };
+				mesh.blend_flags = { 8 };  // Alpha blend
+
+				pathfinding_meshes.push_back(mesh);
+			}
+
+			map_renderer->SetPathfinding(pathfinding_meshes, plane_sizes, PixelShaderType::OldModel);
+		}
 
 		//for (int i = 0; i < selected_ffna_map_file.big_chunk.vertices0.size(); i++) {
 		//    auto color1 = CheckerboardTexture::GetColorForIndex(3);
