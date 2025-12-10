@@ -47,33 +47,10 @@ void draw_gui_window_controller()
 
 	// Checkbox to hide or show all windows
 	CheckAndResetHideAll();
-	if (ImGui::Checkbox("Hide All", &GuiGlobalConstants::hide_all))
+	bool temp_hide_all = GuiGlobalConstants::hide_all;
+	if (ImGui::Checkbox("Hide All", &temp_hide_all))
 	{
-		if (GuiGlobalConstants::hide_all)
-		{
-			GuiGlobalConstants::SaveCurrentStates();
-
-			GuiGlobalConstants::is_dat_browser_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_dat_browser_movable = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_dat_browser_resizeable = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_dat_browser_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_left_panel_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_right_panel_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_hex_editor_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_text_panel_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_audio_controller_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_texture_panel_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_picking_panel_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_compare_panel_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_custom_file_info_editor_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_extract_panel_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_byte_search_panel_open = !GuiGlobalConstants::hide_all;
-			GuiGlobalConstants::is_pathfinding_panel_open = !GuiGlobalConstants::hide_all;
-		}
-		else
-		{
-			GuiGlobalConstants::RestorePreviousStates();
-		}
+		GuiGlobalConstants::SetHideAll(temp_hide_all);
 		GuiGlobalConstants::SaveSettings();
 	}
 
