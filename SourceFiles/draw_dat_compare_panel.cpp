@@ -74,6 +74,7 @@ void draw_dat_compare_panel(std::map<int, std::unique_ptr<DATManager>>& dat_mana
 
 	if (GuiGlobalConstants::is_compare_panel_open) {
 		if (ImGui::Begin("Compare DAT files", &GuiGlobalConstants::is_compare_panel_open)) {
+			GuiGlobalConstants::ClampWindowToScreen();
 			if (!is_analyzing) {
 				// File selection button
 				if (ImGui::Button("Select File")) {

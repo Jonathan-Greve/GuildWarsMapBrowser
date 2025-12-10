@@ -19,8 +19,8 @@ void draw_left_panel(MapRenderer* map_renderer)
 {
     constexpr auto window_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoFocusOnAppearing;
 
-    // set up the left panel
-    ImGui::SetNextWindowPos(ImVec2(GuiGlobalConstants::panel_padding, GuiGlobalConstants::panel_padding));
+    // set up the left panel (offset by menu bar height)
+    ImGui::SetNextWindowPos(ImVec2(GuiGlobalConstants::panel_padding, GuiGlobalConstants::menu_bar_height + GuiGlobalConstants::panel_padding));
     ImGui::SetNextWindowSize(ImVec2(GuiGlobalConstants::left_panel_width, 0));
     ImGui::PushStyleVar(
       ImGuiStyleVar_WindowPadding,

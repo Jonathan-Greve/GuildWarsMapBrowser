@@ -254,37 +254,43 @@ std::wstring OpenSaveFileDialog(const std::wstring& default_name, const std::wst
 }
 
 void draw_pathfinding_panel(MapRenderer* map_renderer) {
-    // Only show for map files
-    if (selected_file_type != FFNA_Type3) {
-        return;
-    }
-
     if (!GuiGlobalConstants::is_pathfinding_panel_open) {
         return;
     }
 
-    // Check if we need to regenerate the visualization
-    if (selected_map_file_index != s_last_map_file_index) {
-        s_last_map_file_index = selected_map_file_index;
-
-        // Generate new visualization
-        if (selected_ffna_map_file.pathfinding_chunk.valid) {
-            s_pathfinding_visualizer.GenerateImage(selected_ffna_map_file.pathfinding_chunk, 1024);
-            s_pathfinding_visualizer.CreateTexture(map_renderer->GetTextureManager());
-        } else {
-            s_pathfinding_visualizer.Clear();
-        }
-    }
-
     const float min_width = 400;
-    const float min_height = 450;
+    const float min_height = 150;
     ImGui::SetNextWindowSizeConstraints(ImVec2(min_width, min_height), ImVec2(FLT_MAX, FLT_MAX));
 
     if (ImGui::Begin("Pathfinding Map", &GuiGlobalConstants::is_pathfinding_panel_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
+        GuiGlobalConstants::ClampWindowToScreen();
+
+        // Show helpful message if no map is loaded
+        if (selected_file_type != FFNA_Type3) {
+            ImGui::TextWrapped("No pathfinding data loaded.");
+            ImGui::TextWrapped("Load a map file (FFNA Type3) from the DAT browser to view pathfinding data here.");
+            ImGui::End();
+            return;
+        }
+
+        // Check if we need to regenerate the visualization
+        if (selected_map_file_index != s_last_map_file_index) {
+            s_last_map_file_index = selected_map_file_index;
+
+            // Generate new visualization
+            if (selected_ffna_map_file.pathfinding_chunk.valid) {
+                s_pathfinding_visualizer.GenerateImage(selected_ffna_map_file.pathfinding_chunk, 1024);
+                s_pathfinding_visualizer.CreateTexture(map_renderer->GetTextureManager());
+            } else {
+                s_pathfinding_visualizer.Clear();
+            }
+        }
+
         const auto& pf = selected_ffna_map_file.pathfinding_chunk;
 
         if (!pf.valid) {
-            ImGui::Text("No pathfinding data available for this map.");
+            ImGui::TextWrapped("No pathfinding data loaded.");
+            ImGui::TextWrapped("Load a map file (FFNA Type3) from the DAT browser to view pathfinding data here.");
             ImGui::End();
             return;
         }

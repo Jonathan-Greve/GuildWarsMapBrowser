@@ -1555,7 +1555,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 	if (!GuiGlobalConstants::is_dat_browser_movable) {
 		auto dat_browser_window_pos =
 			ImVec2(GuiGlobalConstants::left_panel_width + GuiGlobalConstants::panel_padding * 2,
-				GuiGlobalConstants::panel_padding);
+				GuiGlobalConstants::menu_bar_height + GuiGlobalConstants::panel_padding);
 		ImGui::SetNextWindowPos(dat_browser_window_pos);
 	}
 

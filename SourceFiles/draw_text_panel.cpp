@@ -4,10 +4,17 @@
 
 void draw_text_panel(std::string text)
 {
-    if (GuiGlobalConstants::is_text_panel_open) {
-        if (ImGui::Begin("Text panel", &GuiGlobalConstants::is_text_panel_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
-            ImGui::Text(text.c_str());
+    if (!GuiGlobalConstants::is_text_panel_open) return;
+
+    if (ImGui::Begin("Text Panel", &GuiGlobalConstants::is_text_panel_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
+        GuiGlobalConstants::ClampWindowToScreen();
+        if (text.empty()) {
+            ImGui::TextWrapped("No text loaded.");
+            ImGui::TextWrapped("Select a text file (TEXT) from the DAT browser to view text content here.");
         }
-        ImGui::End();
+        else {
+            ImGui::TextWrapped("%s", text.c_str());
+        }
     }
+    ImGui::End();
 }
