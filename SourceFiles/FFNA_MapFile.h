@@ -1360,6 +1360,199 @@ struct BigChunkSub0 {
     }
 };
 
+// Pathfinding trapezoid structure (navigation mesh element)
+struct PathfindingTrapezoid {
+    float yt;   // Top Y
+    float yb;   // Bottom Y
+    float xtl;  // Top-left X
+    float xtr;  // Top-right X
+    float xbl;  // Bottom-left X
+    float xbr;  // Bottom-right X
+
+    PathfindingTrapezoid() = default;
+    PathfindingTrapezoid(int& offset, const unsigned char* data) {
+        // Skip neighbor indices (16 bytes) and portal indices (4 bytes)
+        offset += 20;
+
+        std::memcpy(&yt, &data[offset], sizeof(yt));
+        offset += sizeof(yt);
+        std::memcpy(&yb, &data[offset], sizeof(yb));
+        offset += sizeof(yb);
+        std::memcpy(&xtl, &data[offset], sizeof(xtl));
+        offset += sizeof(xtl);
+        std::memcpy(&xtr, &data[offset], sizeof(xtr));
+        offset += sizeof(xtr);
+        std::memcpy(&xbl, &data[offset], sizeof(xbl));
+        offset += sizeof(xbl);
+        std::memcpy(&xbr, &data[offset], sizeof(xbr));
+        offset += sizeof(xbr);
+    }
+};
+
+// Pathfinding plane (contains multiple trapezoids)
+struct PathfindingPlane {
+    uint32_t traps_count = 0;
+    std::vector<PathfindingTrapezoid> trapezoids;
+
+    PathfindingPlane() = default;
+};
+
+// Pathfinding chunk parser (chunk ID 0x20000008)
+struct PathfindingChunk {
+    uint32_t chunk_id = 0;
+    uint32_t chunk_size = 0;
+    uint32_t signature = 0;  // Should be 0xEEFE704C
+    uint32_t version = 0;
+    uint32_t sequence = 0;
+    uint32_t plane_count = 0;
+    std::vector<PathfindingPlane> planes;
+    std::vector<PathfindingTrapezoid> all_trapezoids;  // Flattened list for easy rendering
+    bool valid = false;
+
+    PathfindingChunk() = default;
+    PathfindingChunk(int offset, const unsigned char* data, size_t data_size) {
+        int initial_offset = offset;
+
+        std::memcpy(&chunk_id, &data[offset], sizeof(chunk_id));
+        offset += sizeof(chunk_id);
+
+        std::memcpy(&chunk_size, &data[offset], sizeof(chunk_size));
+        offset += sizeof(chunk_size);
+
+        // Parse pathfinding header
+        std::memcpy(&signature, &data[offset], sizeof(signature));
+        offset += sizeof(signature);
+
+        if (signature != 0xEEFE704C) {
+            return;  // Invalid signature
+        }
+
+        std::memcpy(&version, &data[offset], sizeof(version));
+        offset += sizeof(version);
+
+        std::memcpy(&sequence, &data[offset], sizeof(sequence));
+        offset += sizeof(sequence);
+
+        // Parse top-level tags to find tag 8 (plane data)
+        int end_offset = initial_offset + 8 + chunk_size;
+        while (offset < end_offset - 5) {
+            uint8_t tag = data[offset];
+            offset += 1;
+
+            if (tag == 0xFF) break;
+
+            uint32_t tag_size;
+            std::memcpy(&tag_size, &data[offset], sizeof(tag_size));
+            offset += sizeof(tag_size);
+
+            if (tag == 8) {
+                // Tag 8: Contains plane count + all plane data
+                std::memcpy(&plane_count, &data[offset], sizeof(plane_count));
+                int plane_offset = offset + 4;
+
+                planes.resize(plane_count);
+                for (uint32_t plane_idx = 0; plane_idx < plane_count; ++plane_idx) {
+                    if (plane_offset >= offset + (int)tag_size) break;
+                    parse_plane(data, plane_offset, data_size, planes[plane_idx]);
+                }
+
+                offset += tag_size;
+                break;
+            } else {
+                offset += tag_size;
+            }
+        }
+
+        // Flatten all trapezoids for easy rendering
+        for (const auto& plane : planes) {
+            for (const auto& trap : plane.trapezoids) {
+                all_trapezoids.push_back(trap);
+            }
+        }
+
+        valid = true;
+    }
+
+private:
+    void parse_plane(const unsigned char* data, int& offset, size_t data_size, PathfindingPlane& plane) {
+        // Tag 0: Counts (always 32 bytes of data)
+        uint8_t tag = data[offset];
+        uint32_t tag_size;
+        std::memcpy(&tag_size, &data[offset + 1], sizeof(tag_size));
+        offset += 5;
+
+        if (tag != 0 || tag_size != 32) {
+            offset += tag_size < 1000000 ? tag_size : 0;
+            return;
+        }
+
+        uint32_t h000C, vectors_count, traps_count, xnodes_count, ynodes_count;
+        uint32_t sinknodes_count, portals_count, portal_traps_count;
+
+        std::memcpy(&h000C, &data[offset], sizeof(h000C));
+        std::memcpy(&vectors_count, &data[offset + 4], sizeof(vectors_count));
+        std::memcpy(&traps_count, &data[offset + 8], sizeof(traps_count));
+        std::memcpy(&xnodes_count, &data[offset + 12], sizeof(xnodes_count));
+        std::memcpy(&ynodes_count, &data[offset + 16], sizeof(ynodes_count));
+        std::memcpy(&sinknodes_count, &data[offset + 20], sizeof(sinknodes_count));
+        std::memcpy(&portals_count, &data[offset + 24], sizeof(portals_count));
+        std::memcpy(&portal_traps_count, &data[offset + 28], sizeof(portal_traps_count));
+        offset += 32;
+
+        plane.traps_count = traps_count;
+
+        // Tag 11: Special - only read h000C * 8 bytes
+        tag = data[offset];
+        std::memcpy(&tag_size, &data[offset + 1], sizeof(tag_size));
+        offset += 5;
+        if (tag == 11) {
+            offset += h000C * 8;
+        }
+
+        // Tag 1: Vectors (skip)
+        tag = data[offset];
+        std::memcpy(&tag_size, &data[offset + 1], sizeof(tag_size));
+        offset += 5;
+        if (tag == 1) {
+            offset += tag_size;
+        }
+
+        // Tag 2: Trapezoids
+        tag = data[offset];
+        std::memcpy(&tag_size, &data[offset + 1], sizeof(tag_size));
+        offset += 5;
+
+        if (tag == 2) {
+            plane.trapezoids.reserve(traps_count);
+            for (uint32_t i = 0; i < traps_count; ++i) {
+                int trap_offset = offset + i * 44;
+                if (trap_offset + 44 > (int)data_size) break;
+
+                PathfindingTrapezoid trap;
+                // Skip neighbor indices (16 bytes) and portal indices (4 bytes) = 20 bytes
+                int coord_offset = trap_offset + 20;
+                std::memcpy(&trap.yt, &data[coord_offset], sizeof(trap.yt));
+                std::memcpy(&trap.yb, &data[coord_offset + 4], sizeof(trap.yb));
+                std::memcpy(&trap.xtl, &data[coord_offset + 8], sizeof(trap.xtl));
+                std::memcpy(&trap.xtr, &data[coord_offset + 12], sizeof(trap.xtr));
+                std::memcpy(&trap.xbl, &data[coord_offset + 16], sizeof(trap.xbl));
+                std::memcpy(&trap.xbr, &data[coord_offset + 20], sizeof(trap.xbr));
+                plane.trapezoids.push_back(trap);
+            }
+            offset += traps_count * 44;
+        }
+
+        // Skip remaining tags: 3, 4, 5, 6, 10, 9
+        int remaining_tags[] = {3, 4, 5, 6, 10, 9};
+        for (int expected_tag : remaining_tags) {
+            if (offset >= (int)data_size - 5) break;
+            tag = data[offset];
+            std::memcpy(&tag_size, &data[offset + 1], sizeof(tag_size));
+            offset += 5 + tag_size;
+        }
+    }
+};
+
 struct BigChunk {
     uint32_t chunk_id;
     uint32_t chunk_size;
@@ -1583,6 +1776,7 @@ struct FFNA_MapFile
     ShoreChunk shore_chunk;
     Chunk4 shore_filenames;
     BigChunk big_chunk;
+    PathfindingChunk pathfinding_chunk;
 
     std::unordered_map<uint32_t, int> riff_chunks;
 
@@ -1696,13 +1890,13 @@ struct FFNA_MapFile
             shore_chunk = ShoreChunk(offset, data.data());
         }
 
-        //// Check if the CHUNK_ID_PATH_INFO is in the riff_chunks map
-        //it = riff_chunks.find(CHUNK_ID_PATH_INFO);
-        //if (it != riff_chunks.end())
-        //{
-        //    int offset = it->second;
-        //    big_chunk = BigChunk(offset, data.data());
-        //}
+        // Check if the CHUNK_ID_PATH_INFO is in the riff_chunks map
+        it = riff_chunks.find(CHUNK_ID_PATH_INFO);
+        if (it != riff_chunks.end())
+        {
+            int offset = it->second;
+            pathfinding_chunk = PathfindingChunk(offset, data.data(), data.size());
+        }
 
         //// Check if the CHUNK_ID_ZONES_STUFF is in the riff_chunks map
         //it = riff_chunks.find(CHUNK_ID_ZONES_STUFF);

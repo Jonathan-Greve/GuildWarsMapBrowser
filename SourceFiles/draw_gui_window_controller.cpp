@@ -18,7 +18,8 @@ void CheckAndResetHideAll()
 			GuiGlobalConstants::is_compare_panel_open ||
 			GuiGlobalConstants::is_custom_file_info_editor_open ||
 			GuiGlobalConstants::is_extract_panel_open ||
-			GuiGlobalConstants::is_byte_search_panel_open))
+			GuiGlobalConstants::is_byte_search_panel_open ||
+			GuiGlobalConstants::is_pathfinding_panel_open))
 	{
 		GuiGlobalConstants::hide_all = false;
 	}
@@ -52,6 +53,7 @@ void draw_gui_window_controller()
 			GuiGlobalConstants::is_custom_file_info_editor_open = !GuiGlobalConstants::hide_all;
 			GuiGlobalConstants::is_extract_panel_open = !GuiGlobalConstants::hide_all;
 			GuiGlobalConstants::is_byte_search_panel_open = !GuiGlobalConstants::hide_all;
+			GuiGlobalConstants::is_pathfinding_panel_open = !GuiGlobalConstants::hide_all;
 		}
 		else
 		{
@@ -73,6 +75,7 @@ void draw_gui_window_controller()
 	ImGui::Checkbox("Custom File Info Editor", &GuiGlobalConstants::is_custom_file_info_editor_open);
 	ImGui::Checkbox("Extract Panel", &GuiGlobalConstants::is_extract_panel_open);
 	ImGui::Checkbox("Byte Pattern Search Panel", &GuiGlobalConstants::is_byte_search_panel_open);
+	ImGui::Checkbox("Pathfinding Panel", &GuiGlobalConstants::is_pathfinding_panel_open);
 
 	ImGui::Separator();
 	if (ImGui::Checkbox("DAT Browser movable and resizeable", &GuiGlobalConstants::is_dat_browser_movable)) {

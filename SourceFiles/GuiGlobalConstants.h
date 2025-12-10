@@ -22,6 +22,7 @@ public:
 	inline static bool is_custom_file_info_editor_open = true;
 	inline static bool is_extract_panel_open = true;
 	inline static bool is_byte_search_panel_open = true;
+	inline static bool is_pathfinding_panel_open = true;
 
 	inline static bool prev_is_dat_browser_open;
 	inline static bool prev_is_dat_browser_resizeable;
@@ -37,6 +38,7 @@ public:
 	inline static bool prev_is_custom_file_info_editor_open;
 	inline static bool prev_is_extract_panel_open;
 	inline static bool prev_is_byte_search_panel_open;
+	inline static bool prev_is_pathfinding_panel_open;
 
 	// Method to save the current state of all panels
 	static void SaveCurrentStates()
@@ -55,6 +57,7 @@ public:
 		prev_is_custom_file_info_editor_open = is_custom_file_info_editor_open;
 		prev_is_extract_panel_open = is_extract_panel_open;
 		prev_is_byte_search_panel_open = is_byte_search_panel_open;
+		prev_is_pathfinding_panel_open = is_pathfinding_panel_open;
 	}
 
 	// Method to restore the previous state of all panels
@@ -74,5 +77,6 @@ public:
 		is_custom_file_info_editor_open = prev_is_custom_file_info_editor_open;
 		is_extract_panel_open = prev_is_extract_panel_open;
 		is_byte_search_panel_open = prev_is_byte_search_panel_open;
+		is_pathfinding_panel_open = prev_is_pathfinding_panel_open;
 	}
 };
