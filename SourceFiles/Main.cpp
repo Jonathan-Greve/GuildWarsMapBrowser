@@ -3,6 +3,7 @@
 //
 #include "pch.h"
 #include "MapBrowser.h"
+#include "GuiGlobalConstants.h"
 #include "InputManager.h"
 #include "Extract_BASS_DLL_resource.h"
 #include <filesystem>
@@ -182,16 +183,29 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         if (! RegisterClassExW(&wcex))
             return 1;
 
-        // Create window
+        // Load settings
+        GuiGlobalConstants::LoadSettings();
+
+        int x = CW_USEDEFAULT;
+        int y = CW_USEDEFAULT;
         int w, h;
-        g_map_browser->GetDefaultSize(w, h);
 
-        RECT rc = {0, 0, static_cast<LONG>(w), static_cast<LONG>(h)};
+        if (GuiGlobalConstants::window_width != -1) {
+            w = GuiGlobalConstants::window_width;
+            h = GuiGlobalConstants::window_height;
+            x = GuiGlobalConstants::window_pos_x;
+            y = GuiGlobalConstants::window_pos_y;
+        } else {
+            g_map_browser->GetDefaultSize(w, h);
+            RECT rc = { 0, 0, static_cast<LONG>(w), static_cast<LONG>(h) };
+            AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
+            w = rc.right - rc.left;
+            h = rc.bottom - rc.top;
+        }
 
-        AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
-
+        // Create window
         HWND hwnd = CreateWindowExW(0, L"GuildWarsMapBrowserWindowClass", g_szAppName, WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top,
+            x, y, w, h,
             nullptr, nullptr, hInstance, nullptr);
         // TODO: Change to CreateWindowExW(WS_EX_TOPMOST, L"GuildWarsMapBrowserWindowClass", g_szAppName, WS_POPUP,
         // to default to fullscreen.
@@ -202,11 +216,16 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         if (! hwnd)
             return 1;
 
-        ShowWindow(hwnd, nCmdShow);
+        int showCmd = nCmdShow;
+        if (GuiGlobalConstants::window_width != -1 && GuiGlobalConstants::window_maximized) {
+            showCmd = SW_SHOWMAXIMIZED;
+        }
+        ShowWindow(hwnd, showCmd);
         // TODO: Change nCmdShow to SW_SHOWMAXIMIZED to default to fullscreen.
 
         SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(g_map_browser.get()));
 
+        RECT rc;
         GetClientRect(hwnd, &rc);
 
         std::filesystem::path exePath = std::filesystem::current_path();
@@ -296,6 +315,26 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam,
     LPARAM lParam);
 
+static void UpdateWindowSettings(HWND hWnd)
+{
+    WINDOWPLACEMENT wp = { sizeof(WINDOWPLACEMENT) };
+    if (GetWindowPlacement(hWnd, &wp)) {
+        // Only update if we have valid data (not completely zero)
+        // Check if window is visible? No, GetWindowPlacement works.
+        
+        // Don't save if minimized, keep last known restored pos
+        if (wp.showCmd != SW_SHOWMINIMIZED) {
+            GuiGlobalConstants::window_maximized = (wp.showCmd == SW_SHOWMAXIMIZED);
+            
+            // rcNormalPosition gives the restored position even if maximized
+            GuiGlobalConstants::window_width = wp.rcNormalPosition.right - wp.rcNormalPosition.left;
+            GuiGlobalConstants::window_height = wp.rcNormalPosition.bottom - wp.rcNormalPosition.top;
+            GuiGlobalConstants::window_pos_x = wp.rcNormalPosition.left;
+            GuiGlobalConstants::window_pos_y = wp.rcNormalPosition.top;
+        }
+    }
+}
+
 // Windows procedure
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -369,6 +408,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             map_browser->OnWindowMoved();
         }
+        UpdateWindowSettings(hWnd);
         break;
 
     case WM_SIZE:
@@ -393,6 +433,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             map_browser->OnWindowSizeChanged(LOWORD(lParam), HIWORD(lParam));
         }
+        UpdateWindowSettings(hWnd);
         break;
 
     case WM_ENTERSIZEMOVE:
@@ -408,6 +449,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             map_browser->OnWindowSizeChanged(rc.right - rc.left, rc.bottom - rc.top);
         }
+        UpdateWindowSettings(hWnd);
         break;
 
     case WM_GETMINMAXINFO:
@@ -454,6 +496,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_DESTROY:
+        UpdateWindowSettings(hWnd);
+        GuiGlobalConstants::SaveSettings();
         PostQuitMessage(0);
         break;
 

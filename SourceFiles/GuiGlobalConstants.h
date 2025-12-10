@@ -32,6 +32,13 @@ public:
 	inline static bool is_pathfinding_panel_open = false;
 	inline static bool is_window_controller_open = true;
 
+	// Window settings
+	inline static int window_width = -1;
+	inline static int window_height = -1;
+	inline static int window_pos_x = -1;
+	inline static int window_pos_y = -1;
+	inline static bool window_maximized = false;
+
 	inline static bool prev_is_dat_browser_open;
 	inline static bool prev_is_dat_browser_resizeable;
 	inline static bool prev_is_dat_browser_movable;
@@ -180,6 +187,12 @@ public:
 		file << "pathfinding_panel=" << (is_pathfinding_panel_open ? 1 : 0) << "\n";
 		file << "window_controller=" << (is_window_controller_open ? 1 : 0) << "\n";
 
+		file << "window_width=" << window_width << "\n";
+		file << "window_height=" << window_height << "\n";
+		file << "window_pos_x=" << window_pos_x << "\n";
+		file << "window_pos_y=" << window_pos_y << "\n";
+		file << "window_maximized=" << (window_maximized ? 1 : 0) << "\n";
+
 		file.close();
 	}
 
@@ -220,6 +233,11 @@ public:
 			else if (key == "byte_search_panel") is_byte_search_panel_open = (value != 0);
 			else if (key == "pathfinding_panel") is_pathfinding_panel_open = (value != 0);
 			else if (key == "window_controller") is_window_controller_open = (value != 0);
+			else if (key == "window_width") window_width = value;
+			else if (key == "window_height") window_height = value;
+			else if (key == "window_pos_x") window_pos_x = value;
+			else if (key == "window_pos_y") window_pos_y = value;
+			else if (key == "window_maximized") window_maximized = (value != 0);
 		}
 
 		file.close();
