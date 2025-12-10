@@ -84,13 +84,7 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
 				}
 				ImGui::Separator();
 				if (ImGui::MenuItem("Hide All", NULL, GuiGlobalConstants::hide_all)) {
-					if (GuiGlobalConstants::hide_all) {
-						GuiGlobalConstants::RestorePreviousStates();
-						GuiGlobalConstants::hide_all = false;
-					} else {
-						GuiGlobalConstants::SaveCurrentStates();
-						GuiGlobalConstants::hide_all = true;
-					}
+					GuiGlobalConstants::SetHideAll(!GuiGlobalConstants::hide_all);
 					GuiGlobalConstants::SaveSettings();
 				}
 				ImGui::EndMenu();
