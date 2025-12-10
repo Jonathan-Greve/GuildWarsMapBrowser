@@ -466,7 +466,7 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
 
             // Height offset slider
             static float height_offset = 50.0f;
-            if (ImGui::SliderFloat("Height Offset", &height_offset, -500.0f, 2000.0f, "%.0f"))
+            if (ImGui::SliderFloat("Height Offset", &height_offset, -5000.0f, 5000.0f, "%.0f"))
             {
                 if (selected_ffna_map_file.pathfinding_chunk.valid && map_renderer->GetTerrain())
                 {
