@@ -195,14 +195,20 @@ static_assert(sizeof(ChunkBB8_Header) == 0x30, "ChunkBB8_Header must be 48 bytes
 // Texture group structure for "other" format (9 bytes)
 // Similar to UnknownTexStruct0 (8 bytes) but with an extra byte that may contain blend info
 #pragma pack(push, 1)
+// This structure maps directly to UnknownTexStruct1 (uts1) in the 0xFA0 format.
+// When 0xBB8 is converted to 0xFA0, these 9 bytes are copied as-is.
+// Note: The blend_flag for rendering does NOT come from this structure!
+// For MODERN format (with texture_groups), blend_flag defaults to 0.
+// For OLD format (no texture_groups), blend_flag defaults to 8.
 struct TextureGroupOther
 {
-    uint8_t using_no_cull;    // 0x00: 0 if cull enabled, 1 if no culling enabled
-    uint8_t f0x1;             // 0x01: Unknown
-    uint32_t f0x2;            // 0x02: Unknown (flags?)
-    uint8_t pixel_shader_id;  // 0x06: Pixel shader ID
-    uint8_t num_textures;     // 0x07: Number of textures to use
-    uint8_t blend_flag;       // 0x08: Blend flag (0=opaque, 8=alpha blend, etc.)
+    uint16_t some_flags0;         // 0x00-0x01: Flags (maps to uts1.some_flags0)
+    uint16_t some_flags1;         // 0x02-0x03: Flags (maps to uts1.some_flags1)
+    uint8_t f0x4;                 // 0x04: Unknown (maps to uts1.f0x4)
+    uint8_t f0x5;                 // 0x05: Unknown (maps to uts1.f0x5)
+    uint8_t num_textures_to_use;  // 0x06: Number of textures to use for this submesh
+    uint8_t f0x7;                 // 0x07: Unknown (maps to uts1.f0x7)
+    uint8_t f0x8;                 // 0x08: Unknown (maps to uts1.f0x8) - NOT blend_flag!
 };
 #pragma pack(pop)
 static_assert(sizeof(TextureGroupOther) == 9, "TextureGroupOther must be 9 bytes!");
@@ -461,8 +467,8 @@ private:
                 char debug_msg[256];
                 for (size_t i = 0; i < texture_groups.size(); i++)
                 {
-                    sprintf_s(debug_msg, "GeometryChunkOther: texture_group[%zu] blend_flag=%u, num_textures=%u, pixel_shader=%u\n",
-                              i, texture_groups[i].blend_flag, texture_groups[i].num_textures, texture_groups[i].pixel_shader_id);
+                    sprintf_s(debug_msg, "GeometryChunkOther: texture_group[%zu] num_textures_to_use=%u, f0x8=%u, f0x5=%u\n",
+                              i, texture_groups[i].num_textures_to_use, texture_groups[i].f0x8, texture_groups[i].f0x5);
                     LogBB8Debug(debug_msg);
                 }
 
@@ -1257,21 +1263,29 @@ struct FFNA_ModelFile_Other
                   model_index, material_index, total_textures, num_vertex_uvs, geometry_chunk.submesh_texture_indices.size());
         LogBB8Debug(debug_msg);
 
-        // Get blend flag from texture_groups using material_index
-        uint8_t blend_flag = 8;  // Default: alpha blend
-        BlendState blend_state = BlendState::AlphaBlend;
+        // Determine blend_flag based on format:
+        // - MODERN format (with texture_groups): blend_flag defaults to 0 (opaque)
+        // - OLD format (without texture_groups): blend_flag defaults to 8 (alpha blend)
+        // Note: In MODERN format (uts1), byte[8] is f0x8, NOT the blend_flag!
+        // The blend_flag for modern format comes from AMAT files, not texture_groups.
+        uint8_t blend_flag;
+        BlendState blend_state;
 
-        if (material_index < geometry_chunk.texture_groups.size())
+        if (geometry_chunk.texture_groups.empty())
         {
-            blend_flag = geometry_chunk.texture_groups[material_index].blend_flag;
-            sprintf_s(debug_msg, "GetMesh: Using texture_group[%u].blend_flag=%u\n", material_index, blend_flag);
+            // OLD format: default to alpha blend (8)
+            blend_flag = 8;
+            blend_state = BlendState::AlphaBlend;
+            sprintf_s(debug_msg, "GetMesh: OLD format, using default blend_flag=8 (alpha blend)\n");
             LogBB8Debug(debug_msg);
         }
-
-        // Set blend state based on blend_flag
-        if (blend_flag == 0)
+        else
         {
+            // MODERN format: default to opaque (0)
+            blend_flag = 0;
             blend_state = BlendState::Opaque;
+            sprintf_s(debug_msg, "GetMesh: MODERN format, using default blend_flag=0 (opaque)\n");
+            LogBB8Debug(debug_msg);
         }
 
         // Use the parsed per-submesh texture indices, indexed by material_index
