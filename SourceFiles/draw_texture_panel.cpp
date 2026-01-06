@@ -5,6 +5,12 @@
 #include <GuiGlobalConstants.h>
 
 extern SelectedDatTexture selected_dat_texture;
+extern bool using_other_model_format;
+extern FFNA_ModelFile_Other selected_ffna_model_file_other;
+extern FileType selected_file_type;
+
+std::vector<InlineTextureDisplay> inline_texture_displays;
+std::vector<ModelTextureDisplay> model_texture_displays;
 
 std::wstring OpenPngFileDialog();
 
@@ -97,6 +103,97 @@ void draw_texture_panel(MapRenderer* map_renderer)
 
                     const auto compression_format = CompressionFormat::None;
                     TexPanelExportDDS(texture_data, savePath, compression_format);
+                }
+            }
+        }
+
+        // Display model textures (from texture_filenames_chunk) for "other" model format
+        if (using_other_model_format && selected_file_type == FFNA_Type2 && !model_texture_displays.empty())
+        {
+            ImGui::Separator();
+            ImGui::Text("Model Textures (%zu found):", model_texture_displays.size());
+            ImGui::Separator();
+
+            float thumbnail_size = 128.0f;
+            float window_width = ImGui::GetWindowWidth();
+            int columns = std::max(1, static_cast<int>((window_width - 20) / (thumbnail_size + 10)));
+
+            int col = 0;
+            for (size_t i = 0; i < model_texture_displays.size(); i++)
+            {
+                const auto& tex_display = model_texture_displays[i];
+                if (tex_display.texture_id < 0) continue;
+
+                ID3D11ShaderResourceView* tex =
+                    map_renderer->GetTextureManager()->GetTexture(tex_display.texture_id);
+                if (!tex) continue;
+
+                if (col > 0)
+                {
+                    ImGui::SameLine();
+                }
+
+                ImGui::BeginGroup();
+
+                float scale = thumbnail_size / std::max(tex_display.width, tex_display.height);
+                ImVec2 scaled_size(tex_display.width * scale, tex_display.height * scale);
+
+                ImGui::Image((ImTextureID)tex, scaled_size);
+                ImGui::Text("#%d: 0x%X", tex_display.index, tex_display.file_hash);
+                ImGui::Text("%dx%d", tex_display.width, tex_display.height);
+
+                ImGui::EndGroup();
+
+                col++;
+                if (col >= columns)
+                {
+                    col = 0;
+                }
+            }
+        }
+
+        // Display inline ATEX textures (inventory icons) for "other" model format
+        if (using_other_model_format && selected_file_type == FFNA_Type2 &&
+            selected_ffna_model_file_other.has_inline_textures && !inline_texture_displays.empty())
+        {
+            ImGui::Separator();
+            ImGui::Text("Inventory Icon (%zu found):", inline_texture_displays.size());
+            ImGui::Separator();
+
+            float thumbnail_size = 64.0f;  // Smaller size for inventory icons
+            float window_width = ImGui::GetWindowWidth();
+            int columns = std::max(1, static_cast<int>((window_width - 20) / (thumbnail_size + 10)));
+
+            int col = 0;
+            for (size_t i = 0; i < inline_texture_displays.size(); i++)
+            {
+                const auto& tex_display = inline_texture_displays[i];
+                if (tex_display.texture_id < 0) continue;
+
+                ID3D11ShaderResourceView* tex =
+                    map_renderer->GetTextureManager()->GetTexture(tex_display.texture_id);
+                if (!tex) continue;
+
+                if (col > 0)
+                {
+                    ImGui::SameLine();
+                }
+
+                ImGui::BeginGroup();
+
+                float scale = thumbnail_size / std::max(tex_display.width, tex_display.height);
+                ImVec2 scaled_size(tex_display.width * scale, tex_display.height * scale);
+
+                ImGui::Image((ImTextureID)tex, scaled_size);
+                ImGui::Text("#%d: %s", tex_display.index, tex_display.format.c_str());
+                ImGui::Text("%dx%d", tex_display.width, tex_display.height);
+
+                ImGui::EndGroup();
+
+                col++;
+                if (col >= columns)
+                {
+                    col = 0;
                 }
             }
         }

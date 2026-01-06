@@ -2,488 +2,394 @@
 #include <std/math.pat>
 #include <std/io.pat>
 #pragma pattern_limit 500000
-std::mem::Section provider = std::mem::create_section("Memory provider");
-u32 fvf_array_0[22] @0x00 in provider;
-u32 fvf_array_1[8] @0x00+sizeof(fvf_array_0) in provider;
-u32 fvf_array_2[16] @0x00+sizeof(fvf_array_0)+sizeof(fvf_array_1) in provider;
 
-fvf_array_0[0] = 0x0;
-fvf_array_0[1] = 0x8;
-fvf_array_0[2] = 0x8;
-fvf_array_0[3] = 0x10;
-fvf_array_0[4] = 0x8;
-fvf_array_0[5] = 0x10;
-fvf_array_0[6] = 0x10;
-fvf_array_0[7] = 0x18;
-fvf_array_0[8] = 0x8;
-fvf_array_0[9] = 0x10;
-fvf_array_0[10] = 0x10;
-fvf_array_0[11] = 0x18;
-fvf_array_0[12] = 0x10;
-fvf_array_0[13] = 0x18;
-fvf_array_0[14] = 0x18;
-fvf_array_0[15] = 0x20;
-fvf_array_0[16] = 0x0;
-fvf_array_0[17] = 0x0;
-fvf_array_0[18] = 0x0;
-fvf_array_0[19] = 0x1;
-fvf_array_0[20] = 0xFFFFFFFF;
-fvf_array_0[21] = 0xFFFFFFFF;
+// =============================================================================
+// FFNA Type 2 "Other" Model File Pattern
+// These model files use chunk IDs in the 0xBB* range instead of 0xFA* range
+// They also contain inline ATEX textures instead of file references
+//
+// Based on reverse engineering of the game's MdlDecomp.cpp functions:
+// - MdlDecomp_ConvertGeometryChunk_0xBB8_to_0xFA0 (0x0076d380)
+// - MdlDecomp_ConvertSubmesh (0x0076dbe0)
+// - MdlDecomp_ConvertAllChunks (0x00771090)
+// =============================================================================
 
-fvf_array_1[0] = 0x0;
-fvf_array_1[1] = 0xC;
-fvf_array_1[2] = 0xC;
-fvf_array_1[3] = 0x18;
-fvf_array_1[4] = 0xC;
-fvf_array_1[5] = 0x18;
-fvf_array_1[6] = 0x18;
-fvf_array_1[7] = 0x24;
+// Chunk ID mappings (Other -> Standard):
+// 0xBB8 (3000) -> 0xFA0 (4000): Geometry (different internal format!)
+// 0xBB9 (3001) -> 0xFA1 (4001): Animation/Skeleton
+// 0xBBA (3002) -> 0xFA4 (4004): Metadata (version info)
+// 0xBBB (3003) -> 0xFA5 (4005): Texture filenames
+// 0xBBC (3004) -> 0xFA6 (4006): Additional filenames
+// 0xBBE (3006) -> 0xFA9 (4009): Version/header data
+// 0xBBF (3007) -> 0xFAB (4011): Index buffer data
+// 0xBC0 (3008) -> 0xFAD (4013): Additional data
+// 0xBC1 (3009) -> 0xFAE (4014): Additional data
+// 0xFA3 (4003): Inline ATEX DXT3 texture
+// 0xFAA (4010): Inline ATEX DXTA texture
 
-fvf_array_2[0] = 0x0;
-fvf_array_2[1] = 0xC;
-fvf_array_2[2] = 0x4;
-fvf_array_2[3] = 0x10;
-fvf_array_2[4] = 0xC;
-fvf_array_2[5] = 0x18;
-fvf_array_2[6] = 0x10;
-fvf_array_2[7] = 0x1C;
-fvf_array_2[8] = 0x4;
-fvf_array_2[9] = 0x10;
-fvf_array_2[10] = 0x8;
-fvf_array_2[11] = 0x14;
-fvf_array_2[12] = 0x10;
-fvf_array_2[13] = 0x1C;
-fvf_array_2[14] = 0x14;
-fvf_array_2[15] = 0x20;
+// ClassFlags bitmask for 0xBB8 geometry header (offset 0x08):
+//   0x002: Bone group data (max 4 groups, 28 bytes each)
+//   0x004: Bounding box data
+//   0x008: Submesh data
+//   0x010: LOD data
+//   0x020: Vertex buffer data
+//   0x040: Bone weights
+//   0x080: Morph target data
+//   0x100: Animation data
+//   0x200: Skeleton data (max 32 bones, 255 weights)
+//   0x400: Extended LOD data
 
-fn get_fvf(u32 dat_fvf)
-{
-    return (dat_fvf & 0xff0) << 4 | dat_fvf >> 8 & 0x30 | dat_fvf & 0xf;
-};
-
-fn get_vertex_size_from_fvf(u32 fvf)
-{
-  return fvf_array_0[fvf >> 0xc & 0xf] + fvf_array_0[fvf >> 8 & 0xf] + fvf_array_1[fvf >> 4 & 7] +
-      fvf_array_2[fvf & 0xf];
-};
-
-struct Vertex<auto dat_fvf> {
-  u32 FVF = get_fvf(dat_fvf);
-  u32 vertex_size = get_vertex_size_from_fvf(FVF);
-  u32 used_bytes = 0;
-  if (FVF & 1){
-    used_bytes += sizeof(float)*3;
-    float x,y,z;
-  }
-  if (FVF & 2){
-    used_bytes += 4;
-    u32 group;
-  }
-  if (FVF & 4){
-    used_bytes += sizeof(float)*3;
-    float normal_x,normal_y,normal_z;
-  }
-  float data[(vertex_size-used_bytes)/4];
-};
+// UV coordinates use a delta+offset compression format:
+// - After positions, there's num_vertices * 4 bytes of per-vertex data (colors/weights)
+// - UV Header: count0 (uint16), count1 (uint16)
+// - Offset arrays: u_thresholds[count0], v_thresholds[count1], u_offsets[count0], v_offsets[count1]
+// - Delta data: (u_delta, v_delta) uint16 pairs per vertex
+// - Final UV = delta * (1/65536) + offset
+// Scale factor: 1.0/65536.0 = 0x37800000 as float
 
 fn compute_str_len_plus_one(u32 address){
   u32 counter = 0;
   bool found = false;
-  while (!found){
+  while (!found && counter < 256){
     u8 curr_char @ address + counter;
     if (curr_char == 0){
       found = true;
     }
-    
     counter += 1;
   }
-  
   return counter;
-};
-
-fn read_u32(u32 address) {
-    u32 value @ address;
-
-    return value;
-};
-
-fn get_some_size(u32 address, u32 sub_1_0x52){
-  u32 iVar3 = 0;
-  u32 iVar5 = 0;
-  u32 iVar6 = 0;
-  u32 iVar7 = 0;
-  u32 local_c = 0;
-  
-  std::print("address: {}", address);
-  std::print("sub_1_0x52: {}", sub_1_0x52);
-  
-  if (1 < sub_1_0x52){
-    s32 iVar4 = (sub_1_0x52 - 2 >> 1) + 1;
-    std::print("iVar4: {}", iVar4);
-    
-    local_c = iVar4 * 2;
-    std::print("local_c: {}", local_c);
-      
-    u32 piVar1 = address + 0x2C;
-      
-    
-    while (true){
-      std::print("--------- iVar4: {} ---------", iVar4);
-      u32 v3 @ (piVar1 + 0xC * 4);
-      iVar3 += v3;
-      std::print("iVar3: {}", iVar3);
-        
-      u32 v5 @ (piVar1 - 4);
-      iVar5 += v5;
-      std::print("iVar5: {}", iVar5);
-        
-      u32 v6 @ piVar1;
-      iVar6 += v6;
-      std::print("iVar6: {}", iVar6);
-        
-      u32 v7 @ (piVar1 + 0xB * 4);
-      iVar7 += v7;
-      std::print("iVar7 : {}", iVar7);
-        
-      piVar1 += 0x60;
-        
-      iVar4 -= 1;
-      if (iVar4 <= 0){
-        break;
-      }
-    }
-  }
-  
-  u32 iVar4 = 0;
-  u32 local_18;
-  if (local_c < sub_1_0x52){
-    local_18 = read_u32(address + 0x28 + local_c*6*8);
-    iVar4 = read_u32(address + 0x2C + local_c*6*8);
-  }
-  
-  local_18 += iVar7 + iVar5;
-  iVar4 += iVar3 + iVar6;
-  
-  u32 size = iVar4 * 0x10 + local_18 * 0x18;
-  
-  std::print("{}", size);
-  
-  return size;
 };
 
 struct String {
   char string[compute_str_len_plus_one($)];
 };
 
-struct Chunk1_sub1 {
-  u32 some_type_maybe; // always 0x26? It's also checked for this value in the source.
-  u32 f0x4;
-  s32 f0x8;
-  u32 f0xC;
-  u32 f0x10;
-  u8 f0x14;
-  u8 f0x15;
-  u8 f0x16;
-  u8 f0x17;
-  u8 some_num0; // Num pixel shaders?
-  u8 f0x19;
-  u8 f0x1a;
-  u8 f0x1b;
-  u8 some_num1;
-  u8 f0x1d;
-  u8 f0x1e;
-  u8 f0x1f;
-  u32 f0x20;
-  u32 f0x24;
-  u32 magic_num0;
-  u32 magic_num;
+// =============================================================================
+// ATEX inline texture format
+// =============================================================================
+struct ATEXHeader {
+  char signature[4];      // "ATEX"
+  char format[4];         // "DXT3", "DXTA", "DXT1", "DXT5", etc.
+  u16 width;
+  u16 height;
+  u32 data_size;
+  u32 mip_levels;         // Number of mip levels or flags
 };
 
-struct Chunkfa1_sub1 {
-  u32 some_type_maybe; // always 0x26? It's also checked for this value in the source.
-  u32 f0x4;
-  s32 f0x8;
-  u32 f0xC;
-  u32 f0x10;
-  u32 f0x14;
-  u8 some_num0; // Num pixel shaders?
-  u8 f0x19;
-  u8 f0x1a;
-  u8 f0x1b;
-  u8 some_num1;
-  u8 f0x1d;
-  u8 f0x1e;
-  u8 f0x1f;
-  u32 f0x20;
-  u32 f0x24;
-  u32 magic_num0;
-  u32 animation_count;
-  u8 num_some_struct; // the structs have size 0x1c
-  u8 f0x31[3];
-  u32 f0x34;
-  u32 f0x38;
-  u32 f0x3C;
-  u32 f0x40;
-  u32 num_models;
-  u32 f0x48;
-  u16 f0x4C;
-  u8 f0x4E[2];
-  u16 num_some_struct2;
-  u16 f0x52;
-};
-
-struct geometry_sub_chunk {
-  u32 unknown_0x00;
-  u32 sub_model_index;
-  u32 num_indices;
-  u32 num_vertices;
-  u32 unknown_0x10;
-  u32 unknown_0x14;
-  u32 FVF;
-  u32 unknown_0x1C;
-  u16 indices[num_indices];
-  Vertex<FVF> vertices[num_vertices];
-  u8 data[156];
-};
-
-struct InteractiveModelMaybe {
-  u32 num_indices;
-  u32 num_vertices;
-  u16 indices[num_indices];
-  Vertex<1> vertices[num_vertices];
-};
-
-u32 sub_1_f0x8;
-u32 sub_1_address;
-u32 chunk1_size;
-struct complex_struct{
-    //0072116e: call geometry_models =LoadPropGeometryModels((uint *)&curr_file_ptr,(uint)chunk2,num_models,0x2e,CalledWhenLoadingSomeModelFiles0);
-    
-    if (sub_1_address+chunk1_size < addressof($)+0x2E){
-      // return 0. CANNOT PARSE
-    }
-    u32 u0x0;
-    u32 u0x4;
-    u32 u0x8;
-    u32 u0xC;
-    u16 u0x10;
-    u8 u0x12;
-    u8 u0x13;
-    u16 u0x14;
-    u32 u0x16;     
-    u32 u0x1A;
-    u32 u0x1E;
-    u16 u0x22;
-    u16 u0x24;
-    u16 u0x26;
-    u16 u0x28;
-    u32 u0x2A;
-    
-    u32 uVar2 = u0x14;
-    u32 iVar3 = 0;
-    if ((u0xC & 2) == 0){
-      iVar3 = uVar2 - u0x28;
-    }
-    u32 uVar4 = uVar2;
-    if ((u0xC & 0x40 == 0)){
-      uVar4 = u0x1A;
-    }
-    u32 term0 = (u0x13 * 8 + 0xC) * uVar2;
-    u32 term1_0 = (iVar3 + u0x1E * 2) * 9;
-    u32 term1_1_0 = u0x22;
-    u32 term1_1_1 = (u0x26 + u0x24) * 2;
-    u32 term1_1_2 = u0x4;
-    u32 term1_1_3 = uVar4;
-    u32 term1_1_4 = u0x0;
-    u32 term1 = (term1_1_0 + term1_1_1 + term1_1_2 + term1_1_3 + term1_1_4) * 2;
-    
-    u32 size0 = term0 + term1;
-    
-    u32 res0 = (u0x26 +u0x24) * 2;
-    res0 += u0x22;
-    res0 += u0x4;
-    res0 += uVar4;
-    res0+= u0x0;
-    
-    u32 res1 = (iVar3 + u0x1E*2) * 9;
-    u32 res2 = res1 + res0 * 2 + u0x2A + u0x16;
-    u32 res3 = (u0x13*8 + 0xC) * uVar2;
-    
-    u32 size = res3 + res2 * 2;
-    
-    u8 data[size];
-};
-
-// To get file hash from name do:
-// (id0 - 0xff00ff) + (id2 * 0xff00);
-struct FileName{
-  u16 id0;
-  u16 id1;
-  u16 unknown;
-};
-
-struct UnknownTexStruct0{
-  u8 using_no_cull; // 0 if cull enabled, 1 if no culling enabled.
-  u8 f0x1;
-  u32 f0x2;
-  u8 pixel_shader_id;
-  u8 num_uv_coords_to_use;
-};
-
-struct UnknownTexStruct1{
-  u16 some_flags0; // 0x60A converted to 0x622
-  u16 some_flags1; // 0x600 converted to 0x600
-  u8 f0x4;   
-  u8 f0x5;
-  u8 f0x6;
-  u8 f0x7;
-  u8 f0x8;
-};
-
-struct TextureAndVertexShader<auto num_textures, auto num1, auto f0x20> {
-  UnknownTexStruct0 uts0[num_textures];
-  u16 flags0[num1];
-  u8 tex_array[num1];
-  u8 zeros[num1*4];
-  u8 blend_state[num1]; // 0 is no blend/no transparency, 6/7 is reversed alpha? 8 ir normal alpha. 3 is another type of reversed alpha? it shows more of the partt where alpha is 0.
-                        // So if flag 0 then textures alpha component is ignored and the texture is non-seethrough.
-                        // if flag set to 6 or 7 the alpha is reversed. So alpha=1 is fully transparent, alpha=0 is still slightly transparent. the transparent part is darker than when flag is set to 3.
-                        // if flag set to 8 then the alpha component is normal so alpha=1 is non-transparent, alpha=0 is fully transparent.
-  u8 texture_index_UV_mapping_maybe[num1];
-  u8 u1[(-(f0x20 != 0) & num1)];
-};
-
-struct f0x48_data
-{
-  u32 count;
-  u8 data[count*8];
-};
-
-struct SomeStruct2{
-  u8 unknown[8];
-  u32 f0x8;
-  u32 f0xC;
-  u32 f0x10;
-  u32 f0x14;
-  
-  u32 data_size = f0x8 * 7 + (f0xC + f0x10 + f0x14)*8;
-  u8 data[data_size];
-};
-
-struct GeometryChunk {
+struct ATEXChunk {
   u32 chunk_id;
-  u32 chunk_size; chunk1_size=chunk_size;
-  // Data start
-  Chunk1_sub1 sub_1; sub_1_address=addressof(sub_1); sub_1_f0x8=sub_1.f0x8;
+  u32 chunk_size;
+  ATEXHeader header [[name("ATEX Header")]];
+  u8 texture_data[chunk_size - sizeof(ATEXHeader)] [[name("Texture Data")]];
+};
 
-  TextureAndVertexShader<sub_1.some_num0, sub_1.some_num1, sub_1.f0x20 > TaVS;
-  
-  u32 extra_bytes = 0; // Used for counting bytes read in inner scopes.
-  
-  u32 data_size_here = 0;
-  if (sub_1.f0x19 > 0){
-  
-      u32 puVar15 = sub_1.f0x19*9;
-      if (addressof(chunk_id) + puVar15 < addressof(chunk_id)+8+chunk_size){
-        u32 puVar16 = sub_1.f0x1d * ((sub_1.f0x20 != 0)+3) + puVar15;
-        if (addressof(chunk_id) + puVar16 < addressof(chunk_id)+8+chunk_size){
-          u32 _Src = puVar16 + sub_1.f0x1a * 8;
-          if (addressof(chunk_id) + _Src < addressof(chunk_id)+8+chunk_size){
-            UnknownTexStruct1 uts1[sub_1.f0x19];
-            u16 unknown_tex_stuff0[sub_1.f0x1d];
-            u8 unknown_tex_stuff1[sub_1.f0x1d];
-            u8 unknown_data0[_Src-sizeof(uts1)-sizeof(unknown_tex_stuff0)-sizeof(unknown_tex_stuff1)];
-            
-            String strings[sub_1.f0x1a];
-            u8 unknown_data1[sub_1.f0x1e*2*4];
-            
-            extra_bytes += sizeof(uts1) + sizeof(unknown_tex_stuff0) + sizeof(unknown_tex_stuff1) + sizeof(unknown_data0) + sizeof(strings) + sizeof(unknown_data1);
-          }
-          else{
-          u8 unknown_data0[puVar16];// cannot parse model
-        }
-        }
-        else{
-          u8 unknown_data0[puVar15]; // cannot parse model.
+// =============================================================================
+// Chunk 0xBB8 (3000) - Geometry chunk (compressed format)
+// The game's MdlDecomp_ConvertGeometryChunk_0xBB8_to_0xFA0 converts this
+// to standard 0xFA0 format at runtime
+//
+// IMPORTANT: Header is 0x30 (48) bytes, NOT 0x40 (64) bytes!
+// Verified from disassembly at 0x0076d3bd: LEA EAX, [ESI + 0x30]
+// =============================================================================
+struct ChunkBB8_Header {
+  u32 field_0x00;                 // 0x00: Type/version flags
+  u32 field_0x04;                 // 0x04: Usually 0
+  u32 class_flags;                // 0x08: Bitmask controlling data sections
+  u32 signature0;                 // 0x0C: Model signature part 1
+  u32 signature1;                 // 0x10: Model signature part 2
+  u32 field_0x14;                 // 0x14
+  u8  num_bone_groups;            // 0x18: Number of bone groups (max 4)
+  u8  num_texture_groups;         // 0x19: Number of texture groups
+  u16 num_textures;               // 0x1A: Number of textures
+  u8  num_bone_weights;           // 0x1C: Number of bone weights
+  u8  num_bone_indices;           // 0x1D: Number of bone indices
+  u16 num_materials;              // 0x1E: Number of materials
+  u32 num_bone_weight_sets;       // 0x20: Number of bone weight sets
+  u32 class_flags_output;         // 0x24: Output class flags (stored in output)
+  float scale_x;                  // 0x28: X scale factor for submeshes
+  float scale_y;                  // 0x2C: Y scale factor for submeshes
+  // Total: 0x30 (48) bytes - NOT 64!
+};
+
+// Submesh header within the geometry data (24 bytes = 6 DWORDs)
+// Discovered through binary analysis of actual model files.
+// The header starts at a variable offset after the 48-byte geometry header.
+// Data after this header:
+//   - Index buffer: num_indices * 2 bytes (uint16 indices)
+//   - Position buffer: num_vertices * 12 bytes (float triplets)
+struct SubmeshBB8_Header {
+  u32 num_indices;                // 0x00: Number of indices (16-bit)
+  u32 num_vertices;               // 0x04: Number of vertices
+  u32 num_uv_sets;                // 0x08: Number of UV coordinate sets per vertex
+  u32 num_vertex_groups;          // 0x0C: Number of vertex groups/bone groups
+  u32 num_colors;                 // 0x10: Number of color values
+  u32 num_normals;                // 0x14: Number of normals/additional data
+  // Total: 0x18 (24) bytes
+};
+
+// Vertex position (3 floats = 12 bytes)
+struct VertexPosition {
+  float x;
+  float y;
+  float z;
+};
+
+// Global variables for submesh parsing
+u32 g_submesh_offset;
+u32 g_num_indices;
+u32 g_num_vertices;
+u32 g_geom_data_size;
+
+// Scan for submesh header pattern at 2-byte boundaries
+// Sets global variables and returns true if found
+fn find_submesh_header(u32 data_start, u32 data_size) {
+  u32 offset = 0;
+  while (offset < std::math::min(data_size, 300)) {
+    if (offset + 48 > data_size) break;
+
+    u32 num_indices = std::mem::read_unsigned(data_start + offset, 4);
+    u32 num_vertices = std::mem::read_unsigned(data_start + offset + 4, 4);
+
+    // Validate counts
+    if (num_indices >= 6 && num_indices <= 100000 &&
+        num_vertices >= 3 && num_vertices <= 50000 &&
+        num_indices >= num_vertices) {
+
+      // Check if data would fit
+      u32 idx_start = offset + 24;
+      u32 idx_size = num_indices * 2;
+      u32 pos_start = idx_start + idx_size;
+      u32 pos_size = num_vertices * 12;
+
+      if (pos_start + pos_size <= data_size) {
+        // Validate first few indices are < num_vertices
+        u16 idx0 = std::mem::read_unsigned(data_start + idx_start, 2);
+        u16 idx1 = std::mem::read_unsigned(data_start + idx_start + 2, 2);
+        u16 idx2 = std::mem::read_unsigned(data_start + idx_start + 4, 2);
+        if (idx0 < num_vertices && idx1 < num_vertices && idx2 < num_vertices) {
+          // Found it!
+          g_submesh_offset = offset;
+          g_num_indices = num_indices;
+          g_num_vertices = num_vertices;
+          return true;
         }
       }
-  }
-  
-  if (sub_1_f0x8 & 0x20){
-    // If address of the current offset + 8 is outside chunk1 then
-    if (sub_1_address+chunk1_size < addressof($)+8){
     }
-    else{
-      u32 unknown2;
-      u32 unknown1;
-      complex_struct cs[unknown1];
-      
-      extra_bytes += 8 + sizeof(cs);
-    }
+    offset = offset + 2;
   }
-  
-  u32 num_models;
-  geometry_sub_chunk geometry[num_models];
-  
-  
-  u8 chunk_data[chunk_size - sizeof(sub_1) - sizeof(TaVS) - extra_bytes - sizeof(geometry) - sizeof(num_models)];
+  g_submesh_offset = 0;
+  g_num_indices = 0;
+  g_num_vertices = 0;
+  return false;
 };
 
+// Per-vertex extra data (colors/weights) - 4 bytes per vertex
+struct VertexExtraData {
+  u8 data[4];  // RGBA color or bone weights
+};
 
+// UV delta pair (uint16, scaled by 1/65536)
+struct UV_Delta {
+  u16 u_delta;
+  u16 v_delta;
+};
 
-struct FileNamesChunk {
+// UV header and offset arrays
+// Layout: count0, count1, u_thresholds[count0], v_thresholds[count1], u_offsets[count0], v_offsets[count1]
+struct UVHeader {
+  u16 count0;         // Number of U offset entries
+  u16 count1;         // Number of V offset entries
+  // Followed by: u_thresholds[count0] (uint16 each) - vertex index thresholds
+  // Followed by: v_thresholds[count1] (uint16 each)
+  // Followed by: u_offsets[count0] (int16 each) - offset values to add
+  // Followed by: v_offsets[count1] (int16 each)
+};
+
+// Full submesh with indices, positions, extra data, and UVs
+struct SubmeshBB8_Full {
+  SubmeshBB8_Header header [[name("Submesh Header")]];
+  u16 indices[header.num_indices] [[name("Index Buffer")]];
+  VertexPosition positions[header.num_vertices] [[name("Vertex Positions")]];
+  // Per-vertex extra data (colors/weights) comes after positions
+  VertexExtraData extra_data[header.num_vertices] [[name("Per-Vertex Extra Data (colors/weights)")]];
+  // UV header with offset arrays
+  UVHeader uv_header [[name("UV Header")]];
+  // Offset arrays (simplified - actual size depends on count0/count1)
+  u16 uv_offset_arrays[(uv_header.count0 + uv_header.count1) * 2] [[name("UV Offset Arrays")]];
+  // UV delta data (uint16 pairs, final UV = delta/65536 + offset)
+  UV_Delta uv_deltas[header.num_vertices * header.num_uv_sets] [[name("UV Delta Data (uint16/65536)")]];
+};
+
+// Geometry data with parsed submesh
+struct GeometryDataParsed {
+  u32 data_start = $;
+
+  // Find submesh header - sets globals
+  bool found = find_submesh_header(data_start, g_geom_data_size);
+
+  // Pre-submesh data (texture groups, materials, bone data, etc.)
+  if (g_submesh_offset > 0) {
+    u8 pre_submesh_data[g_submesh_offset] [[name("Pre-Submesh Data (texture groups, materials, etc.)")]];
+  }
+
+  // Parse the actual submesh if found
+  if (found) {
+    SubmeshBB8_Full submesh [[name("Submesh")]];
+
+    // Data layout after submesh header:
+    //   - Indices: num_indices * 2 bytes
+    //   - Positions: num_vertices * 12 bytes
+    //   - Extra data (colors/weights): num_vertices * 4 bytes
+    //   - UV header: 4 bytes (count0, count1)
+    //   - UV offset arrays: (count0 + count1) * 4 bytes
+    //   - UV deltas: num_vertices * num_uv_sets * 4 bytes
+    u32 consumed = g_submesh_offset + 24 + g_num_indices * 2 + g_num_vertices * 12;
+    // Add extra data size (colors/weights)
+    consumed = consumed + g_num_vertices * 4;
+    // Add UV header and offset arrays (read count0, count1 to calculate)
+    u16 uv_count0 = std::mem::read_unsigned(data_start + consumed, 2);
+    u16 uv_count1 = std::mem::read_unsigned(data_start + consumed + 2, 2);
+    consumed = consumed + 4 + (uv_count0 + uv_count1) * 4;
+    // Add UV delta data
+    u32 num_uv_sets = std::mem::read_unsigned(data_start + g_submesh_offset + 8, 4);
+    if (num_uv_sets > 8) num_uv_sets = 1;
+    consumed = consumed + g_num_vertices * num_uv_sets * 4;
+
+    // Footer/remaining data
+    if (consumed < g_geom_data_size) {
+      u8 remaining_data[g_geom_data_size - consumed] [[name("Remaining Data")]];
+    }
+  } else {
+    // Fallback: just show raw data
+    u8 raw_geometry_data[g_geom_data_size] [[name("Raw Geometry Data (submesh not found)")]];
+  }
+};
+
+struct ChunkBB8_Geometry {
   u32 chunk_id;
   u32 chunk_size;
-  u32 num_filenames;
-    u32 actual_num_filenames = std::math::min(num_filenames, (chunk_size-4) / sizeof(FileName));
-  FileName filenames[actual_num_filenames];
-  u8 chunk_data[chunk_size-4-sizeof(filenames)];
+  ChunkBB8_Header header [[name("Geometry Header")]];
+
+  // Set global for data size before parsing
+  g_geom_data_size = chunk_size - sizeof(ChunkBB8_Header);
+
+  // Parse geometry data with submesh detection
+  GeometryDataParsed geometry [[name("Geometry Data")]];
 };
 
-struct SomeAnimationStruct<auto anim_count> {
-  u8 some_data[anim_count << 4];
-  u32 loop_counter = 0;
-  
+// =============================================================================
+// Chunk 0xBB9 (3001) - Animation/Skeleton chunk
+// Converted by MdlDecomp_ConvertGeometryChunk_0xBB9_to_0xFA1
+// =============================================================================
+struct ChunkBB9_Header {
+  u32 type_marker;        // Usually 0x26
+  u32 f0x4;
+  u32 flags;              // 0x10 typically
+  u32 signature0;
+  u32 signature1;
 };
 
-struct ChunkFA1 {
+struct ChunkBB9_Animation {
   u32 chunk_id;
   u32 chunk_size;
-  Chunkfa1_sub1 sub_1; 
-  u32 unknown;
-  u8 unknown_data[sub_1.f0x14 << 4];
-  u8 unknown_data1[sub_1.f0x34*0x18];
-  SomeAnimationStruct<sub_1.animation_count> some_anim_struct;
-  u8 chunk_data[chunk_size-sizeof(sub_1)-4-sizeof(unknown_data)
-  -sizeof(unknown_data1)-sizeof(some_anim_struct)];
+  ChunkBB9_Header header [[name("Animation Header")]];
+  u8 animation_data[chunk_size - sizeof(ChunkBB9_Header)] [[name("Animation Data")]];
 };
 
+// =============================================================================
+// Chunk 0xBBA (3002) - Version/Metadata chunk
+// =============================================================================
+struct ChunkBBA_Metadata {
+  u32 chunk_id;
+  u32 chunk_size;
+  u32 version;            // Usually 2
+  u8 data[chunk_size - 4] [[name("Metadata")]];
+};
+
+// =============================================================================
+// Chunk 0xBBB (3003) - Texture filenames (like 0xFA5)
+// Each entry is 6 bytes in "other" format:
+//   id0 (uint16): Encoded filename part 1
+//   id1 (uint16): Encoded filename part 2
+//   unknown (uint16): Usually 0
+// Decode: file_hash = (id0 - 0xFF00FF) + (id1 * 0xFF00)
+// =============================================================================
+struct TextureFileNameOther {
+  u16 id0;          // Encoded filename part 1
+  u16 id1;          // Encoded filename part 2
+  u16 unknown;      // Usually 0
+  // Decoded hash = (id0 - 0xFF00FF) + (id1 * 0xFF00)
+};
+
+struct ChunkBBB_TextureFilenames {
+  u32 chunk_id;
+  u32 chunk_size;
+  u32 unknown;              // Unknown field (usually small value)
+  u32 num_filenames_field;  // Actual count of texture filename entries
+
+  TextureFileNameOther filenames[num_filenames_field];
+
+  if (chunk_size > 8 + num_filenames_field * 6) {
+    u8 remaining[chunk_size - 8 - num_filenames_field * 6];
+  }
+};
+
+// =============================================================================
+// Chunk 0xBC0 (3008) - Additional data chunk
+// =============================================================================
+struct ChunkBC0_AdditionalData {
+  u32 chunk_id;
+  u32 chunk_size;
+  u32 version;            // Usually 1
+  u32 count;
+  u8 data[chunk_size - 8] [[name("Additional Data")]];
+};
+
+// =============================================================================
+// Generic chunk for unknown types
+// =============================================================================
 struct UnknownChunk {
   u32 chunk_id;
   u32 chunk_size;
   u8 chunk_data[chunk_size];
 };
 
+// =============================================================================
+// Chunk dispatcher
+// =============================================================================
 struct Chunk {
- u32 chunk_id = std::mem::read_unsigned($, 4);
- if (chunk_id == 0xFA0 || chunk_id == 3000){
-   GeometryChunk geometry_chunk;
- }
- else if (chunk_id == 0xFA1){
-   ChunkFA1 fa1_chunk;
- }
- else if (chunk_id == 0xFA5 || chunk_id == 0xfa6 || chunk_id == 0xfad){
-   FileNamesChunk filenames_chunk;
- }
- else{
-   UnknownChunk unknown_chunk;
- }
+  u32 chunk_id = std::mem::read_unsigned($, 4);
+
+  if (chunk_id == 0xBB8) {
+    ChunkBB8_Geometry geometry_chunk [[name("Geometry (0xBB8)")]];
+  }
+  else if (chunk_id == 0xBB9) {
+    ChunkBB9_Animation animation_chunk [[name("Animation (0xBB9)")]];
+  }
+  else if (chunk_id == 0xBBA) {
+    ChunkBBA_Metadata metadata_chunk [[name("Metadata (0xBBA)")]];
+  }
+  else if (chunk_id == 0xBBB || chunk_id == 0xBBC) {
+    ChunkBBB_TextureFilenames texnames_chunk [[name("Texture Filenames")]];
+  }
+  else if (chunk_id == 0xBC0 || chunk_id == 0xBC1) {
+    ChunkBC0_AdditionalData additional_chunk [[name("Additional Data")]];
+  }
+  else if (chunk_id == 0xFA3 || chunk_id == 0xFAA) {
+    ATEXChunk atex_chunk [[name("Inline ATEX Texture")]];
+  }
+  else {
+    UnknownChunk unknown_chunk [[name("Unknown Chunk")]];
+  }
 };
 
+// =============================================================================
+// Main file structure
+// =============================================================================
 struct ModelFile {
-  char ffna[4];
-  u8 file_tpe;
-  Chunk chunks[while($ < sizeof($))];
+  char ffna_signature[4] [[name("FFNA Signature")]];   // "ffna"
+  u8 file_type [[name("File Type")]];                   // Should be 2 for model files
+  Chunk chunks[while($ < sizeof($))] [[name("Chunks")]];
 };
 
 ModelFile modelfile @ 0;

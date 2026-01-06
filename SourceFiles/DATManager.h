@@ -2,6 +2,7 @@
 #include "AMAT_file.h"
 #include "FFNA_MapFile.h"
 #include "FFNA_ModelFile.h"
+#include "FFNA_ModelFile_Other.h"
 #include <ppl.h>
 #include <concurrent_queue.h>
 
@@ -46,6 +47,8 @@ public:
 
     FFNA_MapFile parse_ffna_map_file(int index);
     FFNA_ModelFile parse_ffna_model_file(int index);
+    FFNA_ModelFile_Other parse_ffna_model_file_other(int index);
+    bool is_other_model_format(int index);
     AMAT_file parse_amat_file(int index);
     DatTexture parse_ffna_texture_file(int index);
     std::vector<uint8_t> parse_dds_file(int index);
