@@ -37,6 +37,42 @@ FFNA_ModelFile DATManager::parse_ffna_model_file(int index)
     return ffna_model_file;
 }
 
+FFNA_ModelFile_Other DATManager::parse_ffna_model_file_other(int index)
+{
+    MFTEntry* mft_entry = m_dat.get_MFT_entry_ptr(index);
+    if (!mft_entry)
+        throw "mft_entry not found.";
+
+    // Get decompressed file data
+    HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
+    auto data = m_dat.readFile(file_handle, index, true);
+    std::span<unsigned char> file_data(data, mft_entry->uncompressedSize);
+    CloseHandle(file_handle);
+
+    FFNA_ModelFile_Other ffna_model_file_other(0, file_data);
+    delete[] data;
+
+    return ffna_model_file_other;
+}
+
+bool DATManager::is_other_model_format(int index)
+{
+    MFTEntry* mft_entry = m_dat.get_MFT_entry_ptr(index);
+    if (!mft_entry || mft_entry->uncompressedSize < 13)
+        return false;
+
+    // Get decompressed file data
+    HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
+    auto data = m_dat.readFile(file_handle, index, true);
+    std::span<unsigned char> file_data(data, mft_entry->uncompressedSize);
+    CloseHandle(file_handle);
+
+    bool is_other = IsOtherModelFormat(file_data);
+    delete[] data;
+
+    return is_other;
+}
+
 AMAT_file DATManager::parse_amat_file(int index)
 {
     MFTEntry* mft_entry = m_dat.get_MFT_entry_ptr(index);

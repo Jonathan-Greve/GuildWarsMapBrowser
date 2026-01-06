@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "draw_dat_browser.h"
+#include "draw_texture_panel.h"
 
 #include <codecvt>
 
@@ -42,6 +43,8 @@ inline int last_focused_item_index = -1;
 
 inline extern FileType selected_file_type = NONE;
 inline extern FFNA_ModelFile selected_ffna_model_file{};
+inline extern FFNA_ModelFile_Other selected_ffna_model_file_other{};
+inline extern bool using_other_model_format = false;
 inline extern FFNA_MapFile selected_ffna_map_file{};
 inline extern SelectedDatTexture selected_dat_texture{};
 inline extern std::vector<uint8_t> selected_raw_data{};
@@ -227,8 +230,20 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 		map_renderer->GetTextureManager()->Clear();
 		map_renderer->ClearProps();
 
-		selected_ffna_model_file = dat_manager->parse_ffna_model_file(index);
-		if (selected_ffna_model_file.parsed_correctly)
+		// Check if this is an "other" model format (uses 0xBB* chunks instead of 0xFA*)
+		using_other_model_format = dat_manager->is_other_model_format(index);
+
+		if (using_other_model_format)
+		{
+			selected_ffna_model_file_other = dat_manager->parse_ffna_model_file_other(index);
+		}
+		else
+		{
+			selected_ffna_model_file = dat_manager->parse_ffna_model_file(index);
+		}
+
+		if ((using_other_model_format && selected_ffna_model_file_other.parsed_correctly) ||
+		    (!using_other_model_format && selected_ffna_model_file.parsed_correctly))
 		{
 			map_renderer->UnsetTerrain();
 			// Disable shadows for models when viewing standalone (no terrain = no shadow map)
@@ -240,20 +255,31 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			float overallMinX = FLT_MAX, overallMinY = FLT_MAX, overallMinZ = FLT_MAX;
 			float overallMaxX = FLT_MIN, overallMaxY = FLT_MIN, overallMaxZ = FLT_MIN;
 
-			const auto& geometry_chunk = selected_ffna_model_file.geometry_chunk;
-			auto& models = selected_ffna_model_file.geometry_chunk.models;
+			// Get models from the correct model file format
+			const auto& models = using_other_model_format ?
+				selected_ffna_model_file_other.geometry_chunk.models :
+				selected_ffna_model_file.geometry_chunk.models;
+
+			// Get geometry chunk for texture/shader info
+			const auto& geometry_chunk_uts0 = using_other_model_format ?
+				selected_ffna_model_file_other.geometry_chunk.tex_and_vertex_shader_struct.uts0 :
+				selected_ffna_model_file.geometry_chunk.tex_and_vertex_shader_struct.uts0;
+			const auto& geometry_chunk_uts1 = using_other_model_format ?
+				selected_ffna_model_file_other.geometry_chunk.uts1 :
+				selected_ffna_model_file.geometry_chunk.uts1;
 
 			std::vector<int> sort_orders;
 			for (int i = 0; i < models.size(); i++)
 			{
 				AMAT_file amat_file;
-				if (selected_ffna_model_file.AMAT_filenames_chunk.texture_filenames.size() > 0) {
+				// "Other" format doesn't have AMAT filenames chunk, only standard format does
+				if (!using_other_model_format && selected_ffna_model_file.AMAT_filenames_chunk.texture_filenames.size() > 0) {
 					int sub_model_index = models[i].unknown;
-					if (geometry_chunk.tex_and_vertex_shader_struct.uts0.size() > 0)
+					if (geometry_chunk_uts0.size() > 0)
 					{
-						sub_model_index %= geometry_chunk.tex_and_vertex_shader_struct.uts0.size();
+						sub_model_index %= geometry_chunk_uts0.size();
 					}
-					const auto uts1 = geometry_chunk.uts1[sub_model_index % geometry_chunk.uts1.size()];
+					const auto uts1 = geometry_chunk_uts1[sub_model_index % geometry_chunk_uts1.size()];
 
 					const int amat_file_index = ((uts1.some_flags0 >> 8) & 0xFF) % selected_ffna_model_file.AMAT_filenames_chunk.texture_filenames.size();
 					const auto amat_filename = selected_ffna_model_file.AMAT_filenames_chunk.texture_filenames[amat_file_index];
@@ -268,11 +294,24 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 						amat_file = dat_manager->parse_amat_file(file_index);
 					}
 				}
-				Mesh prop_mesh = selected_ffna_model_file.GetMesh(i, amat_file);
+				Mesh prop_mesh = using_other_model_format ?
+					selected_ffna_model_file_other.GetMesh(i, amat_file) :
+					selected_ffna_model_file.GetMesh(i, amat_file);
 				prop_mesh.center = {
 					(models[i].maxX - models[i].minX) / 2.0f, (models[i].maxY - models[i].minY) / 2.0f,
 					(models[i].maxZ - models[i].minZ) / 2.0f
 				};
+
+				if (using_other_model_format) {
+					char debug_msg[512];
+					sprintf_s(debug_msg, "draw_dat_browser: model[%d] bounds min=(%.2f,%.2f,%.2f) max=(%.2f,%.2f,%.2f)\n",
+						i, models[i].minX, models[i].minY, models[i].minZ,
+						models[i].maxX, models[i].maxY, models[i].maxZ);
+					LogBB8Debug(debug_msg);
+					sprintf_s(debug_msg, "draw_dat_browser: prop_mesh vertices=%zu, indices=%zu\n",
+						prop_mesh.vertices.size(), prop_mesh.indices.size());
+					LogBB8Debug(debug_msg);
+				}
 
 				overallMinX = std::min(overallMinX, models[i].minX);
 				overallMinY = std::min(overallMinY, models[i].minY);
@@ -285,7 +324,16 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				uint32_t sort_order = amat_file.GRMT_chunk.sort_order;
 				sort_orders.push_back(sort_order);
 
-				if ((prop_mesh.indices.size() % 3) == 0) { prop_meshes.push_back(prop_mesh); }
+				if ((prop_mesh.indices.size() % 3) == 0) {
+					prop_meshes.push_back(prop_mesh);
+					if (using_other_model_format) {
+						LogBB8Debug("draw_dat_browser: Mesh added to prop_meshes\n");
+					}
+				} else if (using_other_model_format) {
+					char debug_msg[256];
+					sprintf_s(debug_msg, "draw_dat_browser: Mesh REJECTED (indices %% 3 != 0)\n");
+					LogBB8Debug(debug_msg);
+				}
 			}
 
 			std::vector<size_t> indices(sort_orders.size());
@@ -311,55 +359,295 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			std::vector<int> texture_ids;
 			std::vector<DatTexture> model_dat_textures;
 			std::vector<std::vector<int>> per_mesh_tex_ids(prop_meshes.size());
-			if (selected_ffna_model_file.textures_parsed_correctly)
+
+			// Check if we should load inline textures (for "other" format) or file references
+			bool textures_available = using_other_model_format ?
+				(selected_ffna_model_file_other.has_inline_textures || selected_ffna_model_file_other.textures_parsed_correctly) :
+				selected_ffna_model_file.textures_parsed_correctly;
+
+			if (using_other_model_format)
 			{
-				for (int j = 0; j < selected_ffna_model_file.texture_filenames_chunk.texture_filenames.size();
-					j++)
+				char debug_msg[256];
+				sprintf_s(debug_msg, "draw_dat_browser: textures_available=%d, has_inline=%d, textures_parsed=%d\n",
+					textures_available ? 1 : 0,
+					selected_ffna_model_file_other.has_inline_textures ? 1 : 0,
+					selected_ffna_model_file_other.textures_parsed_correctly ? 1 : 0);
+				LogBB8Debug(debug_msg);
+				sprintf_s(debug_msg, "draw_dat_browser: texture_filenames.size()=%zu\n",
+					selected_ffna_model_file_other.texture_filenames_chunk.texture_filenames.size());
+				LogBB8Debug(debug_msg);
+			}
+
+			if (textures_available)
+			{
+				// Clear texture display vectors
+				inline_texture_displays.clear();
+				model_texture_displays.clear();
+
+				// Handle inline textures for "other" format (these are inventory icons)
+				if (using_other_model_format && selected_ffna_model_file_other.has_inline_textures)
 				{
-					auto texture_filename =
-						selected_ffna_model_file.texture_filenames_chunk.texture_filenames[j];
-					auto decoded_filename = decode_filename(texture_filename.id0, texture_filename.id1);
 
-					int texture_id = map_renderer->GetTextureManager()->GetTextureIdByHash(decoded_filename);
+					auto inline_textures = selected_ffna_model_file_other.GetAllInlineTextures();
+					const auto& texture_filenames = selected_ffna_model_file_other.texture_filenames_chunk.texture_filenames;
 
-					auto mft_entry_it = hash_index.find(decoded_filename);
-					if (mft_entry_it != hash_index.end())
+					char debug_msg[256];
+					sprintf_s(debug_msg, "draw_dat_browser: Loading %zu INLINE textures for model (texture_filenames=%zu)\n",
+						inline_textures.size(), texture_filenames.size());
+					LogBB8Debug(debug_msg);
+
+					// Log raw chunk data to understand the structure
+					const auto& chunk = selected_ffna_model_file_other.texture_filenames_chunk;
+					sprintf_s(debug_msg, "  TEXTURE_CHUNK: chunk_id=0x%X, chunk_size=%u, num_filenames=%u, actual=%u\n",
+						chunk.chunk_id, chunk.chunk_size, chunk.num_texture_filenames, chunk.actual_num_texture_filenames);
+					LogBB8Debug(debug_msg);
+
+					// Dump raw chunk data (first 64 bytes)
+					if (!chunk.chunk_data.empty())
 					{
-						auto file_index = mft_entry_it->second.at(0);
-						const auto* entry = &MFT[file_index];
-
-						if (!entry)
-							return false;
-
-						DatTexture dat_texture;
-						if (entry->type == DDS)
+						sprintf_s(debug_msg, "  RAW CHUNK DATA (first %zu bytes):\n", std::min(chunk.chunk_data.size(), (size_t)64));
+						LogBB8Debug(debug_msg);
+						for (size_t b = 0; b < std::min(chunk.chunk_data.size(), (size_t)64); b += 16)
 						{
-							const auto ddsData = dat_manager->parse_dds_file(file_index);
-							size_t ddsDataSize = ddsData.size();
-							const auto hr = map_renderer->GetTextureManager()->
-								CreateTextureFromDDSInMemory(ddsData.data(), ddsDataSize, &texture_id, &dat_texture.width,
-									&dat_texture.height, dat_texture.rgba_data, entry->Hash);
-							model_texture_types.insert({ texture_id, DDSt });
-							dat_texture.texture_type = DDSt;
+							char hex_line[128];
+							int pos = sprintf_s(hex_line, "    %04zX: ", b);
+							for (size_t j = 0; j < 16 && b + j < chunk.chunk_data.size(); j++)
+							{
+								pos += sprintf_s(hex_line + pos, sizeof(hex_line) - pos, "%02X ", chunk.chunk_data[b + j]);
+							}
+							strcat_s(hex_line, "\n");
+							LogBB8Debug(hex_line);
+						}
+					}
+
+					// Log texture filename references (decoded file IDs)
+					// TextureFileNameOther has: id0, id1, unknown (6 bytes total)
+					for (size_t k = 0; k < texture_filenames.size(); k++)
+					{
+						auto decoded_filename = decode_filename(texture_filenames[k].id0, texture_filenames[k].id1);
+						sprintf_s(debug_msg, "  TEXTURE_FILENAME[%zu]: id0=%u, id1=%u, unk=%u -> decoded=0x%X\n",
+							k, texture_filenames[k].id0, texture_filenames[k].id1,
+							texture_filenames[k].unknown, decoded_filename);
+						LogBB8Debug(debug_msg);
+					}
+
+					for (size_t j = 0; j < inline_textures.size(); j++)
+					{
+						auto& dat_texture = inline_textures[j];
+
+						// Log inline texture info
+						std::string format_str = "unknown";
+						if (j < selected_ffna_model_file_other.inline_textures.size())
+						{
+							format_str = selected_ffna_model_file_other.inline_textures[j].GetFormatString();
+						}
+						sprintf_s(debug_msg, "  INLINE_TEXTURE[%zu]: format=%s, size=%dx%d, rgba_bytes=%zu\n",
+							j, format_str.c_str(), dat_texture.width, dat_texture.height, dat_texture.rgba_data.size());
+						LogBB8Debug(debug_msg);
+
+						if (dat_texture.width > 0 && dat_texture.height > 0)
+						{
+							int texture_id = -1;
+							// Use a unique hash based on entry hash and texture index
+							int texture_hash = entry->Hash * 1000 + static_cast<int>(j);
+							auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+								dat_texture.width, dat_texture.height,
+								dat_texture.rgba_data.data(), &texture_id, texture_hash);
+
+							// Note: We still track the texture type but don't add to model_dat_textures
+							// Inline textures are inventory icons, not model textures
+							model_texture_types.insert({ texture_id, dat_texture.texture_type });
+
+							if (texture_id >= 0)
+							{
+								// Don't add inline textures to texture_ids - they're inventory icons, not for model rendering
+								// texture_ids.push_back(texture_id);
+
+								sprintf_s(debug_msg, "  Created inline_texture[%zu] (inventory icon), internal_id=%d\n",
+									j, texture_id);
+								LogBB8Debug(debug_msg);
+
+								// Add to inline texture displays for the texture panel only
+								InlineTextureDisplay tex_display;
+								tex_display.texture_id = texture_id;
+								tex_display.width = dat_texture.width;
+								tex_display.height = dat_texture.height;
+								tex_display.index = static_cast<int>(j);
+								tex_display.format = format_str;
+								inline_texture_displays.push_back(tex_display);
+							}
+						}
+					}
+				}
+
+				// Helper lambda to load a texture by decoded filename and optionally add to model_texture_displays
+				auto load_texture_by_hash = [&](size_t j, int decoded_filename, bool add_to_display) {
+						int texture_id = map_renderer->GetTextureManager()->GetTextureIdByHash(decoded_filename);
+
+						auto mft_entry_it = hash_index.find(decoded_filename);
+						if (mft_entry_it != hash_index.end())
+						{
+							auto file_index = mft_entry_it->second.at(0);
+							const auto* tex_entry = &MFT[file_index];
+
+							if (!tex_entry)
+								return;
+
+							DatTexture dat_texture;
+							if (tex_entry->type == DDS)
+							{
+								const auto ddsData = dat_manager->parse_dds_file(file_index);
+								size_t ddsDataSize = ddsData.size();
+								const auto hr = map_renderer->GetTextureManager()->
+									CreateTextureFromDDSInMemory(ddsData.data(), ddsDataSize, &texture_id, &dat_texture.width,
+										&dat_texture.height, dat_texture.rgba_data, tex_entry->Hash);
+								model_texture_types.insert({ texture_id, DDSt });
+								dat_texture.texture_type = DDSt;
+							}
+							else
+							{
+								dat_texture = dat_manager->parse_ffna_texture_file(file_index);
+								// Create texture if it wasn't cached.
+								if (texture_id < 0)
+								{
+									auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(dat_texture.width,
+										dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
+										decoded_filename);
+								}
+
+								model_texture_types.insert({ texture_id, dat_texture.texture_type });
+							}
+
+							model_dat_textures.push_back(dat_texture);
+
+							if (texture_id >= 0) { texture_ids.push_back(texture_id); }
+
+							if (using_other_model_format)
+							{
+								char debug_msg[256];
+								sprintf_s(debug_msg, "draw_dat_browser: LOADED texture[%zu] id=%d, size=%dx%d\n",
+									j, texture_id, dat_texture.width, dat_texture.height);
+								LogBB8Debug(debug_msg);
+							}
+
+							// Add to model texture displays if requested
+							if (add_to_display && texture_id >= 0)
+							{
+								ModelTextureDisplay tex_display;
+								tex_display.texture_id = texture_id;
+								tex_display.width = dat_texture.width;
+								tex_display.height = dat_texture.height;
+								tex_display.file_hash = decoded_filename;
+								tex_display.index = static_cast<int>(j);
+								model_texture_displays.push_back(tex_display);
+							}
+						}
+						else if (using_other_model_format)
+						{
+							char debug_msg[256];
+							sprintf_s(debug_msg, "draw_dat_browser: texture[%zu] hash=0x%X NOT FOUND in hash_index\n", j, decoded_filename);
+							LogBB8Debug(debug_msg);
+						}
+					};
+
+				// Load texture filename references (model textures)
+				if (using_other_model_format)
+				{
+					LogBB8Debug("draw_dat_browser: Loading textures from texture_filenames (other format)\n");
+					const auto& texture_filenames = selected_ffna_model_file_other.texture_filenames_chunk.texture_filenames;
+
+					// Pre-size arrays to preserve index correspondence with texture_filenames
+					// This is critical because GetMesh returns tex_indices that refer to positions in texture_filenames
+					texture_ids.resize(texture_filenames.size(), -1);
+					model_dat_textures.resize(texture_filenames.size());
+
+					for (size_t j = 0; j < texture_filenames.size(); j++)
+					{
+						auto decoded_filename = decode_filename(texture_filenames[j].id0, texture_filenames[j].id1);
+						char debug_msg[256];
+						sprintf_s(debug_msg, "draw_dat_browser: texture[%zu] id0=%u, id1=%u, decoded_hash=0x%X\n",
+							j, texture_filenames[j].id0, texture_filenames[j].id1, decoded_filename);
+						LogBB8Debug(debug_msg);
+
+						// Load texture data
+						auto mft_entry_it = hash_index.find(decoded_filename);
+						if (mft_entry_it != hash_index.end())
+						{
+							auto file_index = mft_entry_it->second.at(0);
+							const auto* tex_entry = &MFT[file_index];
+
+							if (tex_entry)
+							{
+								DatTexture dat_texture;
+								int texture_id = -1;
+
+								if (tex_entry->type == DDS)
+								{
+									const auto ddsData = dat_manager->parse_dds_file(file_index);
+									size_t ddsDataSize = ddsData.size();
+									map_renderer->GetTextureManager()->
+										CreateTextureFromDDSInMemory(ddsData.data(), ddsDataSize, &texture_id, &dat_texture.width,
+											&dat_texture.height, dat_texture.rgba_data, tex_entry->Hash);
+									dat_texture.texture_type = DDSt;
+								}
+								else
+								{
+									dat_texture = dat_manager->parse_ffna_texture_file(file_index);
+									// Create GPU texture for non-DDS textures
+									if (dat_texture.width > 0 && dat_texture.height > 0 && !dat_texture.rgba_data.empty())
+									{
+										map_renderer->GetTextureManager()->CreateTextureFromRGBA(
+											dat_texture.width, dat_texture.height,
+											dat_texture.rgba_data.data(), &texture_id, decoded_filename);
+									}
+								}
+
+								// Store at the correct index to preserve correspondence with texture_filenames
+								texture_ids[j] = texture_id;
+								model_dat_textures[j] = dat_texture;
+								if (texture_id >= 0)
+								{
+									model_texture_types.insert({ texture_id, dat_texture.texture_type });
+								}
+
+								sprintf_s(debug_msg, "draw_dat_browser: texture[%zu] loaded, texture_id=%d, size=%dx%d\n",
+									j, texture_id, dat_texture.width, dat_texture.height);
+								LogBB8Debug(debug_msg);
+
+								// Add to model texture displays
+								ModelTextureDisplay tex_display;
+								tex_display.texture_id = texture_id;
+								tex_display.width = dat_texture.width;
+								tex_display.height = dat_texture.height;
+								tex_display.file_hash = decoded_filename;
+								tex_display.index = static_cast<int>(j);
+								model_texture_displays.push_back(tex_display);
+							}
 						}
 						else
 						{
-							dat_texture = dat_manager->parse_ffna_texture_file(file_index);
-							// Create texture if it wasn't cached.
-							if (texture_id < 0)
-							{
-								auto HR = map_renderer->GetTextureManager()->CreateTextureFromRGBA(dat_texture.width,
-									dat_texture.height, dat_texture.rgba_data.data(), &texture_id,
-									decoded_filename);
-							}
-
-							model_texture_types.insert({ texture_id, dat_texture.texture_type });
+							sprintf_s(debug_msg, "draw_dat_browser: texture[%zu] hash=0x%X NOT FOUND\n", j, decoded_filename);
+							LogBB8Debug(debug_msg);
 						}
+					}
 
-						model_dat_textures.push_back(dat_texture);
-
-						assert(texture_id >= 0);
-						if (texture_id >= 0) { texture_ids.push_back(texture_id); }
+					// Log final texture_ids for debugging
+					char debug_msg[512];
+					sprintf_s(debug_msg, "draw_dat_browser: Final texture_ids (count=%zu):", texture_ids.size());
+					LogBB8Debug(debug_msg);
+					for (size_t t = 0; t < texture_ids.size(); t++)
+					{
+						sprintf_s(debug_msg, "  texture_ids[%zu] = %d\n", t, texture_ids[t]);
+						LogBB8Debug(debug_msg);
+					}
+				}
+				else
+				{
+					const auto& texture_filenames = selected_ffna_model_file.texture_filenames_chunk.texture_filenames;
+					for (size_t j = 0; j < texture_filenames.size(); j++)
+					{
+						auto decoded_filename = decode_filename(texture_filenames[j].id0, texture_filenames[j].id1);
+						load_texture_by_hash(j, decoded_filename, false);  // Don't add to model_texture_displays for standard models
 					}
 				}
 
@@ -410,21 +698,49 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 				// The number of textures might exceed 8 for a model since each submodel might use up to 8 separate textures.
 				// So for each submodel's Mesh we must make sure that the uv_indices[i] < 8 and tex_indices[i] < 8.
+				// We also need to keep tex_indices, uv_coord_indices, and blend_flags arrays in sync.
 				for (int i = 0; i < prop_meshes.size(); i++)
 				{
 					std::vector<uint8_t> mesh_tex_indices;
+					std::vector<uint8_t> mesh_uv_coord_indices;
+					std::vector<uint8_t> mesh_blend_flags;
+
 					for (int j = 0; j < prop_meshes[i].tex_indices.size(); j++)
 					{
-						int tex_index = std::min(prop_meshes[i].tex_indices[j], (uint8_t)(texture_ids.size() - 1));
-						if (tex_index < texture_ids.size())
+						int tex_index = prop_meshes[i].tex_indices[j];
+						// Check if index is valid and texture was successfully loaded (texture_ids[tex_index] >= 0)
+						if (tex_index >= 0 && tex_index < texture_ids.size() && texture_ids[tex_index] >= 0)
 						{
 							per_mesh_tex_ids[i].push_back(texture_ids[tex_index]);
+							mesh_tex_indices.push_back(static_cast<uint8_t>(per_mesh_tex_ids[i].size() - 1));
 
-							mesh_tex_indices.push_back(j);
+							// Keep uv_coord_indices and blend_flags in sync
+							if (j < prop_meshes[i].uv_coord_indices.size())
+								mesh_uv_coord_indices.push_back(prop_meshes[i].uv_coord_indices[j]);
+							if (j < prop_meshes[i].blend_flags.size())
+								mesh_blend_flags.push_back(prop_meshes[i].blend_flags[j]);
+
+							if (using_other_model_format)
+							{
+								char debug_msg[256];
+								sprintf_s(debug_msg, "draw_dat_browser: mesh[%d] tex_slot[%zu]: global_idx=%d -> texture_id=%d, blend=%d\n",
+									i, per_mesh_tex_ids[i].size() - 1, tex_index, texture_ids[tex_index],
+									(j < prop_meshes[i].blend_flags.size()) ? prop_meshes[i].blend_flags[j] : -1);
+								LogBB8Debug(debug_msg);
+							}
+						}
+						else if (using_other_model_format)
+						{
+							char debug_msg[256];
+							sprintf_s(debug_msg, "draw_dat_browser: mesh[%d] tex_pair[%d]: SKIPPED (tex_index=%d, valid=%d)\n",
+								i, j, tex_index, (tex_index >= 0 && tex_index < texture_ids.size() && texture_ids[tex_index] >= 0) ? 1 : 0);
+							LogBB8Debug(debug_msg);
 						}
 					}
 
 					prop_meshes[i].tex_indices = mesh_tex_indices;
+					prop_meshes[i].uv_coord_indices = mesh_uv_coord_indices;
+					prop_meshes[i].blend_flags = mesh_blend_flags;
 				}
 			}
 
@@ -457,13 +773,25 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				if (prop_mesh.uv_coord_indices.size() != prop_mesh.tex_indices.size() ||
 					prop_mesh.uv_coord_indices.size() >= MAX_NUM_TEX_INDICES)
 				{
-					selected_ffna_model_file.textures_parsed_correctly = false;
+					if (using_other_model_format)
+						selected_ffna_model_file_other.textures_parsed_correctly = false;
+					else
+						selected_ffna_model_file.textures_parsed_correctly = false;
 					continue;
 				}
 
-				if (selected_ffna_model_file.textures_parsed_correctly)
+				if (textures_available)
 				{
 					per_object_cbs[i].num_uv_texture_pairs = prop_mesh.uv_coord_indices.size();
+
+					if (using_other_model_format)
+					{
+						char debug_msg[256];
+						sprintf_s(debug_msg, "draw_dat_browser: mesh[%d] num_tex_pairs=%zu\n",
+							i, prop_mesh.uv_coord_indices.size());
+						LogBB8Debug(debug_msg);
+					}
+
 					for (int j = 0; j < prop_mesh.uv_coord_indices.size(); j++)
 					{
 						int index0 = j / 4;
@@ -475,23 +803,51 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 							static_cast<uint32_t>(prop_mesh.tex_indices[j]);
 						per_object_cbs[i].blend_flags[index0][index1] = static_cast<uint32_t>(prop_mesh.blend_flags[j]);
 						per_object_cbs[i].texture_types[index0][index1] = static_cast<uint32_t>(model_texture_types.at(per_mesh_tex_ids[i][j]));
+
+						if (using_other_model_format)
+						{
+							char debug_msg[256];
+							sprintf_s(debug_msg, "  CB[%d] slot[%d]: uv_idx=%u, tex_idx=%u, blend=%u, tex_type=%u, tex_id=%d\n",
+								i, j, per_object_cbs[i].uv_indices[index0][index1],
+								per_object_cbs[i].texture_indices[index0][index1],
+								per_object_cbs[i].blend_flags[index0][index1],
+								per_object_cbs[i].texture_types[index0][index1],
+								per_mesh_tex_ids[i][j]);
+							LogBB8Debug(debug_msg);
+						}
 					}
 				}
 			}
 
 			auto pixel_shader_type = PixelShaderType::OldModel;
-			if (selected_ffna_model_file.geometry_chunk.unknown_tex_stuff1.size() > 0)
+			const auto& unknown_tex_stuff1 = using_other_model_format ?
+				selected_ffna_model_file_other.geometry_chunk.unknown_tex_stuff1 :
+				selected_ffna_model_file.geometry_chunk.unknown_tex_stuff1;
+			if (unknown_tex_stuff1.size() > 0)
 			{
 				pixel_shader_type = PixelShaderType::NewModel;
 			}
 
 			auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, index, pixel_shader_type);
-			if (selected_ffna_model_file.textures_parsed_correctly)
+			if (textures_available)
 			{
 				for (int i = 0; i < mesh_ids.size(); i++)
 				{
 					int mesh_id = mesh_ids[i];
 					auto& mesh_texture_ids = per_mesh_tex_ids[i];
+
+					if (using_other_model_format)
+					{
+						char debug_msg[256];
+						sprintf_s(debug_msg, "draw_dat_browser: SetTexturesForMesh mesh_id=%d, num_textures=%zu\n",
+							mesh_id, mesh_texture_ids.size());
+						LogBB8Debug(debug_msg);
+						for (size_t t = 0; t < mesh_texture_ids.size(); t++)
+						{
+							sprintf_s(debug_msg, "  texture[%zu] = internal_id %d\n", t, mesh_texture_ids[t]);
+							LogBB8Debug(debug_msg);
+						}
+					}
 
 					map_renderer->GetMeshManager()->SetTexturesForMesh(
 						mesh_id,
