@@ -594,7 +594,9 @@ private:
 
             bool found_submesh = false;
 
-            for (uint32_t test_offset = scan_start; test_offset < max_offset; test_offset += 2)
+            // Scan at 1-byte boundaries - OLD format files can have headers at odd offsets
+            // due to variable-size sections (e.g., 17-byte bone data section)
+            for (uint32_t test_offset = scan_start; test_offset < max_offset; test_offset += 1)
             {
                 if (test_offset + SUBMESH_HEADER_SIZE > data_size)
                     break;
