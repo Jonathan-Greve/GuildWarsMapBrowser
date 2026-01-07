@@ -39,8 +39,15 @@
 //   0x200: Skeleton data (max 32 bones, 255 weights)
 //   0x400: Extended LOD data
 
-// UV coordinates use a delta+offset compression format:
-// - After positions, there's num_vertices * 4 bytes of per-vertex data (colors/weights)
+// Two vertex data formats exist:
+// MODERN format (num_texture_groups > 0):
+//   - After positions, there's num_vertices * 4 bytes of per-vertex data (colors/weights)
+//   - UV uses delta+offset compression format
+// OLD format (num_texture_groups == 0):
+//   - UV data (uint16 pairs) comes immediately after positions (NO extra data gap)
+//   - UV values are simply normalized by 1/65536
+//
+// UV delta+offset compression (MODERN format only):
 // - UV Header: count0 (uint16), count1 (uint16)
 // - Offset arrays: u_thresholds[count0], v_thresholds[count1], u_offsets[count0], v_offsets[count1]
 // - Delta data: (u_delta, v_delta) uint16 pairs per vertex
@@ -139,8 +146,11 @@ u32 g_submesh_offset;
 u32 g_num_indices;
 u32 g_num_vertices;
 u32 g_geom_data_size;
+bool g_is_old_format;  // TRUE if num_texture_groups == 0 (OLD format with different UV layout)
 
-// Scan for submesh header pattern at 2-byte boundaries
+// Scan for submesh header pattern at 1-byte boundaries
+// OLD format files can have headers at odd offsets due to variable-size sections
+// (e.g., 17-byte bone data section causes header at offset 0x4D)
 // Sets global variables and returns true if found
 fn find_submesh_header(u32 data_start, u32 data_size) {
   u32 offset = 0;
@@ -175,7 +185,8 @@ fn find_submesh_header(u32 data_start, u32 data_size) {
         }
       }
     }
-    offset = offset + 2;
+    // Scan at 1-byte boundaries to find headers at odd offsets
+    offset = offset + 1;
   }
   g_submesh_offset = 0;
   g_num_indices = 0;
@@ -188,13 +199,19 @@ struct VertexExtraData {
   u8 data[4];  // RGBA color or bone weights
 };
 
-// UV delta pair (uint16, scaled by 1/65536)
+// UV coordinate pair (uint16, scaled by 1/65536) - used in OLD format
+struct UV_Pair {
+  u16 u;  // U coordinate * 65536
+  u16 v;  // V coordinate * 65536
+};
+
+// UV delta pair (uint16, scaled by 1/65536) - used in MODERN format
 struct UV_Delta {
   u16 u_delta;
   u16 v_delta;
 };
 
-// UV header and offset arrays
+// UV header and offset arrays (MODERN format only)
 // Layout: count0, count1, u_thresholds[count0], v_thresholds[count1], u_offsets[count0], v_offsets[count1]
 struct UVHeader {
   u16 count0;         // Number of U offset entries
@@ -205,19 +222,29 @@ struct UVHeader {
   // Followed by: v_offsets[count1] (int16 each)
 };
 
-// Full submesh with indices, positions, extra data, and UVs
-struct SubmeshBB8_Full {
+// OLD format submesh: indices, positions, UV pairs (NO extra data between pos and UV)
+struct SubmeshBB8_Old {
   SubmeshBB8_Header header [[name("Submesh Header")]];
   u16 indices[header.num_indices] [[name("Index Buffer")]];
   VertexPosition positions[header.num_vertices] [[name("Vertex Positions")]];
-  // Per-vertex extra data (colors/weights) comes after positions
+  // OLD format: UV data comes immediately after positions (no extra data gap!)
+  // UV values are uint16 pairs normalized by 1/65536
+  UV_Pair uvs[header.num_vertices * (header.num_uv_sets > 0 ? header.num_uv_sets : 1)] [[name("UV Coordinates (uint16/65536)")]];
+};
+
+// MODERN format submesh: indices, positions, extra data, UV delta+offset compression
+struct SubmeshBB8_Modern {
+  SubmeshBB8_Header header [[name("Submesh Header")]];
+  u16 indices[header.num_indices] [[name("Index Buffer")]];
+  VertexPosition positions[header.num_vertices] [[name("Vertex Positions")]];
+  // MODERN format: per-vertex extra data (colors/weights) comes after positions
   VertexExtraData extra_data[header.num_vertices] [[name("Per-Vertex Extra Data (colors/weights)")]];
   // UV header with offset arrays
   UVHeader uv_header [[name("UV Header")]];
   // Offset arrays (simplified - actual size depends on count0/count1)
   u16 uv_offset_arrays[(uv_header.count0 + uv_header.count1) * 2] [[name("UV Offset Arrays")]];
   // UV delta data (uint16 pairs, final UV = delta/65536 + offset)
-  UV_Delta uv_deltas[header.num_vertices * header.num_uv_sets] [[name("UV Delta Data (uint16/65536)")]];
+  UV_Delta uv_deltas[header.num_vertices * (header.num_uv_sets > 0 ? header.num_uv_sets : 1)] [[name("UV Delta Data (uint16/65536)")]];
 };
 
 // Geometry data with parsed submesh
@@ -234,30 +261,48 @@ struct GeometryDataParsed {
 
   // Parse the actual submesh if found
   if (found) {
-    SubmeshBB8_Full submesh [[name("Submesh")]];
+    // Use different struct based on OLD vs MODERN format
+    if (g_is_old_format) {
+      SubmeshBB8_Old submesh [[name("Submesh (OLD format)")]];
 
-    // Data layout after submesh header:
-    //   - Indices: num_indices * 2 bytes
-    //   - Positions: num_vertices * 12 bytes
-    //   - Extra data (colors/weights): num_vertices * 4 bytes
-    //   - UV header: 4 bytes (count0, count1)
-    //   - UV offset arrays: (count0 + count1) * 4 bytes
-    //   - UV deltas: num_vertices * num_uv_sets * 4 bytes
-    u32 consumed = g_submesh_offset + 24 + g_num_indices * 2 + g_num_vertices * 12;
-    // Add extra data size (colors/weights)
-    consumed = consumed + g_num_vertices * 4;
-    // Add UV header and offset arrays (read count0, count1 to calculate)
-    u16 uv_count0 = std::mem::read_unsigned(data_start + consumed, 2);
-    u16 uv_count1 = std::mem::read_unsigned(data_start + consumed + 2, 2);
-    consumed = consumed + 4 + (uv_count0 + uv_count1) * 4;
-    // Add UV delta data
-    u32 num_uv_sets = std::mem::read_unsigned(data_start + g_submesh_offset + 8, 4);
-    if (num_uv_sets > 8) num_uv_sets = 1;
-    consumed = consumed + g_num_vertices * num_uv_sets * 4;
+      // OLD format data layout:
+      //   - Indices: num_indices * 2 bytes
+      //   - Positions: num_vertices * 12 bytes
+      //   - UV pairs: num_vertices * num_uv_sets * 4 bytes (NO extra data gap!)
+      u32 num_uv_sets = std::mem::read_unsigned(data_start + g_submesh_offset + 8, 4);
+      if (num_uv_sets == 0 || num_uv_sets > 8) num_uv_sets = 1;
+      u32 consumed = g_submesh_offset + 24 + g_num_indices * 2 + g_num_vertices * 12 + g_num_vertices * num_uv_sets * 4;
 
-    // Footer/remaining data
-    if (consumed < g_geom_data_size) {
-      u8 remaining_data[g_geom_data_size - consumed] [[name("Remaining Data")]];
+      // Footer/remaining data
+      if (consumed < g_geom_data_size) {
+        u8 remaining_data[g_geom_data_size - consumed] [[name("Remaining Data")]];
+      }
+    } else {
+      SubmeshBB8_Modern submesh [[name("Submesh (MODERN format)")]];
+
+      // MODERN format data layout:
+      //   - Indices: num_indices * 2 bytes
+      //   - Positions: num_vertices * 12 bytes
+      //   - Extra data (colors/weights): num_vertices * 4 bytes
+      //   - UV header: 4 bytes (count0, count1)
+      //   - UV offset arrays: (count0 + count1) * 4 bytes
+      //   - UV deltas: num_vertices * num_uv_sets * 4 bytes
+      u32 consumed = g_submesh_offset + 24 + g_num_indices * 2 + g_num_vertices * 12;
+      // Add extra data size (colors/weights)
+      consumed = consumed + g_num_vertices * 4;
+      // Add UV header and offset arrays (read count0, count1 to calculate)
+      u16 uv_count0 = std::mem::read_unsigned(data_start + consumed, 2);
+      u16 uv_count1 = std::mem::read_unsigned(data_start + consumed + 2, 2);
+      consumed = consumed + 4 + (uv_count0 + uv_count1) * 4;
+      // Add UV delta data
+      u32 num_uv_sets = std::mem::read_unsigned(data_start + g_submesh_offset + 8, 4);
+      if (num_uv_sets == 0 || num_uv_sets > 8) num_uv_sets = 1;
+      consumed = consumed + g_num_vertices * num_uv_sets * 4;
+
+      // Footer/remaining data
+      if (consumed < g_geom_data_size) {
+        u8 remaining_data[g_geom_data_size - consumed] [[name("Remaining Data")]];
+      }
     }
   } else {
     // Fallback: just show raw data
@@ -270,8 +315,11 @@ struct ChunkBB8_Geometry {
   u32 chunk_size;
   ChunkBB8_Header header [[name("Geometry Header")]];
 
-  // Set global for data size before parsing
+  // Set globals before parsing
   g_geom_data_size = chunk_size - sizeof(ChunkBB8_Header);
+  // OLD format: num_texture_groups == 0 (UV data immediately after positions)
+  // MODERN format: num_texture_groups > 0 (extra data + UV delta compression)
+  g_is_old_format = (header.num_texture_groups == 0);
 
   // Parse geometry data with submesh detection
   GeometryDataParsed geometry [[name("Geometry Data")]];
