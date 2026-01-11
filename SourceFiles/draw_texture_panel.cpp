@@ -8,6 +8,9 @@ extern SelectedDatTexture selected_dat_texture;
 extern bool using_other_model_format;
 extern FFNA_ModelFile_Other selected_ffna_model_file_other;
 extern FileType selected_file_type;
+extern int selected_map_file_index;
+extern uint32_t selected_item_hash;
+extern uint32_t selected_item_murmurhash3;
 
 std::vector<InlineTextureDisplay> inline_texture_displays;
 std::vector<ModelTextureDisplay> model_texture_displays;
@@ -187,6 +190,20 @@ void draw_texture_panel(MapRenderer* map_renderer)
                 ImGui::Image((ImTextureID)tex, scaled_size);
                 ImGui::Text("#%d: %s", tex_display.index, tex_display.format.c_str());
                 ImGui::Text("%dx%d", tex_display.width, tex_display.height);
+
+                // Export button for this inline texture
+                ImGui::PushID(static_cast<int>(i));
+                if (ImGui::SmallButton("Export PNG"))
+                {
+                    std::wstring defaultName = std::format(L"itemIcon_{}",
+                        selected_item_hash);
+                    std::wstring savePath = OpenFileDialog(defaultName, L"png");
+                    if (!savePath.empty())
+                    {
+                        SaveTextureToPng(tex, savePath, map_renderer->GetTextureManager());
+                    }
+                }
+                ImGui::PopID();
 
                 ImGui::EndGroup();
 
