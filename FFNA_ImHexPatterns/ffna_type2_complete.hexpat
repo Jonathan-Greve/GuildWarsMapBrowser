@@ -791,17 +791,16 @@ struct Chunk_BBA_TextureRefs {
 struct Chunk_BBB_TextureFilenames {
     u32 chunkId;
     u32 chunkSize;
-    u32 version;                    // Should be 1
-    u32 filenameCount;
+    u32 filenameCount;              // Number of texture filename entries
 
-    if (version == 1 && filenameCount > 0 && filenameCount < 256) {
+    if (filenameCount > 0 && filenameCount < 256) {
         TextureFilenameEntry filenames[filenameCount] [[name("Texture Filenames")]];
     }
 
-    u32 expectedSize = 8 + (filenameCount * 6);
+    u32 expectedSize = 4 + (filenameCount * 6);
     if (expectedSize < chunkSize) {
         u32 remainingSize = chunkSize - expectedSize;
-        u8 remaining[remainingSize];
+        u8 remaining[remainingSize] [[name("Remaining Data")]];
     }
 };
 
