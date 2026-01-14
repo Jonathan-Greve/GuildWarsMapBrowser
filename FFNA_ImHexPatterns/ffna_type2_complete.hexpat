@@ -7,12 +7,15 @@
 //   - Model_ParseMaterialData (0x00768e00)
 //   - Model_ParseBoneData (0x007691c0)
 //   - Model_ParseShaderData (0x00769930)
+//   - Model_ParseAttachmentPoints (0x00769d00)
+//   - Model_ParseEmitterData (0x00769e70)
+//   - Model_ParseAnimationData (0x0076aa40)
+//   - Model_ParseSkeletonData (0x0076aba0)
 //   - MdlDecomp_ConvertSubmesh (0x0076dbe0)
 //   - MdlDecomp_ConvertGeometryChunk_0xBB8_to_0xFA0 (0x0076d380)
 //   - MdlDecomp_ConvertGeometryChunk_0xBB9_to_0xFA1 (0x0076e780)
 //   - MdlDecomp_ConvertAllChunks (0x00771090)
-//   - MdlFvf_CalculateVertexFormat (0x0077b130)
-//   - MdlFvf_BuildVertexBuffer (0x0077ae90)
+//   - MdlDecomp_ConvertBoneWeights (0x0076e4e0)
 // =============================================================================
 
 #include <std/mem.pat>
@@ -34,21 +37,19 @@
 //   0xBC0 (3008) -> 0xFAD (4013): Additional data
 //   0xBC1 (3009) -> 0xFAE (4014): Additional data
 //
-// Special chunks (inline textures):
+// Special chunks:
 //   0xFA3 (4003): Inline ATEX DXT3 texture
+//   0xFA7 (4007): Bounding cylinder data
+//   0xFA8 (4008): Skeleton references
 //   0xFAA (4010): Inline ATEX DXTA texture
 //   0xFAC (4012): File metadata
 
 // =============================================================================
-// FVF (Flexible Vertex Format) Lookup Tables
+// FVF (Flexible Vertex Format) Lookup Functions
 // From MdlFvf_ConvertToGrFVF and GetVertexSizeFromFVF
 // =============================================================================
 
-// Get position/weight component size based on FVF bits 8-11 and 12-15
 fn get_fvf_pos_weight_size(u32 idx) {
-    // fvf_array_0: { 0x0, 0x8, 0x8, 0x10, 0x8, 0x10, 0x10, 0x18,
-    //                0x8, 0x10, 0x10, 0x18, 0x10, 0x18, 0x18, 0x20,
-    //                0x0, 0x0, 0x0, 0x1, 0xFFFFFFFF, 0xFFFFFFFF }
     if (idx == 0) return 0x0;
     if (idx == 1) return 0x8;
     if (idx == 2) return 0x8;
@@ -65,16 +66,10 @@ fn get_fvf_pos_weight_size(u32 idx) {
     if (idx == 13) return 0x18;
     if (idx == 14) return 0x18;
     if (idx == 15) return 0x20;
-    if (idx == 16) return 0x0;
-    if (idx == 17) return 0x0;
-    if (idx == 18) return 0x0;
-    if (idx == 19) return 0x1;
-    return 0xFFFFFFFF;
+    return 0x0;
 };
 
-// Get normal component size based on FVF bits 4-6
 fn get_fvf_normal_size(u32 idx) {
-    // fvf_array_1: { 0x0, 0xC, 0xC, 0x18, 0xC, 0x18, 0x18, 0x24 }
     if (idx == 0) return 0x0;
     if (idx == 1) return 0xC;
     if (idx == 2) return 0xC;
@@ -86,10 +81,7 @@ fn get_fvf_normal_size(u32 idx) {
     return 0x0;
 };
 
-// Get UV component size based on FVF bits 0-3
 fn get_fvf_uv_size(u32 idx) {
-    // fvf_array_2: { 0x0, 0xC, 0x4, 0x10, 0xC, 0x18, 0x10, 0x1C,
-    //                0x4, 0x10, 0x8, 0x14, 0x10, 0x1C, 0x14, 0x20 }
     if (idx == 0) return 0x0;
     if (idx == 1) return 0xC;
     if (idx == 2) return 0x4;
@@ -109,12 +101,10 @@ fn get_fvf_uv_size(u32 idx) {
     return 0x0;
 };
 
-// Convert DAT FVF to DirectX FVF format
 fn get_fvf(u32 dat_fvf) {
     return (dat_fvf & 0xff0) << 4 | dat_fvf >> 8 & 0x30 | dat_fvf & 0xf;
 };
 
-// Calculate vertex size from FVF flags
 fn get_vertex_size_from_fvf(u32 fvf) {
     return get_fvf_pos_weight_size(fvf >> 0xc & 0xf) +
            get_fvf_pos_weight_size(fvf >> 8 & 0xf) +
@@ -146,98 +136,118 @@ bitfield ClassFlags {
     HAS_BONE_WEIGHTS : 1;      // 0x040: Per-vertex bone weights
     HAS_MORPH_DATA : 1;        // 0x080: Morph target/attachment data
     HAS_ANIMATION_DATA : 1;    // 0x100: Animation sequence data
-    HAS_SKELETON_DATA : 1;     // 0x200: Skeleton/joint hierarchy (max 32 bones, 255 weights)
+    HAS_SKELETON_DATA : 1;     // 0x200: Skeleton/joint hierarchy (max 32 bones)
     HAS_EXTENDED_LOD : 1;      // 0x400: Extended LOD data
     HAS_CLOTH_DATA : 1;        // 0x800: Cloth simulation data
     HAS_SCALE_DATA : 1;        // 0x1000: Scale transform data
-    RESERVED : 19;
-};
-
-// =============================================================================
-// String Type (null-terminated)
-// =============================================================================
-struct String {
-    char value[compute_str_len_plus_one($)];
+    UNKNOWN_0x2000 : 1;        // 0x2000
+    UNKNOWN_0x4000 : 1;        // 0x4000
+    HAS_TEX_COORDS : 1;        // 0x8000: Texture coordinates
+    RESERVED : 16;
 };
 
 // =============================================================================
 // UV Compression Notes (from MdlDecomp_ConvertSubmesh at 0x0076dbe0)
 // =============================================================================
-// Two vertex data formats exist based on textureGroupCount (offset 0x19 in BB8):
+// Two UV formats based on textureGroupCount (offset 0x19 in BB8 header):
 //
 // OLD format (textureGroupCount == 0):
-//   - UV data (uint16 pairs) comes immediately after positions
-//   - UV values are normalized: final_uv = raw_uv / 65536.0
+//   - UV data immediately after positions (no extra data gap)
+//   - UV values normalized: final_uv = raw_uv / 65536.0
 //
 // MODERN format (textureGroupCount > 0):
-//   - After positions: per-vertex extra data (4 bytes each - colors/weights)
-//   - UV uses delta+offset compression
-//   - UV Header: count0 (u16), count1 (u16)
-//   - Offset arrays: u_thresholds[count0], v_thresholds[count1],
-//                    u_offsets[count0], v_offsets[count1]
-//   - Delta data: (u_delta, v_delta) uint16 pairs per vertex
-//   - Final UV = delta * (1/65536) + offset
+//   - After positions: per-vertex extra data (4 bytes each)
+//   - UV compression header: uOffsetCount (u16), vOffsetCount (u16)
+//   - U thresholds[uOffsetCount], V thresholds[vOffsetCount]
+//   - U offsets[uOffsetCount], V offsets[vOffsetCount]
+//   - UV deltas: (u_delta, v_delta) per vertex
+//   - Final UV = delta * (1.0/65536.0) + offset
 //
-// Scale constant at 0x00a399b8: 0x37800000 = 1.0f/65536.0f
+// UV_DELTA_SCALE_FACTOR at 0x00a399b8 = 1.0/65536.0 (0x37800000)
 
 // =============================================================================
 // COMMON STRUCTURES
 // =============================================================================
 
-// Bone Info Structure (28 bytes = 0x1C)
-struct BoneInfo {
+struct String {
+    char value[compute_str_len_plus_one($)];
+};
+
+// Bone Group/Info Structure (28 bytes = 0x1C)
+// From Model_ParseGeometryHeader when classFlags & 0x002
+struct BoneGroup {
     float offsetX;
     float offsetY;
     float offsetZ;
-    u32 parentBoneIndex;
+    u32 parentBoneIndex;      // -1 for root
     u32 childCount;
     u32 flags;
     u32 boneId;
 };
 
-// Shader Definition (8 bytes) - From Model_ParseShaderData at 0x00769930
-struct ShaderDefinition {
-    u8 cullMode;        // 0=back-face cull, 1=no culling, 2=front-face cull
-    u8 blendFlags;
-    u32 shaderFlags;
-    u8 pixelShaderId;
-    u8 uvChannelCount;
+// Bone Weight Set (24 bytes = 0x18 header + variable data)
+// From MdlDecomp_ConvertBoneWeights
+struct BoneWeightSetHeader {
+    u32 unknown0;
+    u32 unknown1;
+    u32 weightCount;          // Number of weight entries
+    u32 boneCount0;
+    u32 boneCount1;
+    u32 boneCount2;
+    // Followed by: weightCount * 7 bytes + (boneCount0 + boneCount1 + boneCount2) * 8 bytes
 };
 
-// Material Definition (9 bytes) - From Model_ParseMaterialData at 0x00768e00
+// Shader Definition (8 bytes) - From Model_ParseShaderData
+struct ShaderDefinition {
+    u8 cullFlags;           // Bits: 0x01=?, 0x02=twoSided, 0x04=?, 0x08=?
+    u8 shaderType;          // Shader type index (0-10 mapped to internal enum)
+    u32 shaderFlags;        // Feature flags
+    u8 pixelShaderId;       // Pixel shader ID (8 = AMAT special)
+    u8 textureCount;        // Number of textures used by this shader
+};
+
+// Material Definition (9 bytes) - From Model_ParseMaterialData
 struct MaterialDefinition {
-    u16 renderFlags;        // Render state (0x60A -> 0x622 indicates transform)
-    u16 blendFlags;         // 0x600 = standard blend
-    u8 textureStageIndex;
+    u16 renderFlags;        // Render state flags (0x60A -> 0x622 conversion)
+    u16 blendFlags;         // Alpha blend mode (0x600 = standard)
+    u8 textureStageIndex;   // Which texture stage to use
     u8 alphaTestRef;        // Alpha test reference (0-255)
-    u8 sortPriority;
-    u8 lodBias;
-    u8 uvChannel;
+    u8 sortPriority;        // Render sort priority
+    u8 lodBias;             // Texture LOD bias
+    u8 uvChannel;           // UV channel index
+};
+
+// Texture Reference Entry (16 bytes in FA4, 6 bytes in BBB)
+struct TextureRefEntry_FA4 {
+    u32 textureId;          // DAT file ID
+    u32 flags;
+    u32 unknown1;
+    u32 unknown2;
 };
 
 // Texture Filename Entry (6 bytes)
 // Hash decode: file_hash = (id0 - 0xFF00FF) + (id1 * 0xFF00)
 struct TextureFilenameEntry {
-    u16 id0;
-    u16 id1;
-    u16 unknown;
+    u16 id0;                // Encoded part 1
+    u16 id1;                // Encoded part 2
+    u16 unknown;            // Usually 0
 };
 
 // Attachment Point (48 bytes = 0x30) - From Model_ParseAttachmentPoints
+// Each attachment stores 12 DWORDs of transform data
 struct AttachmentPoint {
     float positionX, positionY, positionZ;
     float rotationX, rotationY, rotationZ, rotationW;
     float scaleX, scaleY, scaleZ;
-    s32 parentBoneIndex;
+    s32 parentBoneIndex;    // -1 for world space
     u32 attachmentType;
-    u32 reserved[2];
 };
 
 // Particle Emitter (88 bytes = 0x58) - From Model_ParseEmitterData
 struct ParticleEmitter {
-    u32 emitterType;
-    s32 parentBoneIndex;
-    u32 unknown_0x08;
+    u32 emitterType;        // Point, sphere, cylinder, etc.
+    s32 parentBoneIndex;    // -1 for world space
+    u32 flags;
     float positionX, positionY, positionZ;
     float directionX, directionY, directionZ;
     float startSize, endSize;
@@ -253,10 +263,30 @@ struct ParticleEmitter {
     u8 reserved[3];
 };
 
+// Animation Entry (20 bytes = 0x14 header) - From Model_ParseAnimationData
+struct AnimationEntryHeader {
+    float unknown0;
+    float unknown1;
+    float unknown2;
+    u32 duration;           // Animation duration
+    u16 keyframeCount0;     // First keyframe set count
+    u16 keyframeCount1;     // Second keyframe set count
+    // Followed by: (keyframeCount0 + keyframeCount1) * 4 bytes of keyframe data
+};
+
+// Skeleton Entry (16 bytes = 0x10 header) - From Model_ParseSkeletonData
+struct SkeletonEntryHeader {
+    float unknown0;
+    float unknown1;
+    float unknown2;
+    u32 boneData;           // Packed bone counts
+    // Followed by variable bone data
+};
+
 // ATEX Inline Texture Header
 struct ATEXHeader {
-    char signature[4];  // "ATEX"
-    char format[4];     // "DXT3", "DXTA", "DXT1", "DXT5", etc.
+    char signature[4];      // "ATEX"
+    char format[4];         // "DXT3", "DXTA", "DXT1", "DXT5", etc.
     u16 width;
     u16 height;
     u32 dataSize;
@@ -264,152 +294,41 @@ struct ATEXHeader {
 };
 
 // =============================================================================
-// 0xFA* FORMAT STRUCTURES (Runtime/Converted Format)
-// =============================================================================
-
-// Geometry Header for 0xFA0 chunks (84 bytes = 0x54)
-struct GeometryHeader_FA0 {
-    u32 modelVersion;           // 0x00: Usually 0x26 for standard models
-    u32 fileId;                 // 0x04: File ID in DAT archive
-    ClassFlags classFlags;      // 0x08: Data section presence flags
-    u32 boundingBoxId;          // 0x0C
-    u32 collisionMeshId;        // 0x10
-    u8 lodDistanceScale;        // 0x14
-    u8 unknown_0x15;
-    u8 unknown_0x16;
-    u8 unknown_0x17;
-    u8 shaderCount;             // 0x18: Number of shader definitions
-    u8 materialBaseCount;       // 0x19
-    u16 textureRefCount;        // 0x1A
-    u8 shaderParamCount;        // 0x1C: Shader parameter count per shader
-    u8 materialConstCount;      // 0x1D
-    u16 textureRangeCount;      // 0x1E
-    u32 uvSetFlags;             // 0x20
-    u32 vertexGroupCount;       // 0x24
-    u32 colorDataCount;         // 0x28
-    u32 normalDataCount;        // 0x2C
-    u8 boneInfoCount;           // 0x30: Bone structs (28 bytes each)
-    u8 padding_0x31[3];
-    u32 emitterDataSize;        // 0x34
-    float boundingSphereX;      // 0x38
-    float boundingSphereY;
-    float boundingSphereZ;
-    float boundingSphereRadius;
-    u32 frameDataCount;         // 0x48
-    u32 submeshCount;           // 0x4C
-    u16 collisionSubmeshCount;  // 0x50
-    u16 boneDataEntryCount;     // 0x52
-    u16 attachmentPointCount;   // (overlaps with padding)
-};
-
-// Animation/Extended Geometry Header for 0xFA1 chunks
-struct GeometryHeader_FA1 {
-    u32 modelVersion;
-    u32 fileId;
-    ClassFlags classFlags;
-    u32 boundingBoxId;
-    u32 collisionMeshId;
-    u32 boundingCylinderCount;  // 0x14
-    u8 sequenceKeyframeCountLo; // 0x18
-    u8 sequenceKeyframeCountHi;
-    u16 unknown_0x1A;
-    u8 unknown_0x1C;
-    u8 unknown_0x1D;
-    u8 unknown_0x1E;
-    u8 unknown_0x1F;
-    float boundingSphereX;
-    float boundingSphereY;
-    float boundingSphereZ;
-    float boundingSphereRadius;
-    u32 animationCount;         // 0x30
-    u32 transformDataSize;      // 0x34
-    u32 skeletonNodeCount;      // 0x38
-    u32 weightDataCount;
-    u32 vertexGroupCount;
-    u32 unknown_0x44;
-    u32 submeshCount;           // 0x48
-    u16 attachmentDataCount;
-    u16 padding_0x4E;
-    u16 boneDataCount;
-    u16 additionalCount;
-};
-
-// Submesh Header for FA0 (36 bytes = 0x24)
-struct SubmeshHeader_FA0 {
-    u16 materialIndex;
-    u16 submeshFlags;
-    u32 indexCount;
-    u32 indexBufferOffset;
-    u32 vertexCount;
-    u32 vertexFormat;       // FVF-style flags
-    u32 uvSetCount;
-    u32 vertexColorCount;
-    u32 normalCount;
-    u32 triangleGroupCount;
-};
-
-// FVF-based Vertex
-struct Vertex<auto dat_fvf> {
-    u32 FVF = get_fvf(dat_fvf);
-    u32 vertex_size = get_vertex_size_from_fvf(FVF);
-    u32 used_bytes = 0;
-
-    if (FVF & 1) {
-        used_bytes += 12;
-        float positionX, positionY, positionZ;
-    }
-    if (FVF & 2) {
-        used_bytes += 4;
-        u32 vertexGroupIndex;
-    }
-    if (FVF & 4) {
-        used_bytes += 12;
-        float normalX, normalY, normalZ;
-    }
-    float additionalData[(vertex_size - used_bytes) / 4];
-};
-
-// =============================================================================
-// 0xBB* FORMAT STRUCTURES (Original DAT Format)
+// 0xBB8 FORMAT STRUCTURES (Original DAT Geometry)
 // =============================================================================
 
 // Geometry Header for 0xBB8 chunks (48 bytes = 0x30)
+// From MdlDecomp_ConvertGeometryChunk_0xBB8_to_0xFA0
 struct GeometryHeader_BB8 {
-    u32 geometryFlags;          // 0x00
-    u32 reserved_0x04;          // 0x04
-    ClassFlags classFlags;      // 0x08
-    u32 modelHash0;             // 0x0C
-    u32 modelHash1;             // 0x10
+    u32 geometryFlags;          // 0x00: Flags for this geometry
+    u32 reserved_0x04;          // 0x04: Usually 0
+    ClassFlags classFlags;      // 0x08: Controls which data sections exist
+    u32 modelHash0;             // 0x0C: Model signature part 1
+    u32 modelHash1;             // 0x10: Model signature part 2
     u32 unknown_0x14;           // 0x14
-    u8 boneGroupCount;          // 0x18: Max 4, 28 bytes each
-    u8 textureGroupCount;       // 0x19: CRITICAL - 0=OLD UV format, >0=MODERN
-    u16 textureCount;           // 0x1A
-    u8 maxBoneWeights;          // 0x1C
-    u8 maxBoneIndices;          // 0x1D
-    u16 materialCount;          // 0x1E
-    u32 boneWeightSetCount;     // 0x20
-    u32 outputFlags;            // 0x24
-    float submeshScaleX;        // 0x28
-    float submeshScaleY;        // 0x2C
+    u8 boneGroupCount;          // 0x18: Max 4, each 28 bytes
+    u8 textureGroupCount;       // 0x19: CRITICAL - 0=OLD UV, >0=MODERN UV
+    u16 textureCount;           // 0x1A: Number of texture refs
+    u8 maxBoneWeights;          // 0x1C: Max weights per vertex
+    u8 maxBoneIndices;          // 0x1D: Max bone indices
+    u16 materialCount;          // 0x1E: Number of materials
+    u32 boneWeightSetCount;     // 0x20: Bone weight set count
+    u32 outputFlags;            // 0x24: Output conversion flags
+    float submeshScaleX;        // 0x28: UV scale X
+    float submeshScaleY;        // 0x2C: UV scale Y
 };
 
-// Animation/Skeleton Header for 0xBB9 chunks
-struct AnimationHeader_BB9 {
-    u32 typeMarker;     // Usually 0x26
-    u32 fileId;
-    u32 flags;          // Typically 0x10
-    u32 modelHash0;
-    u32 modelHash1;
-};
-
-// Submesh Header for BB8 (24 bytes = 0x18)
+// Submesh Header for BB8 (32 bytes = 0x20)
+// From MdlDecomp_ConvertSubmesh - 8 DWORDs
 struct SubmeshHeader_BB8 {
-    u32 indexCount;
-    u32 vertexCount;
-    u32 uvSetCount;
-    u32 vertexGroupCount;
-    u32 vertexColorCount;
-    u32 normalCount;
+    u32 submeshFlags;           // 0x00: Visibility, render state flags
+    u32 materialIndex;          // 0x04: Material/shader index
+    u32 indexCount;             // 0x08: Number of vertex indices
+    u32 vertexCount;            // 0x0C: Number of vertices
+    u32 uvSetCount;             // 0x10: UV coordinate sets per vertex
+    u32 colorCount;             // 0x14: Vertex color count
+    u32 normalCount;            // 0x18: Normal vector count
+    u32 triangleGroupCount;     // 0x1C: Triangle strip/fan groups
 };
 
 // Vertex Position (12 bytes)
@@ -417,18 +336,18 @@ struct VertexPosition {
     float x, y, z;
 };
 
-// Per-Vertex Extra Data (4 bytes) - colors/weights
+// Per-Vertex Extra Data (4 bytes) - colors or bone weights
 struct VertexExtraData {
     u8 data[4];
 };
 
-// UV Coordinate Pair - OLD format (4 bytes)
+// UV Coordinate - OLD format (4 bytes, direct normalized)
 struct UV_Direct {
     u16 u;  // U * 65536
     u16 v;  // V * 65536
 };
 
-// UV Delta Pair - MODERN format (4 bytes)
+// UV Delta - MODERN format (4 bytes, delta compressed)
 struct UV_Delta {
     u16 uDelta;
     u16 vDelta;
@@ -440,309 +359,505 @@ struct UVCompressionHeader {
     u16 vOffsetCount;
 };
 
-// =============================================================================
-// GLOBAL STATE FOR PARSING
-// =============================================================================
-u32 g_submeshOffset;
-u32 g_numIndices;
-u32 g_numVertices;
-u32 g_geomDataSize;
-bool g_isOldFormat;
-
-fn find_submesh_header(u32 dataStart, u32 dataSize) {
-    u32 offset = 0;
-    while (offset < std::math::min(dataSize, 300)) {
-        if (offset + 48 > dataSize) break;
-
-        u32 indexCount = std::mem::read_unsigned(dataStart + offset, 4);
-        u32 vertexCount = std::mem::read_unsigned(dataStart + offset + 4, 4);
-
-        if (indexCount >= 6 && indexCount <= 100000 &&
-            vertexCount >= 3 && vertexCount <= 50000 &&
-            indexCount >= vertexCount) {
-
-            u32 idxStart = offset + 24;
-            u32 idxSize = indexCount * 2;
-            u32 posStart = idxStart + idxSize;
-            u32 posSize = vertexCount * 12;
-
-            if (posStart + posSize <= dataSize) {
-                u16 idx0 = std::mem::read_unsigned(dataStart + idxStart, 2);
-                u16 idx1 = std::mem::read_unsigned(dataStart + idxStart + 2, 2);
-                u16 idx2 = std::mem::read_unsigned(dataStart + idxStart + 4, 2);
-                if (idx0 < vertexCount && idx1 < vertexCount && idx2 < vertexCount) {
-                    g_submeshOffset = offset;
-                    g_numIndices = indexCount;
-                    g_numVertices = vertexCount;
-                    return true;
-                }
-            }
-        }
-        offset = offset + 1;
-    }
-    g_submeshOffset = 0;
-    g_numIndices = 0;
-    g_numVertices = 0;
-    return false;
+// Texture Group Definition (9 bytes)
+// From shader data parsing
+struct TextureGroupDef {
+    u8 textureIndex;
+    u16 flags;
+    u32 transformHash;
+    u8 blendState;
+    u8 uvChannel;
 };
 
 // =============================================================================
-// BB8 SUBMESH STRUCTURES
+// 0xFA0 FORMAT STRUCTURES (Runtime Geometry)
 // =============================================================================
 
-struct Submesh_OldFormat {
+// Geometry Header for 0xFA0 chunks (84 bytes = 0x54)
+// From Model_ParseGeometryHeader at 0x00769370
+struct GeometryHeader_FA0 {
+    u32 modelVersion;           // 0x00: Usually 0x26
+    u32 fileId;                 // 0x04: DAT file ID
+    ClassFlags classFlags;      // 0x08: Data section flags
+    u32 boundingBoxId;          // 0x0C
+    u32 collisionMeshId;        // 0x10
+    u8 lodDistanceScale;        // 0x14
+    u8 unknown_0x15;
+    u8 unknown_0x16;
+    u8 unknown_0x17;
+    u8 shaderCount;             // 0x18: Number of shaders
+    u8 materialBaseCount;       // 0x19
+    u16 textureRefCount;        // 0x1A
+    u8 shaderParamCount;        // 0x1C: Params per shader
+    u8 materialConstCount;      // 0x1D
+    u16 textureRangeCount;      // 0x1E
+    u32 uvSetFlags;             // 0x20
+    u32 vertexGroupCount;       // 0x24
+    u32 colorDataCount;         // 0x28
+    u32 normalDataCount;        // 0x2C
+    u8 boneInfoCount;           // 0x30: 28 bytes each
+    u8 skeletonBoneCount;       // 0x31: From classFlags & 0x200
+    u8 skeletonWeightCount;     // 0x32
+    u8 padding_0x33;
+    u32 emitterDataSize;        // 0x34
+    float boundingSphereX;      // 0x38
+    float boundingSphereY;      // 0x3C
+    float boundingSphereZ;      // 0x40
+    float boundingSphereRadius; // 0x44
+    u32 animationCount;         // 0x48
+    u16 lodSubmeshCount;        // 0x4C
+    u16 extLodSubmeshCount;     // 0x4E
+    u16 boneDataEntryCount;     // 0x50
+    u16 attachmentPointCount;   // 0x52
+};
+
+// Submesh Header for FA0 (36 bytes = 0x24)
+struct SubmeshHeader_FA0 {
+    u16 materialIndex;
+    u16 submeshFlags;
+    u32 indexCount;
+    u32 indexBufferOffset;      // Or secondary index count
+    u32 vertexCount;
+    u32 vertexFormat;           // FVF flags
+    u32 uvSetCount;
+    u32 vertexColorCount;
+    u32 normalCount;
+    u32 triangleGroupCount;
+};
+
+// =============================================================================
+// 0xBB9/0xFA1 FORMAT STRUCTURES (Animation/Skeleton)
+// =============================================================================
+
+// Animation Header for 0xBB9 chunks (44 bytes = 0x2C)
+struct AnimationHeader_BB9 {
+    u32 typeMarker;             // 0x00: Usually 0x26
+    u32 fileId;                 // 0x04
+    u32 flags;                  // 0x08: Typically 0x10
+    u32 modelHash0;             // 0x0C
+    u32 modelHash1;             // 0x10
+    u32 boundingCylinderCount;  // 0x14
+    u32 unknown_0x18;           // 0x18
+    u32 unknown_0x1C;           // 0x1C
+    u32 sequenceCount;          // 0x20: Number of animation sequences
+    u32 unknown_0x24;           // 0x24
+    u32 unknown_0x28;           // 0x28
+};
+
+// Animation Header for 0xFA1 chunks (88 bytes = 0x58)
+struct GeometryHeader_FA1 {
+    u32 modelVersion;           // 0x00
+    u32 fileId;                 // 0x04
+    ClassFlags classFlags;      // 0x08
+    u32 boundingBoxId;          // 0x0C
+    u32 collisionMeshId;        // 0x10
+    u32 boundingCylinderCount;  // 0x14
+    u16 sequenceKeyframeCount0; // 0x18
+    u16 sequenceKeyframeCount1; // 0x1A
+    u32 unknown_0x1C;
+    float boundingSphereX;      // 0x20
+    float boundingSphereY;      // 0x24
+    float boundingSphereZ;      // 0x28
+    float boundingSphereRadius; // 0x2C
+    u32 unknown_0x30;
+    u32 transformDataSize;      // 0x34
+    u32 submeshCount;           // 0x38
+    u32 unknown_0x3C;
+    u16 sequenceCount0;         // 0x40
+    u16 sequenceCount1;         // 0x42
+    u32 unknown_0x44;
+    u32 animationCount;         // 0x48
+    u32 skeletonNodeCount;      // 0x4C
+    u16 boneDataCount;          // 0x50
+    u16 attachmentCount;        // 0x52
+    u8 unknown_0x54;
+    u8 unknown_0x55;
+    u8 unknown_0x56;
+    u8 unknown_0x57;
+};
+
+// Sequence Entry (22 bytes = 0x16 in BB9)
+struct SequenceEntry_BB9 {
+    float unknown0;
+    float unknown1;
+    float unknown2;
+    u32 hash;
+    u8 frameCount0;
+    u8 frameCount1;
+    u8 unknown2a;
+    u8 unknown2b;
+    u16 dataSize;
+};
+
+// Bounding Cylinder (16 bytes)
+struct BoundingCylinder {
+    float centerX, centerY, centerZ;
+    float radius;
+};
+
+// =============================================================================
+// GLOBAL PARSING STATE
+// =============================================================================
+u32 g_chunkDataSize;
+u32 g_chunkDataStart;
+bool g_isOldUVFormat;
+u8 g_textureGroupCount;
+u8 g_boneGroupCount;
+u16 g_materialCount;
+
+// =============================================================================
+// BB8 GEOMETRY CHUNK PARSING
+// =============================================================================
+
+struct SubmeshData_BB8 {
     SubmeshHeader_BB8 header [[name("Submesh Header")]];
+
+    // Index buffer
     u16 indices[header.indexCount] [[name("Index Buffer")]];
+
+    // Position buffer
     VertexPosition positions[header.vertexCount] [[name("Vertex Positions")]];
-    UV_Direct uvCoords[header.vertexCount * (header.uvSetCount > 0 ? header.uvSetCount : 1)]
-        [[name("UV Coordinates (direct format)")]];
-};
 
-struct Submesh_ModernFormat {
-    SubmeshHeader_BB8 header [[name("Submesh Header")]];
-    u16 indices[header.indexCount] [[name("Index Buffer")]];
-    VertexPosition positions[header.vertexCount] [[name("Vertex Positions")]];
-    VertexExtraData extraData[header.vertexCount] [[name("Per-Vertex Data (color/weights)")]];
-    UVCompressionHeader uvHeader [[name("UV Compression Header")]];
-    u16 uvOffsetArrays[(uvHeader.uOffsetCount + uvHeader.vOffsetCount) * 2]
-        [[name("UV Offset Arrays")]];
-    UV_Delta uvDeltas[header.vertexCount * (header.uvSetCount > 0 ? header.uvSetCount : 1)]
-        [[name("UV Delta Data")]];
-};
-
-struct GeometryDataParsed_BB8 {
-    u32 dataStart = $;
-    bool found = find_submesh_header(dataStart, g_geomDataSize);
-
-    if (g_submeshOffset > 0) {
-        u8 preSubmeshData[g_submeshOffset] [[name("Pre-Submesh Data (materials, textures, etc.)")]];
+    // Extra per-vertex data (if flags indicate)
+    if ((header.submeshFlags & 0x08) != 0) {
+        VertexExtraData extraData[header.vertexCount] [[name("Per-Vertex Colors/Weights")]];
     }
 
-    if (found) {
-        if (g_isOldFormat) {
-            Submesh_OldFormat submesh [[name("Submesh (OLD UV format)")]];
-            u32 uvSets = std::mem::read_unsigned(dataStart + g_submeshOffset + 8, 4);
-            if (uvSets == 0 || uvSets > 8) uvSets = 1;
-            u32 consumed = g_submeshOffset + 24 + g_numIndices * 2 +
-                           g_numVertices * 12 + g_numVertices * uvSets * 4;
-            if (consumed < g_geomDataSize) {
-                u8 remainingData[g_geomDataSize - consumed] [[name("Remaining Data")]];
-            }
-        } else {
-            Submesh_ModernFormat submesh [[name("Submesh (MODERN UV format)")]];
-            u32 consumed = g_submeshOffset + 24 + g_numIndices * 2 + g_numVertices * 12;
-            consumed = consumed + g_numVertices * 4;
-            u16 uCnt = std::mem::read_unsigned(dataStart + consumed, 2);
-            u16 vCnt = std::mem::read_unsigned(dataStart + consumed + 2, 2);
-            consumed = consumed + 4 + (uCnt + vCnt) * 4;
-            u32 uvSets = std::mem::read_unsigned(dataStart + g_submeshOffset + 8, 4);
-            if (uvSets == 0 || uvSets > 8) uvSets = 1;
-            consumed = consumed + g_numVertices * uvSets * 4;
-            if (consumed < g_geomDataSize) {
-                u8 remainingData[g_geomDataSize - consumed] [[name("Remaining Data")]];
-            }
-        }
-    } else {
-        u8 rawGeometryData[g_geomDataSize] [[name("Raw Geometry Data (submesh not found)")]];
+    // Additional per-vertex data (if flags indicate)
+    if ((header.submeshFlags & 0x10) != 0) {
+        VertexExtraData additionalData[header.vertexCount] [[name("Additional Per-Vertex Data")]];
+    }
+
+    // UV data section
+    if (!g_isOldUVFormat && header.uvSetCount > 0) {
+        // MODERN format: UV compression header + offset arrays + delta data
+        UVCompressionHeader uvHeader [[name("UV Compression Header")]];
+        u16 uThresholds[uvHeader.uOffsetCount] [[name("U Thresholds")]];
+        u16 vThresholds[uvHeader.vOffsetCount] [[name("V Thresholds")]];
+        s16 uOffsets[uvHeader.uOffsetCount] [[name("U Offsets")]];
+        s16 vOffsets[uvHeader.vOffsetCount] [[name("V Offsets")]];
+        UV_Delta uvDeltas[header.vertexCount * header.uvSetCount] [[name("UV Delta Data")]];
+    } else if (header.uvSetCount > 0) {
+        // OLD format: Direct UV values
+        UV_Direct uvCoords[header.vertexCount * header.uvSetCount] [[name("UV Coordinates (direct)")]];
+    }
+
+    // Normal indices (for normal sharing)
+    if (header.normalCount > 0 && header.normalCount != header.vertexCount) {
+        u16 normalIndices[header.normalCount] [[name("Normal Indices")]];
+    }
+
+    // Color data
+    if (header.colorCount > 0) {
+        u32 vertexColors[header.colorCount] [[name("Vertex Colors (RGBA)")]];
+    }
+
+    // Triangle group data (strip/fan definitions)
+    if (header.triangleGroupCount > 0) {
+        u8 triangleGroups[header.triangleGroupCount * 3] [[name("Triangle Group Data")]];
     }
 };
 
-// =============================================================================
-// CHUNK DEFINITIONS
-// =============================================================================
-
-// 0xBB8 - Geometry (DAT format)
 struct Chunk_BB8_Geometry {
     u32 chunkId;
     u32 chunkSize;
+    g_chunkDataStart = $;
+    g_chunkDataSize = chunkSize;
+
     GeometryHeader_BB8 header [[name("Geometry Header (48 bytes)")]];
 
-    g_geomDataSize = chunkSize - sizeof(GeometryHeader_BB8);
-    g_isOldFormat = (header.textureGroupCount == 0);
+    // Store header values for submesh parsing
+    g_isOldUVFormat = (header.textureGroupCount == 0);
+    g_textureGroupCount = header.textureGroupCount;
+    g_boneGroupCount = header.boneGroupCount;
+    g_materialCount = header.materialCount;
 
-    GeometryDataParsed_BB8 geometryData [[name("Geometry Data")]];
+    // Bone groups (if classFlags.HAS_BONE_GROUPS)
+    if (header.classFlags.HAS_BONE_GROUPS && header.boneGroupCount > 0) {
+        u32 boneGroupArrayCount [[name("Bone Group Count")]];
+        if (boneGroupArrayCount <= 4) {
+            BoneGroup boneGroups[boneGroupArrayCount] [[name("Bone Groups")]];
+        }
+    }
+
+    // Bone weights (if classFlags.HAS_BONE_WEIGHTS)
+    if (header.classFlags.HAS_BONE_WEIGHTS) {
+        u32 boneWeightSetCount [[name("Bone Weight Set Count")]];
+        // Each set has 24-byte header + variable data
+        // We'll just read the raw data for now
+    }
+
+    // Remaining geometry data (materials, textures, submeshes, etc.)
+    u32 consumed = $ - g_chunkDataStart;
+    if (consumed < chunkSize) {
+        u32 remainingSize = chunkSize - consumed;
+        u8 geometryData[remainingSize] [[name("Geometry Data (materials, submeshes, etc.)")]];
+    }
 };
 
-// 0xBB9 - Animation/Skeleton (DAT format)
+// =============================================================================
+// BB9 ANIMATION CHUNK PARSING
+// =============================================================================
+
 struct Chunk_BB9_Animation {
     u32 chunkId;
     u32 chunkSize;
+    g_chunkDataStart = $;
+
     AnimationHeader_BB9 header [[name("Animation Header")]];
-    u8 animationData[chunkSize - sizeof(AnimationHeader_BB9)] [[name("Animation Data")]];
+
+    // Bounding cylinders (if boundingCylinderCount > 0)
+    if (header.boundingCylinderCount > 0) {
+        BoundingCylinder cylinders[header.boundingCylinderCount] [[name("Bounding Cylinders")]];
+    }
+
+    // Sequence data (if flags & 0x08)
+    if ((header.flags & 0x08) != 0) {
+        u32 sequenceCount [[name("Sequence Count")]];
+        if (sequenceCount > 0 && sequenceCount < 256) {
+            SequenceEntry_BB9 sequences[sequenceCount] [[name("Animation Sequences")]];
+        }
+    }
+
+    // Remaining animation data
+    u32 consumed = $ - g_chunkDataStart;
+    if (consumed < chunkSize) {
+        u32 remainingSize = chunkSize - consumed;
+        u8 animationData[remainingSize] [[name("Animation Data")]];
+    }
 };
 
-// 0xBBA - Texture References (DAT format)
+// =============================================================================
+// TEXTURE CHUNKS
+// =============================================================================
+
 struct Chunk_BBA_TextureRefs {
     u32 chunkId;
     u32 chunkSize;
-    u32 version;
+    u32 version;                    // Should be 2
     u32 entryCount;
-    u8 textureRefData[(chunkSize > 8) ? (chunkSize - 8) : 0] [[name("Texture Reference Data")]];
+
+    if (version == 2 && entryCount > 0 && entryCount < 256) {
+        TextureRefEntry_FA4 entries[entryCount] [[name("Texture References")]];
+    }
+
+    u32 expectedSize = 8 + (entryCount * 16);
+    if (expectedSize < chunkSize) {
+        u32 remainingSize = chunkSize - expectedSize;
+        u8 remaining[remainingSize];
+    }
 };
 
-// 0xBBB/0xBBC - Texture Filenames (DAT format)
 struct Chunk_BBB_TextureFilenames {
     u32 chunkId;
     u32 chunkSize;
-    u32 unknown;
+    u32 version;                    // Should be 1
     u32 filenameCount;
-    TextureFilenameEntry filenames[filenameCount];
-    if (chunkSize > 8 + filenameCount * 6) {
-        u8 remaining[chunkSize - 8 - filenameCount * 6];
+
+    if (version == 1 && filenameCount > 0 && filenameCount < 256) {
+        TextureFilenameEntry filenames[filenameCount] [[name("Texture Filenames")]];
+    }
+
+    u32 expectedSize = 8 + (filenameCount * 6);
+    if (expectedSize < chunkSize) {
+        u32 remainingSize = chunkSize - expectedSize;
+        u8 remaining[remainingSize];
     }
 };
 
-// 0xBC0/0xBC1 - Additional Data (DAT format)
-struct Chunk_BC0_AdditionalData {
-    u32 chunkId;
-    u32 chunkSize;
-    u32 version;
-    u32 entryCount;
-    u8 data[chunkSize - 8] [[name("Additional Data Entries")]];
-};
+// =============================================================================
+// FA0 GEOMETRY CHUNK PARSING
+// =============================================================================
 
-// 0xFA0 - Geometry (Runtime format)
 struct Chunk_FA0_Geometry {
     u32 chunkId;
     u32 chunkSize;
-    u32 chunkDataStart = $;
+    g_chunkDataStart = $;
 
     GeometryHeader_FA0 header [[name("Geometry Header (84 bytes)")]];
 
+    // Bone info structures
     if (header.boneInfoCount > 0) {
-        BoneInfo boneInfos[header.boneInfoCount] [[name("Bone Info Structures")]];
+        BoneGroup boneInfos[header.boneInfoCount] [[name("Bone Info Structures")]];
     }
 
-    u8 remainingData[chunkSize - ($ - chunkDataStart)] [[name("Remaining Geometry Data")]];
+    // Shader definitions
+    if (header.shaderCount > 0) {
+        ShaderDefinition shaders[header.shaderCount] [[name("Shader Definitions")]];
+
+        // Per-shader texture flags
+        if (header.shaderParamCount > 0) {
+            u16 textureFlags[header.shaderParamCount] [[name("Texture Flags")]];
+            u8 textureIndices[header.shaderParamCount] [[name("Texture Indices")]];
+            u32 transformHashes[header.shaderParamCount] [[name("Transform Hashes")]];
+            u8 blendStates[header.shaderParamCount] [[name("Blend States")]];
+            u8 uvChannels[header.shaderParamCount] [[name("UV Channels")]];
+
+            if (header.uvSetFlags != 0) {
+                u8 extraUvData[header.shaderParamCount] [[name("Extra UV Data")]];
+            }
+        }
+    }
+
+    // Remaining geometry data
+    u32 consumed_fa0 = $ - g_chunkDataStart;
+    if (consumed_fa0 < chunkSize) {
+        u32 remainingSize = chunkSize - consumed_fa0;
+        u8 remainingData[remainingSize] [[name("Submesh & Vertex Data")]];
+    }
 };
 
-// 0xFA1 - Animation/Skeleton (Runtime format)
+// =============================================================================
+// FA1 ANIMATION CHUNK PARSING
+// =============================================================================
+
 struct Chunk_FA1_Animation {
     u32 chunkId;
     u32 chunkSize;
-    GeometryHeader_FA1 header [[name("Animation Header")]];
+    g_chunkDataStart = $;
 
-    u32 headerSize = sizeof(GeometryHeader_FA1);
-    u32 dataRemaining = chunkSize - headerSize;
+    GeometryHeader_FA1 header [[name("Animation Header (88 bytes)")]];
 
-    if (header.boundingCylinderCount > 0 && dataRemaining >= header.boundingCylinderCount * 16) {
-        u8 boundingCylinders[header.boundingCylinderCount * 16] [[name("Bounding Cylinders")]];
-        dataRemaining = dataRemaining - header.boundingCylinderCount * 16;
+    // Bounding cylinders
+    if (header.boundingCylinderCount > 0) {
+        BoundingCylinder cylinders[header.boundingCylinderCount] [[name("Bounding Cylinders")]];
     }
 
-    if (dataRemaining > 0) {
-        u8 remainingData[dataRemaining] [[name("Animation/Transform Data")]];
+    // Remaining animation data
+    u32 consumed_fa1 = $ - g_chunkDataStart;
+    if (consumed_fa1 < chunkSize) {
+        u32 remainingSize = chunkSize - consumed_fa1;
+        u8 animationData[remainingSize] [[name("Animation/Skeleton Data")]];
     }
 };
 
-// 0xFA3/0xFAA - Inline ATEX Texture
+// =============================================================================
+// INLINE TEXTURE CHUNK
+// =============================================================================
+
 struct Chunk_ATEX {
     u32 chunkId;
     u32 chunkSize;
     ATEXHeader header [[name("ATEX Header")]];
-    u8 textureData[chunkSize - sizeof(ATEXHeader)] [[name("DXT Compressed Texture Data")]];
-};
-
-// 0xFA4 - Texture References (Runtime format)
-struct Chunk_FA4_TextureRefs {
-    u32 chunkId;
-    u32 chunkSize;
-    u32 version;
-    u32 entryCount;
-    // 16-byte entries
-    u8 textureRefs[chunkSize - 8] [[name("Texture Reference Entries (16 bytes each)")]];
-};
-
-// 0xFA5/0xFA6/0xFAD - Texture Filenames (Runtime format)
-struct Chunk_FA5_TextureFilenames {
-    u32 chunkId;
-    u32 chunkSize;
-    u32 count;
-    u32 actualCount = std::math::min(count, (chunkSize - 4) / sizeof(TextureFilenameEntry));
-    TextureFilenameEntry filenames[actualCount] [[name("Texture Filename Entries")]];
-    if (chunkSize > 4 + actualCount * sizeof(TextureFilenameEntry)) {
-        u8 remaining[chunkSize - 4 - actualCount * sizeof(TextureFilenameEntry)];
+    if (chunkSize > sizeof(ATEXHeader)) {
+        u8 textureData[chunkSize - sizeof(ATEXHeader)] [[name("DXT Compressed Data")]];
     }
 };
 
-// 0xFAC - File Metadata
+// =============================================================================
+// METADATA CHUNK (0xFAC)
+// =============================================================================
+
 struct Chunk_FAC_Metadata {
     u32 chunkId;
     u32 chunkSize;
-    u32 version;
-    u32 fileId;
-    u8 metaData[chunkSize - 8] [[name("File Metadata")]];
+    u32 version;                // Usually 1
+    u32 classFlags;             // Copy of geometry classFlags
+    u32 boundingCylinderCount;
+    if (chunkSize > 12) {
+        u8 additionalData[chunkSize - 12] [[name("Additional Metadata")]];
+    }
 };
 
-// Generic Unknown Chunk
+// =============================================================================
+// INDEX BUFFER CHUNK (0xBBF/0xFAB)
+// =============================================================================
+
+struct IndexBufferEntry {
+    u32 indexCount;
+    u32 indices[indexCount] [[name("Indices")]];
+};
+
+struct Chunk_FAB_IndexBuffer {
+    u32 chunkId;
+    u32 chunkSize;
+    u32 version;                // Should be 1
+    u32 bufferCount;
+
+    // Each buffer has: indexCount (u32) + indices[indexCount] (u32 each)
+    if (chunkSize > 8) {
+        u8 indexData[chunkSize - 8] [[name("Index Buffer Data")]];
+    }
+};
+
+// =============================================================================
+// GENERIC CHUNK
+// =============================================================================
+
 struct UnknownChunk {
     u32 chunkId;
     u32 chunkSize;
-    u8 data[chunkSize] [[name("Unknown Data")]];
+    // Bounds check: don't read past end of file
+    u32 maxReadable = std::mem::size() - $;
+    u32 safeSize = (chunkSize <= maxReadable) ? chunkSize : maxReadable;
+    if (safeSize > 0) {
+        u8 data[safeSize] [[name("Unknown Data")]];
+    }
 };
 
 // =============================================================================
 // CHUNK DISPATCHER
 // =============================================================================
+
 struct Chunk {
     u32 peekId = std::mem::read_unsigned($, 4);
 
     // 0xBB* range (DAT original format)
     if (peekId == 0xBB8) {
-        Chunk_BB8_Geometry chunk [[name("Geometry (0xBB8 - DAT format)")]];
+        Chunk_BB8_Geometry chunk [[name("Geometry (0xBB8)")]];
     }
     else if (peekId == 0xBB9) {
-        Chunk_BB9_Animation chunk [[name("Animation (0xBB9 - DAT format)")]];
+        Chunk_BB9_Animation chunk [[name("Animation (0xBB9)")]];
     }
     else if (peekId == 0xBBA) {
-        Chunk_BBA_TextureRefs chunk [[name("Texture Refs (0xBBA - DAT format)")]];
+        Chunk_BBA_TextureRefs chunk [[name("Texture Refs (0xBBA)")]];
     }
     else if (peekId == 0xBBB || peekId == 0xBBC) {
-        Chunk_BBB_TextureFilenames chunk [[name("Texture Filenames (0xBBB/BBC - DAT format)")]];
+        Chunk_BBB_TextureFilenames chunk [[name("Texture Filenames (0xBBB/BBC)")]];
     }
     else if (peekId == 0xBBE) {
-        UnknownChunk chunk [[name("Version Data (0xBBE - DAT format)")]];
+        UnknownChunk chunk [[name("Version Data (0xBBE)")]];
     }
     else if (peekId == 0xBBF) {
-        UnknownChunk chunk [[name("Index Buffer (0xBBF - DAT format)")]];
+        Chunk_FAB_IndexBuffer chunk [[name("Index Buffer (0xBBF)")]];
     }
     else if (peekId == 0xBC0 || peekId == 0xBC1) {
-        Chunk_BC0_AdditionalData chunk [[name("Additional Data (0xBC0/BC1 - DAT format)")]];
+        UnknownChunk chunk [[name("Additional Data (0xBC0/BC1)")]];
     }
 
     // 0xFA* range (Runtime/converted format)
     else if (peekId == 0xFA0) {
-        Chunk_FA0_Geometry chunk [[name("Geometry (0xFA0 - Runtime format)")]];
+        Chunk_FA0_Geometry chunk [[name("Geometry (0xFA0)")]];
     }
     else if (peekId == 0xFA1) {
-        Chunk_FA1_Animation chunk [[name("Animation (0xFA1 - Runtime format)")]];
+        Chunk_FA1_Animation chunk [[name("Animation (0xFA1)")]];
     }
     else if (peekId == 0xFA3 || peekId == 0xFAA) {
         Chunk_ATEX chunk [[name("Inline ATEX Texture")]];
     }
     else if (peekId == 0xFA4) {
-        Chunk_FA4_TextureRefs chunk [[name("Texture Refs (0xFA4 - Runtime format)")]];
+        Chunk_BBA_TextureRefs chunk [[name("Texture Refs (0xFA4)")]];
     }
-    else if (peekId == 0xFA5 || peekId == 0xFA6 || peekId == 0xFAD) {
-        Chunk_FA5_TextureFilenames chunk [[name("Texture Filenames (0xFA5/FA6/FAD)")]];
+    else if (peekId == 0xFA5 || peekId == 0xFA6 || peekId == 0xFAD || peekId == 0xFAE) {
+        Chunk_BBB_TextureFilenames chunk [[name("Texture Filenames")]];
     }
     else if (peekId == 0xFA7) {
-        UnknownChunk chunk [[name("Unknown (0xFA7)")]];
+        UnknownChunk chunk [[name("Bounding Cylinders (0xFA7)")]];
+    }
+    else if (peekId == 0xFA8) {
+        UnknownChunk chunk [[name("Skeleton Refs (0xFA8)")]];
     }
     else if (peekId == 0xFA9) {
         UnknownChunk chunk [[name("Version Data (0xFA9)")]];
     }
     else if (peekId == 0xFAB) {
-        UnknownChunk chunk [[name("Index Buffer (0xFAB)")]];
+        Chunk_FAB_IndexBuffer chunk [[name("Index Buffer (0xFAB)")]];
     }
     else if (peekId == 0xFAC) {
         Chunk_FAC_Metadata chunk [[name("File Metadata (0xFAC)")]];
     }
-    else if (peekId == 0xFAE) {
-        UnknownChunk chunk [[name("Additional Data (0xFAE)")]];
-    }
 
-    // Unknown chunk - parse generically
+    // Unknown chunk
     else {
         UnknownChunk chunk [[name("Unknown Chunk")]];
     }
@@ -751,9 +866,10 @@ struct Chunk {
 // =============================================================================
 // MAIN FILE STRUCTURE
 // =============================================================================
+
 struct FFNAModelFile {
     char signature[4] [[name("FFNA Signature")]];   // "ffna" (0x616e6666)
-    u8 fileType [[name("File Type")]];               // 2 = model, 5 = model variant
+    u8 fileType [[name("File Type")]];               // 2 = model, 5 = variant
 
     Chunk chunks[while($ < sizeof($))] [[name("Chunks")]];
 };
