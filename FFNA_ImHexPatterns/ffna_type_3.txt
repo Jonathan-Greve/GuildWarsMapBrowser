@@ -313,56 +313,240 @@ struct ShoreChunk {
  u8 zero;
 };
 
-struct BigChunkSub0 {
-  u8 unknown[20];
-  Vertex2 vertices[3];
+// ============================================================================
+// PATHFINDING / NAVMESH DATA (Chunk 0x20000008)
+// ============================================================================
+// Reference: gw1-map-viewer/src/loaders/pathfindingLoader.ts
+// Verified via Ghidra analysis of Gw.exe (PathDataImport.cpp functions)
+//
+// This chunk contains the navigation mesh used for pathfinding.
+// Structure: Trapezoids organized into planes (elevation levels).
+// - Ground plane has index 0xFFFFFFFF
+// - Elevated planes (bridges, platforms) are 0-indexed
+//
+// Tag order per plane (verified from function pointer table at 0xbadfe4):
+// 0 -> 11 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 10 -> 9
+// ============================================================================
+
+// A single navigation mesh trapezoid (44 bytes)
+// Trapezoids are convex quadrilaterals representing walkable areas.
+// Coordinates are in world space:
+// - yt, yb: Top and bottom Y coordinates (maps to world Z - forward/back)
+// - xtl, xtr: Top-left and top-right X coordinates
+// - xbl, xbr: Bottom-left and bottom-right X coordinates
+//
+// Verified from Path_import_trapezoids @ 0x006fa750:
+// - Reads 0xB (11) uint32s = 44 bytes per trapezoid
+// - Converts neighbor indices to pointers using (index * 0x30 + base)
+struct PathfindingTrapezoid {
+  // Neighbor trapezoid indices (PLANE-LOCAL, not global!)
+  // 0xFFFFFFFF means no neighbor on that edge
+  u32 neighbor_top_left;     // Trapezoid adjacent at top-left
+  u32 neighbor_top_right;    // Trapezoid adjacent at top-right
+  u32 neighbor_bottom_left;  // Trapezoid adjacent at bottom-left
+  u32 neighbor_bottom_right; // Trapezoid adjacent at bottom-right
+
+  // Portal indices (PLANE-LOCAL)
+  // These reference the plane's portal array (Tag 9)
+  // 0xFFFF means no portal on that edge
+  u16 portal_left;   // Portal on left edge (for inter-plane transitions)
+  u16 portal_right;  // Portal on right edge
+
+  // World-space coordinates defining the trapezoid shape
+  float yt;   // Top Y (world Z coordinate for top edge)
+  float yb;   // Bottom Y (world Z coordinate for bottom edge)
+  float xtl;  // Top-left X coordinate
+  float xtr;  // Top-right X coordinate
+  float xbl;  // Bottom-left X coordinate
+  float xbr;  // Bottom-right X coordinate
 };
 
-struct BigChunk {
+// A portal connects trapezoids on different planes (9 bytes)
+// E.g., connecting ground level to a bridge
+//
+// Verified from PathData_ImportPortals @ 0x006fa1b0:
+// - Reads 9 bytes per portal
+struct PathfindingPortal {
+  u16 traps_count;        // Number of trapezoids accessible via this portal
+  u16 traps_idx;          // Index into portal_traps array (Tag 10)
+  u16 neighbor_plane_id;  // Plane this portal connects to
+  u16 neighbor_shared_id; // Used to pair portals across planes (same ID = paired)
+  u8 flags;               // Bit 0x4 = not used for pathfinding
+};
+
+// X-axis BSP node (16 bytes)
+// Used for spatial subdivision to speed up point-in-trapezoid queries
+// Verified from Path_import_x_nodes @ 0x006fa470: reads 4 uint32s per node
+struct PathfindingXNode {
+  u32 vertex_index_start;  // Start vertex index
+  u32 vertex_index_end;    // End vertex index
+  u32 left_child_index;    // Left child node (or trapezoid) index
+  u32 right_child_index;   // Right child node (or trapezoid) index
+};
+
+// Y-axis BSP node (12 bytes)
+// Verified from Path_import_y_nodes @ 0x006fa5c0: reads 3 uint32s per node
+struct PathfindingYNode {
+  u32 vertex_index;        // Vertex index for split position
+  u32 left_child_index;    // Left child node index
+  u32 right_child_index;   // Right child node index
+};
+
+// Sink node (4 bytes) - references a trapezoid
+// Verified from Path_import_sink_nodes @ 0x006fa3f0: reads 1 uint32 per node
+struct PathfindingSinkNode {
+  u32 trapezoid_index;     // Index into plane's trapezoid array
+};
+
+// Plane header counts (Tag 0, 32 bytes of data after tag+size)
+// Verified from PathChunk_AllocArrays @ 0x006f9aa0: reads 8 uint32s
+struct PathfindingPlaneHeader {
+  u32 h000C;              // Used for Tag 11 poly data size (h000C * 8 bytes)
+  u32 vectors_count;      // Number of 2D edge vectors (8 bytes each)
+  u32 trapezoids_count;   // Number of trapezoids in this plane (44 bytes each)
+  u32 xnodes_count;       // X-axis BSP nodes (16 bytes each)
+  u32 ynodes_count;       // Y-axis BSP nodes (12 bytes each)
+  u32 sinknodes_count;    // Sink nodes (4 bytes each)
+  u32 portals_count;      // Number of portals (9 bytes each)
+  u32 portal_traps_count; // Number of portal-trapezoid indices (4 bytes each)
+};
+
+// Tag wrapper for reading tagged data sections
+struct PathfindingTag {
+  u8 tag;
+  u32 size;
+};
+
+// Static obstacle (tree, rock, pillar, etc.)
+// Circular collision primitive blocking character movement
+// From Ghidra analysis of PathObstacle_Import @ 0x006f8e20
+struct StaticObstacle {
+    float x;       // World X coordinate
+    float y;       // World Y coordinate (Z in 3D)
+    float radius;  // Collision radius
+};
+
+// Obstacle grid cell for spatial partitioning
+// Each cell contains an index into the obstacle array
+struct ObstacleGridCell {
+    u8 obstacleIndex;   // Index into obstacle array (0xFF = empty)
+    u8 nextCell;        // Chain to next cell with obstacle
+    u8 flags;           // Cell flags
+};
+
+// Tag 13 obstacle data with grid-based spatial partitioning
+struct PathfindingObstacleData {
+    u16 gridWidth;
+    u16 gridHeight;
+    u16 obstacleCount;
+
+    // Spatial partitioning grid for fast obstacle lookups
+    ObstacleGridCell cells[gridWidth * gridHeight];
+
+    // Actual obstacle collision data
+    StaticObstacle obstacles[obstacleCount];
+};
+
+// A complete pathfinding plane (one elevation level)
+// Tag order verified from function pointer table at 0xbadfe4-0xbae00c
+//
+// IMPORTANT: The game reads h000C * 8 bytes from tag 11 but the file contains
+// the full tag size. For accurate parsing, we use the tag size from the file.
+struct PathfindingPlane {
+  // Tag 0: Header with counts (PathChunk_AllocArrays)
+  PathfindingTag header_tag;  // tag=0, size=32
+  PathfindingPlaneHeader header;
+
+  // Tag 11 (0xB): Poly boundary data (PathChunk_ReadPolyData @ 0x006f9a40)
+  // NOTE: File tag size may be h000C * 16, but game only reads h000C * 8 bytes.
+  // The next tag starts after h000C * 8 bytes, NOT after the declared tag size!
+  // This is a quirk in the file format - tag size is misleading for tag 11.
+  PathfindingTag poly_data_tag;  // tag=11 (ignore size, use h000C * 8)
+  Vertex2 poly_data[header.h000C];  // h000C * 8 bytes
+
+  // Tag 1: Edge vectors (PathData_ImportEdges @ 0x006fa950)
+  // 2D vectors for edge directions, vectors_count * 8 bytes
+  PathfindingTag vectors_tag;  // tag=1
+  Vertex2 vectors[header.vectors_count];
+
+  // Tag 2: Trapezoids (Path_import_trapezoids @ 0x006fa750)
+  // The core navmesh geometry, 44 bytes per trapezoid
+  PathfindingTag trapezoids_tag;  // tag=2
+  PathfindingTrapezoid trapezoids[header.trapezoids_count];
+
+  // Tag 3: Root node type (Path_set_root_node_type @ 0x006fa6c0)
+  // Single byte: 0=X_NODE, 1=Y_NODE, 2=SINK_NODE
+  PathfindingTag root_node_tag;  // tag=3, size=1
+  u8 root_node_type;
+
+  // Tag 4: X-axis BSP nodes (Path_import_x_nodes @ 0x006fa470)
+  // 16 bytes per node for spatial partitioning
+  PathfindingTag xnodes_tag;  // tag=4
+  PathfindingXNode xnodes[header.xnodes_count];
+
+  // Tag 5: Y-axis BSP nodes (Path_import_y_nodes @ 0x006fa5c0)
+  // 12 bytes per node
+  PathfindingTag ynodes_tag;  // tag=5
+  PathfindingYNode ynodes[header.ynodes_count];
+
+  // Tag 6: Sink nodes (Path_import_sink_nodes @ 0x006fa3f0)
+  // 4 bytes per node (trapezoid index)
+  PathfindingTag sinknodes_tag;  // tag=6
+  PathfindingSinkNode sinknodes[header.sinknodes_count];
+
+  // Tag 10 (0xA): Portal trapezoid indices (PathData_ImportStateRefs @ 0x006fa130)
+  // Indices into this plane's trapezoid array, referenced by portals
+  PathfindingTag portal_traps_tag;  // tag=10
+  u32 portal_trapezoid_indices[header.portal_traps_count];
+
+  // Tag 9: Portal definitions (PathData_ImportPortals @ 0x006fa1b0)
+  // 9 bytes per portal, enables transitions between planes
+  PathfindingTag portals_tag;  // tag=9
+  PathfindingPortal portals[header.portals_count];
+};
+
+// Main pathfinding chunk (chunk_id 0x20000008)
+// Verified from PathChunk_ReadHeader @ 0x006f9040:
+// - Signature check: 0xEEFE704C
+// - Version check: byte at offset 4 == 0x0C (only low byte checked)
+// - Total header: 12 bytes (4 + 4 + 4), aligned to 4 bytes
+//
+// Structure after planes: Tags 12, 13, 14 (node properties, obstacle, state data)
+// followed by 0xFF terminator
+struct PathfindingChunk {
   u32 chunk_id;
   u32 chunk_size;
-  u32 magicnum_BE_0x4c70feee;
-  u32 magicnum_0xC;
-  u32 unknown1;
-  u8 tag;
-  u32 next_subdata_size0;
-  u16 vertex_count;
-  Vertex2 vertices0[vertex_count];
-  u8 tag0;
-  u32 some_size;
-  u8 unknown2;
-  u32 unknown3;
-  u32 unknown4;
-  u32 vertex_count1;
-  u32 unknown5;
-  u32 unknown6;
-  u32 unknown7;
-  u32 unknown8;
-  u32 unknown9;
-  u32 unknown10;
-  u32 unknown11;
-  u32 unknown12;
-  u8 unknown13;
-  Vertex2 vertices1[vertex_count1];
-  u8 unknown14;
-  u32 vertices_data_size;
-  Vertex2 vertices2[vertices_data_size/(2*sizeof(float))];
-  u8 unknown15;
-  u32 bcs0_size;
-  BigChunkSub0 bcs0[bcs0_size/sizeof(BigChunkSub0)];
-  u8 some_data[some_size-1-4*11-1-sizeof(vertices1)-1-4-sizeof(vertices2)
-               -1-4-sizeof(bcs0)];
-  u8 tag1;
-  u32 some_size1;
-  u8 some_data1[some_size1];
-  u8 tag2;
-  u32 some_size2;
-  u8 some_data2[some_size2];
-  u8 tag3;
-  u32 some_size3;
-  u8 some_data3[some_size3];
-  u32 unknown33;
-  u8 zero;
+
+  // Header (12 bytes total)
+  u32 signature;  // 0xEEFE704C (little-endian)
+  u32 version;    // Low byte is 0x0C, upper 3 bytes are padding/unused
+  u32 sequence;   // Sequence number
+
+  // Tag 7: Preamble/validation data (optional, precedes tag 8)
+  // Contains checksums or other validation data
+  PathfindingTag preamble_tag;  // tag=7
+  u8 preamble_data[preamble_tag.size];
+
+  // Tag 8: Contains all plane data (PathData_ImportStates @ 0x006f9dd0)
+  PathfindingTag planes_tag;  // tag=8
+  u32 plane_count;
+  PathfindingPlane planes[plane_count];
+
+  // Tag 12 (0x0C): Node properties (PathData_ImportNodeProperties)
+  PathfindingTag node_props_tag;  // tag=12
+  u8 node_props_data[node_props_tag.size];
+
+  // Tag 13 (0x0D): Obstacle data (PathData_ImportObstacle)
+  // Grid-based spatial partitioning for collision detection
+  PathfindingTag obstacle_tag;  // tag=13
+  PathfindingObstacleData obstacles;
+
+  // Tag 14 (0x0E): State data
+  PathfindingTag state_tag;  // tag=14
+  u8 state_data[state_tag.size];
+
+  // Terminator (PathChunk_ReadTerminator @ 0x006f8ab0)
+  PathfindingTag terminator_tag;  // tag=0xFF, size=0
 };
 
 struct EnvSubChunk0 {
@@ -529,16 +713,8 @@ struct EnvironmentInfoChunk {
  u16 unknown_3; // always 0x00 0x0B?
  u16 num_structs9;
  u8 structs9[5*num_structs9];
- u8 end_byte_0xFF;
- 
- /*u8 chunk_data[chunk_size-11-sizeof(env_sub_chunk0)
- - 3 - sizeof(env_sub_chunk1) - 3 - sizeof(env_sub_chunk2)
- - 3 - sizeof(env_sub_chunk3)
- - 3 - sizeof(env_sub_chunk4)
- - 3 - sizeof(env_sub_chunk5)
- - 3 - sizeof(env_sub_chunk6)
- - 3 - sizeof(env_sub_chunk7)
- - 0x14 - sizeof(enb_sub_chunk8) - 4 - sizeof(structs9)];*/
+ // Some files have extra bytes before the end marker - read remaining data dynamically
+ u8 trailing_data[chunk_size - ($ - addressof(magic_num_0x92991030))];
 };
 
 enum FFNAType : u8 {
@@ -552,6 +728,148 @@ enum FFNAType : u8 {
   Type7
 };
 
+// ============================================================================
+// 0x10 FORMAT STUB CHUNKS
+// ============================================================================
+// The 0x10 format files are lightweight reference/metadata files with minimal
+// actual data. They use chunk IDs 0x10xxxxxx instead of 0x20xxxxxx.
+// These chunks have the same basic structure but contain stub/minimal data.
+
+// 0x10000000 - Generic header stub
+struct Chunk1_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x1000000C - Map params stub (same structure as 0x20)
+struct Chunk2_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u32 magic_num;
+  u8 always_2;
+  MapBounds map_bounds;
+  u32 f0;
+  u32 f1;
+  u32 f2;
+  u32 f3;
+  u32 f4;
+};
+
+// 0x10000003 - Zones stub
+struct Chunk5_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x10000004 - Props info stub
+struct Chunk3_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x10000002 - Terrain stub (smaller grid)
+struct Chunk8_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x11000002, 0x11000003, 0x11000004, etc. - Filename chunks stub
+struct Chunk4_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x10000008 - Pathfinding stub (minimal boundary data only)
+// Contains signature + boundary floats + terminator, no actual navmesh
+struct PathfindingChunk_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u32 signature;  // 0xEEFE704C
+  u8 stub_data[chunk_size - 4];  // Minimal data including 0xFF terminator
+};
+
+// 0x10000009 - Environment info stub
+struct EnvironmentInfoChunk_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x10000010 - Shore stub
+struct ShoreChunk_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x1000000E - Unknown stub
+struct Chunk0E_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x10000013 - Unknown stub
+struct Chunk13_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x10000007 - Unknown stub
+struct Chunk07_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x10000006 - Unknown stub
+struct Chunk06_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x1000000A - Unknown stub
+struct Chunk0A_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x1000000F - Unknown stub
+struct Chunk0F_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x10000011 - Unknown stub
+struct Chunk11_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x10000012 - Unknown stub
+struct Chunk12_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
+// 0x10000014 - Unknown stub
+struct Chunk14_Stub {
+  u32 chunk_id;
+  u32 chunk_size;
+  u8 chunk_data[chunk_size];
+};
+
 struct UnknownChunk {
   u32 chunk_id;
   u32 chunk_size;
@@ -560,10 +878,12 @@ struct UnknownChunk {
 
 struct Chunk {
  u32 chunk_id = std::mem::read_unsigned($, 4);
+
+ // ========== 0x20 FORMAT (Full data) ==========
  if (chunk_id == 0x20000000){
    Chunk1 chunk1;
  }
- else if (chunk_id == 0x20000002){ 
+ else if (chunk_id == 0x20000002){
    Chunk8 terrain_chunk;
  }
  else if (chunk_id == 0x20000003){
@@ -584,9 +904,6 @@ struct Chunk {
  else if (chunk_id == 0x21000004){
    Chunk4 filenames_chunk;
  }
- else if (chunk_id == 0x2000000C){
-   Chunk2 chunk2;
- }
  else if (chunk_id == 0x21000009){
    EnvironmentInfoFilenamesChunk environment_info_filenames_chunk;
  }
@@ -597,17 +914,93 @@ struct Chunk {
    Chunk4 shore_filenames;
  }
  else if (chunk_id == 0x20000008){
-   BigChunk big_chunk;
+   PathfindingChunk pathfinding_chunk;
  }
  else if (chunk_id == 0x20000009){
    EnvironmentInfoChunk environment_info_chunk;
  }
  else if (chunk_id == 0x21000012){
-   Chunk4 map_audio_related_filenames; // You can change the sound to other maps by changing the data here
+   Chunk4 map_audio_related_filenames;
  }
  else if (chunk_id == 0x21000006){
    Chunk4 unknown_chunk;
  }
+
+ // ========== 0x10 FORMAT (Stub/lightweight data) ==========
+ else if (chunk_id == 0x10000000){
+   Chunk1_Stub chunk1_stub;
+ }
+ else if (chunk_id == 0x10000002){
+   Chunk8_Stub terrain_chunk_stub;
+ }
+ else if (chunk_id == 0x10000003){
+   Chunk5_Stub chunk5_stub;
+ }
+ else if (chunk_id == 0x10000004){
+   Chunk3_Stub chunk3_stub;
+ }
+ else if (chunk_id == 0x1000000C){
+   Chunk2_Stub chunk2_stub;
+ }
+ else if (chunk_id == 0x11000002){
+   Chunk4_Stub terrain_texture_filenames_stub;
+ }
+ else if (chunk_id == 0x11000003){
+   Chunk4_Stub more_filenames_chunk_stub;
+ }
+ else if (chunk_id == 0x11000004){
+   Chunk4_Stub filenames_chunk_stub;
+ }
+ else if (chunk_id == 0x11000009){
+   Chunk4_Stub environment_info_filenames_stub;
+ }
+ else if (chunk_id == 0x10000010){
+   ShoreChunk_Stub shore_chunk_stub;
+ }
+ else if (chunk_id == 0x11000010){
+   Chunk4_Stub shore_filenames_stub;
+ }
+ else if (chunk_id == 0x10000008){
+   PathfindingChunk_Stub pathfinding_chunk_stub;
+ }
+ else if (chunk_id == 0x10000009){
+   EnvironmentInfoChunk_Stub environment_info_chunk_stub;
+ }
+ else if (chunk_id == 0x11000012){
+   Chunk4_Stub map_audio_filenames_stub;
+ }
+ else if (chunk_id == 0x11000006){
+   Chunk4_Stub unknown_chunk_stub;
+ }
+ else if (chunk_id == 0x1000000E){
+   Chunk0E_Stub chunk0e_stub;
+ }
+ else if (chunk_id == 0x10000013){
+   Chunk13_Stub chunk13_stub;
+ }
+ else if (chunk_id == 0x10000007){
+   Chunk07_Stub chunk07_stub;
+ }
+ else if (chunk_id == 0x10000006){
+   Chunk06_Stub chunk06_stub;
+ }
+ else if (chunk_id == 0x1000000A){
+   Chunk0A_Stub chunk0a_stub;
+ }
+ else if (chunk_id == 0x1000000F){
+   Chunk0F_Stub chunk0f_stub;
+ }
+ else if (chunk_id == 0x10000011){
+   Chunk11_Stub chunk11_stub;
+ }
+ else if (chunk_id == 0x10000012){
+   Chunk12_Stub chunk12_stub;
+ }
+ else if (chunk_id == 0x10000014){
+   Chunk14_Stub chunk14_stub;
+ }
+
+ // ========== Unknown chunks ==========
  else{
    UnknownChunk unknown_chunk;
  }

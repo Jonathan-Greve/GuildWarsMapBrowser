@@ -379,22 +379,22 @@ struct BoneAnimationEntry {
 // From MdlDecomp_ConvertGeometryChunk_0xBB8_to_0xFA0
 // =============================================================================
 bitfield ClassFlags {
-    HAS_SKELETON : 1;          // 0x001: Has skeleton reference
-    HAS_BONE_GROUPS : 1;       // 0x002: Bone group data (max 4, 28 bytes each)
-    HAS_BOUNDING_DATA : 1;     // 0x004: Bounding box/sphere data
-    HAS_SUBMESH_DATA : 1;      // 0x008: Submesh definitions present
-    HAS_LOD_DATA : 1;          // 0x010: Level-of-detail data
-    HAS_GEOSET_DATA : 1;       // 0x020: Geometry set/vertex buffer data
-    HAS_BONE_WEIGHTS : 1;      // 0x040: Per-vertex bone weights
-    HAS_MORPH_DATA : 1;        // 0x080: Morph target/attachment data
-    HAS_ANIMATION_DATA : 1;    // 0x100: Animation sequence data
-    HAS_SKELETON_DATA : 1;     // 0x200: Skeleton/joint hierarchy (max 32 bones)
-    HAS_EXTENDED_LOD : 1;      // 0x400: Extended LOD data
-    HAS_CLOTH_DATA : 1;        // 0x800: Cloth simulation data
-    HAS_SCALE_DATA : 1;        // 0x1000: Scale transform data
-    UNKNOWN_0x2000 : 1;        // 0x2000
-    UNKNOWN_0x4000 : 1;        // 0x4000
-    HAS_TEX_COORDS : 1;        // 0x8000: Texture coordinates
+    HAS_SKELETON : 1;              // 0x001: Has skeleton reference
+    HAS_BONE_GROUPS : 1;           // 0x002: Bone group data (max 4, 28 bytes each)
+    HAS_BOUNDING_DATA : 1;         // 0x004: Bounding box/sphere data
+    HAS_ATTACHMENT_DATA : 1;       // 0x008: Has attachment points data (f0x52 section)
+    HAS_LOD_DATA : 1;              // 0x010: Level-of-detail data
+    HAS_EMBEDDED_ANIMATION : 1;    // 0x020: Embedded vertex animation (morph targets)
+    HAS_BONE_WEIGHTS : 1;          // 0x040: Per-vertex bone weights
+    HAS_MORPH_DATA : 1;            // 0x080: Morph target/attachment data
+    HAS_ANIMATION_SEQUENCES : 1;   // 0x100: Animation sequence data (internal to model)
+    HAS_SKELETON_DATA : 1;         // 0x200: Skeleton/joint hierarchy (max 32 bones)
+    HAS_EXTENDED_LOD : 1;          // 0x400: Extended LOD data
+    HAS_CLOTH_DATA : 1;            // 0x800: Cloth simulation data
+    HAS_SCALE_DATA : 1;            // 0x1000: Scale transform data
+    UNKNOWN_0x2000 : 1;            // 0x2000
+    UNKNOWN_0x4000 : 1;            // 0x4000
+    HAS_TEX_COORDS : 1;            // 0x8000: Texture coordinates
     RESERVED : 16;
 };
 
@@ -724,29 +724,36 @@ struct SkeletonWeightEntry_BB8 {
     u32 transformOffset;        // Offset to transform data
 };
 
-// Geoset Entry (0x2E = 46 bytes)
-// From Buffer_CalcGeosetDataOffset - stores vertex buffer metadata
-struct GeosetEntry {
-    u32 indexCount;             // 0x00: Number of indices
-    u32 vertexCountBase;        // 0x04: Base vertex count
-    u16 unknown_0x08;           // 0x08: Unknown
-    u16 vertexCount;            // 0x0A: Vertex count
-    u8 flags;                   // 0x0C: Flags (bit 1 = group, bit 6 = has extra)
-    u8 unknown_0x0D;            // 0x0D: Unknown
-    u8 unknown_0x0E;            // 0x0E: Unknown
-    u8 uvSetCount;              // 0x0F: UV set count (used * 8 + 0xC)
-    u16 unknown_0x10;           // 0x10: Unknown
-    u16 unknown_0x12;           // 0x12: Unknown (at +0x24 or +0x26)
-    u32 extraDataSize0;         // 0x14: Size from +0x16
-    u32 unknown_0x18;           // 0x18: Unknown (at +0x1a)
-    u32 unknown_0x1C;           // 0x1C: *2*9 from +0x1e
-    u16 unknown_0x20;           // 0x20: Count (at +0x22)
-    u16 unknown_0x22;           // 0x22: Count (at +9)
-    u16 unknown_0x24;           // 0x24: Count (at +0x26)
-    u32 extraDataSize1;         // 0x26: Size from +0x2a
-    u16 unknown_0x2A;           // 0x2A: Padding or extra
-    u16 unknown_0x2C;           // 0x2C: Padding or extra
+// Embedded Animation Entry (0x2E = 46 bytes header + variable data)
+// Used when classFlags.HAS_EMBEDDED_ANIMATION (0x20) is set
+// Stores morph target / vertex animation data for models that don't use external
+// skeletal animation files (BB9/FA1). Vertices deform directly via morph targets.
+//
+// anim_flags bits:
+//   0x02 = Has compressed vertex deltas
+//   0x40 = UV animation uses morph_target_count instead of uv_anim_frame_count
+//   0x80000000 = Usually set
+struct EmbeddedAnimationEntry {
+    u32 keyframeData0Count;     // 0x00: Count for keyframe data section 0
+    u32 keyframeData1Count;     // 0x04: Count for keyframe data section 1
+    u32 unknown_08;             // 0x08: Unknown
+    u32 animFlags;              // 0x0C: Animation flags (see above)
+    u16 totalFrameCount;        // 0x10: Total frames in animation
+    u8 unknown_12;              // 0x12: Unknown
+    u8 boneWeightsPerVert;      // 0x13: Number of bone weights per vertex
+    u16 morphTargetCount;       // 0x14: Number of morph target keyframes
+    u32 compressedDataSize;     // 0x16: Size of compressed animation data
+    u32 uvAnimFrameCount;       // 0x1A: UV animation frame count
+    u32 positionDeltaCount;     // 0x1E: Position delta keyframe count
+    u16 unknown_22;             // 0x22: Unknown
+    u16 rotationKeyCount;       // 0x24: Rotation keyframe count
+    u16 scaleKeyCount;          // 0x26: Scale keyframe count
+    u16 baseVertexCount;        // 0x28: Base pose vertex count
+    u32 extraDataSize;          // 0x2A: Extra animation data size
 };
+
+// Legacy alias for backwards compatibility
+using GeosetEntry = EmbeddedAnimationEntry;
 
 // =============================================================================
 // 0xFA0 FORMAT STRUCTURES (Runtime Geometry)
@@ -1162,12 +1169,13 @@ struct Chunk_BB8_Geometry {
         }
     }
 
-    // Geometry sets (if classFlags.HAS_GEOSET_DATA = 0x20)
-    if (header.classFlags.HAS_GEOSET_DATA) {
-        u32 geosetCount [[name("Geometry Set Count")]];
-        u32 geosetDataSize [[name("Geometry Set Data Size")]];
-        if (geosetDataSize > 0 && geosetDataSize < 0x100000) {
-            u8 geosetData[geosetDataSize] [[name("Geometry Set Data")]];
+    // Embedded animation data (if classFlags.HAS_EMBEDDED_ANIMATION = 0x20)
+    // Models with this flag use vertex animation (morph targets) instead of external skeletal animation
+    if (header.classFlags.HAS_EMBEDDED_ANIMATION) {
+        u32 embeddedAnimTotalSize [[name("Embedded Animation Total Size")]];
+        u32 embeddedAnimCount [[name("Embedded Animation Count")]];
+        if (embeddedAnimCount > 0 && embeddedAnimCount < 256) {
+            EmbeddedAnimationEntry embeddedAnims[embeddedAnimCount] [[name("Embedded Animation Entries")]];
         }
     }
 
@@ -1184,8 +1192,9 @@ struct Chunk_BB8_Geometry {
         }
     }
 
-    // Submeshes (if classFlags.HAS_SUBMESH_DATA = 0x08)
-    if (header.classFlags.HAS_SUBMESH_DATA) {
+    // Submeshes (if classFlags.HAS_ATTACHMENT_DATA = 0x08)
+    // Note: In BB8 format, this flag controls submesh data presence
+    if (header.classFlags.HAS_ATTACHMENT_DATA) {
         u32 submeshCount [[name("Submesh Count")]];
         if (submeshCount > 0 && submeshCount < 255) {
             SubmeshData_BB8 submeshes[submeshCount] [[name("Submeshes")]];
@@ -1227,12 +1236,13 @@ struct Chunk_BB8_Geometry {
         }
     }
 
-    // Animation data (if classFlags.HAS_ANIMATION_DATA = 0x100)
+    // Animation sequence data (if classFlags.HAS_ANIMATION_SEQUENCES = 0x100)
+    // Internal animation sequences stored within the model (not external BB9/FA1 files)
     // From Ghidra: count (u32), then for each: dataSize (u32) + dataSize * 2 bytes
-    if (header.classFlags.HAS_ANIMATION_DATA) {
-        u32 animCount_bb8 [[name("Animation Count")]];
+    if (header.classFlags.HAS_ANIMATION_SEQUENCES) {
+        u32 animCount_bb8 [[name("Animation Sequence Count")]];
         if (animCount_bb8 > 0 && animCount_bb8 < 256) {
-            AnimationEntry_BB8 animEntries_bb8[animCount_bb8] [[name("Animation Entries")]];
+            AnimationEntry_BB8 animEntries_bb8[animCount_bb8] [[name("Animation Sequence Entries")]];
         }
     }
 
@@ -1897,13 +1907,14 @@ struct Chunk_FA0_Geometry {
         u32 materialRefData[header.materialCount * 2] [[name("Material Reference Data")]];
     }
 
-    // Geometry sets (if classFlags.HAS_GEOSET_DATA)
-    if (header.classFlags.HAS_GEOSET_DATA) {
-        u32 geosetUnknown [[name("Geoset Unknown")]];
-        u32 geosetCount [[name("Geometry Set Count")]];
-        // Each geoset is 0x2E (46) bytes
-        if (geosetCount > 0 && geosetCount < 256) {
-            GeosetEntry geosets[geosetCount] [[name("Geometry Sets")]];
+    // Embedded animation data (if classFlags.HAS_EMBEDDED_ANIMATION = 0x20)
+    // Models with this flag use vertex animation (morph targets) instead of external skeletal animation
+    if (header.classFlags.HAS_EMBEDDED_ANIMATION) {
+        u32 embeddedAnimTotalSize [[name("Embedded Animation Total Size")]];
+        u32 embeddedAnimCount [[name("Embedded Animation Count")]];
+        // Each entry is 0x2E (46) byte header + variable data
+        if (embeddedAnimCount > 0 && embeddedAnimCount < 256) {
+            EmbeddedAnimationEntry embeddedAnims[embeddedAnimCount] [[name("Embedded Animation Entries")]];
         }
     }
 
@@ -2027,6 +2038,870 @@ struct Chunk_FAB_IndexBuffer {
 };
 
 // =============================================================================
+// MAP FILE CHUNKS (FFNA Type 3)
+// =============================================================================
+// Map files use chunk IDs in the 0x20xxxxxx (full data) and 0x10xxxxxx (stub) ranges.
+// Reference: Gw.exe Ghidra analysis + gw1-map-viewer/src/loaders/
+//
+// Chunk ID Reference (0x20xxxxxx = full, 0x10xxxxxx = stub):
+//   0x20000000: MapHeaderChunk - Basic map header
+//   0x20000002: TerrainChunk - Heightmap, textures, shadow map
+//   0x20000003: ZoneChunk - Map zones/regions for area triggers
+//   0x20000004: PropInfoChunk - Prop instance placements
+//   0x20000006: UnknownChunk06
+//   0x20000007: UnknownChunk07
+//   0x20000008: PathfindingChunk - Navigation mesh (trapezoids, BSP, portals)
+//   0x20000009: EnvironmentChunk - Fog, lighting, sky, water settings
+//   0x2000000A: UnknownChunk0A
+//   0x2000000C: MapInfoChunk - Map bounds and parameters
+//   0x2000000E: UnknownChunk0E
+//   0x2000000F: UnknownChunk0F
+//   0x20000010: ShoreChunk - Water shorelines with wave animation
+//   0x20000011: EnvironmentExtraChunk
+//   0x20000012: AudioZoneChunk - Map audio/music zones
+//   0x20000013: UnknownChunk13
+//   0x20000014: UnknownChunk14
+//   0x21000002: TerrainFilenamesChunk
+//   0x21000003: ZoneFilenamesChunk
+//   0x21000004: PropFilenamesChunk
+//   0x21000006: UnknownFilenamesChunk06
+//   0x21000009: EnvironmentFilenamesChunk
+//   0x21000010: ShoreFilenamesChunk
+//   0x21000012: AudioFilenamesChunk
+
+// =============================================================================
+// SHARED MAP STRUCTURES
+// =============================================================================
+
+// World coordinate bounds for the map
+struct MapBounds {
+    float minX [[name("Min X")]];
+    float minY [[name("Min Y")]];
+    float maxX [[name("Max X")]];
+    float maxY [[name("Max Y")]];
+};
+
+// 2D vertex used throughout map data
+struct MapVertex2D {
+    float x;
+    float y;
+};
+
+// File reference (decode: (id0 - 0xff00ff) + (id1 * 0xff00))
+struct MapFileRef {
+    u16 id0;
+    u16 id1;
+};
+
+// File reference with padding
+struct MapFileRefPadded {
+    MapFileRef fileRef;
+    u16 reserved;
+};
+
+// =============================================================================
+// 0x20000000 - MAP HEADER CHUNK
+// =============================================================================
+
+struct MapHeaderChunk {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 headerData[chunkSize] [[name("Header Data")]];
+};
+
+// =============================================================================
+// 0x2000000C - MAP INFO CHUNK (Bounds & Parameters)
+// =============================================================================
+
+struct MapInfoChunk {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u32 signature [[name("Signature")]];
+    u8 version [[name("Version")]];
+    MapBounds bounds [[name("Map Bounds")]];
+    u32 unknown0;
+    u32 unknown1;
+    u32 unknown2;
+    u32 unknown3;
+    u32 unknown4;
+};
+
+// =============================================================================
+// 0x20000002 - TERRAIN CHUNK (Heightmap & Textures)
+// Verified from Gw.exe terrain loading functions
+// =============================================================================
+
+// Per-tile lighting/shadow data for 32x32 tile blocks
+struct TerrainTileBlockData {
+    u32 dataSize [[name("Data Size")]];
+    u8 lightingData[dataSize] [[name("Lighting Data")]];
+    u8 shadowData[128] [[name("Shadow Data")]];
+};
+
+struct TerrainChunk {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+
+    // Header
+    u32 signature [[name("Signature")]];
+    u32 version [[name("Version")]];
+
+    // Tag 0: Grid dimensions
+    u8 tag0 [[name("Tag 0")]];
+    u32 tag0Size [[name("Tag 0 Size")]];
+    u32 gridDimX [[name("Grid Dim X")]];
+    u32 gridDimY [[name("Grid Dim Y")]];
+    float cellSize [[name("Cell Size")]];
+    float maxSlopeAngle [[name("Max Slope Angle")]];  // < 1.570796 (90 degrees)
+    u16 unknown0;
+    float unknown1;
+    float unknown2;
+
+    // Tag 1: Heightmap data
+    u8 tag1 [[name("Tag 1 (Heightmap)")]];
+    u32 heightmapSizeBytes [[name("Heightmap Size")]];
+    float heightmap[gridDimX * gridDimY] [[name("Heightmap")]];
+
+    // Tag 2: Texture indices per tile
+    u8 tag2 [[name("Tag 2 (Textures)")]];
+    u32 textureIndexCount [[name("Texture Index Count")]];
+    u8 textureIndices[textureIndexCount] [[name("Texture Indices")]];
+
+    // Tag 3: Unknown small data
+    u8 tag3 [[name("Tag 3")]];
+    u32 tag3Size [[name("Tag 3 Size")]];
+    u8 tag3DataCount;
+    u8 tag3Data[tag3DataCount] [[name("Tag 3 Data")]];
+
+    // Tag 4: Unknown small data
+    u8 tag4 [[name("Tag 4")]];
+    u32 tag4Size [[name("Tag 4 Size")]];
+    u8 tag4DataCount;
+    u8 tag4Data[tag4DataCount] [[name("Tag 4 Data")]];
+
+    // Tag 5: Unknown data
+    u8 tag5 [[name("Tag 5")]];
+    u32 tag5Size [[name("Tag 5 Size")]];
+    u8 tag5Data[tag5Size] [[name("Tag 5 Data")]];
+
+    // Tag 6: Shadow map
+    u8 tag6 [[name("Tag 6 (Shadow Map)")]];
+    u32 shadowMapCount [[name("Shadow Map Count")]];
+    u8 shadowMap[shadowMapCount] [[name("Shadow Map")]];
+
+    // Tag 7: Per-32x32 tile block data
+    u8 tag7 [[name("Tag 7 (Tile Blocks)")]];
+    u32 tag7Size [[name("Tag 7 Size")]];
+    TerrainTileBlockData tileBlocks[gridDimX * gridDimY / 32 / 32] [[name("Tile Blocks")]];
+
+    u32 unknown3;
+    u8 terminator;
+
+    // Remaining data
+    u8 remainingData[chunkSize - 76 - sizeof(heightmap) - sizeof(textureIndices)
+        - sizeof(tag3Data) - sizeof(tag4Data) - sizeof(tag5Data)
+        - sizeof(shadowMap) - sizeof(tileBlocks) - 5] [[name("Remaining Data")]];
+};
+
+// =============================================================================
+// 0x20000003 - ZONE CHUNK (Map Regions)
+// Defines zones for area triggers, map names, etc.
+// =============================================================================
+
+struct ZoneTaggedElement {
+    u8 tag;
+    u16 size;
+    u16 unknown;
+    u8 data[size] [[name("Zone Element Data")]];
+};
+
+struct ZoneTaggedElement1 {
+    u8 tag;
+    u32 size;
+    u32 zoneCount [[name("Zone Count")]];
+};
+
+struct ZoneRegion {
+    u32 vertexCount [[name("Vertex Count")]];
+    MapVertex2D vertices[vertexCount] [[name("Boundary Vertices")]];
+    u8 zoneData[28] [[name("Zone Properties")]];
+    u8 terminator;
+};
+
+struct ZoneChunk {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+
+    u32 signature [[name("Signature")]];  // 0x59220329
+    u32 version [[name("Version")]];      // 0xA0
+
+    ZoneTaggedElement element0 [[name("Element 0")]];
+    ZoneTaggedElement element1 [[name("Element 1")]];
+    ZoneTaggedElement1 element2 [[name("Element 2 (Zone Count)")]];
+    ZoneTaggedElement element3 [[name("Element 3")]];
+
+    if (element2.zoneCount > 0) {
+        u32 unknown0;
+        ZoneRegion zones[element2.zoneCount] [[name("Zone Regions")]];
+        u8 remainingData[chunkSize - 8 - sizeof(element0) - sizeof(element1)
+            - sizeof(element2) - sizeof(element3) - 4 - sizeof(zones)] [[name("Remaining Data")]];
+    } else {
+        u8 remainingData[chunkSize - 8 - sizeof(element0) - sizeof(element1)
+            - sizeof(element2) - sizeof(element3)] [[name("Remaining Data")]];
+    }
+};
+
+// =============================================================================
+// 0x20000004 - PROP INFO CHUNK (Prop Placements)
+// Contains positions and transforms for all static props
+// =============================================================================
+
+// Per-prop bounding/collision vertices
+struct PropBoundingVertex {
+    float x;
+    float y;
+};
+
+struct PropInstance {
+    u16 filenameIndex [[name("Filename Index")]];
+    float posX [[name("Position X")]];
+    float posY [[name("Position Y")]];
+    float posZ [[name("Position Z")]];
+    float rotationF4;
+    float rotationF5;
+    float rotationF6;
+    float sinAngle [[name("Sin Angle")]];
+    float cosAngle [[name("Cos Angle")]];
+    float rotationF9;
+    float scale [[name("Scale")]];
+    float unknown;
+    u8 flags;
+    u8 boundingVertexCount [[name("Bounding Vertex Count")]];
+    PropBoundingVertex boundingVertices[boundingVertexCount] [[name("Bounding Vertices")]];
+};
+
+struct PropArray {
+    u16 propCount [[name("Prop Count")]];
+    PropInstance props[propCount] [[name("Props")]];
+};
+
+struct PropVertexData {
+    float x;
+    float y;
+    float z;
+    u32 unknown0;
+    u32 unknown1;
+    u32 unknown2;
+};
+
+struct PropVertexDataSection {
+    u8 tag;
+    u32 sizeBytes [[name("Size (bytes)")]];
+    u32 vertexCount [[name("Vertex Count")]];
+    PropVertexData vertices[vertexCount] [[name("Vertices")]];
+};
+
+struct PropIndexSection {
+    u8 tag;
+    u32 sizeBytes [[name("Size (bytes)")]];
+    u32 indexCount [[name("Index Count")]];
+    u16 indices[indexCount] [[name("Indices")]];
+};
+
+struct PropVertexSection2 {
+    u8 tag;
+    u32 sizeBytes [[name("Size (bytes)")]];
+    u32 vertexCount [[name("Vertex Count")]];
+    MapVertex2D vertices[vertexCount] [[name("Vertices")]];
+};
+
+struct PropLinkEntry {
+    u16 unknown;
+    u16 propIndex [[name("Prop Index")]];
+};
+
+struct PropLinkSection {
+    u8 tag;
+    u32 sizeBytes [[name("Size (bytes)")]];
+    u16 entryCount [[name("Entry Count")]];
+    PropLinkEntry entries[entryCount] [[name("Prop Links")]];
+};
+
+struct PropInfoChunk {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+
+    u32 signature [[name("Signature")]];
+    u16 version [[name("Version")]];  // 0x11 or 0x12
+    u32 propArraySizeBytes [[name("Prop Array Size")]];
+
+    PropArray propArray [[name("Prop Array")]];
+    PropVertexDataSection vertexData [[name("Vertex Data")]];
+    PropIndexSection indexData [[name("Index Data")]];
+    PropVertexSection2 vertexData2 [[name("Vertex Data 2")]];
+    PropLinkSection propLinks [[name("Prop Links")]];
+
+    u8 remainingData[chunkSize - 10 - sizeof(propArray) - sizeof(vertexData)
+        - sizeof(indexData) - sizeof(vertexData2) - sizeof(propLinks)] [[name("Remaining Data")]];
+};
+
+// =============================================================================
+// 0x21000002/3/4/6/9/10/12 - FILENAME CHUNKS
+// Contains file references for assets
+// =============================================================================
+
+struct FilenameChunkHeader {
+    u32 signature [[name("Signature")]];
+    u8 version [[name("Version")]];
+};
+
+struct FilenameEntry {
+    MapFileRef fileRef [[name("File Reference")]];
+    u16 unknown;
+};
+
+struct FilenameChunk {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    FilenameChunkHeader header [[name("Header")]];
+    FilenameEntry entries[(chunkSize - sizeof(header)) / 6] [[name("Filename Entries")]];
+    u8 remainingData[chunkSize - sizeof(header) - sizeof(entries)] [[name("Remaining Data")]];
+};
+
+// 0x21000009 - Environment filenames (special format)
+struct EnvironmentFilenameChunk {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u16 unknown0;
+    u16 unknown1;
+    u8 unknown2;
+    MapFileRefPadded filenames[(chunkSize - 5) / sizeof(MapFileRefPadded)] [[name("Filenames")]];
+};
+
+// =============================================================================
+// 0x20000006/7 - UNKNOWN CHUNKS
+// =============================================================================
+
+struct UnknownChunk06 {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Data")]];
+};
+
+struct UnknownChunk07 {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Data")]];
+};
+
+// =============================================================================
+// 0x20000008 - PATHFINDING CHUNK (Navigation Mesh)
+// Verified from Gw.exe: PathChunk_ReadHeader @ 0x006f9040
+// Contains trapezoid-based navmesh organized by elevation planes
+// =============================================================================
+
+// Navigation mesh trapezoid (44 bytes)
+// Verified from Path_import_trapezoids @ 0x006fa750
+struct NavMeshTrapezoid {
+    // Neighbor indices (PLANE-LOCAL, 0xFFFFFFFF = no neighbor)
+    u32 neighborTopLeft [[name("Neighbor Top-Left")]];
+    u32 neighborTopRight [[name("Neighbor Top-Right")]];
+    u32 neighborBottomLeft [[name("Neighbor Bottom-Left")]];
+    u32 neighborBottomRight [[name("Neighbor Bottom-Right")]];
+
+    // Portal indices (PLANE-LOCAL, 0xFFFF = no portal)
+    u16 portalLeft [[name("Portal Left")]];
+    u16 portalRight [[name("Portal Right")]];
+
+    // World-space coordinates
+    float yTop [[name("Y Top")]];
+    float yBottom [[name("Y Bottom")]];
+    float xTopLeft [[name("X Top-Left")]];
+    float xTopRight [[name("X Top-Right")]];
+    float xBottomLeft [[name("X Bottom-Left")]];
+    float xBottomRight [[name("X Bottom-Right")]];
+};
+
+// Portal connecting different elevation planes (9 bytes)
+// Verified from PathData_ImportPortals @ 0x006fa1b0
+struct NavMeshPortal {
+    u16 trapezoidCount [[name("Trapezoid Count")]];
+    u16 trapezoidStartIndex [[name("Trapezoid Start Index")]];
+    u16 neighborPlaneId [[name("Neighbor Plane ID")]];
+    u16 sharedPortalId [[name("Shared Portal ID")]];
+    u8 flags [[name("Flags")]];  // 0x4 = not used for pathfinding
+};
+
+// X-axis BSP node for spatial queries (16 bytes)
+// Verified from Path_import_x_nodes @ 0x006fa470
+struct NavMeshXNode {
+    u32 vertexIndexStart [[name("Vertex Index Start")]];
+    u32 vertexIndexEnd [[name("Vertex Index End")]];
+    u32 leftChildIndex [[name("Left Child Index")]];
+    u32 rightChildIndex [[name("Right Child Index")]];
+};
+
+// Y-axis BSP node (12 bytes)
+// Verified from Path_import_y_nodes @ 0x006fa5c0
+struct NavMeshYNode {
+    u32 vertexIndex [[name("Vertex Index")]];
+    u32 leftChildIndex [[name("Left Child Index")]];
+    u32 rightChildIndex [[name("Right Child Index")]];
+};
+
+// Sink node referencing a trapezoid (4 bytes)
+// Verified from Path_import_sink_nodes @ 0x006fa3f0
+struct NavMeshSinkNode {
+    u32 trapezoidIndex [[name("Trapezoid Index")]];
+};
+
+// Tagged data section header
+struct PathfindingTag {
+    u8 tag [[name("Tag")]];
+    u32 size [[name("Size")]];
+};
+
+// Plane header with array counts (32 bytes)
+// Verified from PathChunk_AllocArrays @ 0x006f9aa0
+struct NavMeshPlaneHeader {
+    u32 polyDataCount [[name("Poly Data Count")]];
+    u32 edgeVectorCount [[name("Edge Vector Count")]];
+    u32 trapezoidCount [[name("Trapezoid Count")]];
+    u32 xNodeCount [[name("X-Node Count")]];
+    u32 yNodeCount [[name("Y-Node Count")]];
+    u32 sinkNodeCount [[name("Sink Node Count")]];
+    u32 portalCount [[name("Portal Count")]];
+    u32 portalTrapezoidCount [[name("Portal Trapezoid Count")]];
+};
+
+// Complete pathfinding plane (one elevation level)
+// Tag order from function pointer table at 0xbadfe4-0xbae00c:
+// 0 -> 11 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 10 -> 9
+struct NavMeshPlane {
+    // Tag 0: Header
+    PathfindingTag headerTag [[name("Header Tag")]];
+    NavMeshPlaneHeader header [[name("Header")]];
+
+    // Tag 11: Polygon boundary data
+    PathfindingTag polyDataTag [[name("Poly Data Tag")]];
+    MapVertex2D polyData[header.polyDataCount] [[name("Poly Data")]];
+
+    // Tag 1: Edge vectors
+    PathfindingTag edgeVectorsTag [[name("Edge Vectors Tag")]];
+    MapVertex2D edgeVectors[header.edgeVectorCount] [[name("Edge Vectors")]];
+
+    // Tag 2: Trapezoids (navmesh geometry)
+    PathfindingTag trapezoidsTag [[name("Trapezoids Tag")]];
+    NavMeshTrapezoid trapezoids[header.trapezoidCount] [[name("Trapezoids")]];
+
+    // Tag 3: Root node type (0=X, 1=Y, 2=Sink)
+    PathfindingTag rootNodeTag [[name("Root Node Tag")]];
+    u8 rootNodeType [[name("Root Node Type")]];
+
+    // Tag 4: X-axis BSP nodes
+    PathfindingTag xNodesTag [[name("X-Nodes Tag")]];
+    NavMeshXNode xNodes[header.xNodeCount] [[name("X-Nodes")]];
+
+    // Tag 5: Y-axis BSP nodes
+    PathfindingTag yNodesTag [[name("Y-Nodes Tag")]];
+    NavMeshYNode yNodes[header.yNodeCount] [[name("Y-Nodes")]];
+
+    // Tag 6: Sink nodes
+    PathfindingTag sinkNodesTag [[name("Sink Nodes Tag")]];
+    NavMeshSinkNode sinkNodes[header.sinkNodeCount] [[name("Sink Nodes")]];
+
+    // Tag 10: Portal trapezoid indices
+    PathfindingTag portalTrapsTag [[name("Portal Trapezoids Tag")]];
+    u32 portalTrapezoidIndices[header.portalTrapezoidCount] [[name("Portal Trapezoid Indices")]];
+
+    // Tag 9: Portals
+    PathfindingTag portalsTag [[name("Portals Tag")]];
+    NavMeshPortal portals[header.portalCount] [[name("Portals")]];
+};
+
+// Static obstacle (tree, rock, pillar, etc.)
+// Circular collision primitive blocking character movement
+// From Ghidra analysis of PathObstacle_Import @ 0x006f8e20
+struct StaticObstacle {
+    float x [[name("X")]];           // World X coordinate
+    float y [[name("Y")]];           // World Y coordinate (Z in 3D)
+    float radius [[name("Radius")]]; // Collision radius
+};
+
+// Obstacle grid cell for spatial partitioning
+// Each cell contains an index into the obstacle array, allowing
+// fast lookup of nearby obstacles during pathfinding
+struct ObstacleGridCell {
+    u8 obstacleIndex;   // Index into obstacle array (0xFF = empty)
+    u8 nextCell;        // Chain to next cell with obstacle
+    u8 flags;           // Cell flags
+};
+
+// Tag 13 obstacle data with grid-based spatial partitioning
+// Grid accelerates obstacle lookups during navmesh queries
+struct PathfindingObstacleData {
+    u16 gridWidth [[name("Grid Width")]];
+    u16 gridHeight [[name("Grid Height")]];
+    u16 obstacleCount [[name("Obstacle Count")]];
+
+    // Spatial partitioning grid for fast obstacle lookups
+    ObstacleGridCell cells[gridWidth * gridHeight] [[name("Grid Cells")]];
+
+    // Actual obstacle collision data
+    StaticObstacle obstacles[obstacleCount] [[name("Static Obstacles")]];
+};
+
+// Main pathfinding chunk
+// Verified from PathChunk_ReadHeader @ 0x006f9040
+struct PathfindingChunk {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+
+    // Header (signature 0xEEFE704C)
+    u32 signature [[name("Signature")]];
+    u32 version [[name("Version")]];
+    u32 sequence [[name("Sequence")]];
+
+    // Tag 7: Preamble/validation
+    PathfindingTag preambleTag [[name("Preamble Tag")]];
+    u8 preambleData[preambleTag.size] [[name("Preamble Data")]];
+
+    // Tag 8: All plane data
+    PathfindingTag planesTag [[name("Planes Tag")]];
+    u32 planeCount [[name("Plane Count")]];
+    NavMeshPlane planes[planeCount] [[name("Planes")]];
+
+    // Tag 12: Node properties
+    PathfindingTag nodePropsTag [[name("Node Properties Tag")]];
+    u8 nodePropsData[nodePropsTag.size] [[name("Node Properties")]];
+
+    // Tag 13: Static obstacles (trees, rocks, etc.)
+    // Grid-based spatial partitioning for collision detection
+    PathfindingTag obstaclesTag [[name("Obstacles Tag")]];
+    PathfindingObstacleData obstacles [[name("Obstacles")]];
+
+    // Tag 14: State data
+    PathfindingTag stateTag [[name("State Tag")]];
+    u8 stateData[stateTag.size] [[name("State Data")]];
+
+    // Terminator (0xFF)
+    PathfindingTag terminatorTag [[name("Terminator")]];
+};
+
+// 0x10000008 - Pathfinding stub (minimal boundary data only)
+struct PathfindingChunkStub {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u32 signature [[name("Signature")]];  // 0xEEFE704C
+    u8 boundaryData[chunkSize - 4] [[name("Boundary Data")]];
+};
+
+// =============================================================================
+// 0x20000009 - ENVIRONMENT INFO CHUNK
+// Fog, lighting, sky, water rendering settings
+// =============================================================================
+
+// Lighting mode settings
+struct EnvLightingMode {
+    u8 unknown0;
+    u8 unknown1;
+    s32 unknown2;
+    u8 unknown3;
+    u8 unknown4;
+    u16 unknown5;
+};
+
+// Sky/atmosphere settings
+struct EnvSkySettings {
+    u8 skyBrightness [[name("Sky Brightness")]];
+    u8 skySaturation [[name("Sky Saturation")]];
+    u8 colorScale [[name("Color Scale")]];  // 0xFF = grayscale, 0 = normal
+    u16 unknown0;
+    u8 unknown1;
+};
+
+// Fog settings
+struct EnvFogSettings {
+    u8 fogBlue [[name("Fog Blue")]];
+    u8 fogGreen [[name("Fog Green")]];
+    u8 fogRed [[name("Fog Red")]];
+    u32 fogDistanceStart [[name("Fog Distance Start")]];
+    u32 fogDistanceEnd [[name("Fog Distance End")]];
+    s32 fogZStart [[name("Fog Z Start")]];
+    s32 fogZEnd [[name("Fog Z End")]];
+};
+
+// Ambient and sun lighting
+struct EnvLightingSettings {
+    u8 ambientBlue [[name("Ambient Blue")]];
+    u8 ambientGreen [[name("Ambient Green")]];
+    u8 ambientRed [[name("Ambient Red")]];
+    u8 ambientIntensity [[name("Ambient Intensity")]];
+    u8 sunBlue [[name("Sun Blue")]];
+    u8 sunGreen [[name("Sun Green")]];
+    u8 sunRed [[name("Sun Red")]];
+    u8 sunIntensity [[name("Sun Intensity")]];
+};
+
+// Unknown environment data
+struct EnvUnknownData4 {
+    u8 data[2];
+};
+
+// Sky texture settings
+struct EnvSkyTextures {
+    u8 cloudCylinderScale [[name("Cloud Cylinder Scale")]];
+    u16 skyBackgroundIndex [[name("Sky Background Index")]];
+    u16 skyClouds0Index [[name("Sky Clouds 0 Index")]];
+    u16 skyClouds1Index [[name("Sky Clouds 1 Index")]];
+    u16 skySunIndex [[name("Sky Sun Index")]];
+    u8 fogSkyHeight [[name("Fog Sky Height")]];
+    s16 skyCylinderHeight [[name("Sky Cylinder Height")]];
+    s16 skyCylinderRadius [[name("Sky Cylinder Radius")]];
+    u8 unknown;
+};
+
+// Alternate sky texture format
+struct EnvSkyTexturesAlt {
+    u8 cloudCylinderScale [[name("Cloud Cylinder Scale")]];
+    u16 skyBackgroundIndex [[name("Sky Background Index")]];
+    u16 skyClouds0Index [[name("Sky Clouds 0 Index")]];
+    u16 skyClouds1Index [[name("Sky Clouds 1 Index")]];
+    u16 skySunIndex [[name("Sky Sun Index")]];
+    u8 unknown[7];
+};
+
+// Water rendering settings
+struct EnvWaterSettings {
+    u8 unknown[9];
+    float unknown1;
+    float distortionTexScale [[name("Distortion Tex Scale")]];
+    float distortionScale [[name("Distortion Scale")]];
+    float distortionTexSpeed [[name("Distortion Tex Speed")]];
+    float colorTexScale [[name("Color Tex Scale")]];
+    float colorTexSpeed [[name("Color Tex Speed")]];
+    float transparency [[name("Transparency")]];
+    float unknown2;
+    float unknown3;
+    u8 color0Blue [[name("Color 0 Blue")]];
+    u8 color0Green [[name("Color 0 Green")]];
+    u8 color0Red [[name("Color 0 Red")]];
+    u8 color0Alpha [[name("Color 0 Alpha")]];
+    u8 color1Blue [[name("Color 1 Blue")]];
+    u8 color1Green [[name("Color 1 Green")]];
+    u8 color1Red [[name("Color 1 Red")]];
+    u8 color1Alpha [[name("Color 1 Alpha")]];
+    u16 colorTextureIndex [[name("Color Texture Index")]];
+    u16 distortionTextureIndex [[name("Distortion Texture Index")]];
+};
+
+// Wind settings
+struct EnvWindSettings {
+    u8 windDir0 [[name("Wind Direction 0")]];
+    u8 windDir1 [[name("Wind Direction 1")]];
+    u8 windSpeed0 [[name("Wind Speed 0")]];
+    u8 windSpeed1 [[name("Wind Speed 1")]];
+};
+
+// Additional environment data
+struct EnvExtraData {
+    u8 unknown[9];
+    float unknown1;
+    float unknown2;
+    u8 data[15];
+};
+
+struct EnvironmentChunk {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+
+    u32 signature [[name("Signature")]];  // 0x92991030
+    u16 version0 [[name("Version 0")]];
+    u16 version1 [[name("Version 1")]];
+
+    u8 tag0;
+    u16 lightingModeCount [[name("Lighting Mode Count")]];
+    EnvLightingMode lightingModes[lightingModeCount] [[name("Lighting Modes")]];
+
+    u8 tag1;
+    u16 skySettingsCount [[name("Sky Settings Count")]];
+    EnvSkySettings skySettings[skySettingsCount] [[name("Sky Settings")]];
+
+    u8 tag2;
+    u16 fogSettingsCount [[name("Fog Settings Count")]];
+    EnvFogSettings fogSettings[fogSettingsCount] [[name("Fog Settings")]];
+
+    u8 tag3;
+    u16 lightingSettingsCount [[name("Lighting Settings Count")]];
+    EnvLightingSettings lightingSettings[lightingSettingsCount] [[name("Lighting Settings")]];
+
+    u8 tag4;
+    u16 unknownData4Count;
+    EnvUnknownData4 unknownData4[unknownData4Count];
+
+    u8 tag5;
+    u16 skyTextureCount [[name("Sky Texture Count")]];
+    if (version1 > 0) {
+        EnvSkyTexturesAlt skyTextures[skyTextureCount] [[name("Sky Textures")]];
+    } else {
+        EnvSkyTextures skyTextures[skyTextureCount] [[name("Sky Textures")]];
+    }
+
+    u8 tag6;
+    u16 waterSettingsCount [[name("Water Settings Count")]];
+    EnvWaterSettings waterSettings[waterSettingsCount] [[name("Water Settings")]];
+
+    u8 tag7;
+    u16 windSettingsCount [[name("Wind Settings Count")]];
+    EnvWindSettings windSettings[windSettingsCount] [[name("Wind Settings")]];
+
+    u8 unknown0;
+    u16 unknown1[8];
+    u8 unknown2;
+
+    u8 tag8;
+    u8 extraDataCount;
+    EnvExtraData extraData[extraDataCount] [[name("Extra Data")]];
+
+    u16 unknown3;
+    u16 extraCount;
+    u8 extraBytes[5 * extraCount];
+
+    // Variable trailing data
+    u8 trailingData[chunkSize - ($ - addressof(signature))] [[name("Trailing Data")]];
+};
+
+// =============================================================================
+// 0x2000000A/E/F - UNKNOWN CHUNKS
+// =============================================================================
+
+struct UnknownChunk0A {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Data")]];
+};
+
+struct UnknownChunk0E {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Data")]];
+};
+
+struct UnknownChunk0F {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Data")]];
+};
+
+// =============================================================================
+// 0x20000010 - SHORE CHUNK (Water Shorelines)
+// Wave animation along water edges
+// =============================================================================
+
+struct ShoreSegment {
+    float unknown0;
+    float shoreHeight [[name("Shore Height")]];
+    float waveAlpha [[name("Wave Alpha")]];      // 0-1, intensity of waves
+    float waveSpeed [[name("Wave Speed")]];      // Animation speed
+    u32 vertexCount [[name("Vertex Count")]];
+    MapVertex2D vertices[vertexCount] [[name("Shore Vertices")]];
+    u32 unknown1;
+};
+
+struct ShoreChunk {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    char signature[4] [[name("Signature")]];
+    u32 unknown0;
+    u32 segmentCount [[name("Segment Count")]];
+    ShoreSegment segments[segmentCount] [[name("Shore Segments")]];
+    u8 remainingData[chunkSize - 12 - 5 - sizeof(segments)] [[name("Remaining Data")]];
+    u32 unknown1;
+    u8 terminator;
+};
+
+// =============================================================================
+// 0x20000011/12/13/14 - ADDITIONAL CHUNKS
+// =============================================================================
+
+struct EnvironmentExtraChunk {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Data")]];
+};
+
+struct AudioZoneChunk {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Data")]];
+};
+
+struct UnknownChunk13 {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Data")]];
+};
+
+struct UnknownChunk14 {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Data")]];
+};
+
+// =============================================================================
+// 0x10xxxxxx - STUB CHUNKS (Lightweight reference files)
+// These contain minimal data - just basic metadata, no full content
+// =============================================================================
+
+struct MapHeaderChunkStub {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Stub Data")]];
+};
+
+struct TerrainChunkStub {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Stub Data")]];
+};
+
+struct ZoneChunkStub {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Stub Data")]];
+};
+
+struct PropInfoChunkStub {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Stub Data")]];
+};
+
+struct EnvironmentChunkStub {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Stub Data")]];
+};
+
+struct ShoreChunkStub {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Stub Data")]];
+};
+
+struct FilenameChunkStub {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Stub Data")]];
+};
+
+struct GenericMapChunkStub {
+    u32 chunkId [[name("Chunk ID")]];
+    u32 chunkSize [[name("Chunk Size")]];
+    u8 data[chunkSize] [[name("Stub Data")]];
+};
+
+// =============================================================================
 // GENERIC CHUNK
 // =============================================================================
 
@@ -2116,6 +2991,141 @@ struct Chunk {
         UnknownChunk chunk [[name("Descriptor Metadata (Type 8)")]];
     }
 
+    // ========== MAP CHUNKS (0x20xxxxxx - Full data) ==========
+    else if (peekId == 0x20000000) {
+        MapHeaderChunk mapHeader [[name("Map Header")]];
+    }
+    else if (peekId == 0x20000002) {
+        TerrainChunk terrain [[name("Terrain (Heightmap/Textures)")]];
+    }
+    else if (peekId == 0x20000003) {
+        ZoneChunk zones [[name("Zone Regions")]];
+    }
+    else if (peekId == 0x20000004) {
+        PropInfoChunk propInfo [[name("Prop Placements")]];
+    }
+    else if (peekId == 0x20000006) {
+        UnknownChunk06 unknown06 [[name("Unknown Chunk 06")]];
+    }
+    else if (peekId == 0x20000007) {
+        UnknownChunk07 unknown07 [[name("Unknown Chunk 07")]];
+    }
+    else if (peekId == 0x20000008) {
+        PathfindingChunk pathfinding [[name("Pathfinding (NavMesh)")]];
+    }
+    else if (peekId == 0x20000009) {
+        EnvironmentChunk environment [[name("Environment (Fog/Lighting/Water)")]];
+    }
+    else if (peekId == 0x2000000A) {
+        UnknownChunk0A unknown0A [[name("Unknown Chunk 0A")]];
+    }
+    else if (peekId == 0x2000000C) {
+        MapInfoChunk mapInfo [[name("Map Info (Bounds)")]];
+    }
+    else if (peekId == 0x2000000E) {
+        UnknownChunk0E unknown0E [[name("Unknown Chunk 0E")]];
+    }
+    else if (peekId == 0x2000000F) {
+        UnknownChunk0F unknown0F [[name("Unknown Chunk 0F")]];
+    }
+    else if (peekId == 0x20000010) {
+        ShoreChunk shore [[name("Shore (Water Edges)")]];
+    }
+    else if (peekId == 0x20000011) {
+        EnvironmentExtraChunk envExtra [[name("Environment Extra")]];
+    }
+    else if (peekId == 0x20000012) {
+        AudioZoneChunk audioZones [[name("Audio Zones")]];
+    }
+    else if (peekId == 0x20000013) {
+        UnknownChunk13 unknown13 [[name("Unknown Chunk 13")]];
+    }
+    else if (peekId == 0x20000014) {
+        UnknownChunk14 unknown14 [[name("Unknown Chunk 14")]];
+    }
+    // 0x21xxxxxx - Map filename/asset reference chunks
+    else if (peekId == 0x21000002) {
+        FilenameChunk terrainFilenames [[name("Terrain Texture Filenames")]];
+    }
+    else if (peekId == 0x21000003) {
+        FilenameChunk zoneFilenames [[name("Zone Filenames")]];
+    }
+    else if (peekId == 0x21000004) {
+        FilenameChunk propFilenames [[name("Prop Model Filenames")]];
+    }
+    else if (peekId == 0x21000006) {
+        FilenameChunk unknown06Filenames [[name("Unknown 06 Filenames")]];
+    }
+    else if (peekId == 0x21000009) {
+        EnvironmentFilenameChunk envFilenames [[name("Environment Filenames")]];
+    }
+    else if (peekId == 0x21000010) {
+        FilenameChunk shoreFilenames [[name("Shore Filenames")]];
+    }
+    else if (peekId == 0x21000012) {
+        FilenameChunk audioFilenames [[name("Audio Filenames")]];
+    }
+
+    // ========== MAP CHUNKS (0x10xxxxxx - Stub/reference files) ==========
+    // These are lightweight files with minimal data, used for map selection/metadata
+    else if (peekId == 0x10000000) {
+        MapHeaderChunkStub mapHeaderStub [[name("Map Header (Stub)")]];
+    }
+    else if (peekId == 0x10000002) {
+        TerrainChunkStub terrainStub [[name("Terrain (Stub)")]];
+    }
+    else if (peekId == 0x10000003) {
+        ZoneChunkStub zonesStub [[name("Zones (Stub)")]];
+    }
+    else if (peekId == 0x10000004) {
+        PropInfoChunkStub propInfoStub [[name("Props (Stub)")]];
+    }
+    else if (peekId == 0x10000006) {
+        GenericMapChunkStub unknown06Stub [[name("Unknown 06 (Stub)")]];
+    }
+    else if (peekId == 0x10000007) {
+        GenericMapChunkStub unknown07Stub [[name("Unknown 07 (Stub)")]];
+    }
+    else if (peekId == 0x10000008) {
+        PathfindingChunkStub pathfindingStub [[name("Pathfinding (Stub)")]];
+    }
+    else if (peekId == 0x10000009) {
+        EnvironmentChunkStub environmentStub [[name("Environment (Stub)")]];
+    }
+    else if (peekId == 0x1000000A) {
+        GenericMapChunkStub unknown0AStub [[name("Unknown 0A (Stub)")]];
+    }
+    else if (peekId == 0x1000000C) {
+        MapInfoChunk mapInfoStub [[name("Map Info (Stub)")]];
+    }
+    else if (peekId == 0x1000000E) {
+        GenericMapChunkStub unknown0EStub [[name("Unknown 0E (Stub)")]];
+    }
+    else if (peekId == 0x1000000F) {
+        GenericMapChunkStub unknown0FStub [[name("Unknown 0F (Stub)")]];
+    }
+    else if (peekId == 0x10000010) {
+        ShoreChunkStub shoreStub [[name("Shore (Stub)")]];
+    }
+    else if (peekId == 0x10000011) {
+        GenericMapChunkStub envExtraStub [[name("Environment Extra (Stub)")]];
+    }
+    else if (peekId == 0x10000012) {
+        GenericMapChunkStub audioStub [[name("Audio (Stub)")]];
+    }
+    else if (peekId == 0x10000013) {
+        GenericMapChunkStub unknown13Stub [[name("Unknown 13 (Stub)")]];
+    }
+    else if (peekId == 0x10000014) {
+        GenericMapChunkStub unknown14Stub [[name("Unknown 14 (Stub)")]];
+    }
+    // 0x11xxxxxx - Map filename stub chunks
+    else if (peekId == 0x11000002 || peekId == 0x11000003 || peekId == 0x11000004 ||
+             peekId == 0x11000006 || peekId == 0x11000009 || peekId == 0x11000010 ||
+             peekId == 0x11000012) {
+        FilenameChunkStub filenamesStub [[name("Filenames (Stub)")]];
+    }
+
     // Unknown chunk
     else {
         UnknownChunk chunk [[name("Unknown Chunk")]];
@@ -2136,7 +3146,6 @@ struct FFNAFile {
     u8 fileType [[name("File Type")]];
 
     // Different file types have different chunk structures
-    // For now, parse all as generic chunks
     Chunk chunks[while($ < sizeof($))] [[name("Chunks")]];
 };
 
