@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 using namespace DirectX;
 
 struct GWVertex
@@ -40,6 +42,91 @@ struct GWVertex
 		  tex_coord5(tc5), tex_coord6(tc6), tex_coord7(tc7), tangent(tan), bitangent(bitan) {}
 };
 
+/**
+ * @brief Extended vertex type with bone weights for skeletal animation.
+ *
+ * Supports up to 4 bone influences per vertex (linear blend skinning).
+ * Bone indices reference the skeleton bone array via the bone group palette system.
+ * Weights must sum to 1.0 for correct skinning.
+ */
+struct SkinnedGWVertex : public GWVertex
+{
+    uint32_t boneIndices[4];  // Indices into skeleton bone array (up to 4 bones)
+    float boneWeights[4];     // Corresponding weights (must sum to 1.0)
+
+    SkinnedGWVertex()
+        : GWVertex()
+    {
+        boneIndices[0] = boneIndices[1] = boneIndices[2] = boneIndices[3] = 0;
+        boneWeights[0] = 1.0f;  // Default: fully influenced by bone 0
+        boneWeights[1] = boneWeights[2] = boneWeights[3] = 0.0f;
+    }
+
+    SkinnedGWVertex(const GWVertex& base)
+        : GWVertex(base)
+    {
+        boneIndices[0] = boneIndices[1] = boneIndices[2] = boneIndices[3] = 0;
+        boneWeights[0] = 1.0f;
+        boneWeights[1] = boneWeights[2] = boneWeights[3] = 0.0f;
+    }
+
+    /**
+     * @brief Sets single bone influence (common case for GW models).
+     */
+    void SetSingleBone(uint32_t boneIndex)
+    {
+        boneIndices[0] = boneIndex;
+        boneIndices[1] = boneIndices[2] = boneIndices[3] = 0;
+        boneWeights[0] = 1.0f;
+        boneWeights[1] = boneWeights[2] = boneWeights[3] = 0.0f;
+    }
+
+    /**
+     * @brief Sets multiple bone influences.
+     * @param indices Array of bone indices (must have 'count' elements)
+     * @param weights Array of weights (must have 'count' elements, sum to 1.0)
+     * @param count Number of influences (1-4)
+     */
+    void SetBoneInfluences(const uint32_t* indices, const float* weights, int count)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (i < count)
+            {
+                boneIndices[i] = indices[i];
+                boneWeights[i] = weights[i];
+            }
+            else
+            {
+                boneIndices[i] = 0;
+                boneWeights[i] = 0.0f;
+            }
+        }
+    }
+
+    /**
+     * @brief Normalizes bone weights to sum to 1.0.
+     */
+    void NormalizeWeights()
+    {
+        float sum = boneWeights[0] + boneWeights[1] + boneWeights[2] + boneWeights[3];
+        if (sum > 0.0001f)
+        {
+            float invSum = 1.0f / sum;
+            boneWeights[0] *= invSum;
+            boneWeights[1] *= invSum;
+            boneWeights[2] *= invSum;
+            boneWeights[3] *= invSum;
+        }
+        else
+        {
+            // No weights, default to bone 0
+            boneWeights[0] = 1.0f;
+            boneWeights[1] = boneWeights[2] = boneWeights[3] = 0.0f;
+        }
+    }
+};
+
 // Define the input layout
 // Define the input layout
 inline extern D3D11_INPUT_ELEMENT_DESC inputLayoutDesc[] = {
@@ -64,6 +151,24 @@ inline extern D3D11_INPUT_ELEMENT_DESC inputLayoutDesc[] = {
    0},
   {"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(GWVertex, tangent), D3D11_INPUT_PER_VERTEX_DATA, 0},
   {"TANGENT", 1, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(GWVertex, bitangent), D3D11_INPUT_PER_VERTEX_DATA, 0}
+};
+
+// Input layout for skinned meshes (includes bone indices and weights)
+inline extern D3D11_INPUT_ELEMENT_DESC skinnedInputLayoutDesc[] = {
+  {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SkinnedGWVertex, position), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SkinnedGWVertex, normal), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SkinnedGWVertex, tex_coord0), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SkinnedGWVertex, tex_coord1), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"TEXCOORD", 2, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SkinnedGWVertex, tex_coord2), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"TEXCOORD", 3, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SkinnedGWVertex, tex_coord3), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"TEXCOORD", 4, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SkinnedGWVertex, tex_coord4), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"TEXCOORD", 5, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SkinnedGWVertex, tex_coord5), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"TEXCOORD", 6, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SkinnedGWVertex, tex_coord6), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"TEXCOORD", 7, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SkinnedGWVertex, tex_coord7), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SkinnedGWVertex, tangent), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"TANGENT", 1, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(SkinnedGWVertex, bitangent), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT, 0, offsetof(SkinnedGWVertex, boneIndices), D3D11_INPUT_PER_VERTEX_DATA, 0},
+  {"BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(SkinnedGWVertex, boneWeights), D3D11_INPUT_PER_VERTEX_DATA, 0}
 };
 
 inline int get_most_significant_bit_pos(uint32_t value)

@@ -1,3 +1,5 @@
+#pragma once
+
 struct PerObjectCB
 {
     DirectX::XMFLOAT4X4 world;
@@ -10,10 +12,13 @@ struct PerObjectCB
     uint32_t highlight_state;
     float shore_max_alpha;
     float shore_wave_speed;
-    float pad[3];
+    float mesh_alpha;  // Alpha multiplier for mesh transparency (0.0 to 1.0)
+    float pad[2];  // Padding to align object_color to 16-byte boundary (HLSL requires float4 alignment)
+    DirectX::XMFLOAT4 object_color;  // Solid color for debug primitives (used when num_uv_texture_pairs == 0)
 
     PerObjectCB()
-        : num_uv_texture_pairs(0), object_id(0), highlight_state(0), shore_max_alpha(0.0f)
+        : num_uv_texture_pairs(0), object_id(0), highlight_state(0), shore_max_alpha(0.0f), shore_wave_speed(0.0f)
+        , mesh_alpha(1.0f), pad{0.0f, 0.0f}, object_color(1.0f, 1.0f, 1.0f, 1.0f)  // Default to white
     {
         DirectX::XMStoreFloat4x4(&world, DirectX::XMMatrixIdentity());
 

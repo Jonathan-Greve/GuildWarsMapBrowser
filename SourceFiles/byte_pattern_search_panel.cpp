@@ -105,7 +105,6 @@ static std::atomic<int> g_total_files{ 0 };
 static std::atomic<int> g_matches_found{ 0 };
 static std::atomic<int> g_matches_cleared{ 0 };
 static std::mutex g_results_mutex;
-static std::future<void> g_search_future;
 
 // Type filtering globals
 static std::unordered_set<std::string> g_enabled_types;
@@ -435,13 +434,6 @@ void draw_byte_pattern_search_panel(std::map<int, std::unique_ptr<DATManager>>& 
 			ImGui::Separator();
 		}
 
-		if (g_search_future.valid() &&
-			g_search_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-			try { g_search_future.get(); }
-			catch (const std::exception& e) {}
-			catch (...) {}
-		}
-
 		bool can_start_search = !current_parsed_pattern.empty() && !dat_managers.empty() &&
 			!g_search_in_progress.load() && !g_enabled_types.empty();
 
@@ -460,7 +452,7 @@ void draw_byte_pattern_search_panel(std::map<int, std::unique_ptr<DATManager>>& 
 				g_matches_cleared.store(0);
 				g_files_skipped.store(0);
 
-				g_search_future = std::async(std::launch::async, perform_pattern_search, std::ref(dat_managers));
+				std::thread(perform_pattern_search, std::ref(dat_managers)).detach();
 			}
 			ImGui::EndDisabled();
 

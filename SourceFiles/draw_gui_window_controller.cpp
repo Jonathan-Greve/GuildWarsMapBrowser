@@ -19,7 +19,8 @@ void CheckAndResetHideAll()
 			GuiGlobalConstants::is_custom_file_info_editor_open ||
 			GuiGlobalConstants::is_extract_panel_open ||
 			GuiGlobalConstants::is_byte_search_panel_open ||
-			GuiGlobalConstants::is_pathfinding_panel_open))
+			GuiGlobalConstants::is_pathfinding_panel_open ||
+			GuiGlobalConstants::is_animation_panel_open))
 	{
 		GuiGlobalConstants::hide_all = false;
 	}
@@ -70,6 +71,7 @@ void draw_gui_window_controller()
 	changed |= ImGui::Checkbox("Extract Panel", &GuiGlobalConstants::is_extract_panel_open);
 	changed |= ImGui::Checkbox("Byte Pattern Search Panel", &GuiGlobalConstants::is_byte_search_panel_open);
 	changed |= ImGui::Checkbox("Pathfinding Panel", &GuiGlobalConstants::is_pathfinding_panel_open);
+	changed |= ImGui::Checkbox("Animation Controller", &GuiGlobalConstants::is_animation_panel_open);
 	if (changed) GuiGlobalConstants::SaveSettings();
 
 	ImGui::Separator();

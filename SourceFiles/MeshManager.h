@@ -251,6 +251,60 @@ public:
 		return std::nullopt;
 	}
 
+	void SetMeshPosition(int mesh_id, float x, float y, float z)
+	{
+		std::shared_ptr<MeshInstance> mesh = nullptr;
+
+		auto it = m_triangleMeshes.find(mesh_id);
+		if (it != m_triangleMeshes.end())
+		{
+			mesh = it->second;
+		}
+		else
+		{
+			auto lineIt = m_lineMeshes.find(mesh_id);
+			if (lineIt != m_lineMeshes.end())
+			{
+				mesh = lineIt->second;
+			}
+		}
+
+		if (mesh)
+		{
+			PerObjectCB data = mesh->GetPerObjectData();
+			// Create translation matrix
+			DirectX::XMMATRIX translationMatrix = DirectX::XMMatrixTranslation(x, y, z);
+			DirectX::XMStoreFloat4x4(&data.world, translationMatrix);
+			mesh->SetPerObjectData(data);
+		}
+	}
+
+	void SetMeshColor(int mesh_id, const DirectX::XMFLOAT4& color)
+	{
+		std::shared_ptr<MeshInstance> mesh = nullptr;
+
+		auto it = m_triangleMeshes.find(mesh_id);
+		if (it != m_triangleMeshes.end())
+		{
+			mesh = it->second;
+		}
+		else
+		{
+			auto lineIt = m_lineMeshes.find(mesh_id);
+			if (lineIt != m_lineMeshes.end())
+			{
+				mesh = lineIt->second;
+			}
+		}
+
+		if (mesh)
+		{
+			PerObjectCB data = mesh->GetPerObjectData();
+			data.object_color = color;
+			mesh->SetPerObjectData(data);
+		}
+	}
+
 	bool SetMeshShouldRender(int mesh_id, bool should_render)
 	{
 		bool found = false;
@@ -366,6 +420,22 @@ public:
 		if (m_needsUpdate) { m_needsUpdate = false; }
 	}
 
+	/**
+	 * @brief Sets the per-object constant buffer data directly.
+	 *
+	 * Use this for skinned mesh rendering where we need to set per-object data
+	 * without going through the normal render batch.
+	 *
+	 * @param data Per-object constant buffer data (world matrix should already be transposed).
+	 */
+	void SetPerObjectCB(const PerObjectCB& data)
+	{
+		D3D11_MAPPED_SUBRESOURCE mappedResource;
+		m_deviceContext->Map(m_perObjectCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		memcpy(mappedResource.pData, &data, sizeof(PerObjectCB));
+		m_deviceContext->Unmap(m_perObjectCB.Get(), 0);
+	}
+
 	// Render only a specific mesh. Ignores should_render.
 	void RenderMesh(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
 		BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
@@ -423,10 +493,11 @@ public:
 
 	void Render(std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>>& pixel_shaders,
 	            BlendStateManager* blend_state_manager, RasterizerStateManager* rasterizer_state_manager,
-	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality, 
+	            DepthStencilStateManager* depth_stencil_state_manager, XMFLOAT3 camera_position, LODQuality lod_quality,
 				RenderSelectionState render_select_state = RenderSelectionState::All, bool should_set_ps = true,
 				bool should_overwrite_old_model_shader = false, PixelShaderType overwrite_old_model_shader = PixelShaderType::OldModel,
-				bool should_overwrite_new_model_shader = false, PixelShaderType overwrite_new_model_shader = PixelShaderType::NewModel
+				bool should_overwrite_new_model_shader = false, PixelShaderType overwrite_new_model_shader = PixelShaderType::NewModel,
+				bool wireframe = false
 		)
 	{
 		static D3D11_PRIMITIVE_TOPOLOGY currentTopology = D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
@@ -469,8 +540,11 @@ public:
 			m_deviceContext->PSSetSamplers(1, 1, pixel_shaders[command.pixelShaderType]->GetSamplerStateShadow());
 
 
-			if (command.should_cull) { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid); }
-			else { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid_NoCull); }
+			if (wireframe) {
+				rasterizer_state_manager->SetRasterizerState(command.should_cull ? RasterizerStateType::Wireframe : RasterizerStateType::Wireframe_NoCull);
+			} else {
+				rasterizer_state_manager->SetRasterizerState(command.should_cull ? RasterizerStateType::Solid : RasterizerStateType::Solid_NoCull);
+			}
 
 			PerObjectCB transposedData = command.meshInstance->GetPerObjectData();
 

@@ -45,7 +45,11 @@ cbuffer PerObjectCB : register(b1)
     uint num_uv_texture_pairs;
     uint object_id;
     uint highlight_state; // 0 is not hightlight, 1 is dark green, 2 is lightgreen
-    float pad1[1];
+    float shore_max_alpha;
+    float shore_wave_speed;
+    float mesh_alpha;  // Alpha multiplier for mesh transparency
+    float2 pad_object_color;  // Padding for float4 alignment
+    float4 object_color;  // Solid color for debug primitives (used when num_uv_texture_pairs == 0)
 };
 
 cbuffer PerCameraCB : register(b2)
@@ -99,6 +103,23 @@ struct PSOutput
 PSOutput main(PixelInputType input)
 {
     float4 finalColor = input.lightingColor;
+
+    // If no textures, use solid object_color (for debug primitives like bone spheres/lines)
+    if (num_uv_texture_pairs == 0)
+    {
+        finalColor = object_color;
+
+        PSOutput output;
+        output.rt_0_output = finalColor;
+
+        float4 colorId = float4(0, 0, 0, 1);
+        colorId.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
+        colorId.g = (float) ((object_id & 0x0000FF00) >> 8) / 255.0f;
+        colorId.b = (float) ((object_id & 0x000000FF)) / 255.0f;
+        output.rt_1_output = colorId;
+
+        return output;
+    }
 
     float2 texCoordsArray[6] =
     {
@@ -176,13 +197,16 @@ PSOutput main(PixelInputType input)
         }
     }
 
+    // Apply mesh alpha multiplier
+    a *= mesh_alpha;
+
     if (a <= 0.0f)
     {
         discard;
     }
 
     finalColor.a = a;
-    
+
     if (highlight_state == 1)
     {
         finalColor.rgb = lerp(finalColor.rgb, DARKGREEN, 0.7);
