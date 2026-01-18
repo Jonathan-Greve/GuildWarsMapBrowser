@@ -1,6 +1,8 @@
 ﻿#include "pch.h"
 #include "draw_dat_browser.h"
 #include "draw_texture_panel.h"
+#include "draw_animation_panel.h"
+#include "Parsers/BB9AnimationParser.h"
 
 #include <codecvt>
 
@@ -242,9 +244,44 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			selected_ffna_model_file = dat_manager->parse_ffna_model_file(index);
 		}
 
+		// Try to parse animation data from the raw file
+		g_animationState.Reset();
+		if (!selected_raw_data.empty())
+		{
+			auto clipOpt = GW::Parsers::ParseAnimationFromFile(selected_raw_data.data(), selected_raw_data.size());
+			if (clipOpt)
+			{
+				auto clip = std::make_shared<GW::Animation::AnimationClip>(std::move(*clipOpt));
+				auto skeleton = std::make_shared<GW::Animation::Skeleton>(
+					GW::Parsers::BB9AnimationParser::CreateSkeleton(*clip));
+				g_animationState.Initialize(clip, skeleton, entry->Hash);
+			}
+		}
+
 		if ((using_other_model_format && selected_ffna_model_file_other.parsed_correctly) ||
 		    (!using_other_model_format && selected_ffna_model_file.parsed_correctly))
 		{
+			// Extract model hashes from geometry chunk for finding matching animations
+			uint32_t modelHash0, modelHash1;
+			if (using_other_model_format)
+			{
+				// BB8 format: hashes are in header.signature0/signature1
+				modelHash0 = selected_ffna_model_file_other.geometry_chunk.header.signature0;
+				modelHash1 = selected_ffna_model_file_other.geometry_chunk.header.signature1;
+			}
+			else
+			{
+				// FA0 format: hashes are in sub_1.f0xC/f0x10
+				modelHash0 = selected_ffna_model_file.geometry_chunk.sub_1.f0xC;
+				modelHash1 = selected_ffna_model_file.geometry_chunk.sub_1.f0x10;
+			}
+
+			// Set model hashes in animation panel for finding matching animation files
+			if (!g_animationState.hasAnimation)
+			{
+				g_animationState.SetModelHashes(modelHash0, modelHash1, entry->Hash);
+			}
+
 			map_renderer->UnsetTerrain();
 			// Disable shadows for models when viewing standalone (no terrain = no shadow map)
 			map_renderer->SetShouldRenderShadowsForModels(false);
@@ -259,6 +296,32 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			const auto& models = using_other_model_format ?
 				selected_ffna_model_file_other.geometry_chunk.models :
 				selected_ffna_model_file.geometry_chunk.models;
+
+			// Set up submesh info for animation panel
+			g_animationState.SetSubmeshInfo(models.size());
+			g_animationState.submeshBoneData.clear();
+			g_animationState.perVertexBoneGroups.clear();
+			g_animationState.originalMeshes.clear();
+			g_animationState.animatedMeshes.clear();
+			g_animationState.hasSkinnedMeshes = false;
+
+			// Extract bone data for each submesh
+			for (size_t i = 0; i < models.size(); i++)
+			{
+				const auto& model = models[i];
+				// u0 = bone_group_count, u1 = total_bone_refs
+				auto boneData = AnimationPanelState::ExtractBoneData(model.extra_data, model.u0, model.u1);
+				g_animationState.submeshBoneData.push_back(boneData);
+
+				// Extract per-vertex bone group indices from ModelVertex.group
+				std::vector<uint32_t> vertexBoneGroups;
+				vertexBoneGroups.reserve(model.vertices.size());
+				for (const auto& mv : model.vertices)
+				{
+					vertexBoneGroups.push_back(mv.has_group ? mv.group : 0);
+				}
+				g_animationState.perVertexBoneGroups.push_back(std::move(vertexBoneGroups));
+			}
 
 			// Get geometry chunk for texture/shader info
 			const auto& geometry_chunk_uts0 = using_other_model_format ?
@@ -326,6 +389,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 				if ((prop_mesh.indices.size() % 3) == 0) {
 					prop_meshes.push_back(prop_mesh);
+					g_animationState.originalMeshes.push_back(prop_mesh);
 					if (using_other_model_format) {
 						LogBB8Debug("draw_dat_browser: Mesh added to prop_meshes\n");
 					}
@@ -829,6 +893,16 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			}
 
 			auto mesh_ids = map_renderer->AddProp(prop_meshes, per_object_cbs, index, pixel_shader_type);
+
+			// Store mesh IDs for submesh visibility control
+			g_animationState.meshIds = mesh_ids;
+
+			// Store per-object CB data for skinned rendering
+			g_animationState.perMeshPerObjectCB = per_object_cbs;
+
+			// Store texture IDs for skinned rendering
+			g_animationState.perMeshTextureIds = per_mesh_tex_ids;
+
 			if (textures_available)
 			{
 				for (int i = 0; i < mesh_ids.size(); i++)

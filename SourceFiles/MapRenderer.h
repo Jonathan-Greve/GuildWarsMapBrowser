@@ -4,6 +4,7 @@
 #include "MeshManager.h"
 #include "TextureManager.h"
 #include "VertexShader.h"
+#include "SkinnedVertexShader.h"
 #include "PixelShader.h"
 #include "PerFrameCB.h"
 #include "PerCameraCB.h"
@@ -58,6 +59,10 @@ public:
         // Create and initialize the VertexShader
         m_vertex_shader = std::make_unique<VertexShader>(m_device, m_deviceContext);
         m_vertex_shader->Initialize(L"VertexShader.hlsl");
+
+        // Create and initialize the Skinned VertexShader for animated models
+        m_skinned_vertex_shader = std::make_unique<SkinnedVertexShader>(m_device, m_deviceContext);
+        m_skinned_vertex_shader->Initialize();
 
         // Create and initialize the Pixel Shaders
         if (!m_pixel_shaders.contains(PixelShaderType::OldModel))
@@ -602,6 +607,9 @@ public:
     void SetShouldRenderPathfinding(bool should_render_pathfinding) { m_should_render_pathfinding = should_render_pathfinding; }
     bool GetShouldRenderPathfinding() { return m_should_render_pathfinding; }
 
+    void SetWireframeMode(bool wireframe) { m_wireframe_mode = wireframe; }
+    bool GetWireframeMode() const { return m_wireframe_mode; }
+
     void SetPathfinding(std::vector<Mesh>& pathfinding_meshes, const std::vector<uint32_t>& plane_sizes, PixelShaderType pixel_shader_type)
     {
         m_pathfinding_mesh_ids.clear();
@@ -861,11 +869,12 @@ public:
 
             m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
                 m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::OpaqueOnly, true,
-                true, PixelShaderType::PickingShader, true, PixelShaderType::PickingShader);
+                true, PixelShaderType::PickingShader, true, PixelShaderType::PickingShader, m_wireframe_mode);
         }
         else {
             m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::OpaqueOnly);
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::OpaqueOnly, true,
+                false, PixelShaderType::OldModel, false, PixelShaderType::NewModel, m_wireframe_mode);
         }
 
         if (m_water_mesh_id) {
@@ -901,7 +910,7 @@ public:
             m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
             m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
                 m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::TransparentOnly, true,
-                true, PixelShaderType::PickingShader, true, PixelShaderType::PickingShader);
+                true, PixelShaderType::PickingShader, true, PixelShaderType::PickingShader, m_wireframe_mode);
         }
         else {
             if (picking_render_target) {
@@ -910,7 +919,8 @@ public:
             }
 
             m_mesh_manager->Render(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
-                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::TransparentOnly);
+                m_stencil_state_manager.get(), m_user_camera->GetPosition3f(), m_lod_quality, RenderSelectionState::TransparentOnly, true,
+                false, PixelShaderType::OldModel, false, PixelShaderType::NewModel, m_wireframe_mode);
         }
     }
 
@@ -1033,6 +1043,106 @@ public:
         m_mesh_manager->SetTexturesForMesh(mesh_id, { m_texture_manager->GetTexture(checkered_tex_id) }, 3);
     }
 
+    // Skinned rendering methods for animated models
+    void BindSkinnedVertexShader()
+    {
+        if (m_skinned_vertex_shader)
+        {
+            m_skinned_vertex_shader->Bind();
+        }
+    }
+
+    void BindRegularVertexShader()
+    {
+        if (m_vertex_shader)
+        {
+            m_deviceContext->VSSetShader(m_vertex_shader->GetShader(), nullptr, 0);
+            m_deviceContext->IASetInputLayout(m_vertex_shader->GetInputLayout());
+        }
+    }
+
+    /**
+     * @brief Binds the model pixel shader and samplers for skinned mesh rendering.
+     *
+     * @param useNewModel If true, use NewModel shader; otherwise use OldModel shader.
+     */
+    void BindModelPixelShader(bool useNewModel = false)
+    {
+        auto shaderType = useNewModel ? PixelShaderType::NewModel : PixelShaderType::OldModel;
+        auto it = m_pixel_shaders.find(shaderType);
+        if (it != m_pixel_shaders.end() && it->second)
+        {
+            m_deviceContext->PSSetShader(it->second->GetShader(), nullptr, 0);
+            m_deviceContext->PSSetSamplers(0, 1, it->second->GetSamplerState());
+            m_deviceContext->PSSetSamplers(1, 1, it->second->GetSamplerStateShadow());
+        }
+    }
+
+    void UpdateBoneMatrices(const XMFLOAT4X4* matrices, size_t count)
+    {
+        if (m_skinned_vertex_shader)
+        {
+            m_skinned_vertex_shader->UpdateBoneMatrices(matrices, count);
+        }
+    }
+
+    SkinnedVertexShader* GetSkinnedVertexShader() { return m_skinned_vertex_shader.get(); }
+
+    // Bone visualization helper - adds debug lines and spheres for bone hierarchy
+    std::vector<int> AddBoneVisualization(const std::vector<XMFLOAT3>& bonePositions,
+                                          const std::vector<int32_t>& boneParents,
+                                          const XMFLOAT4& lineColor,
+                                          const XMFLOAT4& jointColor,
+                                          float jointRadius = 2.0f)
+    {
+        std::vector<int> meshIds;
+
+        // Add spheres at each bone position (joints)
+        for (size_t i = 0; i < bonePositions.size(); i++)
+        {
+            const auto& pos = bonePositions[i];
+
+            // Add a small sphere at each joint
+            int sphereId = m_mesh_manager->AddSphere(jointRadius, 8, 6, PixelShaderType::OldModel);
+            if (sphereId >= 0)
+            {
+                // Position the sphere at the bone location and set its color
+                m_mesh_manager->SetMeshPosition(sphereId, pos.x, pos.y, pos.z);
+                m_mesh_manager->SetMeshColor(sphereId, jointColor);
+                meshIds.push_back(sphereId);
+            }
+        }
+
+        // Add lines connecting bones to their parents
+        for (size_t i = 0; i < bonePositions.size(); i++)
+        {
+            int32_t parentIdx = (i < boneParents.size()) ? boneParents[i] : -1;
+            if (parentIdx >= 0 && parentIdx < static_cast<int32_t>(bonePositions.size()))
+            {
+                const auto& childPos = bonePositions[i];
+                const auto& parentPos = bonePositions[parentIdx];
+
+                int lineId = m_mesh_manager->AddLine(parentPos, childPos, PixelShaderType::OldModel);
+                if (lineId >= 0)
+                {
+                    // Set the line color
+                    m_mesh_manager->SetMeshColor(lineId, lineColor);
+                    meshIds.push_back(lineId);
+                }
+            }
+        }
+
+        return meshIds;
+    }
+
+    void RemoveBoneVisualization(const std::vector<int>& meshIds)
+    {
+        for (int id : meshIds)
+        {
+            m_mesh_manager->RemoveMesh(id);
+        }
+    }
+
 private:
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_deviceContext;
@@ -1044,6 +1154,7 @@ private:
     std::unique_ptr<DepthStencilStateManager> m_stencil_state_manager;
     std::unique_ptr<Camera> m_user_camera;
     std::unique_ptr<VertexShader> m_vertex_shader;
+    std::unique_ptr<SkinnedVertexShader> m_skinned_vertex_shader;
     std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>> m_pixel_shaders;
 
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_frame_cb;
@@ -1093,6 +1204,7 @@ private:
     bool m_should_rerender_shadows = false;
 
     bool m_should_use_picking_shader_for_models = false;
+    bool m_wireframe_mode = false;
 
     XMFLOAT4 m_clear_color = { 0.662745118f, 0.662745118f, 0.662745118f, 1 };
     float m_fog_start = 100000000.0f;

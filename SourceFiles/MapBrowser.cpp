@@ -8,6 +8,7 @@
 #include "draw_dat_load_progress_bar.h"
 #include "draw_picking_info.h"
 #include "draw_ui.h"
+#include "draw_animation_panel.h"
 
 extern void ExitMapBrowser() noexcept;
 
@@ -162,6 +163,25 @@ void MapBrowser::Update(duration<double, std::milli> elapsed)
     }
 
 
+    // Update animation controller if playing
+    if (g_animationState.controller && g_animationState.hasAnimation)
+    {
+        float deltaSeconds = static_cast<float>(elapsed.count() / 1000.0);
+        g_animationState.controller->Update(deltaSeconds);
+
+        // Create animated meshes if we have animation and model but no skinned meshes yet
+        if (!g_animationState.hasSkinnedMeshes && !g_animationState.originalMeshes.empty())
+        {
+            g_animationState.CreateAnimatedMeshes(m_deviceResources->GetD3DDevice());
+        }
+
+        // Update bone matrices in animated meshes
+        if (g_animationState.hasSkinnedMeshes)
+        {
+            g_animationState.UpdateAnimatedMeshBones(m_deviceResources->GetD3DDeviceContext());
+        }
+    }
+
     m_map_renderer->Update(elapsed.count() / 1000.0);
 }
 #pragma endregion
@@ -185,10 +205,188 @@ void MapBrowser::Render()
     // Clear the back buffer and depth stencil
     Clear();
 
+    // Handle visualization options before rendering
+    RasterizerStateType savedRasterizerState = m_map_renderer->GetCurrentRasterizerState();
+    bool animationActive = g_animationState.hasAnimation && g_animationState.controller;
+    bool hasLoadedModel = !g_animationState.meshIds.empty();
+    std::vector<int> boneLineIds;  // Track bone lines for cleanup after render
+
+    // Handle visualization options for any loaded model (not just animated ones)
+    const auto& vis = g_animationState.visualization;
+
+    if (hasLoadedModel)
+    {
+        // Apply submesh visibility and mesh alpha
+        // When skinned meshes are active, hide regular meshes (we render skinned meshes separately)
+        // But if disableSkinning is true, show the regular mesh (bind pose) instead
+        bool hideForSkinning = g_animationState.hasSkinnedMeshes && animationActive && !vis.disableSkinning;
+        for (size_t i = 0; i < g_animationState.meshIds.size(); i++)
+        {
+            int meshId = g_animationState.meshIds[i];
+            bool visible = !hideForSkinning && vis.showMesh && vis.IsSubmeshVisible(i);
+            m_map_renderer->SetMeshShouldRender(meshId, visible);
+
+            // Update mesh alpha on regular meshes
+            if (visible && i < g_animationState.perMeshPerObjectCB.size())
+            {
+                PerObjectCB data = g_animationState.perMeshPerObjectCB[i];
+                data.mesh_alpha = vis.meshAlpha;
+                m_map_renderer->GetMeshManager()->UpdateMeshPerObjectData(meshId, data);
+            }
+        }
+
+        // Set wireframe mode if requested (will be passed through to MeshManager::Render)
+        m_map_renderer->SetWireframeMode(vis.wireframeMode);
+    }
+
+    if (animationActive)
+    {
+        // Upload bone matrices if we have them
+        const auto& boneMatrices = g_animationState.controller->GetBoneMatrices();
+        if (!boneMatrices.empty())
+        {
+            m_map_renderer->UpdateBoneMatrices(boneMatrices.data(), boneMatrices.size());
+        }
+
+        // Add bone visualization (spheres and lines) BEFORE rendering so they get drawn
+        if (vis.showBones)
+        {
+            const auto& bonePositions = g_animationState.controller->GetBoneWorldPositions();
+            const auto& boneParents = g_animationState.controller->GetBoneParents();
+
+            if (!bonePositions.empty() && !boneParents.empty())
+            {
+                // Transform bone positions by the mesh's world matrix so they match the scaled/transformed model
+                std::vector<DirectX::XMFLOAT3> transformedBonePositions;
+                transformedBonePositions.reserve(bonePositions.size());
+
+                // Get the world matrix from the first mesh (all submeshes share the same transform)
+                DirectX::XMMATRIX worldMatrix = DirectX::XMMatrixIdentity();
+                if (!g_animationState.perMeshPerObjectCB.empty())
+                {
+                    worldMatrix = DirectX::XMLoadFloat4x4(&g_animationState.perMeshPerObjectCB[0].world);
+                }
+
+                // Bone positions are in mesh coordinate space (conversion done at parsing time)
+                // Apply a -90-degree rotation around Y to align skeleton facing direction with mesh
+                DirectX::XMMATRIX yRotation = DirectX::XMMatrixRotationY(-DirectX::XM_PIDIV2);
+                DirectX::XMMATRIX combinedMatrix = yRotation * worldMatrix;
+
+                for (const auto& pos : bonePositions)
+                {
+                    DirectX::XMVECTOR bonePos = DirectX::XMVectorSet(pos.x, pos.y, pos.z, 1.0f);
+                    DirectX::XMVECTOR transformedPos = DirectX::XMVector3Transform(bonePos, combinedMatrix);
+                    DirectX::XMFLOAT3 result;
+                    DirectX::XMStoreFloat3(&result, transformedPos);
+                    transformedBonePositions.push_back(result);
+                }
+
+                boneLineIds = m_map_renderer->AddBoneVisualization(
+                    transformedBonePositions,
+                    boneParents,
+                    vis.boneColor,
+                    vis.jointColor,
+                    vis.jointRadius);  // Use joint radius for spheres
+            }
+        }
+    }
+
     // Render the main scene
     m_deviceResources->PIXBeginEvent(L"Render Scene");
     m_map_renderer->Render(m_deviceResources->GetRenderTargetView(), m_deviceResources->GetPickingRenderTargetView(), m_deviceResources->GetDepthStencilView());
     m_deviceResources->PIXEndEvent();
+
+    // Render skinned meshes with animation (after regular scene)
+    // Skip skinned rendering if disableSkinning is true (show bind pose instead)
+    if (animationActive && g_animationState.hasSkinnedMeshes && !vis.disableSkinning)
+    {
+        m_deviceResources->PIXBeginEvent(L"Render Skinned Meshes");
+
+        auto* context = m_deviceResources->GetD3DDeviceContext();
+        auto* meshManager = m_map_renderer->GetMeshManager();
+        auto* textureManager = m_map_renderer->GetTextureManager();
+
+        // Set wireframe mode for skinned meshes
+        if (vis.wireframeMode)
+        {
+            m_map_renderer->SwitchRasterizerState(RasterizerStateType::Wireframe_NoCull);
+        }
+        else
+        {
+            m_map_renderer->SwitchRasterizerState(RasterizerStateType::Solid_NoCull);
+        }
+
+        // Bind skinned vertex shader (sets input layout and VS)
+        m_map_renderer->BindSkinnedVertexShader();
+
+        // Bind model pixel shader and samplers
+        m_map_renderer->BindModelPixelShader(false);  // Use OldModel shader
+
+        // Set primitive topology
+        context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+        // Render each animated mesh with proper per-object data and textures
+        for (size_t i = 0; i < g_animationState.animatedMeshes.size(); i++)
+        {
+            // Check submesh visibility
+            if (!vis.showMesh || !vis.IsSubmeshVisible(i))
+                continue;
+
+            auto& animMesh = g_animationState.animatedMeshes[i];
+            if (!animMesh)
+                continue;
+
+            // Set per-object constant buffer data if available
+            if (i < g_animationState.perMeshPerObjectCB.size())
+            {
+                PerObjectCB transposedData = g_animationState.perMeshPerObjectCB[i];
+                // Apply mesh alpha from visualization options
+                transposedData.mesh_alpha = vis.meshAlpha;
+                // Transpose world matrix for shader
+                DirectX::XMMATRIX worldMatrix = DirectX::XMLoadFloat4x4(&transposedData.world);
+                worldMatrix = DirectX::XMMatrixTranspose(worldMatrix);
+                DirectX::XMStoreFloat4x4(&transposedData.world, worldMatrix);
+
+                meshManager->SetPerObjectCB(transposedData);
+            }
+
+            // Set textures on the animated mesh instance (slot 3 is the standard model texture slot)
+            if (i < g_animationState.perMeshTextureIds.size())
+            {
+                const auto& texIds = g_animationState.perMeshTextureIds[i];
+                if (!texIds.empty())
+                {
+                    auto textures = textureManager->GetTextures(texIds);
+                    if (!textures.empty())
+                    {
+                        animMesh->SetTextures(textures, 3);
+                    }
+                }
+            }
+
+            // Draw the animated mesh (binds vertex buffer, index buffer, bone matrices, and textures)
+            animMesh->Draw(context, m_map_renderer->GetLODQuality());
+        }
+
+        // Restore regular vertex shader
+        m_map_renderer->BindRegularVertexShader();
+
+        m_deviceResources->PIXEndEvent();
+    }
+
+    // Cleanup after rendering
+    // Reset wireframe mode to default (solid) after rendering
+    if (hasLoadedModel)
+    {
+        m_map_renderer->SetWireframeMode(false);
+        m_map_renderer->SwitchRasterizerState(savedRasterizerState);
+    }
+
+    // Remove temporary bone visualization lines (only for animated models)
+    if (animationActive && !boneLineIds.empty())
+    {
+        m_map_renderer->RemoveBoneVisualization(boneLineIds);
+    }
 
 
     // --- Process Picking ---

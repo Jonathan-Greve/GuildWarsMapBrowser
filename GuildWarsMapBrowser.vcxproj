@@ -253,6 +253,7 @@
     <ClInclude Include="SourceFiles\DeviceResources.h" />
     <ClInclude Include="SourceFiles\DirectionalLight.h" />
     <ClInclude Include="SourceFiles\draw_audio_controller_panel.h" />
+    <ClInclude Include="SourceFiles\draw_animation_panel.h" />
     <ClInclude Include="SourceFiles\draw_chunk_20000000.h" />
     <ClInclude Include="SourceFiles\draw_chunk_20000003.h" />
     <ClInclude Include="SourceFiles\draw_dat_browser.h" />
@@ -422,6 +423,7 @@
     <ClCompile Include="SourceFiles\DirectionalLight.cpp" />
     <ClCompile Include="SourceFiles\Dome.cpp" />
     <ClCompile Include="SourceFiles\draw_audio_controller_panel.cpp" />
+    <ClCompile Include="SourceFiles\draw_animation_panel.cpp" />
     <ClCompile Include="SourceFiles\draw_chunk_20000000.cpp" />
     <ClCompile Include="SourceFiles\draw_chunk_20000003.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_browser.cpp" />

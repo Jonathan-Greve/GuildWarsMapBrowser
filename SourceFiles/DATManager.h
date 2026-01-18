@@ -58,7 +58,9 @@ public:
     unsigned char* read_file(int index)
     {
         HANDLE file_handle = m_dat.get_dat_filehandle(m_dat_filepath.c_str());
-        return m_dat.readFile(file_handle, index, true);
+        unsigned char* data = m_dat.readFile(file_handle, index, true);
+        CloseHandle(file_handle);
+        return data;
     }
 
     int get_num_files_for_type(FileType type) {
