@@ -185,7 +185,7 @@ public:
     /**
      * @brief Reads count*3 floats as vec3 positions.
      *
-     * Guild Wars uses Y-up with inverted Z, so we negate Z when reading.
+     * Converts from Z-up to Y-up: (x, y, z) -> (x, -z, y)
      *
      * @param count Number of vec3 positions to read.
      * @return Vector of XMFLOAT3 positions.
@@ -208,7 +208,7 @@ public:
             std::memcpy(&z, &m_data[m_offset + 8], sizeof(float));
             m_offset += 12;
 
-            // Match mesh coordinate transform: (x, y, z) -> (x, -z, y)
+            // Convert from Z-up to Y-up: (x, y, z) -> (x, -z, y)
             result.push_back({x, -z, y});
         }
 
@@ -243,19 +243,21 @@ public:
             prevZ = ExpandSignedDeltaVLE(prevZ);
 
             // Convert from 16-bit encoded values to radians
-            float rx = prevX * ANGLE_SCALE - ANGLE_OFFSET;
+            // Note: rx (pitch) is negated to correct rotation direction after coordinate conversion
+            float rx = -(prevX * ANGLE_SCALE - ANGLE_OFFSET);
             float ry = prevY * ANGLE_SCALE - ANGLE_OFFSET;
             float rz = prevZ * ANGLE_SCALE - ANGLE_OFFSET;
 
             // Convert Euler angles to quaternion
             XMFLOAT4 quat = EulerToQuaternion(rx, ry, rz);
 
-            // Convert quaternion to match mesh coordinate system (swap Y and Z axes)
-            // For coordinate transform (x, y, z) -> (x, -z, y), quaternion becomes (w, x, -z, y)
+            // Convert quaternion from Z-up to Y-up coordinate system
+            // For swapping Y and Z axes, swap the corresponding quaternion components
+            // Note: The sign of the swap affects rotation direction
             XMFLOAT4 converted;
             converted.w = quat.w;
             converted.x = quat.x;
-            converted.y = -quat.z;  // New Y component = -old Z
+            converted.y = quat.z;   // New Y component = old Z (no negation)
             converted.z = quat.y;   // New Z component = old Y
             quat = converted;
 
