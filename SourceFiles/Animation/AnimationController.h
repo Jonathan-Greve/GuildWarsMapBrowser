@@ -367,6 +367,37 @@ public:
         return empty;
     }
 
+    /**
+     * @brief Sets mesh-derived bind positions for accurate skinning.
+     *
+     * Animation bind positions often don't match mesh vertex positions.
+     * This method allows setting bind positions computed from actual mesh
+     * vertex centroids per bone, which produces correct skinning.
+     *
+     * @param meshBindPositions Vector of bind positions indexed by skeleton bone.
+     */
+    void SetMeshBindPositions(const std::vector<XMFLOAT3>& meshBindPositions)
+    {
+        m_meshBindPositions = meshBindPositions;
+        m_useMeshBindPositions = !meshBindPositions.empty();
+
+        // Re-evaluate with new bind positions
+        if (m_clip)
+        {
+            EvaluateBoneMatrices();
+        }
+    }
+
+    /**
+     * @brief Checks if mesh-derived bind positions are being used.
+     */
+    bool IsUsingMeshBindPositions() const { return m_useMeshBindPositions; }
+
+    /**
+     * @brief Gets the mesh-derived bind positions.
+     */
+    const std::vector<XMFLOAT3>& GetMeshBindPositions() const { return m_meshBindPositions; }
+
 private:
     void EvaluateBoneMatrices()
     {
@@ -380,7 +411,17 @@ private:
         m_evaluator.EvaluateHierarchical(*m_clip, m_currentTime, m_boneWorldPositions, m_boneWorldRotations);
 
         // Then compute skinning matrices from the world transforms
-        m_evaluator.ComputeSkinningFromHierarchy(*m_clip, m_currentTime, m_boneMatrices);
+        // Use mesh-derived bind positions if available (they match actual vertex positions)
+        // Otherwise fall back to animation bind positions
+        if (m_useMeshBindPositions && !m_meshBindPositions.empty())
+        {
+            m_evaluator.ComputeSkinningWithCustomBindPositions(*m_clip, m_currentTime,
+                                                                m_meshBindPositions, m_boneMatrices);
+        }
+        else
+        {
+            m_evaluator.ComputeSkinningFromHierarchy(*m_clip, m_currentTime, m_boneMatrices);
+        }
     }
 
     void NotifyCallback(const std::string& event)
@@ -410,6 +451,11 @@ private:
     std::vector<XMFLOAT3> m_boneWorldPositions;  // Actual world positions for visualization
     std::vector<XMFLOAT4> m_boneWorldRotations;  // World rotations for debugging
     AnimationCallback m_callback;
+
+    // Mesh-derived bind positions for accurate skinning
+    // These are computed from vertex centroids per bone and often differ from animation bind positions
+    std::vector<XMFLOAT3> m_meshBindPositions;
+    bool m_useMeshBindPositions = false;
 };
 
 } // namespace GW::Animation

@@ -172,6 +172,7 @@ void MapBrowser::Update(duration<double, std::milli> elapsed)
         // Create animated meshes if we have animation and model but no skinned meshes yet
         if (!g_animationState.hasSkinnedMeshes && !g_animationState.originalMeshes.empty())
         {
+
             g_animationState.CreateAnimatedMeshes(m_deviceResources->GetD3DDevice());
         }
 
@@ -267,8 +268,8 @@ void MapBrowser::Render()
                     worldMatrix = DirectX::XMLoadFloat4x4(&g_animationState.perMeshPerObjectCB[0].world);
                 }
 
-                // Bone positions are in mesh coordinate space (conversion done at parsing time)
-                // Apply a -90-degree rotation around Y to align skeleton facing direction with mesh
+                // Apply -90 degree Y rotation to align animation skeleton with mesh
+                // Both use (x, -z, y) transform but need this rotation for proper alignment
                 DirectX::XMMATRIX yRotation = DirectX::XMMatrixRotationY(-DirectX::XM_PIDIV2);
                 DirectX::XMMATRIX combinedMatrix = yRotation * worldMatrix;
 
@@ -342,8 +343,12 @@ void MapBrowser::Render()
                 PerObjectCB transposedData = g_animationState.perMeshPerObjectCB[i];
                 // Apply mesh alpha from visualization options
                 transposedData.mesh_alpha = vis.meshAlpha;
-                // Transpose world matrix for shader
+                // Apply -90 degree Y rotation to align skinned mesh with bone visualization
+                // This matches the rotation applied to bone positions in the visualization code above
+                DirectX::XMMATRIX yRotation = DirectX::XMMatrixRotationY(-DirectX::XM_PIDIV2);
                 DirectX::XMMATRIX worldMatrix = DirectX::XMLoadFloat4x4(&transposedData.world);
+                worldMatrix = yRotation * worldMatrix;
+                // Transpose world matrix for shader
                 worldMatrix = DirectX::XMMatrixTranspose(worldMatrix);
                 DirectX::XMStoreFloat4x4(&transposedData.world, worldMatrix);
 

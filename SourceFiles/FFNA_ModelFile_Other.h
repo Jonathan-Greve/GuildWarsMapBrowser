@@ -7,6 +7,7 @@
 #include <span>
 #include <cmath>
 #include <fstream>
+#include <set>
 
 // Debug logging for BB8 parsing
 inline void LogBB8Debug(const char* msg)
@@ -355,6 +356,11 @@ struct GeometryChunkOther
     // Each inner vector contains the texture indices for that submesh
     std::vector<std::vector<uint8_t>> submesh_texture_indices;
 
+    // BB8 bone palette: skeleton bone IDs indexed by bone group index
+    // Extracted from BoneGroup structures at start of geometry data
+    // For BB8, vertex.group directly indexes into this array to get skeleton bone ID
+    std::vector<uint32_t> bb8_bone_palette;
+
     // Parsing status
     bool geometry_parsed = false;
 
@@ -428,16 +434,49 @@ private:
         uint32_t data_size = static_cast<uint32_t>(raw_geometry_data.size());
         uint32_t curr_offset = 0;
 
-        // Skip bone group data if present (0x002 flag)
+        // Parse bone group data if present (0x002 flag)
         // Format: count DWORD + count * 28 bytes (7 DWORDs each)
+        // BoneGroup structure (28 bytes):
+        //   float offsetX, offsetY, offsetZ (12 bytes)
+        //   u32 parentBoneIndex (4 bytes)
+        //   u32 childCount (4 bytes)
+        //   u32 flags (4 bytes)
+        //   u32 boneId (4 bytes) - THIS IS THE SKELETON BONE INDEX!
         if (header.HasBoneGroups())
         {
             if (curr_offset + 4 > data_size) return false;
             uint32_t bone_group_count = *reinterpret_cast<const uint32_t*>(&data[curr_offset]);
             curr_offset += 4;
-            if (bone_group_count > 4) return false; // Max 4 bone groups
+
+            char debug_msg[256];
+            sprintf_s(debug_msg, "ParseGeometryData: Found %u bone groups (0x002 flag)\n", bone_group_count);
+            LogBB8Debug(debug_msg);
+
+            if (bone_group_count > 256) return false; // Reasonable limit
             uint32_t bone_group_size = bone_group_count * 28;
             if (curr_offset + bone_group_size > data_size) return false;
+
+            // Extract boneId from each BoneGroup structure (at offset 24 within each 28-byte struct)
+            bb8_bone_palette.clear();
+            bb8_bone_palette.reserve(bone_group_count);
+            for (uint32_t i = 0; i < bone_group_count; i++)
+            {
+                uint32_t group_offset = curr_offset + i * 28;
+                uint32_t boneId = *reinterpret_cast<const uint32_t*>(&data[group_offset + 24]);
+                bb8_bone_palette.push_back(boneId);
+
+                if (i < 10)  // Log first 10 for debugging
+                {
+                    sprintf_s(debug_msg, "  BoneGroup[%u]: boneId=%u\n", i, boneId);
+                    LogBB8Debug(debug_msg);
+                }
+            }
+            if (bone_group_count > 10)
+            {
+                sprintf_s(debug_msg, "  ... and %u more bone groups\n", bone_group_count - 10);
+                LogBB8Debug(debug_msg);
+            }
+
             curr_offset += bone_group_size;
         }
 
@@ -743,6 +782,39 @@ private:
         model.total_num_indices = num_indices;
         model.dat_fvf = GR_FVF_POSITION;
 
+        // Populate bone mapping fields from BB8 bone palette
+        // For BB8, each bone group maps directly to a skeleton bone (group size = 1)
+        // This makes the extra_data format compatible with ExtractBoneData()
+        if (!bb8_bone_palette.empty())
+        {
+            uint32_t bone_group_count = static_cast<uint32_t>(bb8_bone_palette.size());
+            model.u0 = bone_group_count;  // Number of bone groups
+            model.u1 = bone_group_count;  // Total bone refs (= bone_group_count since each group has 1 bone)
+            model.u2 = 0;  // No triangle groups
+
+            // Build extra_data: [groupSizes...][skeletonBoneIndices...]
+            // Format: u0 * 4 bytes of group sizes (all 1s) + u1 * 4 bytes of bone IDs
+            model.extra_data.resize((model.u0 + model.u1) * 4);
+            uint8_t* extra_ptr = model.extra_data.data();
+
+            // Write group sizes (all 1, since BB8 uses direct mapping)
+            for (uint32_t i = 0; i < bone_group_count; i++)
+            {
+                uint32_t one = 1;
+                std::memcpy(extra_ptr + i * 4, &one, sizeof(uint32_t));
+            }
+
+            // Write skeleton bone indices
+            for (uint32_t i = 0; i < bone_group_count; i++)
+            {
+                std::memcpy(extra_ptr + (bone_group_count + i) * 4, &bb8_bone_palette[i], sizeof(uint32_t));
+            }
+
+            sprintf_s(debug_msg, "ParseSubmeshAtOffset: Populated bone mapping from BB8 palette: u0=%u, u1=%u\n",
+                      model.u0, model.u1);
+            LogBB8Debug(debug_msg);
+        }
+
         // Read all indices
         model.indices.resize(num_indices);
         for (uint32_t i = 0; i < num_indices; i++)
@@ -754,8 +826,9 @@ private:
         model.vertices.resize(num_vertices);
         for (uint32_t i = 0; i < num_vertices; i++)
         {
-            ModelVertex vertex(get_fvf(GR_FVF_POSITION), parsed_correctly, 12);
+            ModelVertex vertex(get_fvf(GR_FVF_POSITION | GR_FVF_GROUP), parsed_correctly, 16);
             vertex.has_position = true;
+            vertex.has_group = true;  // BB8 format includes bone group indices
 
             float x, y, z;
             std::memcpy(&x, &data[pos_start + i * 12], sizeof(float));
@@ -781,14 +854,43 @@ private:
             model.vertices[i] = vertex;
         }
 
-        // After positions, there's per-vertex "other" data (colors/groups) that we need to skip.
-        // Analysis of actual model files shows: skip = num_vertices * 4 bytes before UV header.
-        // This 4 bytes/vertex is likely RGBA colors or bone weights.
-
+        // After positions, there's per-vertex bone group indices (4 bytes each).
+        // This tells which bone group each vertex belongs to for skinning.
         constexpr float UV_SCALE = 1.0f / 65536.0f;
         uint32_t pos_end = pos_start + num_vertices * 12;
+        uint32_t bone_group_data_start = pos_end;
 
-        // Skip the per-vertex extra data (colors/weights): num_vertices * 4 bytes
+        // Read bone group indices for each vertex
+        std::set<uint32_t> unique_groups;
+        for (uint32_t i = 0; i < num_vertices; i++)
+        {
+            if (bone_group_data_start + (i + 1) * 4 <= data_size)
+            {
+                uint32_t bone_group_idx;
+                std::memcpy(&bone_group_idx, &data[bone_group_data_start + i * 4], sizeof(uint32_t));
+                model.vertices[i].group = bone_group_idx;
+                unique_groups.insert(bone_group_idx);
+            }
+            else
+            {
+                model.vertices[i].group = 0;
+                unique_groups.insert(0);
+            }
+        }
+
+        // Debug: log unique bone group indices found
+        sprintf_s(debug_msg, "ParseSubmeshAtOffset: Found %zu unique bone groups. First few: ", unique_groups.size());
+        std::string groups_str = debug_msg;
+        int count = 0;
+        for (uint32_t g : unique_groups)
+        {
+            if (count++ >= 10) { groups_str += "..."; break; }
+            groups_str += std::to_string(g) + " ";
+        }
+        groups_str += "\n";
+        LogBB8Debug(groups_str.c_str());
+
+        // Per-vertex bone group data: num_vertices * 4 bytes
         uint32_t other_data_size = num_vertices * 4;
         uint32_t uv_section_start = pos_end + other_data_size;
         uint32_t num_uv_verts = num_uv_sets * num_vertices;

@@ -208,7 +208,8 @@ public:
             std::memcpy(&z, &m_data[m_offset + 8], sizeof(float));
             m_offset += 12;
 
-            // Convert from Z-up to Y-up: (x, y, z) -> (x, -z, y)
+            // Convert from GW to display coords: (x, y, z) -> (x, -z, y)
+            // GW uses (left/right, front/back, down/up), GWMB uses (left/right, up/down, front/back)
             result.push_back({x, -z, y});
         }
 
@@ -243,23 +244,15 @@ public:
             prevZ = ExpandSignedDeltaVLE(prevZ);
 
             // Convert from 16-bit encoded values to radians
-            // Note: rx (pitch) is negated to correct rotation direction after coordinate conversion
+            // GW animation data is in GW coordinate space (x=left/right, y=front/back, z=down/up)
+            // We convert positions to GWMB space using (x, -z, y), so rotations need adjustment
+            // Negate rx to correct the rotation direction after coordinate transform
             float rx = -(prevX * ANGLE_SCALE - ANGLE_OFFSET);
             float ry = prevY * ANGLE_SCALE - ANGLE_OFFSET;
             float rz = prevZ * ANGLE_SCALE - ANGLE_OFFSET;
 
             // Convert Euler angles to quaternion
             XMFLOAT4 quat = EulerToQuaternion(rx, ry, rz);
-
-            // Convert quaternion from Z-up to Y-up coordinate system
-            // For swapping Y and Z axes, swap the corresponding quaternion components
-            // Note: The sign of the swap affects rotation direction
-            XMFLOAT4 converted;
-            converted.w = quat.w;
-            converted.x = quat.x;
-            converted.y = quat.z;   // New Y component = old Z (no negation)
-            converted.z = quat.y;   // New Z component = old Y
-            quat = converted;
 
             // Ensure quaternion continuity (flip if dot product is negative)
             if (i > 0)
@@ -287,7 +280,7 @@ public:
      * @param rx Rotation around X axis in radians.
      * @param ry Rotation around Y axis in radians.
      * @param rz Rotation around Z axis in radians.
-     * @return Quaternion in (w, x, y, z) format.
+     * @return Quaternion as XMFLOAT4 (x,y,z,w members where w is scalar).
      */
     static XMFLOAT4 EulerToQuaternion(float rx, float ry, float rz)
     {
@@ -380,17 +373,19 @@ public:
     /**
      * @brief Rotates a point by a quaternion.
      *
-     * @param q Quaternion to rotate by (w, x, y, z format).
+     * @param q Quaternion to rotate by (XMFLOAT4 with x,y,z,w members).
      * @param p Point to rotate.
      * @return Rotated point.
      */
     static XMFLOAT3 QuaternionRotatePoint(const XMFLOAT4& q, const XMFLOAT3& p)
     {
-        // Convert point to quaternion (0, px, py, pz)
-        XMFLOAT4 pq = {0.0f, p.x, p.y, p.z};
+        // Convert point to quaternion: scalar=0, vector=(px, py, pz)
+        // XMFLOAT4 member order is {x, y, z, w}
+        XMFLOAT4 pq = {p.x, p.y, p.z, 0.0f};
 
         // Compute q * p * q^-1 (for unit quaternion, conjugate = inverse)
-        XMFLOAT4 qConj = {q.w, -q.x, -q.y, -q.z};
+        // Conjugate: negate vector part, keep scalar
+        XMFLOAT4 qConj = {-q.x, -q.y, -q.z, q.w};
 
         // q * p
         XMFLOAT4 qp = QuaternionMultiply(q, pq);
@@ -404,8 +399,8 @@ public:
     /**
      * @brief Multiplies two quaternions.
      *
-     * @param q1 First quaternion (w, x, y, z).
-     * @param q2 Second quaternion (w, x, y, z).
+     * @param q1 First quaternion (XMFLOAT4 with x,y,z,w members).
+     * @param q2 Second quaternion (XMFLOAT4 with x,y,z,w members).
      * @return Product quaternion.
      */
     static XMFLOAT4 QuaternionMultiply(const XMFLOAT4& q1, const XMFLOAT4& q2)

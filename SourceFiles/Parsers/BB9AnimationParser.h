@@ -7,6 +7,7 @@
 #include <cstring>
 #include <memory>
 #include <optional>
+#include <fstream>
 
 namespace GW::Parsers {
 
@@ -197,11 +198,23 @@ public:
                     Animation::BoneTrack track;
                     track.boneIndex = boneIdx;
 
-                    // Store base position with mesh coordinate transform: (x, y, z) -> (x, -z, y)
+                    // Store base position with coordinate transform: (x, y, z) -> (x, -z, y)
+                    // GW uses (left/right, front/back, down/up), GWMB uses (left/right, up/down, front/back)
                     track.basePosition = {boneHeader.baseX, -boneHeader.baseZ, boneHeader.baseY};
 
                     uint8_t depth = boneHeader.GetHierarchyDepth();
                     boneDepths.push_back(depth);
+
+                    // Debug: Log bone flags to check for bone IDs
+                    if (boneIdx < 10 || (boneHeader.boneFlags >> 8) != 0)
+                    {
+                        char debug[256];
+                        sprintf_s(debug, "Bone %u: flags=0x%08X, depth=%u, upperBytes=0x%06X\n",
+                            boneIdx, boneHeader.boneFlags, depth, boneHeader.boneFlags >> 8);
+                        // Use inline logging since LogBB8Debug might not be available here
+                        static std::ofstream anim_log("bb8_debug.log", std::ios::app);
+                        if (anim_log.is_open()) anim_log << debug << std::flush;
+                    }
 
                     // Parse position keyframes
                     if (boneHeader.posKeyCount > 0)

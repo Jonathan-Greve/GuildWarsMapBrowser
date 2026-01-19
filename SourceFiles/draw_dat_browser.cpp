@@ -9,6 +9,7 @@
 #include "GuiGlobalConstants.h"
 #include "maps_constant_data.h"
 #include <numeric>
+#include <set>
 
 #include <model_exporter.h>
 
@@ -316,11 +317,48 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				// Extract per-vertex bone group indices from ModelVertex.group
 				std::vector<uint32_t> vertexBoneGroups;
 				vertexBoneGroups.reserve(model.vertices.size());
+				std::set<uint32_t> uniqueGroups;
 				for (const auto& mv : model.vertices)
 				{
-					vertexBoneGroups.push_back(mv.has_group ? mv.group : 0);
+					uint32_t grp = mv.has_group ? mv.group : 0;
+					vertexBoneGroups.push_back(grp);
+					uniqueGroups.insert(grp);
 				}
 				g_animationState.perVertexBoneGroups.push_back(std::move(vertexBoneGroups));
+
+				// Debug: log bone mapping info
+				char debug[512];
+				sprintf_s(debug, "Submesh %zu: u0(boneGroupCount)=%u, u1(totalBoneRefs)=%u, "
+					"groupSizes.size=%zu, skelBoneIndices.size=%zu, groupMapping.size=%zu\n",
+					i, model.u0, model.u1,
+					boneData.groupSizes.size(),
+					boneData.skeletonBoneIndices.size(),
+					boneData.groupToSkeletonBone.size());
+				LogBB8Debug(debug);
+
+				sprintf_s(debug, "  Unique vertex bone groups: %zu (range: %u to %u)\n",
+					uniqueGroups.size(),
+					uniqueGroups.empty() ? 0 : *uniqueGroups.begin(),
+					uniqueGroups.empty() ? 0 : *uniqueGroups.rbegin());
+				LogBB8Debug(debug);
+
+				// Show first few skeleton bone mappings
+				if (!boneData.groupToSkeletonBone.empty())
+				{
+					std::string mappings = "  Group->SkelBone: ";
+					for (size_t j = 0; j < std::min(size_t(10), boneData.groupToSkeletonBone.size()); j++)
+					{
+						mappings += std::to_string(j) + "->" + std::to_string(boneData.groupToSkeletonBone[j]) + " ";
+					}
+					if (boneData.groupToSkeletonBone.size() > 10)
+						mappings += "...";
+					mappings += "\n";
+					LogBB8Debug(mappings.c_str());
+				}
+				else
+				{
+					LogBB8Debug("  WARNING: No bone group mapping available!\n");
+				}
 			}
 
 			// Get geometry chunk for texture/shader info

@@ -279,7 +279,9 @@ public:
             std::memcpy(&x, &vertexData[0], sizeof(float));
             std::memcpy(&y, &vertexData[4], sizeof(float));
             std::memcpy(&z, &vertexData[8], sizeof(float));
-            vertex.position = {x, y, -z};  // Negate Z for GW coordinate system
+            // GW uses (left/right, front/back, down/up), GWMB uses (left/right, up/down, front/back)
+            // Transform: (x, y, z) -> (x, -z, y)
+            vertex.position = {x, -z, y};
 
             submesh.UpdateBounds(vertex.position);
 

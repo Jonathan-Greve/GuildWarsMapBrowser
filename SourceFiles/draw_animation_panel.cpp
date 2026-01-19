@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "draw_animation_panel.h"
+#include "Animation/AnimationEvaluator.h"  // For s_logSkinningOnce
 #include <GuiGlobalConstants.h>
 #include <DATManager.h>
 #include "Parsers/BB9AnimationParser.h"
@@ -346,7 +347,9 @@ void draw_animation_panel(std::map<int, std::unique_ptr<DATManager>>& dat_manage
 
                                 bool isSelected = (g_animationState.selectedResultIndex == static_cast<int>(i));
 
-                                std::string label = std::format("0x{:08X} - {} ({} seq, {} bones)##{}",
+                                // Display MFT index, hash, and chunk type
+                                std::string label = std::format("{} - 0x{:X} - {} ({} seq, {} bones)##{}",
+                                    result.mftIndex,
                                     result.fileId,
                                     result.chunkType,
                                     result.sequenceCount,
@@ -366,8 +369,8 @@ void draw_animation_panel(std::map<int, std::unique_ptr<DATManager>>& dat_manage
 
                                 if (ImGui::IsItemHovered())
                                 {
-                                    ImGui::SetTooltip("Double-click to load\nDAT%d, MFT Index: %d",
-                                        result.datAlias, result.mftIndex);
+                                    ImGui::SetTooltip("Double-click to load\nDAT%d, MFT Index: %d\nHash: 0x%08X (%u)",
+                                        result.datAlias, result.mftIndex, result.fileId, result.fileId);
                                 }
                             }
                         }
@@ -626,6 +629,18 @@ void draw_animation_panel(std::map<int, std::unique_ptr<DATManager>>& dat_manage
                 if (ImGui::IsItemHovered())
                 {
                     ImGui::SetTooltip("Show mesh in bind pose (no animation deformation).\nUseful for debugging skinning issues.");
+                }
+
+                ImGui::SameLine();
+                if (ImGui::Button("Log Skinning"))
+                {
+                    // Reset the flag to log skinning data on next frame
+                    GW::Animation::AnimationEvaluator::s_logSkinningOnce = true;
+                    LogBB8Debug("\n*** User requested skinning log dump ***\n");
+                }
+                if (ImGui::IsItemHovered())
+                {
+                    ImGui::SetTooltip("Write skinning debug data to bb8_debug.log");
                 }
 
                 ImGui::Spacing();
