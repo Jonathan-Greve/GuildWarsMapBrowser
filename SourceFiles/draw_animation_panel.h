@@ -4,6 +4,7 @@
 #include "AnimatedMeshInstance.h"
 #include "Vertex.h"
 #include "Mesh.h"
+#include "FFNA_ModelFile_Other.h"  // For LogBB8Debug
 #include <DirectXMath.h>
 #include <memory>
 #include <map>
@@ -247,25 +248,63 @@ struct AnimationPanelState
      * @param mesh The original mesh with GWVertex
      * @param boneData Bone group mapping for this submesh
      * @param vertexBoneGroups Per-vertex bone group indices from ModelVertex.group
+     * @param boneCount Total number of bones in the skeleton (for validation)
      * @return Vector of SkinnedGWVertex with bone weights set
      */
     static std::vector<SkinnedGWVertex> CreateSkinnedVertices(
         const Mesh& mesh,
         const SubmeshBoneData& boneData,
-        const std::vector<uint32_t>& vertexBoneGroups)
+        const std::vector<uint32_t>& vertexBoneGroups,
+        size_t boneCount = 256)
     {
         std::vector<SkinnedGWVertex> skinnedVertices;
         skinnedVertices.reserve(mesh.vertices.size());
+
+        // Determine if we should use direct bone indices or group mapping
+        // If vertex bone indices exceed group count but are within bone count,
+        // they might be direct skeleton bone indices
+        bool useDirectIndices = false;
+        uint32_t maxVertexBoneIdx = 0;
+        for (const auto& idx : vertexBoneGroups)
+        {
+            if (idx > maxVertexBoneIdx) maxVertexBoneIdx = idx;
+        }
+
+        // If no mapping available or max index exceeds group count but is within skeleton,
+        // use direct indexing
+        if (boneData.groupToSkeletonBone.empty())
+        {
+            useDirectIndices = true;
+            LogBB8Debug("  CreateSkinnedVertices: No group mapping, using direct indices\n");
+        }
+        else if (maxVertexBoneIdx >= boneData.groupToSkeletonBone.size() && maxVertexBoneIdx < boneCount)
+        {
+            useDirectIndices = true;
+            char msg[256];
+            sprintf_s(msg, "  CreateSkinnedVertices: maxVertexBoneIdx(%u) >= groupCount(%zu), using direct indices\n",
+                maxVertexBoneIdx, boneData.groupToSkeletonBone.size());
+            LogBB8Debug(msg);
+        }
 
         for (size_t i = 0; i < mesh.vertices.size(); i++)
         {
             SkinnedGWVertex sv(mesh.vertices[i]);
 
-            // Map bone group index to skeleton bone
             uint32_t groupIdx = i < vertexBoneGroups.size() ? vertexBoneGroups[i] : 0;
-            uint32_t skelBone = boneData.MapGroupToSkeletonBone(groupIdx);
-            sv.SetSingleBone(skelBone);
+            uint32_t skelBone;
 
+            if (useDirectIndices)
+            {
+                // Use vertex bone index directly as skeleton bone index
+                skelBone = groupIdx < boneCount ? groupIdx : 0;
+            }
+            else
+            {
+                // Map bone group index to skeleton bone via palette
+                skelBone = boneData.MapGroupToSkeletonBone(groupIdx);
+            }
+
+            sv.SetSingleBone(skelBone);
             skinnedVertices.push_back(sv);
         }
 
@@ -280,6 +319,10 @@ struct AnimationPanelState
         skeleton = skel;
         currentFileId = fileId;
 
+        // Clear old skinned meshes so they get recreated with the new animation
+        animatedMeshes.clear();
+        hasSkinnedMeshes = false;
+
         if (clip && clip->IsValid())
         {
             controller = std::make_shared<GW::Animation::AnimationController>();
@@ -289,6 +332,148 @@ struct AnimationPanelState
         else
         {
             hasAnimation = false;
+        }
+    }
+
+    /**
+     * @brief Computes mesh-derived bind positions from vertex centroids.
+     *
+     * Animation bind positions often don't match where mesh vertices actually are.
+     * This function computes the centroid of all vertices assigned to each skeleton bone,
+     * which gives accurate bind positions for skinning.
+     *
+     * Call this after both model meshes and animation are loaded.
+     *
+     * @return Vector of bind positions indexed by skeleton bone index.
+     */
+    std::vector<DirectX::XMFLOAT3> ComputeMeshBindPositions()
+    {
+        if (!hasAnimation || !clip || originalMeshes.empty())
+        {
+            return {};
+        }
+
+        size_t boneCount = clip->boneTracks.size();
+
+        // Accumulate positions and counts per skeleton bone
+        std::vector<DirectX::XMFLOAT3> positionSums(boneCount, {0.0f, 0.0f, 0.0f});
+        std::vector<uint32_t> vertexCounts(boneCount, 0);
+
+        // Iterate through all meshes and vertices
+        for (size_t meshIdx = 0; meshIdx < originalMeshes.size(); meshIdx++)
+        {
+            const auto& mesh = originalMeshes[meshIdx];
+            const auto& boneData = (meshIdx < submeshBoneData.size()) ?
+                submeshBoneData[meshIdx] : SubmeshBoneData();
+            const auto& vertexBoneGroups = (meshIdx < perVertexBoneGroups.size()) ?
+                perVertexBoneGroups[meshIdx] : std::vector<uint32_t>();
+
+            // Determine if we should use direct bone indices or group mapping
+            bool useDirectIndices = false;
+            uint32_t maxVertexBoneIdx = 0;
+            for (const auto& idx : vertexBoneGroups)
+            {
+                if (idx > maxVertexBoneIdx) maxVertexBoneIdx = idx;
+            }
+            if (boneData.groupToSkeletonBone.empty() ||
+                (maxVertexBoneIdx >= boneData.groupToSkeletonBone.size() && maxVertexBoneIdx < boneCount))
+            {
+                useDirectIndices = true;
+            }
+
+            for (size_t vertIdx = 0; vertIdx < mesh.vertices.size(); vertIdx++)
+            {
+                const auto& vertex = mesh.vertices[vertIdx];
+
+                // Get skeleton bone index for this vertex
+                uint32_t groupIdx = (vertIdx < vertexBoneGroups.size()) ? vertexBoneGroups[vertIdx] : 0;
+                uint32_t skelBone;
+
+                if (useDirectIndices)
+                {
+                    skelBone = groupIdx < boneCount ? static_cast<uint32_t>(groupIdx) : 0;
+                }
+                else
+                {
+                    skelBone = boneData.MapGroupToSkeletonBone(groupIdx);
+                }
+
+                // Clamp to valid bone index
+                if (skelBone >= boneCount)
+                {
+                    skelBone = 0;
+                }
+
+                // Accumulate position
+                positionSums[skelBone].x += vertex.position.x;
+                positionSums[skelBone].y += vertex.position.y;
+                positionSums[skelBone].z += vertex.position.z;
+                vertexCounts[skelBone]++;
+            }
+        }
+
+        // Compute centroids
+        std::vector<DirectX::XMFLOAT3> meshBindPositions(boneCount);
+        for (size_t i = 0; i < boneCount; i++)
+        {
+            if (vertexCounts[i] > 0)
+            {
+                float invCount = 1.0f / static_cast<float>(vertexCounts[i]);
+                meshBindPositions[i] = {
+                    positionSums[i].x * invCount,
+                    positionSums[i].y * invCount,
+                    positionSums[i].z * invCount
+                };
+            }
+            else
+            {
+                // No vertices for this bone - use animation bind position as fallback
+                if (i < clip->boneTracks.size())
+                {
+                    meshBindPositions[i] = clip->boneTracks[i].basePosition;
+                }
+                else
+                {
+                    meshBindPositions[i] = {0.0f, 0.0f, 0.0f};
+                }
+            }
+        }
+
+        return meshBindPositions;
+    }
+
+    /**
+     * @brief Applies mesh-derived bind positions to the animation controller.
+     *
+     * Call this after ComputeMeshBindPositions() to enable accurate skinning.
+     */
+    void ApplyMeshBindPositions()
+    {
+        if (controller && hasAnimation)
+        {
+            auto meshBindPositions = ComputeMeshBindPositions();
+            if (!meshBindPositions.empty())
+            {
+                // Debug: Compare mesh vs animation bind positions for first few bones
+                LogBB8Debug("ApplyMeshBindPositions: Comparing bind positions\n");
+                for (size_t i = 0; i < std::min(size_t(15), meshBindPositions.size()); i++)
+                {
+                    const auto& meshBind = meshBindPositions[i];
+                    const auto& animBind = (i < clip->boneTracks.size()) ?
+                        clip->boneTracks[i].basePosition : DirectX::XMFLOAT3{0,0,0};
+                    float dist = std::sqrt(
+                        (meshBind.x - animBind.x) * (meshBind.x - animBind.x) +
+                        (meshBind.y - animBind.y) * (meshBind.y - animBind.y) +
+                        (meshBind.z - animBind.z) * (meshBind.z - animBind.z));
+                    char msg[256];
+                    sprintf_s(msg, "  Bone %zu: mesh=(%.1f,%.1f,%.1f) anim=(%.1f,%.1f,%.1f) dist=%.1f\n",
+                        i, meshBind.x, meshBind.y, meshBind.z,
+                        animBind.x, animBind.y, animBind.z, dist);
+                    LogBB8Debug(msg);
+                }
+
+                controller->SetMeshBindPositions(meshBindPositions);
+            }
         }
     }
 
@@ -318,8 +503,33 @@ struct AnimationPanelState
             const auto& vertexBoneGroups = (i < perVertexBoneGroups.size()) ?
                 perVertexBoneGroups[i] : std::vector<uint32_t>();
 
+            // Get skeleton bone count for validation
+            size_t boneCount = clip ? clip->boneTracks.size() : 256;
+
+            // Debug: Check for out-of-range bone indices
+            if (i == 0)  // Log once
+            {
+                char msg[256];
+                sprintf_s(msg, "CreateAnimatedMeshes: Animation has %zu bones\n", boneCount);
+                LogBB8Debug(msg);
+            }
+
+            // Check max skeleton bone index in this submesh's palette
+            uint32_t maxSkelBone = 0;
+            for (uint32_t skelBone : boneData.skeletonBoneIndices)
+            {
+                if (skelBone > maxSkelBone) maxSkelBone = skelBone;
+            }
+            if (maxSkelBone >= boneCount)
+            {
+                char msg[256];
+                sprintf_s(msg, "  WARNING Submesh %zu: maxSkelBoneIdx(%u) >= animBoneCount(%zu)!\n",
+                    i, maxSkelBone, boneCount);
+                LogBB8Debug(msg);
+            }
+
             // Create skinned vertices
-            auto skinnedVertices = CreateSkinnedVertices(mesh, boneData, vertexBoneGroups);
+            auto skinnedVertices = CreateSkinnedVertices(mesh, boneData, vertexBoneGroups, boneCount);
 
             // Create AnimatedMeshInstance
             auto animMesh = std::make_shared<AnimatedMeshInstance>(

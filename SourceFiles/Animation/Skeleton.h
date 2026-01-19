@@ -19,7 +19,7 @@ struct Bone
 {
     uint32_t id = 0;                                    // Bone identifier
     XMFLOAT3 bindPosition = {0.0f, 0.0f, 0.0f};        // Absolute world position in bind pose (from BB9)
-    XMFLOAT4 bindRotation = {0.0f, 0.0f, 0.0f, 1.0f}; // Identity quaternion in bind pose (w,x,y,z)
+    XMFLOAT4 bindRotation = {0.0f, 0.0f, 0.0f, 1.0f}; // Identity quaternion (XMFLOAT4: x,y,z,w order)
     XMFLOAT3 bindScale = {1.0f, 1.0f, 1.0f};          // Scale in bind pose
     uint8_t hierarchyDepth = 0;                        // Depth in bone hierarchy (used to reconstruct parent-child)
     int32_t parentIndex = -1;                          // Index of parent bone (-1 for root bones)

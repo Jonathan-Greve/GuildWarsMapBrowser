@@ -3,6 +3,7 @@
 #include "AnimationClip.h"
 #include "Skeleton.h"
 #include "../Parsers/VLEDecoder.h"
+#include "../FFNA_ModelFile_Other.h"  // For LogBB8Debug
 #include <DirectXMath.h>
 #include <vector>
 #include <cstdint>
@@ -31,7 +32,7 @@ public:
     struct BoneTransform
     {
         XMFLOAT3 position = {0.0f, 0.0f, 0.0f};
-        XMFLOAT4 rotation = {0.0f, 0.0f, 0.0f, 1.0f};  // Identity quaternion
+        XMFLOAT4 rotation = {0.0f, 0.0f, 0.0f, 1.0f};  // Identity quaternion (XMFLOAT4: x,y,z,w)
         XMFLOAT3 scale = {1.0f, 1.0f, 1.0f};
 
         /**
@@ -214,18 +215,13 @@ public:
      * 2. Rotate offset by bone's world rotation
      * 3. Add bone's world position
      *
-     * Animation and mesh use different coordinate systems:
-     * - Animation: (x, -z, y) from original Z-up
-     * - Mesh: (x, y, -z) from original Z-up
-     *
-     * A -90 degree Y rotation aligns the animation coordinate system with the mesh.
-     * This same rotation is applied to bone visualization in MapBrowser.cpp.
+     * Both animation and mesh use the same coordinate transform: (x, -z, y) from GW's coords.
+     * GW uses (left/right, front/back, down/up), GWMB uses (left/right, up/down, front/back).
      */
     void ComputeSkinningFromHierarchy(const AnimationClip& clip, float time,
                                       std::vector<XMFLOAT4X4>& outSkinningMatrices)
     {
-        // Use animation bind positions directly (no coordinate conversion)
-        // The alignment rotation handles the coordinate system difference
+        // Use animation bind positions directly
         std::vector<XMFLOAT3> bindPositions;
         bindPositions.reserve(clip.boneTracks.size());
         for (const auto& track : clip.boneTracks)
@@ -241,18 +237,19 @@ public:
      * Use this method when the animation bind positions don't match the mesh vertices.
      * Pass mesh-derived bind positions (centroid of vertices per bone) for correct skinning.
      *
-     * Animation and mesh coordinate systems differ:
-     * - Animation: Z-up converted via (x, -z, y)
-     * - Mesh: Z-up converted via (x, y, -z)
+     * Both animation and mesh use the same coordinate transform: (x, -z, y) from GW's coords.
      *
-     * A -90 degree Y rotation is pre-applied to align animation with mesh space.
-     * This matches the rotation applied in bone visualization (MapBrowser.cpp).
+     * Skinning formula (from working Python reference):
+     *   skinned_vertex = world_pos + rotate(vertex - bind_pos, world_rot)
      *
      * @param clip Animation clip to evaluate.
      * @param time Animation time.
      * @param customBindPositions Custom bind positions (typically derived from mesh vertex centroids).
      * @param outSkinningMatrices Output array of skinning matrices.
      */
+    // Debug flag - set to true to log skinning data once
+    static inline bool s_logSkinningOnce = true;
+
     void ComputeSkinningWithCustomBindPositions(const AnimationClip& clip, float time,
                                                  const std::vector<XMFLOAT3>& customBindPositions,
                                                  std::vector<XMFLOAT4X4>& outSkinningMatrices)
@@ -264,10 +261,15 @@ public:
         size_t boneCount = clip.boneTracks.size();
         outSkinningMatrices.resize(boneCount);
 
-        // -90 degree rotation around Y axis to align animation with mesh coordinate system
-        // This is the same rotation applied to bone visualization in MapBrowser.cpp
-        constexpr float angle = -XM_PIDIV2;  // -90 degrees
-        XMMATRIX alignmentRotation = XMMatrixRotationY(angle);
+        // Debug logging (once)
+        bool doLog = s_logSkinningOnce;
+        if (doLog)
+        {
+            s_logSkinningOnce = false;
+            char msg[512];
+            sprintf_s(msg, "\n=== SKINNING DEBUG (time=%.1f, %zu bones) ===\n", time, boneCount);
+            LogBB8Debug(msg);
+        }
 
         for (size_t i = 0; i < boneCount; i++)
         {
@@ -278,22 +280,52 @@ public:
             const XMFLOAT3& worldPos = worldPositions[i];
             const XMFLOAT4& worldRot = worldRotations[i];
 
-            // Build bone world transform: R(worldRot) * T(worldPos)
+            // Debug log first 10 bones
+            if (doLog && i < 10)
+            {
+                const XMFLOAT3& animBindPos = clip.boneTracks[i].basePosition;
+                bool usingMeshBind = (i < customBindPositions.size());
+                char msg[768];
+                sprintf_s(msg, "Bone %zu:\n"
+                    "  animBindPos=(%.2f, %.2f, %.2f)\n"
+                    "  meshBindPos=(%.2f, %.2f, %.2f) %s\n"
+                    "  worldPos=(%.2f, %.2f, %.2f)\n"
+                    "  worldRot=(w=%.3f, x=%.3f, y=%.3f, z=%.3f)\n",
+                    i,
+                    animBindPos.x, animBindPos.y, animBindPos.z,
+                    bindPos.x, bindPos.y, bindPos.z,
+                    usingMeshBind ? "<-- USING" : "(same)",
+                    worldPos.x, worldPos.y, worldPos.z,
+                    worldRot.w, worldRot.x, worldRot.y, worldRot.z);
+                LogBB8Debug(msg);
+            }
+
+            // Skinning formula:
+            // skinned = world_pos + rotate(vertex - bind_pos, world_rot)
+            // Both animation and mesh now use (x, -z, y) - same coordinate space
+            XMMATRIX inverseBind = XMMatrixTranslation(-bindPos.x, -bindPos.y, -bindPos.z);
             XMMATRIX boneRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&worldRot));
             XMMATRIX boneTranslation = XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z);
-            XMMATRIX boneWorld = boneRotation * boneTranslation;
 
-            // Inverse bind is just translation by negative bind position
-            // (assuming no rotation in bind pose, which is typical for GW models)
-            XMMATRIX inverseBind = XMMatrixTranslation(-bindPos.x, -bindPos.y, -bindPos.z);
-
-            // Skinning matrix = inverseBind * boneWorld * alignmentRotation
-            // Order (with row vectors, left-to-right application):
-            // 1. inverseBind: move vertex from model space to bone space
-            // 2. boneWorld: apply bone's animated transform
-            // 3. alignmentRotation: convert from animation coords to mesh coords
-            XMMATRIX skinning = inverseBind * boneWorld * alignmentRotation;
+            XMMATRIX skinning = inverseBind * boneRotation * boneTranslation;
             XMStoreFloat4x4(&outSkinningMatrices[i], skinning);
+
+            // Log the resulting matrix for first few bones
+            if (doLog && i < 5)
+            {
+                XMFLOAT4X4 mat;
+                XMStoreFloat4x4(&mat, skinning);
+                char msg[512];
+                sprintf_s(msg, "  skinMatrix row0=(%.3f, %.3f, %.3f, %.3f)\n             row3=(%.3f, %.3f, %.3f, %.3f)\n",
+                    mat._11, mat._12, mat._13, mat._14,
+                    mat._41, mat._42, mat._43, mat._44);
+                LogBB8Debug(msg);
+            }
+        }
+
+        if (doLog)
+        {
+            LogBB8Debug("=== END SKINNING DEBUG ===\n\n");
         }
     }
 
