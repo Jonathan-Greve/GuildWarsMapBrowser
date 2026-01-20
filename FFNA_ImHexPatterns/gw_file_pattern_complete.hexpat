@@ -2,26 +2,16 @@
 // FFNA Type 2 Model File - COMPLETE UNIFIED PATTERN
 // Handles ALL chunk types: 0xFA* (runtime) and 0xBB* (DAT original)
 //
-// Reverse engineered from Gw.exe using Ghidra:
-//   - Model_ParseGeometryHeader (0x00769950)
-//   - Model_ParseMaterialData (0x00768e00)
-//   - Model_ParseBoneData (0x007691c0)
-//   - Model_ParseShaderData (0x00769930)
-//   - Model_ParseAttachmentPoints (0x00769d00)
-//   - Model_ParseEmitterData (0x00769e70)
-//   - Model_ParseAnimationData (0x0076aa40)
-//   - Model_ParseSkeletonData (0x0076aba0)
-//   - MdlDecomp_ConvertSubmesh (0x0076e1c0)
-//   - MdlDecomp_ConvertGeometryChunk_0xBB8_to_0xFA0 (0x0076d960)
-//   - MdlDecomp_ConvertGeometryChunk_0xBB9_to_0xFA1 (0x0076ed60)
-//   - MdlDecomp_ConvertAllChunks (0x00771090)
-//   - MdlDecomp_ConvertBoneWeights (0x0076e4e0)
-//   - MdlDecomp_ParseSubmeshVertexData (0x0076b6a0)
-//   - Model_DecompressQuaternionKeys (0x00770e60)
-//   - Model_ExpandUnsignedDeltaVLE (0x00771440)
-//   - Model_ExpandSignedDeltaVLE (0x00771340)
-//   - Model_UpdateSkeletonTransforms (0x00754670)
-//   - Model_ApplyBoneTransform (0x007561e0)
+// Covers:
+//   - Geometry: vertices, indices, materials, shaders, textures
+//   - Animation: VLE-compressed Euler angles → quaternions, bone hierarchy
+//   - Skeleton: bone weights, attachment points, emitters
+//
+// Animation Runtime Notes (critical for matching GW's exact behavior):
+//   - Quaternion interpolation uses NLERP, NOT true SLERP
+//   - GW uses TRANSPOSED rotation matrices (see Euler conversion docs below)
+//   - Hierarchy accumulation: parent × child matrix multiplication
+//   - Final matrices are 3x4 row-major, converted to 4x4 column-major for GPU
 // =============================================================================
 
 #include <std/mem.pat>
@@ -47,17 +37,16 @@
 //   0xFA3 (4003): Inline ATEX DXT3 texture
 //   0xFAA (4010): Inline ATEX DXTA texture
 //
-// Created during MdlDecomp_ConvertAllChunks (no BB* source):
+// Created during decompression (no BB* source):
 //   0xFA7 (4007): Bounding cylinder data (from geometry processing)
 //   0xFA8 (4008): Skeleton references (from animation processing)
 //   0xFAC (4012): File metadata (version + counts)
 
 // =============================================================================
 // FVF (Flexible Vertex Format) Lookup Functions
-// From MdlFvf_ConvertToGrFVF and GetVertexSizeFromFVF @ 0x0065f440
 // =============================================================================
 
-// FVF Lookup Tables from Gw.exe
+// FVF Lookup Tables
 // fvf_array_0: UV/TexCoord sizes - indexed by bits 8-11 and 12-15 of FVF
 fn get_fvf_uv_size(u32 idx) {
     if (idx == 0) return 0x00;
@@ -155,7 +144,7 @@ struct Vertex<auto dat_fvf> {
         u32 compressedPos;      // 4 bytes: compressed
     } else if (pos_idx == 3) {
         float position[3];      // 12 bytes: xyz
-        u32 boneIndex;          // 4 bytes: bone group index (Ghidra may call this "group")
+        u32 boneIndex;          // 4 bytes: bone group index
     } else if (pos_idx == 4) {
         float position[3];      // 12 bytes
     } else if (pos_idx == 5) {
@@ -224,8 +213,6 @@ fn compute_str_len_plus_one(u32 address) {
 // =============================================================================
 // VLE (Variable Length Encoding) DECODER FUNCTIONS
 // =============================================================================
-// From Model_ExpandUnsignedDeltaVLE @ 0x00771440
-// From Model_ExpandSignedDeltaVLE @ 0x00771340
 //
 // VLE Byte Format:
 //   First byte: [Cont:1][Sign:1][Data:6]
@@ -326,6 +313,15 @@ fn format_pos_keyframe(PositionKeyframe p) {
 // Rotation keyframe: 3 VLE-encoded Euler angle deltas (variable size, 3-15 bytes)
 // Each component is VLE delta-encoded, representing Euler angles [0, 65535] -> [-π, π]
 // Decoding: new_value = prev ± value (wraps at 16 bits)
+//
+// AT LOAD TIME: Euler angles are converted to quaternions.
+//   - GW uses TRANSPOSED rotation matrices, effectively rotating by NEGATIVE angles
+//   - Final quaternions are stored for runtime interpolation
+//
+// AT RUNTIME: Quaternions are interpolated using NLERP (not true SLERP!)
+//   - NLERP: linear interpolate then normalize (faster, nearly identical for small angles)
+//   - Result quaternion is converted to 3x4 matrix
+//
 struct RotationKeyframe {
     VLEValue eulerX [[name("Euler X (VLE delta)")]];
     VLEValue eulerY [[name("Euler Y (VLE delta)")]];
@@ -376,7 +372,6 @@ struct BoneAnimationEntry {
 
 // =============================================================================
 // ClassFlags Bitmask (offset 0x08 in geometry headers)
-// From MdlDecomp_ConvertGeometryChunk_0xBB8_to_0xFA0
 // =============================================================================
 bitfield ClassFlags {
     HAS_SKELETON : 1;              // 0x001: Has skeleton reference
@@ -399,7 +394,7 @@ bitfield ClassFlags {
 };
 
 // =============================================================================
-// UV Compression Notes (from MdlDecomp_ConvertSubmesh at 0x0076dbe0)
+// UV Compression Notes
 // =============================================================================
 // Two UV formats based on textureGroupCount (offset 0x19 in BB8 header):
 //
@@ -415,7 +410,7 @@ bitfield ClassFlags {
 //   - UV deltas: (u_delta, v_delta) per vertex
 //   - Final UV = delta * (1.0/65536.0) + offset
 //
-// UV_DELTA_SCALE_FACTOR at 0x00a399b8 = 1.0/65536.0 (0x37800000)
+// UV_DELTA_SCALE_FACTOR = 1.0/65536.0 (0x37800000 as float)
 
 // =============================================================================
 // COMMON STRUCTURES
@@ -426,7 +421,7 @@ struct String {
 };
 
 // Bone Group/Info Structure (28 bytes = 0x1C)
-// From Model_ParseGeometryHeader when classFlags & 0x002
+// Used when classFlags & 0x002
 struct BoneGroup {
     float offsetX;
     float offsetY;
@@ -438,7 +433,7 @@ struct BoneGroup {
 };
 
 // Single Bone Weight Entry (7 bytes)
-// From MdlDecomp_ConvertBoneWeights: weightCount * 7 bytes
+// Size: weightCount * 7 bytes
 struct BoneWeightEntry {
     u32 vertexIndex;          // Which vertex this weight applies to
     u8 boneIndex;             // Bone index
@@ -447,14 +442,14 @@ struct BoneWeightEntry {
 };
 
 // Bone Transform Entry (8 bytes)
-// From MdlDecomp_ConvertBoneWeights: (boneCount0 + boneCount1 + boneCount2) * 8 bytes
+// Size: (boneCount0 + boneCount1 + boneCount2) * 8 bytes
 struct BoneTransformEntry {
     u32 boneHash;             // Bone identifier hash
     u32 transformFlags;       // Transform flags or offset
 };
 
 // Bone Weight Set (24 bytes = 0x18 header + variable data)
-// From MdlDecomp_ConvertBoneWeights
+// Bone weight data
 struct BoneWeightSetHeader {
     u32 unknown0;
     u32 unknown1;
@@ -465,7 +460,7 @@ struct BoneWeightSetHeader {
     // Followed by: weightCount * 7 bytes + (boneCount0 + boneCount1 + boneCount2) * 8 bytes
 };
 
-// Shader Definition (8 bytes) - From Model_ParseShaderData
+// Shader Definition (8 bytes)
 struct ShaderDefinition {
     u8 cullFlags;           // Bits: 0x01=?, 0x02=twoSided, 0x04=?, 0x08=?
     u8 shaderType;          // Shader type index (0-10 mapped to internal enum)
@@ -474,7 +469,7 @@ struct ShaderDefinition {
     u8 textureCount;        // Number of textures used by this shader
 };
 
-// Material Definition (9 bytes) - From Model_ParseMaterialData
+// Material Definition (9 bytes)
 struct MaterialDefinition {
     u16 renderFlags;        // Render state flags (0x60A -> 0x622 conversion)
     u16 blendFlags;         // Alpha blend mode (0x600 = standard)
@@ -503,7 +498,7 @@ struct FileReferenceEntry {
     u16 unknown;            // Usually 0, possibly flags or index
 };
 
-// Attachment Point (48 bytes = 0x30) - From Model_ParseAttachmentPoints
+// Attachment Point (48 bytes = 0x30)
 // Each attachment stores 12 DWORDs of transform data
 struct AttachmentPoint {
     float positionX, positionY, positionZ;
@@ -513,7 +508,7 @@ struct AttachmentPoint {
     u32 attachmentType;
 };
 
-// Particle Emitter (88 bytes = 0x58) - From Model_ParseEmitterData
+// Particle Emitter (88 bytes = 0x58)
 struct ParticleEmitter {
     u32 emitterType;        // Point, sphere, cylinder, etc.
     s32 parentBoneIndex;    // -1 for world space
@@ -533,7 +528,7 @@ struct ParticleEmitter {
     u8 reserved[3];
 };
 
-// Animation Entry (20 bytes = 0x14 header) - From Model_ParseAnimationData
+// Animation Entry (20 bytes = 0x14 header)
 struct AnimationEntryHeader {
     float unknown0;
     float unknown1;
@@ -544,7 +539,7 @@ struct AnimationEntryHeader {
     // Followed by: (keyframeCount0 + keyframeCount1) * 4 bytes of keyframe data
 };
 
-// Skeleton Entry (16 bytes = 0x10 header) - From Model_ParseSkeletonData
+// Skeleton Entry (16 bytes = 0x10 header)
 struct SkeletonEntryHeader {
     float unknown0;
     float unknown1;
@@ -603,7 +598,7 @@ struct ATEXHeader {
 // =============================================================================
 
 // Geometry Header for 0xBB8 chunks (48 bytes = 0x30)
-// From MdlDecomp_ConvertGeometryChunk_0xBB8_to_0xFA0
+// BB8 to FA0 geometry conversion
 struct GeometryHeader_BB8 {
     u32 geometryFlags;          // 0x00: Flags for this geometry
     u32 reserved_0x04;          // 0x04: Usually 0
@@ -624,7 +619,7 @@ struct GeometryHeader_BB8 {
 };
 
 // Submesh Header for BB8 (32 bytes = 0x20)
-// From MdlDecomp_ConvertSubmesh - 8 DWORDs
+// Submesh data - 8 DWORDs
 struct SubmeshHeader_BB8 {
     u32 submeshFlags;           // 0x00: Visibility, render state flags
     u32 materialIndex;          // 0x04: Material/shader index
@@ -694,7 +689,7 @@ struct TextureGroupDef {
 };
 
 // LOD Vertex Entry (12 bytes) - compressed vertex for LOD levels
-// From LOD data formula: vertexCount * 6 * 2 = vertexCount * 12 bytes
+// Size formula: vertexCount * 6 * 2 = vertexCount * 12 bytes
 struct LODVertexEntry {
     s16 posX;                   // Position X (normalized/scaled)
     s16 posY;                   // Position Y (normalized/scaled)
@@ -714,7 +709,7 @@ struct SkeletonNode {
 };
 
 // BB8 Skeleton Weight Entry (0x15 = 21 bytes)
-// From MdlDecomp: skeletonWeightCount * 0x15 bytes
+// Total size: skeletonWeightCount * 0x15 bytes
 struct SkeletonWeightEntry_BB8 {
     u32 boneIndex;              // Bone reference
     float weightValue;          // Weight influence
@@ -760,7 +755,7 @@ using GeosetEntry = EmbeddedAnimationEntry;
 // =============================================================================
 
 // Geometry Header for 0xFA0 chunks (84 bytes = 0x54)
-// From Model_ParseGeometryHeader at 0x00769370
+// Geometry header parsing
 struct GeometryHeader_FA0 {
     u32 modelVersion;           // 0x00: Usually 0x26
     u32 fileId;                 // 0x04: DAT file ID
@@ -795,7 +790,7 @@ struct GeometryHeader_FA0 {
 };
 
 // Submesh Header for FA0 (36 bytes = 0x24)
-// From MdlDecomp_ParseSubmeshVertexData @ 0x0076b6a0
+// Submesh vertex data parsing
 struct SubmeshHeader_FA0 {
     u16 materialIndex;          // 0x00: Material/shader index
     u16 submeshFlags;           // 0x02: Visibility, render flags
@@ -810,7 +805,6 @@ struct SubmeshHeader_FA0 {
 };
 
 // Helper function to calculate total index count for all LOD levels
-// Logic from MdlDecomp_ParseSubmeshVertexData:
 // - indexCount = LOD High (always present)
 // - indexCount2 = LOD Medium (adds to buffer if != indexCount)
 // - indexCount3 = LOD Low (adds to buffer if != indexCount2)
@@ -827,7 +821,7 @@ fn calc_total_index_count(u32 ic1, u32 ic2, u32 ic3) {
 };
 
 // FA0 Submesh with vertex data
-// Data layout per MdlDecomp_ParseSubmeshVertexData:
+// Data layout:
 // 1. Index buffer: totalIndexCount * 2 bytes (combined LOD High/Med/Low indices)
 // 2. Vertex buffer: vertexCount * vertexSize bytes (shared by all LOD levels)
 // 3. Bone Group Sizes: boneGroupCount * 4 bytes (u32 array - bones per vertex group)
@@ -961,7 +955,6 @@ struct GeometryHeader_FA1 {
 };
 
 // BB9 Sequence Entry (24 bytes = 6 DWORDs)
-// From MdlDecomp: puVar6 = puVar7 + count * 6 (uint* arithmetic)
 //
 // ANIMATION SEQUENCE SYSTEM:
 // Each animation FILE contains ONE animation (e.g., walk cycle, attack, idle).
@@ -1038,19 +1031,16 @@ struct SubmeshData_BB8 {
     }
 
     // Color data (colorCount * 3 bytes each - RGB)
-    // From Ghidra: colorCount * 3 bytes in buffer size formula
     if (header.colorCount > 0) {
         ColorRGB colors[header.colorCount] [[name("Vertex Colors (RGB)")]];
     }
 
     // Normal indices (normalCount * 1 byte each)
-    // From Ghidra: normalCount bytes in buffer size formula
     if (header.normalCount > 0) {
         u8 normalIndices[header.normalCount] [[name("Normal Indices")]];
     }
 
     // Triangle group data (triangleGroupCount * 12 bytes each)
-    // From Ghidra: triGroupCount * 3 * 4 bytes in buffer size formula
     if (header.triangleGroupCount > 0) {
         TriangleGroup triangleGroups[header.triangleGroupCount] [[name("Triangle Groups")]];
     }
@@ -1078,7 +1068,6 @@ struct MaterialRef_BB8 {
 
 // Animation Entry for BB8 (variable size)
 // Each entry: dataSize (u32), then dataSize * 2 DWORDs of keyframe data
-// From Ghidra: puVar11 = puVar9 + *puVar11 * 2; (uint* arithmetic = *8 bytes)
 struct AnimationEntry_BB8 {
     u32 dataSize [[name("Data Size")]];
     if (dataSize > 0 && dataSize < 0x10000) {
@@ -1087,9 +1076,8 @@ struct AnimationEntry_BB8 {
 };
 
 // LOD Entry for BB8 (variable size)
-// From Ghidra: each entry has (indexCount, vertexCount) header
-// followed by (indexCount + vertexCount * 6) * 2 bytes of data
-// Data structure: indexCount * 2 bytes (u16 indices) + vertexCount * 12 bytes (LODVertexEntry)
+// Each entry has (indexCount, vertexCount) header
+// followed by indexCount * 2 bytes (u16 indices) + vertexCount * 12 bytes (LODVertexEntry)
 struct LODEntry_BB8 {
     u32 indexCount [[name("Index Count")]];
     u32 vertexCount [[name("Vertex Count")]];
@@ -1127,7 +1115,7 @@ struct Chunk_BB8_Geometry {
     // Bone weights (if classFlags.HAS_BONE_WEIGHTS)
     if (header.classFlags.HAS_BONE_WEIGHTS) {
         // Variable-length bone weight data - skip for now, read as raw
-        // Would need MdlDecomp_ConvertBoneWeights logic
+        // Complex format not yet fully parsed
     }
 
     // Shader definitions (shaderCount * 8 bytes)
@@ -1202,7 +1190,7 @@ struct Chunk_BB8_Geometry {
     }
 
     // LOD data (if classFlags.HAS_LOD_DATA = 0x10)
-    // From Ghidra: each entry has (indexCount, vertexCount) header
+    // Each entry has (indexCount, vertexCount) header
     // followed by (indexCount + vertexCount * 6) * 2 bytes of data
     if (header.classFlags.HAS_LOD_DATA) {
         u32 lodCount_bb8 [[name("LOD Count")]];
@@ -1223,7 +1211,7 @@ struct Chunk_BB8_Geometry {
     }
 
     // Skeleton data (if classFlags.HAS_SKELETON_DATA = 0x200)
-    // From Ghidra: boneCount (u32), weightCount (u32), then:
+    // Structure: boneCount (u32), weightCount (u32), then:
     //   boneCount * 16 bytes + weightCount * 0x15 bytes
     if (header.classFlags.HAS_SKELETON_DATA) {
         u32 skeletonBoneCount_bb8 [[name("Skeleton Bone Count")]];
@@ -1238,7 +1226,7 @@ struct Chunk_BB8_Geometry {
 
     // Animation sequence data (if classFlags.HAS_ANIMATION_SEQUENCES = 0x100)
     // Internal animation sequences stored within the model (not external BB9/FA1 files)
-    // From Ghidra: count (u32), then for each: dataSize (u32) + dataSize * 2 bytes
+    // Structure: count (u32), then for each: dataSize (u32) + dataSize * 2 bytes
     if (header.classFlags.HAS_ANIMATION_SEQUENCES) {
         u32 animCount_bb8 [[name("Animation Sequence Count")]];
         if (animCount_bb8 > 0 && animCount_bb8 < 256) {
@@ -1247,7 +1235,7 @@ struct Chunk_BB8_Geometry {
     }
 
     // Bounding data (if classFlags.HAS_BOUNDING_DATA = 0x04)
-    // From Ghidra: first DWORD is extra size, next 3 DWORDs are counts/values
+    // First DWORD is extra size, next 3 DWORDs are counts/values
     // Total = 16 bytes header + extraSize bytes
     // Extra data structure: count1 * 88 bytes (type A) + count2 * 80 bytes (type B)
     if (header.classFlags.HAS_BOUNDING_DATA) {
@@ -1341,7 +1329,7 @@ struct BoneAnimHeader {
 };
 
 // VLE (Variable Length Encoding) format documentation:
-// From Model_ExpandUnsignedDeltaVLE @ 0x00771440 and Model_ExpandSignedDeltaVLE @ 0x00771340
+// VLE decoding for keyframe times and Euler angles
 //
 // UNSIGNED DELTA-OF-DELTA VLE (for keyframe TIMES):
 //   First byte format:
@@ -1363,13 +1351,28 @@ struct BoneAnimHeader {
 //     Result wraps at 16 bits: (result & 0xFFFF)
 //
 // EULER ANGLE TO QUATERNION CONVERSION:
-// From Model_DecompressQuaternionKeys @ 0x00770e60:
+// Euler angle to quaternion conversion:
 //   1. Decode 3 delta-encoded u16 values (X, Y, Z Euler angles)
 //   2. Convert [0,65535] to radians: angle = value * (2π/65536) - π
 //   3. Build 3x3 rotation matrices: Rx, Ry, Rz
-//   4. Multiply: result = Rz * Ry * Rx (ZYX order)
+//
+//   CRITICAL: GW uses TRANSPOSED rotation matrices!
+//   Standard Rx:              GW's Rx (transposed):
+//   [1   0    0  ]            [1   0     0  ]
+//   [0  cx  -sx ]            [0  cx    sx ]  <- signs swapped
+//   [0  sx   cx ]            [0 -sx    cx ]  <- signs swapped
+//
+//   Transposed matrix = inverse = rotation by NEGATIVE angle.
+//
+//   4. Multiply: result = Rx * Ry * Rz (code order, right-multiply)
+//      Because matrices are transposed, this effectively computes
+//      rotation by (-x, -y, -z) in ZYX intrinsic order.
 //   5. Convert matrix to quaternion
 //   6. Ensure continuity: if dot(q, prev_q) < 0, negate q
+//
+// TO MATCH GW IN EXTERNAL TOOLS:
+//   Either negate all three Euler angles before standard ZYX conversion,
+//   or use transposed rotation matrices like GW does.
 
 // =============================================================================
 // BB9 SECTION STRUCTURES (defined before Chunk_BB9_Animation)
@@ -1404,8 +1407,7 @@ struct PerBoneHeader {
     u32 unknown [[name("Unknown")]];                   // Often 0
 };
 
-// Joint entry for physics/IK
-// From Ghidra: OUTPUT is always 21 bytes, INPUT depends on compress_flag
+// Joint entry for physics/IK (21 bytes output, input depends on compress_flag)
 struct JointEntry {
     u32 hash [[name("Joint Hash")]];                   // 0x00: Joint identifier
     u16 jointIndex [[name("Joint Index")]];            // 0x04: Index in joint array
@@ -1424,8 +1426,7 @@ struct JointHeader {
     u32 timeValue [[name("Time Value (NOT constraint count!)")]];  // Actually animation time, not count
 };
 
-// Constraint entry for joint physics
-// From Ghidra: 12 bytes per entry (count * 0xC)
+// Constraint entry for joint physics (12 bytes per entry)
 struct ConstraintEntry {
     u32 pad;    // 0x00: Usually 0
     u32 hash;   // 0x04: Constraint identifier
@@ -1435,7 +1436,7 @@ struct ConstraintEntry {
 // Attachment animation bounds entry
 // Format: 24 bytes per entry (6 DWORDs)
 // AttachmentEntry: 48 bytes (12 DWORDs = 0x30 bytes)
-// From Model_ParseAttachmentPoints: param_3 * 0xc (12 DWORDs per entry)
+// Attachment point data: 12 DWORDs per entry
 // After entries, there's frame transform data (6 DWORDs each) and sequence data (4 DWORDs each)
 struct AttachmentEntry {
     u32 field_0x00 [[name("Field 0x00")]];             // 0x00: Example: 4
@@ -1457,14 +1458,12 @@ struct AttachmentHeader {
     u32 count [[name("Attachment Count")]];
 };
 
-// Frame transform data: 6 DWORDs = 24 bytes
-// From Ghidra: puVar7 * 6 (where puVar7 is totalFrameCount)
+// Frame transform data: 6 DWORDs = 24 bytes per frame
 struct AttachmentFrameData {
     u32 data[6] [[name("Frame Transform Data (6 DWORDs)")]];
 };  // 24 bytes
 
-// Sequence data: 4 DWORDs = 16 bytes
-// From Ghidra: iVar4 * 4 (where iVar4 is totalSeqCount)
+// Sequence data: 4 DWORDs = 16 bytes per sequence
 struct AttachmentSeqData {
     u32 data[4] [[name("Sequence Data (4 DWORDs)")]];
 };  // 16 bytes
@@ -1503,7 +1502,7 @@ struct Chunk_BB9_Animation {
 
     // ==========================================================================
     // REMAINING ANIMATION DATA (after VLE bone data)
-    // Section order from Ghidra MdlDecomp_ConvertGeometryChunk_BB9_to_FA1:
+    // Section order (determined by flag bits):
     //   1. Effect/Sound entries (count from header.unknown_0x18) - 22 bytes each
     //   2. Per-bone data (flag 0x4000): header + 24-byte entries
     //   3. Joint data (flag 0x0200): header + 21-byte entries + constraints
@@ -1584,7 +1583,6 @@ struct Chunk_BB9_Animation {
     }
 
     // Section 5: Attachment data (flag 0x0080)
-    // From Ghidra + Frida dynamic analysis:
     // - Count at start (4 bytes)
     // - Each entry is 48 bytes (12 DWORDs)
     // - Entry fields [10] and [11] are frameDataCount and seqDataCount
@@ -1737,12 +1735,10 @@ struct Chunk_FileReferences_BB {
 };
 
 // File References Chunk (FA5/FA6/FAD/FAE) - FA* format is just count + entries
-// From Ghidra: conversion copies data starting after version, so runtime format
-// is just count + entries (version stripped)
 struct Chunk_FileReferences_FA {
     u32 chunkId;
     u32 chunkSize;
-    u32 referenceCount;             // Number of file reference entries (no version)
+    u32 referenceCount;
 
     if (referenceCount > 0 && referenceCount < 256) {
         FileReferenceEntry references[referenceCount] [[name("File References")]];
@@ -1800,7 +1796,7 @@ struct BoneDataEntry_FA0 {
 };
 
 // LOD Entry (variable size)
-// From Model_ParseBoneData: each entry has (count1 + count2 * 6) * 2 bytes of data
+// Bone data: each entry has (count1 + count2 * 6) * 2 bytes of data
 // Data structure: indexCount * 2 bytes (u16 indices) + vertexCount * 12 bytes (LODVertexEntry)
 struct LODEntry_FA0 {
     u32 indexCount [[name("Index Count")]];
@@ -1830,7 +1826,7 @@ struct SkeletonWeightEntry {
 };
 
 // Animation Frame Entry (variable size)
-// From Model_ParseArrayWithCallback with Buffer_CalcFrameOffset
+// Array with frame offset calculation
 // Each entry has a frameCount, followed by frameCount * 8 bytes of frame data
 struct AnimFrameEntry_FA0 {
     u32 frameCount [[name("Frame Count")]];
@@ -1861,7 +1857,7 @@ struct Chunk_FA0_Geometry {
         ShaderDefinition shaders[header.shaderCount] [[name("Shader Definitions")]];
     }
 
-    // Material data as parallel arrays (from Model_ParseShaderData)
+    // Material data as parallel arrays
     // Total size: materialBaseCount * 9 + (unknown_0x20 != 0 ? materialBaseCount : 0)
     if (header.materialBaseCount > 0 && header.materialBaseCount < 0x80) {
         // Render flags: 2 bytes each
@@ -1880,7 +1876,7 @@ struct Chunk_FA0_Geometry {
         }
     }
 
-    // Texture/Material section (from Model_ParseMaterialData)
+    // Texture/Material section
     // textureGroupCount * 9 bytes + maxBoneIndices * (3 or 4) + textureCount * 8 + strings + materialCount * 8
     if (header.textureGroupCount > 0 && header.textureGroupCount != 0xFF) {
         TextureGroupDef_BB8 textureGroups[header.textureGroupCount] [[name("Texture Groups")]];
@@ -2041,7 +2037,6 @@ struct Chunk_FAB_IndexBuffer {
 // MAP FILE CHUNKS (FFNA Type 3)
 // =============================================================================
 // Map files use chunk IDs in the 0x20xxxxxx (full data) and 0x10xxxxxx (stub) ranges.
-// Reference: Gw.exe Ghidra analysis + gw1-map-viewer/src/loaders/
 //
 // Chunk ID Reference (0x20xxxxxx = full, 0x10xxxxxx = stub):
 //   0x20000000: MapHeaderChunk - Basic map header
@@ -2128,7 +2123,6 @@ struct MapInfoChunk {
 
 // =============================================================================
 // 0x20000002 - TERRAIN CHUNK (Heightmap & Textures)
-// Verified from Gw.exe terrain loading functions
 // =============================================================================
 
 // Per-tile lighting/shadow data for 32x32 tile blocks
@@ -2396,12 +2390,10 @@ struct UnknownChunk07 {
 
 // =============================================================================
 // 0x20000008 - PATHFINDING CHUNK (Navigation Mesh)
-// Verified from Gw.exe: PathChunk_ReadHeader @ 0x006f9040
 // Contains trapezoid-based navmesh organized by elevation planes
 // =============================================================================
 
 // Navigation mesh trapezoid (44 bytes)
-// Verified from Path_import_trapezoids @ 0x006fa750
 struct NavMeshTrapezoid {
     // Neighbor indices (PLANE-LOCAL, 0xFFFFFFFF = no neighbor)
     u32 neighborTopLeft [[name("Neighbor Top-Left")]];
@@ -2423,7 +2415,6 @@ struct NavMeshTrapezoid {
 };
 
 // Portal connecting different elevation planes (9 bytes)
-// Verified from PathData_ImportPortals @ 0x006fa1b0
 struct NavMeshPortal {
     u16 trapezoidCount [[name("Trapezoid Count")]];
     u16 trapezoidStartIndex [[name("Trapezoid Start Index")]];
@@ -2433,7 +2424,6 @@ struct NavMeshPortal {
 };
 
 // X-axis BSP node for spatial queries (16 bytes)
-// Verified from Path_import_x_nodes @ 0x006fa470
 struct NavMeshXNode {
     u32 vertexIndexStart [[name("Vertex Index Start")]];
     u32 vertexIndexEnd [[name("Vertex Index End")]];
@@ -2442,7 +2432,6 @@ struct NavMeshXNode {
 };
 
 // Y-axis BSP node (12 bytes)
-// Verified from Path_import_y_nodes @ 0x006fa5c0
 struct NavMeshYNode {
     u32 vertexIndex [[name("Vertex Index")]];
     u32 leftChildIndex [[name("Left Child Index")]];
@@ -2450,7 +2439,6 @@ struct NavMeshYNode {
 };
 
 // Sink node referencing a trapezoid (4 bytes)
-// Verified from Path_import_sink_nodes @ 0x006fa3f0
 struct NavMeshSinkNode {
     u32 trapezoidIndex [[name("Trapezoid Index")]];
 };
@@ -2462,7 +2450,6 @@ struct PathfindingTag {
 };
 
 // Plane header with array counts (32 bytes)
-// Verified from PathChunk_AllocArrays @ 0x006f9aa0
 struct NavMeshPlaneHeader {
     u32 polyDataCount [[name("Poly Data Count")]];
     u32 edgeVectorCount [[name("Edge Vector Count")]];
@@ -2521,7 +2508,6 @@ struct NavMeshPlane {
 
 // Static obstacle (tree, rock, pillar, etc.)
 // Circular collision primitive blocking character movement
-// From Ghidra analysis of PathObstacle_Import @ 0x006f8e20
 struct StaticObstacle {
     float x [[name("X")]];           // World X coordinate
     float y [[name("Y")]];           // World Y coordinate (Z in 3D)
@@ -2552,7 +2538,6 @@ struct PathfindingObstacleData {
 };
 
 // Main pathfinding chunk
-// Verified from PathChunk_ReadHeader @ 0x006f9040
 struct PathfindingChunk {
     u32 chunkId [[name("Chunk ID")]];
     u32 chunkSize [[name("Chunk Size")]];
