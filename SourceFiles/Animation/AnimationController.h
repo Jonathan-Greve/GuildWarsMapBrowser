@@ -441,7 +441,7 @@ private:
     float m_currentTime = 0.0f;
     float m_playbackSpeed = 100000.0f;  // Time units per second
     bool m_looping = true;
-    bool m_autoCycleSequences = false;
+    bool m_autoCycleSequences = true;
 
     size_t m_currentSequenceIndex = 0;
     float m_sequenceStartTime = 0.0f;

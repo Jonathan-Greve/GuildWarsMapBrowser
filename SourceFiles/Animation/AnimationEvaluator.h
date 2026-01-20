@@ -248,9 +248,6 @@ public:
      * @param customBindPositions Custom bind positions (typically derived from mesh vertex centroids).
      * @param outSkinningMatrices Output array of skinning matrices.
      */
-    // Debug flag - set to true to log skinning data once
-    static inline bool s_logSkinningOnce = true;
-
     void ComputeSkinningWithCustomBindPositions(const AnimationClip& clip, float time,
                                                  const std::vector<XMFLOAT3>& customBindPositions,
                                                  std::vector<XMFLOAT4X4>& outSkinningMatrices)
@@ -262,16 +259,6 @@ public:
         size_t boneCount = clip.boneTracks.size();
         outSkinningMatrices.resize(boneCount);
 
-        // Debug logging (once)
-        bool doLog = s_logSkinningOnce;
-        if (doLog)
-        {
-            s_logSkinningOnce = false;
-            char msg[512];
-            sprintf_s(msg, "\n=== SKINNING DEBUG (time=%.1f, %zu bones) ===\n", time, boneCount);
-            LogBB8Debug(msg);
-        }
-
         for (size_t i = 0; i < boneCount; i++)
         {
             // Use custom bind position if available, otherwise fall back to animation
@@ -280,26 +267,6 @@ public:
 
             const XMFLOAT3& worldPos = worldPositions[i];
             const XMFLOAT4& worldRot = worldRotations[i];
-
-            // Debug log first 10 bones
-            if (doLog && i < 10)
-            {
-                const XMFLOAT3& animBindPos = clip.boneTracks[i].basePosition;
-                bool usingMeshBind = (i < customBindPositions.size());
-                char msg[768];
-                sprintf_s(msg, "Bone %zu:\n"
-                    "  animBindPos=(%.2f, %.2f, %.2f)\n"
-                    "  meshBindPos=(%.2f, %.2f, %.2f) %s\n"
-                    "  worldPos=(%.2f, %.2f, %.2f)\n"
-                    "  worldRot=(w=%.3f, x=%.3f, y=%.3f, z=%.3f)\n",
-                    i,
-                    animBindPos.x, animBindPos.y, animBindPos.z,
-                    bindPos.x, bindPos.y, bindPos.z,
-                    usingMeshBind ? "<-- USING" : "(same)",
-                    worldPos.x, worldPos.y, worldPos.z,
-                    worldRot.w, worldRot.x, worldRot.y, worldRot.z);
-                LogBB8Debug(msg);
-            }
 
             // Skinning formula:
             // skinned = world_pos + rotate(vertex - bind_pos, world_rot)
@@ -310,23 +277,6 @@ public:
 
             XMMATRIX skinning = inverseBind * boneRotation * boneTranslation;
             XMStoreFloat4x4(&outSkinningMatrices[i], skinning);
-
-            // Log the resulting matrix for first few bones
-            if (doLog && i < 5)
-            {
-                XMFLOAT4X4 mat;
-                XMStoreFloat4x4(&mat, skinning);
-                char msg[512];
-                sprintf_s(msg, "  skinMatrix row0=(%.3f, %.3f, %.3f, %.3f)\n             row3=(%.3f, %.3f, %.3f, %.3f)\n",
-                    mat._11, mat._12, mat._13, mat._14,
-                    mat._41, mat._42, mat._43, mat._44);
-                LogBB8Debug(msg);
-            }
-        }
-
-        if (doLog)
-        {
-            LogBB8Debug("=== END SKINNING DEBUG ===\n\n");
         }
     }
 
