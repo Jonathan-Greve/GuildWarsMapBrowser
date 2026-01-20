@@ -251,11 +251,12 @@ public:
             prevZ = ExpandSignedDeltaVLE(prevZ);
 
             // Convert from 16-bit encoded values to radians (still in GW space)
-            // Negate X rotation: the X axis is the same in both coordinate systems,
-            // but "forward" changes from GW Y to GWMB Z, so forward/backward lean inverts
+            // GW uses TRANSPOSED rotation matrices (Ghidra: Model_DecompressQuaternionKeys @ 0x00770e60)
+            // Transposed matrices = inverse rotation = rotation by negative angle
+            // Therefore we negate ALL three Euler angles to match GW's convention
             float rx_gw = -(prevX * ANGLE_SCALE - ANGLE_OFFSET);
-            float ry_gw = prevY * ANGLE_SCALE - ANGLE_OFFSET;
-            float rz_gw = prevZ * ANGLE_SCALE - ANGLE_OFFSET;
+            float ry_gw = -(prevY * ANGLE_SCALE - ANGLE_OFFSET);
+            float rz_gw = -(prevZ * ANGLE_SCALE - ANGLE_OFFSET);
 
             // Convert Euler angles to quaternion in GW coordinate space
             XMFLOAT4 quat_gw = EulerToQuaternion(rx_gw, ry_gw, rz_gw);
@@ -290,7 +291,10 @@ public:
     }
 
     /**
-     * @brief Converts Euler angles (XYZ order) to quaternion.
+     * @brief Converts Euler angles (ZYX order) to quaternion.
+     *
+     * GW uses ZYX rotation order: Z is applied first, then Y, then X.
+     * The quaternion multiplication order is reversed: q = Qx * Qy * Qz
      *
      * @param rx Rotation around X axis in radians.
      * @param ry Rotation around Y axis in radians.
@@ -306,11 +310,13 @@ public:
         float cz = std::cos(rz * 0.5f);
         float sz = std::sin(rz * 0.5f);
 
+        // ZYX order: q = Qx * Qy * Qz (intrinsic rotations)
+        // Derived from Hamilton product: Qx * (Qy * Qz)
         XMFLOAT4 q;
-        q.w = cx * cy * cz + sx * sy * sz;
-        q.x = sx * cy * cz - cx * sy * sz;
-        q.y = cx * sy * cz + sx * cy * sz;
-        q.z = cx * cy * sz - sx * sy * cz;
+        q.w = cx * cy * cz - sx * sy * sz;
+        q.x = sx * cy * cz + cx * sy * sz;
+        q.y = cx * sy * cz - sx * cy * sz;
+        q.z = cx * cy * sz + sx * sy * cz;
 
         // Normalize
         float length = std::sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
