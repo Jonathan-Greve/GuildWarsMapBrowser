@@ -118,12 +118,15 @@ public:
     }
 
     /**
-     * @brief Alternative evaluation using bind pose offsets (matches animated_viewer.py).
+     * @brief Evaluates bone hierarchy to compute world-space transforms.
      *
-     * This method computes world transforms by:
-     * 1. Computing bind pose offset from parent for each bone
-     * 2. Rotating that offset by parent's accumulated rotation
-     * 3. Adding parent's world position
+     * Since BB9 animation data stores ABSOLUTE bind positions (not relative to parent),
+     * we must compute the relative offset from parent before rotating:
+     *   offset = childBasePos - parentBasePos
+     *   localOffset = offset + animDelta
+     *   worldPos = parentWorldPos + rotate(localOffset, parentWorldRot)
+     *
+     * This ensures bones stay at their correct positions in bind pose and animate properly.
      *
      * @param clip Animation clip to evaluate.
      * @param time Animation time.
@@ -138,7 +141,7 @@ public:
         outWorldPositions.resize(boneCount);
         outWorldRotations.resize(boneCount);
 
-        // Precompute bind pose offsets from parent
+        // Precompute bind pose offsets from parent (since basePositions are absolute)
         std::vector<XMFLOAT3> bindOffsets(boneCount);
         for (size_t i = 0; i < boneCount; i++)
         {
@@ -171,8 +174,7 @@ public:
                 const XMFLOAT4& parentRot = outWorldRotations[parentIdx];
                 const XMFLOAT3& parentPos = outWorldPositions[parentIdx];
 
-                // Local offset = bind offset + animation position delta
-                // This matches Python: local_offset = local_bind_offset + anim_pos_delta
+                // Local offset = relative bind offset + animation position delta
                 XMFLOAT3 localOffset = {
                     bindOffsets[i].x + localTransform.position.x,
                     bindOffsets[i].y + localTransform.position.y,
@@ -195,7 +197,6 @@ public:
             else
             {
                 // Root bone: world pos = bind pos + animation position delta
-                // This matches Python: world_pos = bind_pos + anim_pos_delta
                 const XMFLOAT3& bindPos = clip.boneTracks[i].basePosition;
                 outWorldPositions[i] = {
                     bindPos.x + localTransform.position.x,
