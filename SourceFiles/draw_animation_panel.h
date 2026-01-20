@@ -94,6 +94,15 @@ struct AnimationPanelState
     // Visualization options
     AnimationVisualizationOptions visualization;
 
+    // Persistent playback settings (survive Reset() and animation switches)
+    struct PlaybackSettings
+    {
+        float playbackSpeed = 1.0f;
+        bool looping = true;
+        bool autoCycle = true;  // Default to enabled
+        bool hasBeenSet = false;  // True once user has changed any setting
+    } playbackSettings;
+
     // Submesh information (populated when model is loaded)
     std::vector<std::string> submeshNames;
     size_t submeshCount = 0;
@@ -151,6 +160,9 @@ struct AnimationPanelState
 
     void Reset()
     {
+        // Save playback settings before reset (they persist across model/animation changes)
+        PlaybackSettings savedSettings = playbackSettings;
+
         controller.reset();
         clip.reset();
         skeleton.reset();
@@ -172,6 +184,9 @@ struct AnimationPanelState
         meshIds.clear();
         perMeshPerObjectCB.clear();
         perMeshTextureIds.clear();
+
+        // Restore playback settings
+        playbackSettings = savedSettings;
     }
 
     void SetModelHashes(uint32_t hash0, uint32_t hash1, uint32_t fileId)
@@ -328,6 +343,11 @@ struct AnimationPanelState
             controller = std::make_shared<GW::Animation::AnimationController>();
             controller->Initialize(clip, skeleton);
             hasAnimation = true;
+
+            // Apply persistent playback settings to the new controller
+            controller->SetPlaybackSpeed(playbackSettings.playbackSpeed * 100000.0f);
+            controller->SetLooping(playbackSettings.looping);
+            controller->SetAutoCycleSequences(playbackSettings.autoCycle);
         }
         else
         {

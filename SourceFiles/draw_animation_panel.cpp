@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "draw_animation_panel.h"
-#include "Animation/AnimationEvaluator.h"  // For s_logSkinningOnce
 #include <GuiGlobalConstants.h>
 #include <DATManager.h>
 #include "Parsers/BB9AnimationParser.h"
@@ -12,7 +11,6 @@
 AnimationPanelState g_animationState;
 
 // Local state for the panel
-static float s_playbackSpeed = 1.0f;  // User-friendly speed (1.0 = normal)
 static bool s_showBoneInfo = false;
 static std::mutex s_resultsMutex;
 
@@ -235,19 +233,13 @@ static void LoadAnimationFromResult(
             uint32_t savedModelFileId = g_animationState.currentFileId;
             bool savedHasModel = g_animationState.hasModel;
 
+            // Initialize applies persistent playback settings automatically
             g_animationState.Initialize(clip, skeleton, result.fileId);
 
             // Restore model info
             g_animationState.modelHash0 = savedHash0;
             g_animationState.modelHash1 = savedHash1;
             g_animationState.hasModel = savedHasModel;
-
-            // Reset playback speed
-            s_playbackSpeed = 1.0f;
-            if (g_animationState.controller)
-            {
-                g_animationState.controller->SetPlaybackSpeed(100000.0f);
-            }
         }
 
         delete[] fileData;
@@ -564,12 +556,14 @@ void draw_animation_panel(std::map<int, std::unique_ptr<DATManager>>& dat_manage
             ImGui::Text("Options");
             ImGui::Separator();
 
-            // Playback speed
-            if (ImGui::SliderFloat("Speed", &s_playbackSpeed, 0.1f, 4.0f, "%.1fx"))
+            // Playback speed (use persistent settings)
+            auto& settings = g_animationState.playbackSettings;
+            if (ImGui::SliderFloat("Speed", &settings.playbackSpeed, 0.1f, 4.0f, "%.1fx"))
             {
                 // Convert user-friendly speed to internal time units per second
                 // At 1.0x speed, we want roughly 100000 time units per second
-                ctrl.SetPlaybackSpeed(s_playbackSpeed * 100000.0f);
+                ctrl.SetPlaybackSpeed(settings.playbackSpeed * 100000.0f);
+                settings.hasBeenSet = true;
             }
             if (ImGui::IsItemHovered())
             {
@@ -580,7 +574,7 @@ void draw_animation_panel(std::map<int, std::unique_ptr<DATManager>>& dat_manage
             ImGui::SameLine();
             if (ImGui::SmallButton("Reset"))
             {
-                s_playbackSpeed = 1.0f;
+                settings.playbackSpeed = 1.0f;
                 ctrl.SetPlaybackSpeed(100000.0f);
             }
 
@@ -589,6 +583,8 @@ void draw_animation_panel(std::map<int, std::unique_ptr<DATManager>>& dat_manage
             if (ImGui::Checkbox("Loop", &looping))
             {
                 ctrl.SetLooping(looping);
+                settings.looping = looping;
+                settings.hasBeenSet = true;
             }
 
             ImGui::SameLine();
@@ -598,6 +594,8 @@ void draw_animation_panel(std::map<int, std::unique_ptr<DATManager>>& dat_manage
             if (ImGui::Checkbox("Auto-cycle sequences", &autoCycle))
             {
                 ctrl.SetAutoCycleSequences(autoCycle);
+                settings.autoCycle = autoCycle;
+                settings.hasBeenSet = true;
             }
             if (ImGui::IsItemHovered())
             {
@@ -629,18 +627,6 @@ void draw_animation_panel(std::map<int, std::unique_ptr<DATManager>>& dat_manage
                 if (ImGui::IsItemHovered())
                 {
                     ImGui::SetTooltip("Show mesh in bind pose (no animation deformation).\nUseful for debugging skinning issues.");
-                }
-
-                ImGui::SameLine();
-                if (ImGui::Button("Log Skinning"))
-                {
-                    // Reset the flag to log skinning data on next frame
-                    GW::Animation::AnimationEvaluator::s_logSkinningOnce = true;
-                    LogBB8Debug("\n*** User requested skinning log dump ***\n");
-                }
-                if (ImGui::IsItemHovered())
-                {
-                    ImGui::SetTooltip("Write skinning debug data to bb8_debug.log");
                 }
 
                 ImGui::Spacing();
