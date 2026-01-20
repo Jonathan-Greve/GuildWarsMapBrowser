@@ -223,8 +223,15 @@ public:
      * Scale: angle = value * (2π/65536) - π
      * Rotation order: ZYX (applied as Z, then Y, then X)
      *
+     * Coordinate transform: GW uses (x, y, z) = (left/right, front/back, down/up)
+     * GWMB uses (x, y, z) = (left/right, up/down, front/back)
+     * Transform: (x_gwmb, y_gwmb, z_gwmb) = (x_gw, -z_gw, y_gw)
+     *
+     * For quaternions, the rotation axis must also be transformed:
+     * (qx_gwmb, qy_gwmb, qz_gwmb, qw_gwmb) = (qx_gw, -qz_gw, qy_gw, qw_gw)
+     *
      * @param count Number of rotation keyframes to decompress.
-     * @return Vector of XMFLOAT4 quaternions (w, x, y, z order).
+     * @return Vector of XMFLOAT4 quaternions (x,y,z,w members).
      */
     std::vector<XMFLOAT4> DecompressQuaternionKeys(uint32_t count)
     {
@@ -238,21 +245,29 @@ public:
 
         for (uint32_t i = 0; i < count; i++)
         {
-            // Decode delta-encoded Euler angles
+            // Decode delta-encoded Euler angles (in GW coordinate space)
             prevX = ExpandSignedDeltaVLE(prevX);
             prevY = ExpandSignedDeltaVLE(prevY);
             prevZ = ExpandSignedDeltaVLE(prevZ);
 
-            // Convert from 16-bit encoded values to radians
-            // GW animation data is in GW coordinate space (x=left/right, y=front/back, z=down/up)
-            // We convert positions to GWMB space using (x, -z, y), so rotations need adjustment
-            // Negate rx to correct the rotation direction after coordinate transform
-            float rx = -(prevX * ANGLE_SCALE - ANGLE_OFFSET);
-            float ry = prevY * ANGLE_SCALE - ANGLE_OFFSET;
-            float rz = prevZ * ANGLE_SCALE - ANGLE_OFFSET;
+            // Convert from 16-bit encoded values to radians (still in GW space)
+            // Negate X rotation: the X axis is the same in both coordinate systems,
+            // but "forward" changes from GW Y to GWMB Z, so forward/backward lean inverts
+            float rx_gw = -(prevX * ANGLE_SCALE - ANGLE_OFFSET);
+            float ry_gw = prevY * ANGLE_SCALE - ANGLE_OFFSET;
+            float rz_gw = prevZ * ANGLE_SCALE - ANGLE_OFFSET;
 
-            // Convert Euler angles to quaternion
-            XMFLOAT4 quat = EulerToQuaternion(rx, ry, rz);
+            // Convert Euler angles to quaternion in GW coordinate space
+            XMFLOAT4 quat_gw = EulerToQuaternion(rx_gw, ry_gw, rz_gw);
+
+            // Transform quaternion from GW space to GWMB space
+            // Position transform: (x, y, z) -> (x, -z, y)
+            // Quaternion axis transform: (qx, qy, qz) -> (qx, -qz, qy)
+            XMFLOAT4 quat;
+            quat.x = quat_gw.x;
+            quat.y = -quat_gw.z;
+            quat.z = quat_gw.y;
+            quat.w = quat_gw.w;
 
             // Ensure quaternion continuity (flip if dot product is negative)
             if (i > 0)
@@ -312,7 +327,17 @@ public:
     }
 
     /**
-     * @brief Spherical linear interpolation between two quaternions.
+     * @brief Normalized Linear Interpolation (NLERP) between two quaternions.
+     *
+     * Guild Wars uses NLERP instead of true SLERP for quaternion interpolation.
+     * NLERP is faster (no trig functions) and produces nearly identical results
+     * for small angular differences between keyframes.
+     *
+     * Algorithm (from Ghidra RE of Gw.exe Quat_Slerp at 0x00758430):
+     * 1. Compute dot product to check if quaternions are on same hemisphere
+     * 2. If dot < 0, negate q2 to take shorter path (antipodal handling)
+     * 3. Linear interpolation: result = (1-t)*q1 + t*q2
+     * 4. Normalize the result
      *
      * @param q1 First quaternion.
      * @param q2 Second quaternion.
@@ -321,51 +346,35 @@ public:
      */
     static XMFLOAT4 QuaternionSlerp(const XMFLOAT4& q1, XMFLOAT4 q2, float t)
     {
-        // Compute dot product
+        // Compute dot product (GW computes: w1*w2 + z1*z2 + x1*x2 + y1*y2)
         float dot = q1.w * q2.w + q1.x * q2.x + q1.y * q2.y + q1.z * q2.z;
 
-        // If dot is negative, negate one quaternion to take shorter path
+        // If dot is negative, negate q2 to take shorter path (antipodal handling)
+        float sign = 1.0f;
         if (dot < 0.0f)
         {
-            q2.w = -q2.w;
-            q2.x = -q2.x;
-            q2.y = -q2.y;
-            q2.z = -q2.z;
+            sign = -1.0f;
             dot = -dot;
         }
 
-        // If quaternions are very close, use linear interpolation
-        if (dot > 0.9995f)
-        {
-            XMFLOAT4 result;
-            result.w = q1.w + t * (q2.w - q1.w);
-            result.x = q1.x + t * (q2.x - q1.x);
-            result.y = q1.y + t * (q2.y - q1.y);
-            result.z = q1.z + t * (q2.z - q1.z);
-
-            // Normalize
-            float length = std::sqrt(result.w * result.w + result.x * result.x +
-                                     result.y * result.y + result.z * result.z);
-            float invLen = 1.0f / length;
-            result.w *= invLen;
-            result.x *= invLen;
-            result.y *= invLen;
-            result.z *= invLen;
-
-            return result;
-        }
-
-        // Standard slerp
-        float theta = std::acos(dot);
-        float sinTheta = std::sin(theta);
-        float s1 = std::sin((1.0f - t) * theta) / sinTheta;
-        float s2 = std::sin(t * theta) / sinTheta;
+        // Linear interpolation: result = (1-t)*q1 + sign*t*q2
+        float oneMinusT = 1.0f - t;
+        float tSigned = sign * t;
 
         XMFLOAT4 result;
-        result.w = s1 * q1.w + s2 * q2.w;
-        result.x = s1 * q1.x + s2 * q2.x;
-        result.y = s1 * q1.y + s2 * q2.y;
-        result.z = s1 * q1.z + s2 * q2.z;
+        result.x = oneMinusT * q1.x + tSigned * q2.x;
+        result.y = oneMinusT * q1.y + tSigned * q2.y;
+        result.z = oneMinusT * q1.z + tSigned * q2.z;
+        result.w = oneMinusT * q1.w + tSigned * q2.w;
+
+        // Normalize the result
+        float lengthSq = result.x * result.x + result.y * result.y +
+                         result.z * result.z + result.w * result.w;
+        float invLen = 1.0f / std::sqrt(lengthSq);
+        result.x *= invLen;
+        result.y *= invLen;
+        result.z *= invLen;
+        result.w *= invLen;
 
         return result;
     }
