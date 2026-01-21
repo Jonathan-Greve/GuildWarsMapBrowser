@@ -84,6 +84,10 @@ struct AnimationPanelState
     uint32_t modelHash0 = 0;
     uint32_t modelHash1 = 0;
 
+    // Model scale factor (computed from mesh bounding box to fit in view)
+    // This is the scale that makes the mesh fit into a 10000 unit bounding box
+    float meshScale = 1.0f;
+
     // Animation search state
     std::vector<AnimationSearchResult> searchResults;
     std::atomic<bool> searchInProgress{false};
@@ -171,6 +175,7 @@ struct AnimationPanelState
         hasModel = false;
         modelHash0 = 0;
         modelHash1 = 0;
+        meshScale = 1.0f;
         searchResults.clear();
         selectedResultIndex = -1;
         visualization = AnimationVisualizationOptions();
@@ -317,6 +322,11 @@ struct AnimationPanelState
             {
                 // Map bone group index to skeleton bone via palette
                 skelBone = boneData.MapGroupToSkeletonBone(groupIdx);
+                // Clamp to valid range - some meshes reference bones beyond animation bone count
+                if (skelBone >= boneCount)
+                {
+                    skelBone = skelBone % boneCount;  // Wrap around instead of clamping to 0
+                }
             }
 
             sv.SetSingleBone(skelBone);
@@ -418,10 +428,10 @@ struct AnimationPanelState
                     skelBone = boneData.MapGroupToSkeletonBone(groupIdx);
                 }
 
-                // Clamp to valid bone index
+                // Wrap to valid bone index (same logic as CreateSkinnedVertices)
                 if (skelBone >= boneCount)
                 {
-                    skelBone = 0;
+                    skelBone = skelBone % static_cast<uint32_t>(boneCount);
                 }
 
                 // Accumulate position

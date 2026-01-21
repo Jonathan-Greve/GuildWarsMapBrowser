@@ -938,6 +938,13 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			// Store per-object CB data for skinned rendering
 			g_animationState.perMeshPerObjectCB = per_object_cbs;
 
+			// Store the mesh scale factor (skeleton needs to match mesh scale)
+			float modelWidth = overallMaxX - overallMinX;
+			float modelHeight = overallMaxY - overallMinY;
+			float modelDepth = overallMaxZ - overallMinZ;
+			float maxDimension = std::max({ modelWidth, modelHeight, modelDepth });
+			g_animationState.meshScale = (maxDimension > 0.001f) ? (10000.0f / maxDimension) : 1.0f;
+
 			// Store texture IDs for skinned rendering
 			g_animationState.perMeshTextureIds = per_mesh_tex_ids;
 

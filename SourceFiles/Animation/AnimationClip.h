@@ -140,6 +140,11 @@ struct AnimationClip
     uint32_t modelHash0 = 0;                     // Model signature part 1
     uint32_t modelHash1 = 0;                     // Model signature part 2
 
+    float geometryScale = 1.0f;                  // Geometry scale factor from header (FA1 offset 0x20)
+
+    bool useWorldSpaceRotations = false;         // True if rotations are world-space (no parent accumulation)
+                                                  // Set when no proper hierarchy data exists (SEQUENTIAL mode)
+
     std::vector<BoneTrack> boneTracks;           // Per-bone animation data
     std::vector<int32_t> boneParents;            // Bone hierarchy (parent indices)
     std::vector<AnimationSequence> sequences;    // Animation sequences

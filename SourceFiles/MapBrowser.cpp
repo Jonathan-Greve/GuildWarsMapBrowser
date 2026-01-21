@@ -172,7 +172,6 @@ void MapBrowser::Update(duration<double, std::milli> elapsed)
         // Create animated meshes if we have animation and model but no skinned meshes yet
         if (!g_animationState.hasSkinnedMeshes && !g_animationState.originalMeshes.empty())
         {
-
             g_animationState.CreateAnimatedMeshes(m_deviceResources->GetD3DDevice());
         }
 
