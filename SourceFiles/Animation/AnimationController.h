@@ -408,7 +408,11 @@ private:
 
         // First, evaluate hierarchical transforms to get world positions and rotations
         // These are needed for bone visualization and debugging
-        m_evaluator.EvaluateHierarchical(*m_clip, m_currentTime, m_boneWorldPositions, m_boneWorldRotations);
+        // Pass mesh bind positions if available - essential for POP_COUNT mode models
+        // where animation basePosition doesn't match mesh bind positions
+        const std::vector<XMFLOAT3>* bindPosPtr =
+            (m_useMeshBindPositions && !m_meshBindPositions.empty()) ? &m_meshBindPositions : nullptr;
+        m_evaluator.EvaluateHierarchical(*m_clip, m_currentTime, m_boneWorldPositions, m_boneWorldRotations, bindPosPtr);
 
         // Then compute skinning matrices from the world transforms
         // Use mesh-derived bind positions if available (they match actual vertex positions)

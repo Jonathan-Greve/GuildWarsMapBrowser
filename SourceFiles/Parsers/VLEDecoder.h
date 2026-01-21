@@ -428,6 +428,19 @@ public:
         return result;
     }
 
+    /**
+     * @brief Computes the inverse of a unit quaternion (conjugate).
+     *
+     * For unit quaternions, inverse = conjugate (negate vector part, keep scalar).
+     *
+     * @param q Unit quaternion (XMFLOAT4 with x,y,z,w members).
+     * @return Inverse quaternion.
+     */
+    static XMFLOAT4 QuaternionInverse(const XMFLOAT4& q)
+    {
+        return {-q.x, -q.y, -q.z, q.w};
+    }
+
 private:
     const uint8_t* m_data;
     size_t m_dataSize;

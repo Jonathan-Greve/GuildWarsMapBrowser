@@ -933,10 +933,11 @@ struct GeometryHeader_FA1 {
     u16 sequenceKeyframeCount0; // 0x18
     u16 sequenceKeyframeCount1; // 0x1A
     u32 unknown_0x1C;
-    float boundingSphereX;      // 0x20
-    float boundingSphereY;      // 0x24
-    float boundingSphereZ;      // 0x28
-    float boundingSphereRadius; // 0x2C
+    float geometryScale;        // 0x20: Skeleton/geometry scale factor (GW stores at model+0x100)
+                                //       If negative/zero, GW computes scale from bounding data
+    u32 unknown_0x24;
+    u32 unknown_0x28;
+    u32 unknown_0x2C;
     u32 unknown_0x30;
     u32 transformDataSize;      // 0x34
     u32 submeshCount;           // 0x38
@@ -1294,24 +1295,39 @@ struct BoneTransformHeader_BB9 {
 //
 // KEY DISCOVERIES:
 //   1. base_position is ABSOLUTE world coordinate in bind pose, NOT relative to parent
-//   2. hierarchyDepth is used ONLY for matrix stack ops during animation playback
-//   3. Parent-child relationships are computed from depth changes (see algorithm below)
+//   2. The hierarchyByte has TWO possible interpretations (auto-detected at parse time):
+//      - TREE_DEPTH mode: absolute level in hierarchy (0=root, 1=child, 2=grandchild)
+//      - POP_COUNT mode: levels to pop from internal matrix stack before pushing
+//   3. Runtime applies (basePos + animDelta) then subtracts basePos, leaving only animDelta
 //
-// PARENT COMPUTATION ALGORITHM:
-//   - If depth INCREASES from previous bone: previous bone is parent (child relationship)
-//   - If depth DECREASES or stays same: look up bone at depth-1 (sibling relationship)
-//   - Multiple bones at same depth are siblings sharing the same parent
+// HIERARCHY ENCODING DETECTION:
+//   TREE_DEPTH mode: Values like [0,1,2,3,2,3,1,2] - increases by 1 for children, decreases at branches
+//   POP_COUNT mode:  Values like [0,0,0,0,3,0,0] - mostly 0s with occasional jumps at branch points
+//   WORLD_SPACE mode: All zeros - each bone has independent absolute transforms (no hierarchy)
+//
+// PARENT COMPUTATION ALGORITHMS:
+//   TREE_DEPTH: Track bones at each depth level, parent = most recent bone at (depth-1)
+//   POP_COUNT:  Maintain stack of bone indices, pop N entries, parent = stack.top(), push current
+//
+// RUNTIME TRANSFORM ALGORITHM (per bone, in order):
+//   1. Pop 'hierarchyByte' levels from matrix stack (returns to parent's transform)
+//   2. Build local matrix with translation = (basePos + animDelta) and sampled rotation
+//   3. Push local matrix onto stack (multiplies with parent: result = parent * local)
+//   4. Translate by -basePos (cancels basePos, leaving only animDelta in rotated frame)
+//   5. Store final matrix for skinning
+//
+// NET EFFECT: bone's animated position = parent_rotation * animDelta + parent_position
 //
 struct BoneAnimHeader {
     float basePositionX;    // 0x00: Bone's ABSOLUTE X position in bind pose (world space)
     float basePositionY;    // 0x04: Bone's ABSOLUTE Y position in bind pose (world space)
     float basePositionZ;    // 0x08: Bone's ABSOLUTE Z position in bind pose (world space)
-    u8 hierarchyDepth;      // 0x0C: Hierarchy depth for matrix stack push/pop during animation
-    u8 flagsByte1;          // 0x0D: Additional flags (unused?)
-    u8 flagsByte2;          // 0x0E: Additional flags (unused?)
-    u8 flagsByte3;          // 0x0F: Additional flags (unused?)
+    u8 hierarchyByte;       // 0x0C: Tree depth OR pop count (see detection logic above)
+    u8 flagsByte1;          // 0x0D: High bits of boneFlags (special handling flags)
+    u8 flagsByte2;          // 0x0E: Bit flags for light attachments, render skipping
+    u8 flagsByte3;          // 0x0F: Emitter index bits (mask 0x1F)
     u16 posKeyCount;        // 0x10: Number of position keyframes (animated delta from base)
-    u16 rotKeyCount;        // 0x12: Number of rotation keyframes (Euler -> quaternion)
+    u16 rotKeyCount;        // 0x12: Number of rotation keyframes (VLE Euler -> quaternion)
     u16 scaleKeyCount;      // 0x14: Number of scale keyframes
     // Total: 22 bytes (0x16)
     //
@@ -1324,8 +1340,10 @@ struct BoneAnimHeader {
     //   6. Scale values: float3 * scaleKeyCount (12 bytes each)
     //
     // ANIMATION SKINNING FORMULA:
-    //   vertex_offset = vertex.position - bone.base_position  (in bind pose)
-    //   animated_vertex = bone.world_position + quaternion_rotate(bone.world_rotation, vertex_offset)
+    //   bindOffset = childBasePos - parentBasePos (computed once at load time)
+    //   worldPos = parentWorldPos + rotate(bindOffset + animDelta, parentWorldRot)
+    //   worldRot = parentWorldRot * localRot (quaternion multiplication)
+    //   skinnedVertex = worldPos + rotate(vertex - basePos, worldRot)
 };
 
 // VLE (Variable Length Encoding) format documentation:
