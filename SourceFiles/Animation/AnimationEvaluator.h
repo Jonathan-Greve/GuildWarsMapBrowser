@@ -3,12 +3,10 @@
 #include "AnimationClip.h"
 #include "Skeleton.h"
 #include "../Parsers/VLEDecoder.h"
-#include "../FFNA_ModelFile_Other.h"  // For LogBB8Debug
 #include <DirectXMath.h>
 #include <vector>
 #include <cstdint>
 #include <algorithm>
-#include <unordered_map>
 
 using namespace DirectX;
 
@@ -194,11 +192,9 @@ public:
             BoneTransform localTransform = EvaluateBoneTrack(clip.boneTracks[i], time);
             int32_t parentIdx = (i < clip.boneParents.size()) ? clip.boneParents[i] : -1;
 
-            if (clip.useWorldSpaceRotations || parentIdx < 0)
+            if (parentIdx < 0)
             {
-                // WORLD-SPACE MODE or ROOT BONE:
-                // Position = bindPos + animDelta (absolute world position)
-                // Rotation = animation rotation (absolute, no parent accumulation)
+                // ROOT BONE: Absolute position and rotation
                 const XMFLOAT3 bindPos = getBindPosition(i);
                 outWorldPositions[i] = {
                     bindPos.x + localTransform.position.x,
@@ -209,9 +205,7 @@ public:
             }
             else if (parentIdx < static_cast<int32_t>(i))
             {
-                // HIERARCHICAL MODE: Accumulate through parent chain
-                // Get parent's accumulated rotation and position
-                const XMFLOAT4& parentRot = outWorldRotations[parentIdx];
+                // CHILD BONE: Position is always hierarchical
                 const XMFLOAT3& parentPos = outWorldPositions[parentIdx];
 
                 // Local offset = bind offset (relative to parent) + animation delta
@@ -220,6 +214,11 @@ public:
                     bindOffsets[i].y + localTransform.position.y,
                     bindOffsets[i].z + localTransform.position.z
                 };
+
+                // ALWAYS hierarchical: rotate offset by parent rotation, accumulate rotations
+                // Based on Ghidra RE: GW ALWAYS uses matrix stack multiplication
+                // The pop count controls HOW MANY levels to pop, NOT whether rotations accumulate
+                const XMFLOAT4& parentRot = outWorldRotations[parentIdx];
 
                 // Rotate local offset by parent's world rotation
                 XMFLOAT3 rotatedOffset = Parsers::VLEDecoder::QuaternionRotatePoint(parentRot, localOffset);
@@ -231,7 +230,7 @@ public:
                     parentPos.z + rotatedOffset.z
                 };
 
-                // World rotation = parent rotation * local rotation (quaternion multiplication)
+                // World rotation = parent rotation * local rotation
                 outWorldRotations[i] = Parsers::VLEDecoder::QuaternionMultiply(parentRot, localTransform.rotation);
             }
             else
@@ -296,65 +295,84 @@ public:
                                                  const std::vector<XMFLOAT3>& customBindPositions,
                                                  std::vector<XMFLOAT4X4>& outSkinningMatrices)
     {
+        // Evaluate hierarchical transforms
         std::vector<XMFLOAT3> worldPositions;
         std::vector<XMFLOAT4> worldRotations;
-
-        // Compute world transforms at current time
         EvaluateHierarchical(clip, time, worldPositions, worldRotations, nullptr);
 
-        // Compute bind pose transforms (at minTime) to get the "rest" state
-        std::vector<XMFLOAT3> bindWorldPositions;
-        std::vector<XMFLOAT4> bindWorldRotations;
-        EvaluateHierarchical(clip, clip.minTime, bindWorldPositions, bindWorldRotations, nullptr);
-
         size_t boneCount = clip.boneTracks.size();
-        outSkinningMatrices.resize(boneCount);
+
+        // Ghidra RE (Model_UpdateSkeletonTransforms @ 0x00754720):
+        // Bones with flag 0x10000000 are "intermediate" - they participate in hierarchy
+        // but DON'T produce output skinning matrices. Mesh vertices reference OUTPUT
+        // indices which skip intermediate bones.
+        size_t outputBoneCount = clip.GetOutputBoneCount();
+        bool hasIntermediateBones = (outputBoneCount > 0 && outputBoneCount < boneCount);
+
+        outSkinningMatrices.resize(hasIntermediateBones ? outputBoneCount : boneCount);
 
         for (size_t i = 0; i < boneCount; i++)
         {
-            // Use custom bind position (mesh-derived) if available
-            const XMFLOAT3& meshBindPos = (i < customBindPositions.size()) ?
-                customBindPositions[i] : clip.boneTracks[i].basePosition;
+            // Skip intermediate bones - they don't produce output matrices
+            if (hasIntermediateBones)
+            {
+                int32_t outputIdx = clip.GetOutputFromAnimBone(static_cast<uint32_t>(i));
+                if (outputIdx < 0)
+                {
+                    continue;
+                }
+            }
 
-            // Animation base position
-            const XMFLOAT3& animBasePos = clip.boneTracks[i].basePosition;
+            // Mesh bind position - use output index for lookup when intermediate bones exist
+            size_t meshBindIdx = i;
+            if (hasIntermediateBones)
+            {
+                int32_t outputIdx = clip.GetOutputFromAnimBone(static_cast<uint32_t>(i));
+                if (outputIdx >= 0)
+                {
+                    meshBindIdx = static_cast<size_t>(outputIdx);
+                }
+            }
 
-            // Bind pose world transform (from animation at time=0)
-            const XMFLOAT3& bindWorldPos = bindWorldPositions[i];
-            const XMFLOAT4& bindWorldRot = bindWorldRotations[i];
+            const XMFLOAT3& meshBindPos = (meshBindIdx < customBindPositions.size()) ?
+                customBindPositions[meshBindIdx] : clip.boneTracks[i].basePosition;
+            const XMFLOAT3& animBindPos = clip.boneTracks[i].basePosition;
+            const XMFLOAT3& worldPos = worldPositions[i];
+            const XMFLOAT4& worldRot = worldRotations[i];
 
-            // Current world transform
-            const XMFLOAT3& currWorldPos = worldPositions[i];
-            const XMFLOAT4& currWorldRot = worldRotations[i];
-
-            // Compute DELTA from bind pose
-            // deltaPos = currWorldPos - bindWorldPos
-            XMFLOAT3 deltaPos = {
-                currWorldPos.x - bindWorldPos.x,
-                currWorldPos.y - bindWorldPos.y,
-                currWorldPos.z - bindWorldPos.z
+            // GW skinning: M = T(-meshBindPos) * R(worldRot) * T(finalBonePos)
+            // where finalBonePos = worldPos + R(worldRot) * (meshBindPos - animBindPos)
+            XMFLOAT3 boneOffset = {
+                meshBindPos.x - animBindPos.x,
+                meshBindPos.y - animBindPos.y,
+                meshBindPos.z - animBindPos.z
             };
 
-            // deltaRot = inverse(bindWorldRot) * currWorldRot
-            XMFLOAT4 invBindRot = Parsers::VLEDecoder::QuaternionInverse(bindWorldRot);
-            XMFLOAT4 deltaRot = Parsers::VLEDecoder::QuaternionMultiply(invBindRot, currWorldRot);
+            XMFLOAT3 rotatedOffset = Parsers::VLEDecoder::QuaternionRotatePoint(worldRot, boneOffset);
 
-            // Correct mesh bind position vs animation base position offset
-            XMFLOAT3 worldPos = {
-                meshBindPos.x + deltaPos.x,
-                meshBindPos.y + deltaPos.y,
-                meshBindPos.z + deltaPos.z
+            XMFLOAT3 finalBonePos = {
+                worldPos.x + rotatedOffset.x,
+                worldPos.y + rotatedOffset.y,
+                worldPos.z + rotatedOffset.z
             };
 
-            // Skinning formula using delta rotation:
-            // skinned = worldPos + rotate(vertex - meshBindPos, deltaRot)
-            // At time=0: deltaRot=identity, deltaPos=0, so skinned=vertex ✓
             XMMATRIX inverseBind = XMMatrixTranslation(-meshBindPos.x, -meshBindPos.y, -meshBindPos.z);
-            XMMATRIX boneRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&deltaRot));
-            XMMATRIX boneTranslation = XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z);
+            XMMATRIX boneRotation = XMMatrixRotationQuaternion(XMLoadFloat4(&worldRot));
+            XMMATRIX boneTranslation = XMMatrixTranslation(finalBonePos.x, finalBonePos.y, finalBonePos.z);
 
             XMMATRIX skinning = inverseBind * boneRotation * boneTranslation;
-            XMStoreFloat4x4(&outSkinningMatrices[i], skinning);
+
+            // Store at OUTPUT index, not animation bone index
+            size_t storeIdx = i;
+            if (hasIntermediateBones)
+            {
+                int32_t outputIdx = clip.GetOutputFromAnimBone(static_cast<uint32_t>(i));
+                if (outputIdx >= 0)
+                {
+                    storeIdx = static_cast<size_t>(outputIdx);
+                }
+            }
+            XMStoreFloat4x4(&outSkinningMatrices[storeIdx], skinning);
         }
     }
 

@@ -8,7 +8,6 @@
 #include <cmath>
 #include <memory>
 #include <optional>
-#include <fstream>
 #include <DirectXMath.h>
 
 using namespace DirectX;
@@ -76,8 +75,8 @@ struct FA1Header
     float geometryScale;              // 0x20: Skeleton/geometry scale factor. If <=0, computed from bounding data
     float unknown_0x24;               // 0x24: Unknown (often 0)
     float unknown_0x28;               // 0x28: Unknown (often 1.0)
-    float unknown_0x2C;               // 0x2C: Unknown
-    uint32_t unknown_0x30;            // 0x30: Unknown
+    uint32_t bindPoseBoneCount;       // 0x2C: Number of bones in bind pose section (discovered via RE)
+    uint32_t unknown_0x30;            // 0x30: Unknown (often 3)
     uint32_t transformDataSize;       // 0x34: Transform data size
     uint32_t submeshCount;            // 0x38: Submesh count
     uint32_t unknown_0x3C;            // 0x3C: Unknown
@@ -142,6 +141,108 @@ struct BB9BoneAnimHeader
 static_assert(sizeof(BB9BoneAnimHeader) == 22, "BB9BoneAnimHeader must be 22 bytes!");
 
 /**
+ * @brief FA1 bind pose entry structure (16 bytes per bone).
+ *
+ * Found in FA1 chunks after the header + bounding cylinders.
+ * Contains bind pose position and explicit parent information.
+ *
+ * Parent encoding:
+ * - Low byte (0-255): parent bone index, or 0 for chain mode
+ * - High byte flags: 0x10 indicates "parent is 0" explicitly (branch to root)
+ * - When low byte = 0 AND no flag: parent = previous bone (chain)
+ * - When low byte > 0: parent = low byte value (explicit override)
+ * - When flag 0x10 set: parent = 0 (branch back to root)
+ */
+#pragma pack(push, 1)
+struct FA1BindPoseEntry
+{
+    float posX;             // 0x00: Bind pose X position
+    float posY;             // 0x04: Bind pose Y position
+    float posZ;             // 0x08: Bind pose Z position
+    uint32_t parentInfo;    // 0x0C: Parent index + flags
+    // Total: 16 bytes
+
+    /**
+     * @brief Gets the explicit parent index from the parentInfo field.
+     *
+     * @param boneIndex The index of this bone (for chain mode).
+     * @return Parent bone index, or -1 for root.
+     */
+    int32_t GetParentIndex(size_t boneIndex) const
+    {
+        constexpr uint32_t FLAG_BRANCH_TO_ROOT = 0x10000000;
+
+        if (boneIndex == 0)
+        {
+            return -1;  // First bone is always root
+        }
+
+        uint8_t lowByte = static_cast<uint8_t>(parentInfo & 0xFF);
+
+        if (parentInfo & FLAG_BRANCH_TO_ROOT)
+        {
+            // Flag means parent = 0 (branch back to root/body center)
+            return 0;
+        }
+        else if (lowByte > 0)
+        {
+            // Explicit parent override
+            return static_cast<int32_t>(lowByte);
+        }
+        else
+        {
+            // Chain mode: parent = previous bone
+            return static_cast<int32_t>(boneIndex - 1);
+        }
+    }
+};
+#pragma pack(pop)
+
+static_assert(sizeof(FA1BindPoseEntry) == 16, "FA1BindPoseEntry must be 16 bytes!");
+
+/**
+ * @brief FA1 keyframe header structure (16 bytes).
+ *
+ * Found in FA1 chunks after bind pose entries for models that use
+ * the FA1-specific VLE keyframe format (not BB9-style per-bone headers).
+ *
+ * This format is used by models like 0xBC68 (pig) where animation data
+ * is stored as:
+ *   1. This header (16 bytes)
+ *   2. Bone offset table (bindPoseBoneCount × 4 bytes) - bit offsets into VLE stream
+ *   3. VLE-encoded keyframe stream
+ */
+#pragma pack(push, 1)
+struct FA1KeyframeHeader
+{
+    uint16_t reserved0;         // 0x00: Always 0
+    uint16_t reserved1;         // 0x02: Always 0
+    uint16_t reserved2;         // 0x04: Always 0
+    uint16_t rotationKeyCount;  // 0x06: Total rotation keyframes across all bones
+    uint16_t positionKeyCount;  // 0x08: Total position keyframes across all bones
+    uint16_t reserved3;         // 0x0A: Always 0
+    uint16_t reserved4;         // 0x0C: Always 0
+    uint16_t reserved5;         // 0x0E: Always 0
+    // Total: 16 bytes
+
+    /**
+     * @brief Checks if this looks like a valid FA1 keyframe header.
+     *
+     * Valid headers have zeros in reserved fields and reasonable key counts.
+     */
+    bool IsValid() const
+    {
+        return reserved0 == 0 && reserved1 == 0 && reserved2 == 0 &&
+               reserved3 == 0 && reserved4 == 0 && reserved5 == 0 &&
+               rotationKeyCount < 5000 && positionKeyCount < 5000 &&
+               (rotationKeyCount > 0 || positionKeyCount > 0);
+    }
+};
+#pragma pack(pop)
+
+static_assert(sizeof(FA1KeyframeHeader) == 16, "FA1KeyframeHeader must be 16 bytes!");
+
+/**
  * @brief Parser for BB9/FA1 animation chunks.
  *
  * Parses animation data including:
@@ -154,6 +255,74 @@ static_assert(sizeof(BB9BoneAnimHeader) == 22, "BB9BoneAnimHeader must be 22 byt
 class BB9AnimationParser
 {
 public:
+    /**
+     * @brief Parses FA1 bind pose entries and extracts parent array.
+     *
+     * FA1 chunks contain explicit bind pose data with parent indices,
+     * which is more accurate than deriving hierarchy from BB9 hierarchyByte.
+     *
+     * @param data Pointer to FA1 chunk data (starting at header).
+     * @param dataSize Size of the chunk data.
+     * @param outParents Output vector for parent indices.
+     * @param outBindPositions Output vector for bind positions.
+     * @return Number of bones parsed, or 0 on failure.
+     */
+    static size_t ParseFA1BindPose(const uint8_t* data, size_t dataSize,
+                                    std::vector<int32_t>& outParents,
+                                    std::vector<XMFLOAT3>& outBindPositions)
+    {
+        if (dataSize < sizeof(FA1Header))
+        {
+            return 0;
+        }
+
+        FA1Header header;
+        std::memcpy(&header, data, sizeof(FA1Header));
+
+        // Bone count is at offset 0x2C (bindPoseBoneCount field)
+        uint32_t boneCount = header.bindPoseBoneCount;
+
+        // Validate bone count
+        if (boneCount == 0 || boneCount > 256)
+        {
+            return 0;
+        }
+
+        // Calculate offset to bind pose data: header + bounding cylinders
+        size_t bindPoseOffset = sizeof(FA1Header) + (header.boundingCylinderCount * 16);
+
+        // Check if there's enough data for all bind pose entries
+        size_t bindPoseSize = boneCount * sizeof(FA1BindPoseEntry);
+        if (bindPoseOffset + bindPoseSize > dataSize)
+        {
+            return 0;
+        }
+
+        outParents.clear();
+        outParents.reserve(boneCount);
+        outBindPositions.clear();
+        outBindPositions.reserve(boneCount);
+
+        // Parse each bind pose entry
+        for (size_t i = 0; i < boneCount; i++)
+        {
+            FA1BindPoseEntry entry;
+            std::memcpy(&entry, &data[bindPoseOffset + i * sizeof(FA1BindPoseEntry)], sizeof(FA1BindPoseEntry));
+
+            int32_t parent = entry.GetParentIndex(i);
+            outParents.push_back(parent);
+
+            // Transform coordinates: (x, y, z) -> (x, -z, y) for DirectX
+            outBindPositions.push_back({
+                entry.posX,
+                -entry.posZ,
+                entry.posY
+            });
+        }
+
+        return boneCount;
+    }
+
     /**
      * @brief Parses a BB9/FA1 animation chunk from raw data.
      *
@@ -279,16 +448,11 @@ public:
                     uint8_t depth = boneHeader.GetHierarchyDepth();
                     boneDepths.push_back(depth);
 
-                    // Debug: Log bone flags to check for bone IDs
-                    if (boneIdx < 10 || (boneHeader.boneFlags >> 8) != 0)
-                    {
-                        char debug[256];
-                        sprintf_s(debug, "Bone %u: flags=0x%08X, depth=%u, upperBytes=0x%06X\n",
-                            boneIdx, boneHeader.boneFlags, depth, boneHeader.boneFlags >> 8);
-                        // Use inline logging since LogBB8Debug might not be available here
-                        static std::ofstream anim_log("bb8_debug.log", std::ios::app);
-                        if (anim_log.is_open()) anim_log << debug << std::flush;
-                    }
+                    // Track intermediate bones (Ghidra RE @ Model_UpdateSkeletonTransforms)
+                    // Flag 0x10000000 means bone participates in hierarchy but produces no output matrix
+                    constexpr uint32_t FLAG_INTERMEDIATE_BONE = 0x10000000;
+                    bool isIntermediate = (boneHeader.boneFlags & FLAG_INTERMEDIATE_BONE) != 0;
+                    clip.boneIsIntermediate.push_back(isIntermediate);
 
                     // Parse position keyframes
                     if (boneHeader.posKeyCount > 0)
@@ -361,13 +525,19 @@ public:
                     emptyTrack.boneIndex = boneIdx;
                     clip.boneTracks.push_back(std::move(emptyTrack));
                     boneDepths.push_back(0);
+                    clip.boneIsIntermediate.push_back(false);  // Assume non-intermediate on error
                 }
             }
 
             // Compute bone hierarchy from depth values
             bool usedSequentialMode = false;
-            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode);
-            clip.useWorldSpaceRotations = usedSequentialMode;
+            Animation::HierarchyMode hierarchyMode = Animation::HierarchyMode::TreeDepth;
+            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode, &hierarchyMode);
+            clip.hierarchyMode = hierarchyMode;
+
+            // Build output-to-animation bone mapping (for intermediate bone handling)
+            // Based on Ghidra RE: bones with flag 0x10000000 don't produce output matrices
+            clip.BuildOutputMapping();
 
             // Note: We do NOT apply geometry scale here during parsing.
             // The skeleton scale must match the mesh scale, which is computed
@@ -382,6 +552,612 @@ public:
         return clip;
     }
 
+private:
+    /**
+     * @brief Parses FA1-specific keyframe format.
+     *
+     * This format is used by models like 0xBC68 (pig) where animation data
+     * is organized as:
+     *   1. FA1KeyframeHeader (16 bytes) - contains total rotation/position key counts
+     *   2. Bone offset table (boneCount × 4 bytes) - bit offsets into VLE stream
+     *   3. VLE-encoded keyframe stream
+     *
+     * The VLE stream contains interleaved keyframe data for all bones, indexed by
+     * the bit offsets in the offset table.
+     *
+     * @param data Pointer to chunk data.
+     * @param dataSize Size of the chunk data.
+     * @param bindPoseOffset Offset to bind pose entries (for reading base positions).
+     * @param keyframeOffset Current offset (after bind pose entries).
+     * @param boneCount Number of bones.
+     * @param clip Output animation clip.
+     * @param boneDepths Output vector for hierarchy depths.
+     * @return true if parsing succeeded, false on failure.
+     */
+    static bool ParseFA1KeyframeFormat(const uint8_t* data, size_t dataSize,
+                                        size_t bindPoseOffset, size_t keyframeOffset,
+                                        uint32_t boneCount, Animation::AnimationClip& clip,
+                                        std::vector<uint8_t>& boneDepths)
+    {
+        if (keyframeOffset + sizeof(FA1KeyframeHeader) > dataSize)
+        {
+            return false;
+        }
+
+        // Read keyframe header
+        FA1KeyframeHeader kfHeader;
+        std::memcpy(&kfHeader, &data[keyframeOffset], sizeof(FA1KeyframeHeader));
+        size_t offset = keyframeOffset + sizeof(FA1KeyframeHeader);
+
+        // Read bone offset table (boneCount × 4 bytes)
+        // Each entry is a bit offset into the VLE stream
+        if (offset + boneCount * sizeof(uint32_t) > dataSize)
+        {
+            return false;
+        }
+
+        std::vector<uint32_t> boneOffsets(boneCount);
+        for (uint32_t i = 0; i < boneCount; i++)
+        {
+            std::memcpy(&boneOffsets[i], &data[offset], sizeof(uint32_t));
+            offset += sizeof(uint32_t);
+        }
+
+        // Read bind pose entries to get base positions and hierarchy bytes
+        // Each FA1BindPoseEntry is 16 bytes: float3 position + uint32_t parentInfo
+        for (uint32_t i = 0; i < boneCount; i++)
+        {
+            size_t bpOffset = bindPoseOffset + i * sizeof(FA1BindPoseEntry);
+            if (bpOffset + sizeof(FA1BindPoseEntry) > dataSize)
+            {
+                break;
+            }
+
+            FA1BindPoseEntry bindPose;
+            std::memcpy(&bindPose, &data[bpOffset], sizeof(FA1BindPoseEntry));
+
+            Animation::BoneTrack track;
+            track.boneIndex = i;
+
+            // Store base position with coordinate transform: (x, y, z) -> (x, -z, y)
+            track.basePosition = {
+                bindPose.posX,
+                -bindPose.posZ,
+                bindPose.posY
+            };
+
+            clip.boneTracks.push_back(std::move(track));
+
+            // Extract hierarchy byte from parentInfo (low byte is hierarchy/pop count)
+            uint8_t hierByte = static_cast<uint8_t>(bindPose.parentInfo & 0xFF);
+            boneDepths.push_back(hierByte);
+
+            // FA1 format: parentInfo bit 0x10000000 means "branch to root" (parent=0),
+            // NOT "intermediate bone". FA1 bind pose doesn't have intermediate bone flags.
+            // Intermediate bone detection for FA1 would need to come from elsewhere.
+            // For now, assume all FA1 bones are non-intermediate (produce output matrices).
+            clip.boneIsIntermediate.push_back(false);
+        }
+
+        // Decode FA1 VLE stream (bit-level offsets)
+        // Observed on 0xBC68: offsets appear to be grouped in sets of 4 per animated bone:
+        //   [posTimes][posValues][rotTimes][rotValues]
+        // The data is bit-packed VLE; values are delta-encoded like BB9, but at bit offsets.
+        //
+        // Notes:
+        // - Position values are stored as signed 16-bit deltas (VLE) and appear to scale ~1/1024.
+        // - Rotation values are Euler deltas (VLE) using the same 16-bit angle mapping as BB9.
+        // - Time streams sometimes decode poorly; if invalid, we fall back to implicit 0..N-1.
+
+        struct BitVLEReader
+        {
+            const uint8_t* data;
+            size_t dataSize;
+            size_t bitOffset = 0;
+            size_t bitEnd = 0;
+
+            BitVLEReader(const uint8_t* inData, size_t inSize, size_t inBitOffset, size_t inBitEnd)
+                : data(inData), dataSize(inSize), bitOffset(inBitOffset), bitEnd(inBitEnd)
+            {
+            }
+
+            bool HasBits(size_t bits) const
+            {
+                return bitOffset + bits <= bitEnd;
+            }
+
+            uint8_t ReadByte()
+            {
+                if (!HasBits(8))
+                {
+                    // Clamp to end-of-stream to avoid exceptions on truncated bit ranges.
+                    bitOffset = bitEnd;
+                    return 0;
+                }
+
+                size_t byteIndex = bitOffset / 8;
+                uint8_t shift = static_cast<uint8_t>(bitOffset % 8);
+                uint8_t b0 = (byteIndex < dataSize) ? data[byteIndex] : 0;
+                uint8_t value;
+
+                if (shift == 0)
+                {
+                    value = b0;
+                }
+                else
+                {
+                    uint8_t b1 = (byteIndex + 1 < dataSize) ? data[byteIndex + 1] : 0;
+                    value = static_cast<uint8_t>((b0 >> shift) | (b1 << (8 - shift)));
+                }
+
+                bitOffset += 8;
+                return value;
+            }
+
+            uint32_t ReadVLEValue(bool* outSign = nullptr)
+            {
+                uint8_t b = ReadByte();
+                uint32_t value = b & 0x3F;
+
+                if (outSign)
+                {
+                    *outSign = (b & 0x40) != 0;
+                }
+
+                if (b & 0x80)
+                {
+                    b = ReadByte();
+                    value |= (b & 0x7F) << 6;
+
+                    if (b & 0x80)
+                    {
+                        b = ReadByte();
+                        value |= (b & 0x7F) << 13;
+
+                        if (b & 0x80)
+                        {
+                            b = ReadByte();
+                            value |= (b & 0x7F) << 20;
+
+                            if (b & 0x80)
+                            {
+                                b = ReadByte();
+                                value |= static_cast<uint32_t>(b) << 27;
+                            }
+                        }
+                    }
+                }
+
+                return value;
+            }
+        };
+
+        auto DecodeTimes = [](BitVLEReader& reader, size_t maxCount) -> std::vector<uint32_t>
+        {
+            std::vector<uint32_t> times;
+            times.reserve(maxCount);
+
+            int32_t last1 = 0;
+            int32_t last2 = 0;
+
+            for (size_t i = 0; i < maxCount; i++)
+            {
+                if (!reader.HasBits(8))
+                {
+                    break;
+                }
+
+                bool signPositive = false;
+                uint32_t raw = reader.ReadVLEValue(&signPositive);
+                int32_t delta = signPositive ? static_cast<int32_t>(raw) : -static_cast<int32_t>(raw);
+                int32_t value = (last1 * 2 - last2) + delta;
+                times.push_back(static_cast<uint32_t>(value));
+                last2 = last1;
+                last1 = value;
+            }
+
+            return times;
+        };
+
+        auto DecodePositionValues = [](BitVLEReader& reader, size_t maxKeys, float scale) -> std::vector<XMFLOAT3>
+        {
+            std::vector<XMFLOAT3> values;
+            values.reserve(maxKeys);
+
+            int16_t prevX = 0, prevY = 0, prevZ = 0;
+
+            for (size_t i = 0; i < maxKeys; i++)
+            {
+                if (!reader.HasBits(8 * 3))
+                {
+                    break;
+                }
+
+                bool sign = false;
+                uint32_t raw = reader.ReadVLEValue(&sign);
+                prevX = sign ? static_cast<int16_t>((prevX + raw) & 0xFFFF)
+                             : static_cast<int16_t>((prevX - raw) & 0xFFFF);
+
+                raw = reader.ReadVLEValue(&sign);
+                prevY = sign ? static_cast<int16_t>((prevY + raw) & 0xFFFF)
+                             : static_cast<int16_t>((prevY - raw) & 0xFFFF);
+
+                raw = reader.ReadVLEValue(&sign);
+                prevZ = sign ? static_cast<int16_t>((prevZ + raw) & 0xFFFF)
+                             : static_cast<int16_t>((prevZ - raw) & 0xFFFF);
+
+                XMFLOAT3 pos = {
+                    static_cast<float>(prevX) * scale,
+                    static_cast<float>(prevY) * scale,
+                    static_cast<float>(prevZ) * scale
+                };
+
+                // Coordinate transform: (x, y, z) -> (x, -z, y)
+                values.push_back({pos.x, -pos.z, pos.y});
+            }
+
+            return values;
+        };
+
+        auto DecodeRotationValues = [](BitVLEReader& reader, size_t maxKeys) -> std::vector<XMFLOAT4>
+        {
+            std::vector<XMFLOAT4> rotations;
+            rotations.reserve(maxKeys);
+
+            constexpr float ANGLE_SCALE = (2.0f * 3.14159265358979323846f) / 65536.0f;
+            constexpr float ANGLE_OFFSET = 3.14159265358979323846f;
+
+            int16_t prevX = 0, prevY = 0, prevZ = 0;
+
+            for (size_t i = 0; i < maxKeys; i++)
+            {
+                if (!reader.HasBits(8 * 3))
+                {
+                    break;
+                }
+
+                bool sign = false;
+                uint32_t raw = reader.ReadVLEValue(&sign);
+                prevX = sign ? static_cast<int16_t>((prevX + raw) & 0xFFFF)
+                             : static_cast<int16_t>((prevX - raw) & 0xFFFF);
+
+                raw = reader.ReadVLEValue(&sign);
+                prevY = sign ? static_cast<int16_t>((prevY + raw) & 0xFFFF)
+                             : static_cast<int16_t>((prevY - raw) & 0xFFFF);
+
+                raw = reader.ReadVLEValue(&sign);
+                prevZ = sign ? static_cast<int16_t>((prevZ + raw) & 0xFFFF)
+                             : static_cast<int16_t>((prevZ - raw) & 0xFFFF);
+
+                float rx_gw = -(prevX * ANGLE_SCALE - ANGLE_OFFSET);
+                float ry_gw = -(prevY * ANGLE_SCALE - ANGLE_OFFSET);
+                float rz_gw = -(prevZ * ANGLE_SCALE - ANGLE_OFFSET);
+
+                XMFLOAT4 quat_gw = VLEDecoder::EulerToQuaternion(rx_gw, ry_gw, rz_gw);
+
+                XMFLOAT4 quat;
+                quat.x = quat_gw.x;
+                quat.y = -quat_gw.z;
+                quat.z = quat_gw.y;
+                quat.w = quat_gw.w;
+
+                if (!rotations.empty())
+                {
+                    const XMFLOAT4& prev = rotations.back();
+                    float dot = quat.w * prev.w + quat.x * prev.x + quat.y * prev.y + quat.z * prev.z;
+                    if (dot < 0.0f)
+                    {
+                        quat.w = -quat.w;
+                        quat.x = -quat.x;
+                        quat.y = -quat.y;
+                        quat.z = -quat.z;
+                    }
+                }
+
+                rotations.push_back(quat);
+            }
+
+            return rotations;
+        };
+
+        // Decode grouped offset layout: offsets are stored in 4 contiguous blocks
+        // [posTimes][posValues][rotTimes][rotValues], with animBoneCount = boneCount / 4
+        // (bind pose bones appear to be grouped in sets of 4 with near-identical positions).
+        if (boneCount >= 4 && (boneCount % 4) == 0)
+        {
+            const uint32_t animBoneCount = boneCount / 4;
+            const size_t streamStart = keyframeOffset + sizeof(FA1KeyframeHeader) + boneCount * sizeof(uint32_t);
+            const size_t streamSize = (streamStart < dataSize) ? (dataSize - streamStart) : 0;
+            const size_t streamBits = streamSize * 8;
+
+            if (animBoneCount > 0 && boneOffsets.size() >= static_cast<size_t>(animBoneCount) * 4 && streamBits > 0)
+            {
+                const uint32_t* posTimesOffsets = boneOffsets.data();
+                const uint32_t* posValuesOffsets = boneOffsets.data() + animBoneCount;
+                const uint32_t* rotTimesOffsets = boneOffsets.data() + animBoneCount * 2;
+                const uint32_t* rotValuesOffsets = boneOffsets.data() + animBoneCount * 3;
+
+                auto IsValidTimes = [](const std::vector<uint32_t>& times, size_t keyCount) -> bool
+                {
+                    if (times.empty())
+                    {
+                        return false;
+                    }
+
+                    uint32_t prev = times[0];
+                    for (size_t i = 1; i < times.size(); i++)
+                    {
+                        if (times[i] < prev)
+                        {
+                            return false;
+                        }
+                        prev = times[i];
+                    }
+
+                    const uint64_t softLimit = static_cast<uint64_t>(keyCount) * 10000ull;
+                    if (softLimit > 0 && times.back() > softLimit)
+                    {
+                        return false;
+                    }
+
+                    return true;
+                };
+
+                auto IsValidRange = [streamBits](size_t start, size_t end) -> bool
+                {
+                    return start < end && end <= streamBits;
+                };
+
+                for (uint32_t animIdx = 0; animIdx < animBoneCount; animIdx++)
+                {
+                    size_t bitPosTimes = posTimesOffsets[animIdx];
+                    size_t bitPosValues = posValuesOffsets[animIdx];
+                    size_t bitRotTimes = rotTimesOffsets[animIdx];
+                    size_t bitRotValues = rotValuesOffsets[animIdx];
+
+                    size_t bitEndPosTimes = (animIdx + 1 < animBoneCount)
+                                                ? static_cast<size_t>(posTimesOffsets[animIdx + 1])
+                                                : static_cast<size_t>(posValuesOffsets[0]);
+                    size_t bitEndPosValues = (animIdx + 1 < animBoneCount)
+                                                ? static_cast<size_t>(posValuesOffsets[animIdx + 1])
+                                                : static_cast<size_t>(rotTimesOffsets[0]);
+                    size_t bitEndRotTimes = (animIdx + 1 < animBoneCount)
+                                                ? static_cast<size_t>(rotTimesOffsets[animIdx + 1])
+                                                : static_cast<size_t>(rotValuesOffsets[0]);
+                    size_t bitEndRotValues = (animIdx + 1 < animBoneCount)
+                                                ? static_cast<size_t>(rotValuesOffsets[animIdx + 1])
+                                                : streamBits;
+
+                    if (!IsValidRange(bitPosTimes, bitEndPosTimes) ||
+                        !IsValidRange(bitPosValues, bitEndPosValues) ||
+                        !IsValidRange(bitRotTimes, bitEndRotTimes) ||
+                        !IsValidRange(bitRotValues, bitEndRotValues))
+                    {
+                        continue;
+                    }
+
+                    BitVLEReader posTimesReader(&data[streamStart], streamSize, bitPosTimes, bitEndPosTimes);
+                    BitVLEReader posValuesReader(&data[streamStart], streamSize, bitPosValues, bitEndPosValues);
+                    BitVLEReader rotTimesReader(&data[streamStart], streamSize, bitRotTimes, bitEndRotTimes);
+                    BitVLEReader rotValuesReader(&data[streamStart], streamSize, bitRotValues, bitEndRotValues);
+
+                    std::vector<uint32_t> posTimes = DecodeTimes(posTimesReader, kfHeader.positionKeyCount);
+                    std::vector<XMFLOAT3> posValues = DecodePositionValues(posValuesReader, kfHeader.positionKeyCount, 1.0f / 1024.0f);
+                    std::vector<uint32_t> rotTimes = DecodeTimes(rotTimesReader, kfHeader.rotationKeyCount);
+                    std::vector<XMFLOAT4> rotValues = DecodeRotationValues(rotValuesReader, kfHeader.rotationKeyCount);
+
+                    size_t posCount = posValues.size();
+                    if (!posTimes.empty())
+                    {
+                        posCount = std::min(posCount, posTimes.size());
+                    }
+
+                    size_t rotCount = rotValues.size();
+                    if (!rotTimes.empty())
+                    {
+                        rotCount = std::min(rotCount, rotTimes.size());
+                    }
+
+                    if (posCount == 0 && rotCount == 0)
+                    {
+                        continue;
+                    }
+
+                    bool usePosTimes = IsValidTimes(posTimes, posCount);
+                    bool useRotTimes = IsValidTimes(rotTimes, rotCount);
+
+                    std::vector<Animation::Keyframe<XMFLOAT3>> posKeys;
+                    if (posCount > 0)
+                    {
+                        posKeys.reserve(posCount);
+                        for (size_t i = 0; i < posCount; i++)
+                        {
+                            float t = usePosTimes ? static_cast<float>(posTimes[i]) : static_cast<float>(i);
+                            posKeys.push_back({t, posValues[i]});
+                        }
+                    }
+
+                    std::vector<Animation::Keyframe<XMFLOAT4>> rotKeys;
+                    if (rotCount > 0)
+                    {
+                        rotKeys.reserve(rotCount);
+                        for (size_t i = 0; i < rotCount; i++)
+                        {
+                            float t = useRotTimes ? static_cast<float>(rotTimes[i]) : static_cast<float>(i);
+                            rotKeys.push_back({t, rotValues[i]});
+                        }
+                    }
+
+                    // Apply this animation track to the 4-bone group
+                    const uint32_t groupStart = animIdx * 4;
+                    for (uint32_t groupOffset = 0; groupOffset < 4; groupOffset++)
+                    {
+                        uint32_t boneIndex = groupStart + groupOffset;
+                        if (boneIndex >= clip.boneTracks.size())
+                        {
+                            break;
+                        }
+
+                        Animation::BoneTrack& track = clip.boneTracks[boneIndex];
+                        if (!posKeys.empty())
+                        {
+                            track.positionKeys = posKeys;
+                        }
+                        if (!rotKeys.empty())
+                        {
+                            track.rotationKeys = rotKeys;
+                        }
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @brief Parses BB9-style bone animation headers.
+     *
+     * This format is used by standalone BB9 animation files and some FA1 chunks.
+     * Each bone has:
+     *   1. BB9BoneAnimHeader (22 bytes) - base position, flags, key counts
+     *   2. VLE-encoded position times + float3 positions
+     *   3. VLE-encoded rotation times + VLE rotation deltas
+     *   4. VLE-encoded scale times + float3 scales
+     *
+     * @param data Pointer to chunk data.
+     * @param dataSize Size of the chunk data.
+     * @param offset Current offset (after bind pose entries).
+     * @param clip Output animation clip.
+     * @param boneDepths Output vector for hierarchy depths.
+     */
+    static void ParseBB9StyleBoneAnimations(const uint8_t* data, size_t dataSize, size_t offset,
+                                             Animation::AnimationClip& clip,
+                                             std::vector<uint8_t>& boneDepths)
+    {
+        VLEDecoder decoder(data, dataSize, offset);
+        int errorsInRow = 0;
+        uint32_t boneIdx = 0;
+        const uint32_t maxBones = 256;
+
+        while (decoder.RemainingBytes() >= sizeof(BB9BoneAnimHeader) &&
+               boneIdx < maxBones &&
+               errorsInRow < 3)
+        {
+            try
+            {
+                // Read bone header
+                BB9BoneAnimHeader boneHeader;
+                std::memcpy(&boneHeader, &data[decoder.GetOffset()], sizeof(BB9BoneAnimHeader));
+
+                // Validate header
+                bool keyCountsValid = (boneHeader.posKeyCount <= 1000 &&
+                                      boneHeader.rotKeyCount <= 1000 &&
+                                      boneHeader.scaleKeyCount <= 1000);
+
+                bool posValid = std::isfinite(boneHeader.baseX) &&
+                               std::isfinite(boneHeader.baseY) &&
+                               std::isfinite(boneHeader.baseZ) &&
+                               std::abs(boneHeader.baseX) < 100000.0f &&
+                               std::abs(boneHeader.baseY) < 100000.0f &&
+                               std::abs(boneHeader.baseZ) < 100000.0f;
+
+                if (!keyCountsValid || (!posValid && boneIdx > 0))
+                {
+                    break;
+                }
+
+                decoder.SetOffset(decoder.GetOffset() + sizeof(BB9BoneAnimHeader));
+
+                Animation::BoneTrack track;
+                track.boneIndex = boneIdx;
+
+                // Store base position with coordinate transform: (x, y, z) -> (x, -z, y)
+                track.basePosition = {
+                    boneHeader.baseX,
+                    -boneHeader.baseZ,
+                    boneHeader.baseY
+                };
+
+                uint8_t depth = boneHeader.GetHierarchyDepth();
+                boneDepths.push_back(depth);
+
+                // Parse position keyframes
+                if (boneHeader.posKeyCount > 0)
+                {
+                    auto posTimes = decoder.ExpandUnsignedDeltaVLE(boneHeader.posKeyCount);
+                    auto positions = decoder.ReadFloat3s(boneHeader.posKeyCount);
+
+                    track.positionKeys.reserve(boneHeader.posKeyCount);
+                    for (size_t i = 0; i < boneHeader.posKeyCount; i++)
+                    {
+                        XMFLOAT3 transformedPos = {
+                            positions[i].x,
+                            -positions[i].z,
+                            positions[i].y
+                        };
+                        track.positionKeys.push_back({
+                            static_cast<float>(posTimes[i]),
+                            transformedPos
+                        });
+                    }
+                }
+
+                // Parse rotation keyframes
+                if (boneHeader.rotKeyCount > 0)
+                {
+                    auto rotTimes = decoder.ExpandUnsignedDeltaVLE(boneHeader.rotKeyCount);
+                    auto rotations = decoder.DecompressQuaternionKeys(boneHeader.rotKeyCount);
+
+                    track.rotationKeys.reserve(boneHeader.rotKeyCount);
+                    for (size_t i = 0; i < boneHeader.rotKeyCount; i++)
+                    {
+                        track.rotationKeys.push_back({
+                            static_cast<float>(rotTimes[i]),
+                            rotations[i]
+                        });
+                    }
+                }
+
+                // Parse scale keyframes
+                if (boneHeader.scaleKeyCount > 0)
+                {
+                    auto scaleTimes = decoder.ExpandUnsignedDeltaVLE(boneHeader.scaleKeyCount);
+                    auto scales = decoder.ReadFloat3s(boneHeader.scaleKeyCount);
+
+                    track.scaleKeys.reserve(boneHeader.scaleKeyCount);
+                    for (size_t i = 0; i < boneHeader.scaleKeyCount; i++)
+                    {
+                        track.scaleKeys.push_back({
+                            static_cast<float>(scaleTimes[i]),
+                            scales[i]
+                        });
+                    }
+                }
+
+                clip.boneTracks.push_back(std::move(track));
+                errorsInRow = 0;
+                boneIdx++;
+            }
+            catch (const std::exception&)
+            {
+                errorsInRow++;
+                if (errorsInRow >= 3)
+                {
+                    break;
+                }
+
+                // Add empty track placeholder
+                Animation::BoneTrack emptyTrack;
+                emptyTrack.boneIndex = boneIdx;
+                clip.boneTracks.push_back(std::move(emptyTrack));
+                boneDepths.push_back(0);
+                boneIdx++;
+            }
+        }
+    }
+
+public:
     /**
      * @brief Parses an FA1 animation chunk from raw data.
      *
@@ -449,175 +1225,70 @@ public:
         clip.totalFrames = cumulativeFrames > 0 ? cumulativeFrames : 100;
 
         // Parse bone animation data
-        // FA1 format: similar to BB9 but without BoneTransformHeader prefix
-        // Bone data consists of: header (22 bytes) + VLE keyframe times + keyframe values
-        // We parse until we run out of valid data or hit an error
-        if (header.HasSkeleton() && offset < dataSize)
+        // FA1 format has bind pose entries followed by animation keyframe data
+        // Check for skeleton data using either HasSkeleton flag OR bindPoseBoneCount > 0
+        bool hasSkeletonData = header.HasSkeleton() || (header.bindPoseBoneCount > 0 && header.bindPoseBoneCount < 256);
+        if (hasSkeletonData && offset < dataSize)
         {
-            VLEDecoder decoder(data, dataSize, offset);
+            // Save bind pose offset before skipping (needed for FA1 keyframe format parsing)
+            size_t bindPoseOffset = offset;
+
+            // Skip bind pose entries if present (bindPoseBoneCount × 16 bytes)
+            // These contain position + parent info, parsed separately by ParseFA1BindPose
+            if (header.bindPoseBoneCount > 0 && header.bindPoseBoneCount < 256)
+            {
+                offset += header.bindPoseBoneCount * sizeof(FA1BindPoseEntry);
+            }
+
+            // Detect animation format: FA1-specific (with FA1KeyframeHeader) or BB9-style (with BB9BoneAnimHeader)
+            //
+            // FA1-specific format (used by models like 0xBC68):
+            //   1. FA1KeyframeHeader (16 bytes) - has zeros in reserved fields
+            //   2. Bone offset table (boneCount × 4 bytes) - bit offsets into VLE stream
+            //   3. VLE-encoded keyframe stream
+            //
+            // BB9-style format:
+            //   For each bone:
+            //     1. BB9BoneAnimHeader (22 bytes) - position + flags + key counts
+            //     2. VLE-encoded keyframe data for that bone
+
+            bool useFA1KeyframeFormat = false;
+            if (offset + sizeof(FA1KeyframeHeader) <= dataSize)
+            {
+                FA1KeyframeHeader testHeader;
+                std::memcpy(&testHeader, &data[offset], sizeof(FA1KeyframeHeader));
+                useFA1KeyframeFormat = testHeader.IsValid();
+            }
+
             std::vector<uint8_t> boneDepths;
-            int errorsInRow = 0;
-            uint32_t boneIdx = 0;
-            const uint32_t maxBones = 256;  // Safety limit
 
-            // Debug: log FA1 header info
-            static std::ofstream fa1_log("fa1_debug.log", std::ios::app);
-            if (fa1_log.is_open())
+            if (useFA1KeyframeFormat)
             {
-                fa1_log << "=== FA1 Parse: classFlags=0x" << std::hex << header.classFlags
-                       << ", seqKeyframes=" << std::dec << header.sequenceKeyframeCount0
-                       << ", offset=" << offset << " ===" << std::endl;
-            }
-
-            while (decoder.RemainingBytes() >= sizeof(BB9BoneAnimHeader) &&
-                   boneIdx < maxBones &&
-                   errorsInRow < 3)
-            {
-                try
+                // Parse FA1-specific keyframe format
+                // Pass both bindPoseOffset (for reading base positions) and offset (keyframe data start)
+                if (!ParseFA1KeyframeFormat(data, dataSize, bindPoseOffset, offset, header.bindPoseBoneCount,
+                                            clip, boneDepths))
                 {
-                    // Read bone header
-                    BB9BoneAnimHeader boneHeader;
-                    std::memcpy(&boneHeader, &data[decoder.GetOffset()], sizeof(BB9BoneAnimHeader));
-
-                    // More conservative validation for FA1:
-                    // - Key counts should be reasonable (not 0x8000 which indicates misalignment)
-                    // - Position values should be reasonable floats
-                    bool keyCountsValid = (boneHeader.posKeyCount <= 1000 &&
-                                          boneHeader.rotKeyCount <= 1000 &&
-                                          boneHeader.scaleKeyCount <= 1000);
-
-                    // Check if position looks like a valid float (not NaN, not huge)
-                    bool posValid = std::isfinite(boneHeader.baseX) &&
-                                   std::isfinite(boneHeader.baseY) &&
-                                   std::isfinite(boneHeader.baseZ) &&
-                                   std::abs(boneHeader.baseX) < 100000.0f &&
-                                   std::abs(boneHeader.baseY) < 100000.0f &&
-                                   std::abs(boneHeader.baseZ) < 100000.0f;
-
-                    if (!keyCountsValid || (!posValid && boneIdx > 0))
-                    {
-                        if (fa1_log.is_open())
-                        {
-                            fa1_log << "Bone " << boneIdx << ": Invalid header at offset "
-                                   << decoder.GetOffset() << ", stopping. "
-                                   << "pos=(" << boneHeader.baseX << "," << boneHeader.baseY << "," << boneHeader.baseZ << "), "
-                                   << "keys=(" << boneHeader.posKeyCount << "," << boneHeader.rotKeyCount << "," << boneHeader.scaleKeyCount << ")"
-                                   << std::endl;
-                        }
-                        break;
-                    }
-
-                    decoder.SetOffset(decoder.GetOffset() + sizeof(BB9BoneAnimHeader));
-
-                    Animation::BoneTrack track;
-                    track.boneIndex = boneIdx;
-
-                    // Store base position with coordinate transform: (x, y, z) -> (x, -z, y)
-                    track.basePosition = {
-                        boneHeader.baseX,
-                        -boneHeader.baseZ,
-                        boneHeader.baseY
-                    };
-
-                    uint8_t depth = boneHeader.GetHierarchyDepth();
-                    boneDepths.push_back(depth);
-
-                    // Parse position keyframes
-                    if (boneHeader.posKeyCount > 0)
-                    {
-                        auto posTimes = decoder.ExpandUnsignedDeltaVLE(boneHeader.posKeyCount);
-                        auto positions = decoder.ReadFloat3s(boneHeader.posKeyCount);
-
-                        track.positionKeys.reserve(boneHeader.posKeyCount);
-                        for (size_t i = 0; i < boneHeader.posKeyCount; i++)
-                        {
-                            XMFLOAT3 transformedPos = {
-                                positions[i].x,
-                                -positions[i].z,
-                                positions[i].y
-                            };
-                            track.positionKeys.push_back({
-                                static_cast<float>(posTimes[i]),
-                                transformedPos
-                            });
-                        }
-                    }
-
-                    // Parse rotation keyframes
-                    if (boneHeader.rotKeyCount > 0)
-                    {
-                        auto rotTimes = decoder.ExpandUnsignedDeltaVLE(boneHeader.rotKeyCount);
-                        auto rotations = decoder.DecompressQuaternionKeys(boneHeader.rotKeyCount);
-
-                        track.rotationKeys.reserve(boneHeader.rotKeyCount);
-                        for (size_t i = 0; i < boneHeader.rotKeyCount; i++)
-                        {
-                            track.rotationKeys.push_back({
-                                static_cast<float>(rotTimes[i]),
-                                rotations[i]
-                            });
-                        }
-                    }
-
-                    // Parse scale keyframes
-                    if (boneHeader.scaleKeyCount > 0)
-                    {
-                        auto scaleTimes = decoder.ExpandUnsignedDeltaVLE(boneHeader.scaleKeyCount);
-                        auto scales = decoder.ReadFloat3s(boneHeader.scaleKeyCount);
-
-                        track.scaleKeys.reserve(boneHeader.scaleKeyCount);
-                        for (size_t i = 0; i < boneHeader.scaleKeyCount; i++)
-                        {
-                            track.scaleKeys.push_back({
-                                static_cast<float>(scaleTimes[i]),
-                                scales[i]
-                            });
-                        }
-                    }
-
-                    clip.boneTracks.push_back(std::move(track));
-                    errorsInRow = 0;
-                    boneIdx++;
-
-                    if (fa1_log.is_open())
-                    {
-                        fa1_log << "Bone " << (boneIdx - 1) << ": parsed OK, pos=("
-                               << boneHeader.baseX << "," << boneHeader.baseY << "," << boneHeader.baseZ << "), "
-                               << "keys=(" << boneHeader.posKeyCount << "," << boneHeader.rotKeyCount << "," << boneHeader.scaleKeyCount << ")"
-                               << std::endl;
-                    }
-                }
-                catch (const std::exception& e)
-                {
-                    errorsInRow++;
-                    if (fa1_log.is_open())
-                    {
-                        fa1_log << "Bone " << boneIdx << ": Exception - " << e.what() << std::endl;
-                    }
-                    if (errorsInRow >= 3)
-                    {
-                        break;
-                    }
-
-                    // Try to recover by adding an empty track
-                    Animation::BoneTrack emptyTrack;
-                    emptyTrack.boneIndex = boneIdx;
-                    clip.boneTracks.push_back(std::move(emptyTrack));
-                    boneDepths.push_back(0);
-                    boneIdx++;
+                    // Fall through to BB9-style parsing
+                    useFA1KeyframeFormat = false;
                 }
             }
 
-            if (fa1_log.is_open())
+            if (!useFA1KeyframeFormat)
             {
-                fa1_log << "FA1 Parse complete: " << clip.boneTracks.size() << " bones parsed" << std::endl;
-                fa1_log << std::endl;
+                // Parse BB9-style bone animation headers
+                ParseBB9StyleBoneAnimations(data, dataSize, offset, clip, boneDepths);
             }
 
             // Compute bone hierarchy from depth values
             bool usedSequentialMode = false;
-            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode);
-            clip.useWorldSpaceRotations = usedSequentialMode;
+            Animation::HierarchyMode hierarchyMode = Animation::HierarchyMode::TreeDepth;
+            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode, &hierarchyMode);
+            clip.hierarchyMode = hierarchyMode;
+
+            // Build output-to-animation bone mapping (for intermediate bone handling)
+            // FA1 format doesn't have intermediate bone flags in bind pose, so all bones produce output
+            clip.BuildOutputMapping();
         }
 
         // Compute time ranges
@@ -685,84 +1356,50 @@ private:
      * @param outParents Output vector of parent indices.
      * @param depths Vector of hierarchy values from bone flags.
      * @param outUsedSequentialMode Output flag: true if WORLD_SPACE mode was used.
+     * @param outHierarchyMode Output: detected hierarchy encoding mode.
      */
     static void ComputeBoneParents(std::vector<int32_t>& outParents, const std::vector<uint8_t>& depths,
-                                    bool* outUsedSequentialMode = nullptr)
+                                    bool* outUsedSequentialMode = nullptr,
+                                    Animation::HierarchyMode* outHierarchyMode = nullptr)
     {
         outParents.resize(depths.size(), -1);
         if (outUsedSequentialMode) *outUsedSequentialMode = false;
-
-        // Debug logging for hierarchy analysis
-        static std::ofstream hierarchy_log("hierarchy_debug.log", std::ios::app);
+        if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::TreeDepth;
 
         if (depths.empty()) return;
 
         // Analyze the depth pattern to detect encoding type
         int zeroCount = 0;
         int maxDepth = 0;
-        int increaseBy1Count = 0;  // depth[i] == depth[i-1] + 1 (tree depth pattern)
-        int decreaseCount = 0;     // depth[i] < depth[i-1] (branching back)
-        int startsWithZeroOne = 0; // First bone is 0, second is 1 (tree depth signature)
+        int valuesAboveBoneCount = 0;
 
         for (size_t i = 0; i < depths.size(); i++)
         {
             uint8_t d = depths[i];
             if (d == 0) zeroCount++;
             if (d > maxDepth) maxDepth = d;
-
-            if (i > 0)
-            {
-                if (d == depths[i-1] + 1) increaseBy1Count++;
-                if (d < depths[i-1]) decreaseCount++;
-            }
-        }
-
-        if (depths.size() >= 2 && depths[0] == 0 && depths[1] == 1)
-        {
-            startsWithZeroOne = 1;
+            if (d > static_cast<uint8_t>(i)) valuesAboveBoneCount++;
         }
 
         // Detection logic:
-        // - Tree depths: start with 0,1 and have many +1 transitions
-        // - Pop counts: mostly 0s (child of previous), occasional larger values at branches
-        // - World space: all/most values are 0 with no meaningful pattern
+        // TREE_DEPTH: starts with 0,1 and values don't exceed bone index
+        // POP_COUNT: mostly zeros OR has values that can't be tree depths
+        // WORLD_SPACE: no meaningful hierarchy data
 
-        bool looksLikeTreeDepths = (startsWithZeroOne == 1) &&
-                                    (increaseBy1Count >= static_cast<int>(depths.size()) * 0.2);
+        bool startsWithZeroOne = (depths.size() >= 2 && depths[0] == 0 && depths[1] == 1);
+        bool mostlyZeros = (zeroCount >= static_cast<int>(depths.size()) * 0.5);
+        bool hasValuesExceedingIndex = (valuesAboveBoneCount > 0);
 
-        bool looksLikePopCounts = !looksLikeTreeDepths &&
-                                   (zeroCount >= static_cast<int>(depths.size()) * 0.5) &&
-                                   (maxDepth > 0);
-
+        bool looksLikeTreeDepths = startsWithZeroOne && !hasValuesExceedingIndex;
         bool noHierarchyData = (zeroCount >= static_cast<int>(depths.size()) * 0.95) ||
                                 (maxDepth == 0 && depths.size() > 1);
-
-        const char* modeName = noHierarchyData ? "WORLD_SPACE" :
-                               (looksLikeTreeDepths ? "TREE_DEPTH" : "POP_COUNT");
-
-        if (hierarchy_log.is_open())
-        {
-            hierarchy_log << "=== ComputeBoneParents: " << depths.size() << " bones ===" << std::endl;
-            hierarchy_log << "Analysis: zeroCount=" << zeroCount
-                         << ", maxDepth=" << maxDepth
-                         << ", +1transitions=" << increaseBy1Count
-                         << ", decreases=" << decreaseCount
-                         << ", starts01=" << startsWithZeroOne
-                         << " -> mode=" << modeName << std::endl;
-            hierarchy_log << "Depths: ";
-            for (size_t i = 0; i < depths.size() && i < 50; i++)
-            {
-                hierarchy_log << (int)depths[i] << " ";
-            }
-            if (depths.size() > 50) hierarchy_log << "...";
-            hierarchy_log << std::endl;
-        }
 
         if (noHierarchyData)
         {
             // WORLD_SPACE MODE: No hierarchy data available
             // Treat all bones as independent with world-space transforms
             if (outUsedSequentialMode) *outUsedSequentialMode = true;
+            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::Sequential;
 
             for (size_t boneIdx = 0; boneIdx < depths.size(); boneIdx++)
             {
@@ -773,6 +1410,7 @@ private:
         {
             // TREE_DEPTH MODE: depth = absolute level in hierarchy
             // Algorithm: track bones at each depth level, find parent at depth-1
+            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::TreeDepth;
             std::unordered_map<uint8_t, int32_t> depthToBone;
 
             for (size_t boneIdx = 0; boneIdx < depths.size(); boneIdx++)
@@ -827,44 +1465,45 @@ private:
         }
         else
         {
-            // POP_COUNT MODE: depth = number of levels to pop from matrix stack
-            // Based on Ghidra RE of GrTrans_PushPopMatrix
+            // POP_COUNT MODE - True stack-based hierarchy computation
+            //
+            // Based on Ghidra RE of GrTrans_PushPopMatrix @ 0x0064ab40
+            // The depth value is the number of levels to POP from the matrix stack
+            // before pushing the current bone.
+            //
+            // Algorithm:
+            // - Maintain a stack of bone indices
+            // - For each bone:
+            //   1. Pop depths[i] items from stack
+            //   2. Parent = top of stack (or -1 if empty)
+            //   3. Push current bone onto stack
+            //
+            // This creates hierarchies where:
+            // - depth=0: chain from previous (push without pop)
+            // - depth=N: go back N levels in the tree to find parent
+            //
+            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::PopCount;
+
             std::vector<int32_t> stack;
+            stack.reserve(depths.size());
 
             for (size_t boneIdx = 0; boneIdx < depths.size(); boneIdx++)
             {
                 uint8_t popCount = depths[boneIdx];
 
-                // Pop 'popCount' entries from the stack
-                for (uint8_t i = 0; i < popCount && !stack.empty(); i++)
+                // Pop 'popCount' items from stack
+                for (uint8_t p = 0; p < popCount && !stack.empty(); p++)
                 {
                     stack.pop_back();
                 }
 
-                // Parent is current top of stack, or -1 if empty (root)
-                outParents[boneIdx] = stack.empty() ? -1 : stack.back();
+                // Parent is top of stack, or -1 if stack is empty (root)
+                int32_t parent = stack.empty() ? -1 : stack.back();
+                outParents[boneIdx] = parent;
 
                 // Push current bone onto stack
                 stack.push_back(static_cast<int32_t>(boneIdx));
             }
-        }
-
-        // Count and log disconnected bones
-        if (hierarchy_log.is_open())
-        {
-            int disconnected = 0;
-            for (size_t i = 1; i < outParents.size(); i++)
-            {
-                if (outParents[i] == -1) disconnected++;
-            }
-            hierarchy_log << "Result: " << disconnected << " disconnected bones (excl root)" << std::endl;
-            hierarchy_log << "Hierarchy: ";
-            for (size_t i = 0; i < outParents.size() && i < 50; i++)
-            {
-                hierarchy_log << i << "->" << outParents[i] << " ";
-            }
-            if (outParents.size() > 50) hierarchy_log << "...";
-            hierarchy_log << std::endl << std::endl;
         }
     }
 };

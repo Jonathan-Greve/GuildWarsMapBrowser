@@ -8,10 +8,13 @@
 #include <DirectXMath.h>
 #include <memory>
 #include <map>
+#include <set>
 #include <vector>
 #include <atomic>
 #include <string>
 #include <cstring>
+#include <cfloat>
+#include <cmath>
 
 // Forward declarations
 class DATManager;
@@ -48,6 +51,9 @@ struct AnimationVisualizationOptions
 
     // Debug options
     bool disableSkinning = false;  // If true, render mesh without animation skinning (bind pose)
+    bool colorByBoneIndex = false; // If true, color vertices by bone index
+    bool showRawBoneIndex = true;  // If true, show raw FA0 palette index; if false, show remapped skeleton bone
+    bool useMeshBindPositions = false; // If true, use mesh vertex centroids as bind positions instead of animation
 
     // Submesh visibility (indexed by submesh ID)
     std::vector<bool> submeshVisibility;
@@ -83,6 +89,12 @@ struct AnimationPanelState
     // Model hashes for finding matching animations (from BB8/FA0 geometry chunk)
     uint32_t modelHash0 = 0;
     uint32_t modelHash1 = 0;
+
+    // FA1 bind pose data (from model file, more accurate than BB9 hierarchy)
+    // When available, these parent indices should override BB9-derived parents
+    std::vector<int32_t> fa1BindPoseParents;
+    std::vector<DirectX::XMFLOAT3> fa1BindPosePositions;
+    bool hasFA1BindPose = false;
 
     // Model scale factor (computed from mesh bounding box to fit in view)
     // This is the scale that makes the mesh fit into a 10000 unit bounding box
@@ -120,7 +132,7 @@ struct AnimationPanelState
     {
         std::vector<uint32_t> groupSizes;           // Size of each bone group
         std::vector<uint32_t> skeletonBoneIndices;  // Flat array of skeleton bone IDs
-        std::vector<uint32_t> groupToSkeletonBone;  // Mapping: group index -> first skeleton bone
+        std::vector<uint32_t> groupToSkeletonBone;  // Mapping: group index -> skeleton bone
 
         void BuildGroupMapping()
         {
@@ -128,15 +140,17 @@ struct AnimationPanelState
             size_t skelIdx = 0;
             for (size_t i = 0; i < groupSizes.size(); i++)
             {
-                if (skelIdx < skeletonBoneIndices.size())
+                uint32_t groupSize = groupSizes[i];
+                if (skelIdx < skeletonBoneIndices.size() && groupSize > 0)
                 {
+                    // Use first bone of group (production mode)
                     groupToSkeletonBone.push_back(skeletonBoneIndices[skelIdx]);
                 }
                 else
                 {
                     groupToSkeletonBone.push_back(0);
                 }
-                skelIdx += groupSizes[i];
+                skelIdx += groupSize;
             }
         }
 
@@ -189,6 +203,11 @@ struct AnimationPanelState
         meshIds.clear();
         perMeshPerObjectCB.clear();
         perMeshTextureIds.clear();
+
+        // Clear FA1 bind pose data (will be repopulated for FA0/FA1 format models)
+        fa1BindPoseParents.clear();
+        fa1BindPosePositions.clear();
+        hasFA1BindPose = false;
 
         // Restore playback settings
         playbackSettings = savedSettings;
@@ -259,6 +278,86 @@ struct AnimationPanelState
         // Build the group to skeleton bone mapping
         boneData.BuildGroupMapping();
 
+        // Debug: Log the group sizes and mapping
+        char debugMsg[2048];
+        sprintf_s(debugMsg, "\n=== ExtractBoneData: %u groups, %u boneRefs ===\n",
+                  boneGroupCount, totalBoneRefs);
+        LogBB8Debug(debugMsg);
+
+        // Log group sizes (first 20)
+        std::string sizesLog = "  GroupSizes: ";
+        for (size_t i = 0; i < boneData.groupSizes.size() && i < 20; i++)
+        {
+            char buf[16];
+            sprintf_s(buf, "%u ", boneData.groupSizes[i]);
+            sizesLog += buf;
+        }
+        if (boneData.groupSizes.size() > 20) sizesLog += "...";
+        sizesLog += "\n";
+        LogBB8Debug(sizesLog.c_str());
+
+        // Compute sum of group sizes
+        uint32_t sumSizes = 0;
+        for (uint32_t gs : boneData.groupSizes) sumSizes += gs;
+        sprintf_s(debugMsg, "  Sum of groupSizes: %u (should equal totalBoneRefs=%u)\n",
+                  sumSizes, totalBoneRefs);
+        LogBB8Debug(debugMsg);
+
+        // Log first 20 skeleton bone indices
+        std::string skelLog = "  SkeletonBoneIndices: ";
+        for (size_t i = 0; i < boneData.skeletonBoneIndices.size() && i < 20; i++)
+        {
+            char buf[16];
+            sprintf_s(buf, "[%zu]=%u ", i, boneData.skeletonBoneIndices[i]);
+            skelLog += buf;
+        }
+        if (boneData.skeletonBoneIndices.size() > 20) skelLog += "...";
+        skelLog += "\n";
+        LogBB8Debug(skelLog.c_str());
+
+        // Log ALL group->skeleton mappings to find any mapping to bones 0-9
+        std::string mapLog = "  GroupToSkeleton: ";
+        std::set<uint32_t> uniqueMappedBones;
+        uint32_t minMappedBone = UINT32_MAX, maxMappedBone = 0;
+        for (size_t i = 0; i < boneData.groupToSkeletonBone.size(); i++)
+        {
+            uint32_t bone = boneData.groupToSkeletonBone[i];
+            uniqueMappedBones.insert(bone);
+            if (bone < minMappedBone) minMappedBone = bone;
+            if (bone > maxMappedBone) maxMappedBone = bone;
+            if (i < 20)
+            {
+                char buf[16];
+                sprintf_s(buf, "[%zu]->%u ", i, bone);
+                mapLog += buf;
+            }
+        }
+        if (boneData.groupToSkeletonBone.size() > 20) mapLog += "...";
+        mapLog += "\n";
+        LogBB8Debug(mapLog.c_str());
+
+        // Log range and any low-numbered bones
+        sprintf_s(debugMsg, "  MappedBones: min=%u, max=%u, unique=%zu\n",
+                  minMappedBone, maxMappedBone, uniqueMappedBones.size());
+        LogBB8Debug(debugMsg);
+
+        // Log any bones < 10 (these shouldn't exist for the pig)
+        std::string lowBonesLog;
+        for (uint32_t b : uniqueMappedBones)
+        {
+            if (b < 10)
+            {
+                char buf[16];
+                sprintf_s(buf, "%u ", b);
+                lowBonesLog += buf;
+            }
+        }
+        if (!lowBonesLog.empty())
+        {
+            sprintf_s(debugMsg, "  WARNING: Groups map to low bones (<10): %s\n", lowBonesLog.c_str());
+            LogBB8Debug(debugMsg);
+        }
+
         return boneData;
     }
 
@@ -269,20 +368,25 @@ struct AnimationPanelState
      * @param boneData Bone group mapping for this submesh
      * @param vertexBoneGroups Per-vertex bone group indices from ModelVertex.group
      * @param boneCount Total number of bones in the skeleton (for validation)
+     * @param hierarchyMode Hierarchy encoding mode (for bone index adjustment)
+     * @param submeshIndex Submesh index for logging
      * @return Vector of SkinnedGWVertex with bone weights set
      */
     static std::vector<SkinnedGWVertex> CreateSkinnedVertices(
         const Mesh& mesh,
         const SubmeshBoneData& boneData,
         const std::vector<uint32_t>& vertexBoneGroups,
-        size_t boneCount = 256)
+        size_t boneCount = 256,
+        GW::Animation::HierarchyMode hierarchyMode = GW::Animation::HierarchyMode::TreeDepth,
+        size_t submeshIndex = 0)
     {
+        (void)hierarchyMode;  // Unused
+        (void)submeshIndex;   // Unused
+
         std::vector<SkinnedGWVertex> skinnedVertices;
         skinnedVertices.reserve(mesh.vertices.size());
 
-        // Determine if we should use direct bone indices or group mapping
-        // If vertex bone indices exceed group count but are within bone count,
-        // they might be direct skeleton bone indices
+        // Determine if we should use direct indices (fallback) or palette mapping
         bool useDirectIndices = false;
         uint32_t maxVertexBoneIdx = 0;
         for (const auto& idx : vertexBoneGroups)
@@ -290,20 +394,14 @@ struct AnimationPanelState
             if (idx > maxVertexBoneIdx) maxVertexBoneIdx = idx;
         }
 
-        // If no mapping available or max index exceeds group count but is within skeleton,
-        // use direct indexing
+        // Use palette mapping if available and vertex indices fit within the mapping
         if (boneData.groupToSkeletonBone.empty())
         {
             useDirectIndices = true;
-            LogBB8Debug("  CreateSkinnedVertices: No group mapping, using direct indices\n");
         }
         else if (maxVertexBoneIdx >= boneData.groupToSkeletonBone.size() && maxVertexBoneIdx < boneCount)
         {
             useDirectIndices = true;
-            char msg[256];
-            sprintf_s(msg, "  CreateSkinnedVertices: maxVertexBoneIdx(%u) >= groupCount(%zu), using direct indices\n",
-                maxVertexBoneIdx, boneData.groupToSkeletonBone.size());
-            LogBB8Debug(msg);
         }
 
         for (size_t i = 0; i < mesh.vertices.size(); i++)
@@ -320,12 +418,11 @@ struct AnimationPanelState
             }
             else
             {
-                // Map bone group index to skeleton bone via palette
+                // PALETTE mode: Use group-size-skipping to map palette index to skeleton bone
                 skelBone = boneData.MapGroupToSkeletonBone(groupIdx);
-                // Clamp to valid range - some meshes reference bones beyond animation bone count
                 if (skelBone >= boneCount)
                 {
-                    skelBone = skelBone % boneCount;  // Wrap around instead of clamping to 0
+                    skelBone = skelBone % boneCount;
                 }
             }
 
@@ -351,7 +448,7 @@ struct AnimationPanelState
         if (clip && clip->IsValid())
         {
             controller = std::make_shared<GW::Animation::AnimationController>();
-            controller->Initialize(clip, skeleton);
+            controller->Initialize(clip);
             hasAnimation = true;
 
             // Apply persistent playback settings to the new controller
@@ -362,148 +459,6 @@ struct AnimationPanelState
         else
         {
             hasAnimation = false;
-        }
-    }
-
-    /**
-     * @brief Computes mesh-derived bind positions from vertex centroids.
-     *
-     * Animation bind positions often don't match where mesh vertices actually are.
-     * This function computes the centroid of all vertices assigned to each skeleton bone,
-     * which gives accurate bind positions for skinning.
-     *
-     * Call this after both model meshes and animation are loaded.
-     *
-     * @return Vector of bind positions indexed by skeleton bone index.
-     */
-    std::vector<DirectX::XMFLOAT3> ComputeMeshBindPositions()
-    {
-        if (!hasAnimation || !clip || originalMeshes.empty())
-        {
-            return {};
-        }
-
-        size_t boneCount = clip->boneTracks.size();
-
-        // Accumulate positions and counts per skeleton bone
-        std::vector<DirectX::XMFLOAT3> positionSums(boneCount, {0.0f, 0.0f, 0.0f});
-        std::vector<uint32_t> vertexCounts(boneCount, 0);
-
-        // Iterate through all meshes and vertices
-        for (size_t meshIdx = 0; meshIdx < originalMeshes.size(); meshIdx++)
-        {
-            const auto& mesh = originalMeshes[meshIdx];
-            const auto& boneData = (meshIdx < submeshBoneData.size()) ?
-                submeshBoneData[meshIdx] : SubmeshBoneData();
-            const auto& vertexBoneGroups = (meshIdx < perVertexBoneGroups.size()) ?
-                perVertexBoneGroups[meshIdx] : std::vector<uint32_t>();
-
-            // Determine if we should use direct bone indices or group mapping
-            bool useDirectIndices = false;
-            uint32_t maxVertexBoneIdx = 0;
-            for (const auto& idx : vertexBoneGroups)
-            {
-                if (idx > maxVertexBoneIdx) maxVertexBoneIdx = idx;
-            }
-            if (boneData.groupToSkeletonBone.empty() ||
-                (maxVertexBoneIdx >= boneData.groupToSkeletonBone.size() && maxVertexBoneIdx < boneCount))
-            {
-                useDirectIndices = true;
-            }
-
-            for (size_t vertIdx = 0; vertIdx < mesh.vertices.size(); vertIdx++)
-            {
-                const auto& vertex = mesh.vertices[vertIdx];
-
-                // Get skeleton bone index for this vertex
-                uint32_t groupIdx = (vertIdx < vertexBoneGroups.size()) ? vertexBoneGroups[vertIdx] : 0;
-                uint32_t skelBone;
-
-                if (useDirectIndices)
-                {
-                    skelBone = groupIdx < boneCount ? static_cast<uint32_t>(groupIdx) : 0;
-                }
-                else
-                {
-                    skelBone = boneData.MapGroupToSkeletonBone(groupIdx);
-                }
-
-                // Wrap to valid bone index (same logic as CreateSkinnedVertices)
-                if (skelBone >= boneCount)
-                {
-                    skelBone = skelBone % static_cast<uint32_t>(boneCount);
-                }
-
-                // Accumulate position
-                positionSums[skelBone].x += vertex.position.x;
-                positionSums[skelBone].y += vertex.position.y;
-                positionSums[skelBone].z += vertex.position.z;
-                vertexCounts[skelBone]++;
-            }
-        }
-
-        // Compute centroids
-        std::vector<DirectX::XMFLOAT3> meshBindPositions(boneCount);
-        for (size_t i = 0; i < boneCount; i++)
-        {
-            if (vertexCounts[i] > 0)
-            {
-                float invCount = 1.0f / static_cast<float>(vertexCounts[i]);
-                meshBindPositions[i] = {
-                    positionSums[i].x * invCount,
-                    positionSums[i].y * invCount,
-                    positionSums[i].z * invCount
-                };
-            }
-            else
-            {
-                // No vertices for this bone - use animation bind position as fallback
-                if (i < clip->boneTracks.size())
-                {
-                    meshBindPositions[i] = clip->boneTracks[i].basePosition;
-                }
-                else
-                {
-                    meshBindPositions[i] = {0.0f, 0.0f, 0.0f};
-                }
-            }
-        }
-
-        return meshBindPositions;
-    }
-
-    /**
-     * @brief Applies mesh-derived bind positions to the animation controller.
-     *
-     * Call this after ComputeMeshBindPositions() to enable accurate skinning.
-     */
-    void ApplyMeshBindPositions()
-    {
-        if (controller && hasAnimation)
-        {
-            auto meshBindPositions = ComputeMeshBindPositions();
-            if (!meshBindPositions.empty())
-            {
-                // Debug: Compare mesh vs animation bind positions for first few bones
-                LogBB8Debug("ApplyMeshBindPositions: Comparing bind positions\n");
-                for (size_t i = 0; i < std::min(size_t(15), meshBindPositions.size()); i++)
-                {
-                    const auto& meshBind = meshBindPositions[i];
-                    const auto& animBind = (i < clip->boneTracks.size()) ?
-                        clip->boneTracks[i].basePosition : DirectX::XMFLOAT3{0,0,0};
-                    float dist = std::sqrt(
-                        (meshBind.x - animBind.x) * (meshBind.x - animBind.x) +
-                        (meshBind.y - animBind.y) * (meshBind.y - animBind.y) +
-                        (meshBind.z - animBind.z) * (meshBind.z - animBind.z));
-                    char msg[256];
-                    sprintf_s(msg, "  Bone %zu: mesh=(%.1f,%.1f,%.1f) anim=(%.1f,%.1f,%.1f) dist=%.1f\n",
-                        i, meshBind.x, meshBind.y, meshBind.z,
-                        animBind.x, animBind.y, animBind.z, dist);
-                    LogBB8Debug(msg);
-                }
-
-                controller->SetMeshBindPositions(meshBindPositions);
-            }
         }
     }
 
@@ -521,6 +476,9 @@ struct AnimationPanelState
 
         animatedMeshes.clear();
 
+        // Get hierarchy mode from clip (or default to TreeDepth)
+        GW::Animation::HierarchyMode hierarchyMode = clip ? clip->hierarchyMode : GW::Animation::HierarchyMode::TreeDepth;
+
         for (size_t i = 0; i < originalMeshes.size(); i++)
         {
             const auto& mesh = originalMeshes[i];
@@ -536,30 +494,8 @@ struct AnimationPanelState
             // Get skeleton bone count for validation
             size_t boneCount = clip ? clip->boneTracks.size() : 256;
 
-            // Debug: Check for out-of-range bone indices
-            if (i == 0)  // Log once
-            {
-                char msg[256];
-                sprintf_s(msg, "CreateAnimatedMeshes: Animation has %zu bones\n", boneCount);
-                LogBB8Debug(msg);
-            }
-
-            // Check max skeleton bone index in this submesh's palette
-            uint32_t maxSkelBone = 0;
-            for (uint32_t skelBone : boneData.skeletonBoneIndices)
-            {
-                if (skelBone > maxSkelBone) maxSkelBone = skelBone;
-            }
-            if (maxSkelBone >= boneCount)
-            {
-                char msg[256];
-                sprintf_s(msg, "  WARNING Submesh %zu: maxSkelBoneIdx(%u) >= animBoneCount(%zu)!\n",
-                    i, maxSkelBone, boneCount);
-                LogBB8Debug(msg);
-            }
-
             // Create skinned vertices
-            auto skinnedVertices = CreateSkinnedVertices(mesh, boneData, vertexBoneGroups, boneCount);
+            auto skinnedVertices = CreateSkinnedVertices(mesh, boneData, vertexBoneGroups, boneCount, hierarchyMode, i);
 
             // Create AnimatedMeshInstance
             auto animMesh = std::make_shared<AnimatedMeshInstance>(
@@ -574,6 +510,8 @@ struct AnimationPanelState
     /**
      * @brief Updates bone matrices in all animated meshes.
      *
+     * Uses direct mapping: skeleton bone X = animation bone X.
+     *
      * @param context D3D11 device context for updating constant buffers.
      */
     void UpdateAnimatedMeshBones(ID3D11DeviceContext* context)
@@ -581,13 +519,14 @@ struct AnimationPanelState
         if (!hasAnimation || !controller || animatedMeshes.empty() || !context)
             return;
 
-        const auto& boneMatrices = controller->GetBoneMatrices();
+        const auto& animBoneMatrices = controller->GetBoneMatrices();
 
+        // Direct mapping: skeleton bone X = animation bone X
         for (auto& animMesh : animatedMeshes)
         {
             if (animMesh)
             {
-                animMesh->UpdateBoneMatrices(context, boneMatrices);
+                animMesh->UpdateBoneMatrices(context, animBoneMatrices);
             }
         }
     }
@@ -622,17 +561,41 @@ struct AnimationPanelState
 extern AnimationPanelState g_animationState;
 
 /**
- * @brief Draws the animation control panel.
- *
- * Provides controls for:
- * - Find animations button (searches DAT for matching animations)
- * - Animation selection from search results
- * - Play/Pause/Stop
- * - Time scrubbing
- * - Sequence selection
- * - Playback speed
- * - Looping options
- *
- * @param dat_managers Map of DAT managers for searching and loading files
+ * @brief Sets the DAT managers pointer for animation loading.
+ * Must be called before AutoLoadAnimation can work.
  */
-void draw_animation_panel(std::map<int, std::unique_ptr<DATManager>>& dat_managers);
+void SetAnimationDATManagers(std::map<int, std::unique_ptr<DATManager>>* dat_managers);
+
+/**
+ * @brief Automatically loads animation for the current model.
+ *
+ * First tries to load animation from the same file as the model.
+ * If not found, searches for files with matching model hashes and loads the first one.
+ *
+ * @param dat_managers Map of DAT managers to search
+ */
+void AutoLoadAnimation(std::map<int, std::unique_ptr<DATManager>>& dat_managers);
+
+/**
+ * @brief Automatically loads animation using the stored DAT managers pointer.
+ * SetAnimationDATManagers must be called first.
+ */
+void AutoLoadAnimationFromStoredManagers();
+
+/**
+ * @brief Starts a background search for animations matching the current model.
+ *
+ * Unlike AutoLoadAnimation, this function will search even if an animation
+ * is already loaded. Results are stored in g_animationState.searchResults.
+ *
+ * @param dat_managers Map of DAT managers to search
+ */
+void StartAnimationSearch(std::map<int, std::unique_ptr<DATManager>>& dat_managers);
+
+/**
+ * @brief Loads an animation from the search results by index.
+ *
+ * @param resultIndex Index into g_animationState.searchResults
+ * @param dat_managers Map of DAT managers for loading
+ */
+void LoadAnimationFromSearchResult(int resultIndex, std::map<int, std::unique_ptr<DATManager>>& dat_managers);

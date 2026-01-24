@@ -8,7 +8,8 @@
 #include "draw_dat_load_progress_bar.h"
 #include "draw_picking_info.h"
 #include "draw_ui.h"
-#include "draw_animation_panel.h"
+#include "animation_state.h"
+#include "ModelViewer/ModelViewer.h"
 
 extern void ExitMapBrowser() noexcept;
 
@@ -163,10 +164,43 @@ void MapBrowser::Update(duration<double, std::milli> elapsed)
     }
 
 
+    // Update model viewer if active
+    float deltaSeconds = static_cast<float>(elapsed.count() / 1000.0);
+    if (g_modelViewerState.isActive)
+    {
+        // Update orbital camera viewport/aspect ratio
+        auto* orbitalCam = g_modelViewerState.camera.get();
+        if (orbitalCam)
+        {
+            RECT outputSize = m_deviceResources->GetOutputSize();
+            float width = static_cast<float>(outputSize.right - outputSize.left);
+            float height = static_cast<float>(outputSize.bottom - outputSize.top);
+            if (width > 0 && height > 0)
+            {
+                orbitalCam->OnViewportChanged(width, height);
+            }
+        }
+
+        UpdateModelViewer(deltaSeconds);
+
+        // Set camera override from orbital camera
+        if (orbitalCam)
+        {
+            m_map_renderer->SetCameraOverride(
+                orbitalCam->GetView(),
+                orbitalCam->GetProj(),
+                orbitalCam->GetPosition());
+        }
+    }
+    else
+    {
+        // Clear camera override when not in model viewer mode
+        m_map_renderer->ClearCameraOverride();
+    }
+
     // Update animation controller if playing
     if (g_animationState.controller && g_animationState.hasAnimation)
     {
-        float deltaSeconds = static_cast<float>(elapsed.count() / 1000.0);
         g_animationState.controller->Update(deltaSeconds);
 
         // Create animated meshes if we have animation and model but no skinned meshes yet
@@ -342,6 +376,12 @@ void MapBrowser::Render()
                 PerObjectCB transposedData = g_animationState.perMeshPerObjectCB[i];
                 // Apply mesh alpha from visualization options
                 transposedData.mesh_alpha = vis.meshAlpha;
+                // Set highlight_state for "color by bone index" mode
+                // 3 = remapped skeleton bone, 4 = raw FA0 palette index
+                if (vis.colorByBoneIndex)
+                {
+                    transposedData.highlight_state = vis.showRawBoneIndex ? 4 : 3;
+                }
                 // Apply -90 degree Y rotation to align skinned mesh with bone visualization
                 // This matches the rotation applied to bone positions in the visualization code above
                 DirectX::XMMATRIX yRotation = DirectX::XMMatrixRotationY(-DirectX::XM_PIDIV2);
@@ -1011,7 +1051,16 @@ void MapBrowser::Clear()
     auto pickingRenderTarget = m_deviceResources->GetPickingRenderTargetView();
     auto depthStencil = m_deviceResources->GetDepthStencilView();
 
-    const auto& clear_color = m_map_renderer->GetClearColor();
+    // Use model viewer background color if active, otherwise use map renderer's clear color
+    DirectX::XMFLOAT4 clear_color;
+    if (g_modelViewerState.isActive)
+    {
+        clear_color = g_modelViewerState.options.backgroundColor;
+    }
+    else
+    {
+        clear_color = m_map_renderer->GetClearColor();
+    }
     context->ClearRenderTargetView(renderTarget, (float*)(&clear_color));
     // Clear picking target with a color that represents "no object" (e.g., black or white with alpha 1)
     float pickingClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // Or {1,1,1,1}

@@ -1,7 +1,8 @@
 ﻿#include "pch.h"
 #include "draw_dat_browser.h"
 #include "draw_texture_panel.h"
-#include "draw_animation_panel.h"
+#include "animation_state.h"
+#include "ModelViewer/ModelViewer.h"
 #include "Parsers/BB9AnimationParser.h"
 
 #include <codecvt>
@@ -245,19 +246,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			selected_ffna_model_file = dat_manager->parse_ffna_model_file(index);
 		}
 
-		// Try to parse animation data from the raw file
+		// Reset animation state
 		g_animationState.Reset();
-		if (!selected_raw_data.empty())
-		{
-			auto clipOpt = GW::Parsers::ParseAnimationFromFile(selected_raw_data.data(), selected_raw_data.size());
-			if (clipOpt)
-			{
-				auto clip = std::make_shared<GW::Animation::AnimationClip>(std::move(*clipOpt));
-				auto skeleton = std::make_shared<GW::Animation::Skeleton>(
-					GW::Parsers::BB9AnimationParser::CreateSkeleton(*clip));
-				g_animationState.Initialize(clip, skeleton, entry->Hash);
-			}
-		}
 
 		if ((using_other_model_format && selected_ffna_model_file_other.parsed_correctly) ||
 		    (!using_other_model_format && selected_ffna_model_file.parsed_correctly))
@@ -277,11 +267,78 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				modelHash1 = selected_ffna_model_file.geometry_chunk.sub_1.f0x10;
 			}
 
-			// Set model hashes in animation panel for finding matching animation files
-			if (!g_animationState.hasAnimation)
+			// Set model hashes
+			g_animationState.SetModelHashes(modelHash0, modelHash1, entry->Hash);
+
+			// Extract FA1 bind pose parents from model file FIRST (for FA0/FA1 format)
+			// These parent indices are more accurate than BB9's hierarchyByte
+			// Must be done BEFORE loading animation so skeleton gets correct parents
+			g_animationState.fa1BindPoseParents.clear();
+			g_animationState.fa1BindPosePositions.clear();
+			g_animationState.hasFA1BindPose = false;
+
+			if (!using_other_model_format && !selected_raw_data.empty())
 			{
-				g_animationState.SetModelHashes(modelHash0, modelHash1, entry->Hash);
+				// Scan for FA1 chunk (0xFA1 = 4001)
+				const uint8_t* data = selected_raw_data.data();
+				size_t dataSize = selected_raw_data.size();
+
+				for (size_t offset = 5; offset + 8 < dataSize; )
+				{
+					uint32_t chunkId = *reinterpret_cast<const uint32_t*>(&data[offset]);
+					uint32_t chunkSize = *reinterpret_cast<const uint32_t*>(&data[offset + 4]);
+
+					if (chunkId == GW::Parsers::CHUNK_ID_FA1)
+					{
+						// Found FA1 chunk - extract bind pose data
+						const uint8_t* fa1Data = &data[offset + 8]; // Skip chunk header
+						size_t fa1Size = std::min(static_cast<size_t>(chunkSize), dataSize - offset - 8);
+
+						size_t boneCount = GW::Parsers::BB9AnimationParser::ParseFA1BindPose(
+							fa1Data, fa1Size,
+							g_animationState.fa1BindPoseParents,
+							g_animationState.fa1BindPosePositions);
+
+						if (boneCount > 0)
+						{
+							g_animationState.hasFA1BindPose = true;
+							char debug[128];
+							sprintf_s(debug, "Extracted FA1 bind pose: %zu bones\n", boneCount);
+							LogBB8Debug(debug);
+						}
+						break;
+					}
+
+					offset += 8 + chunkSize;
+					if (chunkSize == 0) break; // Avoid infinite loop
+				}
 			}
+
+			// Now try to parse animation data from the raw file
+			// FA1 parents are already extracted, so LoadAnimationFromResult will use them
+			char debugMsg[256];
+			sprintf_s(debugMsg, "FA1 state: hasFA1=%d, parentCount=%zu\n",
+				g_animationState.hasFA1BindPose ? 1 : 0,
+				g_animationState.fa1BindPoseParents.size());
+			LogBB8Debug(debugMsg);
+
+			// Try to parse animation from the model file (if it has embedded animation)
+			if (!selected_raw_data.empty())
+			{
+				auto clipOpt = GW::Parsers::ParseAnimationFromFile(selected_raw_data.data(), selected_raw_data.size());
+				if (clipOpt)
+				{
+					auto clip = std::make_shared<GW::Animation::AnimationClip>(std::move(*clipOpt));
+					// NOTE: Parent indices are computed by POP_COUNT algorithm during parsing.
+					// DO NOT override with FA1 parentInfo - those are raw hierarchyBytes, not pre-computed parents.
+					auto skeleton = std::make_shared<GW::Animation::Skeleton>(
+						GW::Parsers::BB9AnimationParser::CreateSkeleton(*clip));
+					g_animationState.Initialize(clip, skeleton, entry->Hash);
+				}
+			}
+
+			// Also try to load from matching animation files
+			AutoLoadAnimationFromStoredManagers();
 
 			map_renderer->UnsetTerrain();
 			// Disable shadows for models when viewing standalone (no terrain = no shadow map)
@@ -975,6 +1032,21 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				}
 			}
 			success = true;
+
+			// Auto-activate model viewer when loading a model
+			g_modelViewerState.meshes = g_animationState.originalMeshes;
+			g_modelViewerState.meshIds = g_animationState.meshIds;
+			g_modelViewerState.modelFileId = entry->Hash;
+			g_modelViewerState.vertexBoneGroups = g_animationState.perVertexBoneGroups;
+			g_modelViewerState.animController = g_animationState.controller;
+			g_modelViewerState.animClip = g_animationState.clip;
+			g_modelViewerState.ComputeBounds();
+			g_modelViewerState.UpdateBoneInfo();
+			g_modelViewerState.camera->FitToBounds(
+				g_modelViewerState.boundsMin,
+				g_modelViewerState.boundsMax);
+			g_modelViewerState.isActive = true;
+			GuiGlobalConstants::is_model_viewer_panel_open = true;
 		}
 
 		break;
@@ -1286,6 +1358,12 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 			auto& terrain_shadow_map =
 				selected_ffna_map_file.terrain_chunk.terrain_shadow_map;
+
+			// Deactivate model viewer when loading a map
+			if (g_modelViewerState.isActive)
+			{
+				DeactivateModelViewer(map_renderer);
+			}
 
 			// Create terrain
 			terrain = std::make_unique<Terrain>(selected_ffna_map_file.terrain_chunk.terrain_x_dims,

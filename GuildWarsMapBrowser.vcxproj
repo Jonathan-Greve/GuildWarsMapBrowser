@@ -244,6 +244,9 @@
     <ClInclude Include="SourceFiles\json.hpp" />
     <ClInclude Include="SourceFiles\map_exporter.h" />
     <ClInclude Include="SourceFiles\model_exporter.h" />
+    <ClInclude Include="SourceFiles\ModelViewer\ModelViewer.h" />
+    <ClInclude Include="SourceFiles\ModelViewer\ModelViewerPanel.h" />
+    <ClInclude Include="SourceFiles\ModelViewer\OrbitalCamera.h" />
     <ClInclude Include="SourceFiles\MurmurHash3.h" />
     <ClInclude Include="SourceFiles\NewModelPixelShader.h" />
     <ClInclude Include="SourceFiles\NewModelReflectionPixelShader.h" />
@@ -253,7 +256,7 @@
     <ClInclude Include="SourceFiles\DeviceResources.h" />
     <ClInclude Include="SourceFiles\DirectionalLight.h" />
     <ClInclude Include="SourceFiles\draw_audio_controller_panel.h" />
-    <ClInclude Include="SourceFiles\draw_animation_panel.h" />
+    <ClInclude Include="SourceFiles\animation_state.h" />
     <ClInclude Include="SourceFiles\draw_chunk_20000000.h" />
     <ClInclude Include="SourceFiles\draw_chunk_20000003.h" />
     <ClInclude Include="SourceFiles\draw_dat_browser.h" />
@@ -423,7 +426,7 @@
     <ClCompile Include="SourceFiles\DirectionalLight.cpp" />
     <ClCompile Include="SourceFiles\Dome.cpp" />
     <ClCompile Include="SourceFiles\draw_audio_controller_panel.cpp" />
-    <ClCompile Include="SourceFiles\draw_animation_panel.cpp" />
+    <ClCompile Include="SourceFiles\animation_state.cpp" />
     <ClCompile Include="SourceFiles\draw_chunk_20000000.cpp" />
     <ClCompile Include="SourceFiles\draw_chunk_20000003.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_browser.cpp" />
@@ -464,6 +467,9 @@
     <ClCompile Include="SourceFiles\MeshInstance.cpp" />
     <ClCompile Include="SourceFiles\MeshManager.cpp" />
     <ClCompile Include="SourceFiles\model_exporter.cpp" />
+    <ClCompile Include="SourceFiles\ModelViewer\ModelViewer.cpp" />
+    <ClCompile Include="SourceFiles\ModelViewer\ModelViewerPanel.cpp" />
+    <ClCompile Include="SourceFiles\ModelViewer\OrbitalCamera.cpp" />
     <ClCompile Include="SourceFiles\MouseMoveListener.cpp" />
     <FxCompile Include="SourceFiles\CloudsPixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>

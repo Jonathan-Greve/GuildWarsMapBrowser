@@ -854,21 +854,22 @@ private:
             model.vertices[i] = vertex;
         }
 
-        // After positions, there's per-vertex bone group indices (4 bytes each).
-        // This tells which bone group each vertex belongs to for skinning.
+        // After positions, there's per-vertex extra data (4 bytes each).
+        // This section contains bone group index (1 byte) + other data (3 bytes).
+        // IMPORTANT: Game's skinning (GrFvf_SkinXYZNormal) reads only 1 BYTE for bone index!
         constexpr float UV_SCALE = 1.0f / 65536.0f;
         uint32_t pos_end = pos_start + num_vertices * 12;
         uint32_t bone_group_data_start = pos_end;
 
-        // Read bone group indices for each vertex
+        // Read bone group indices for each vertex (only first byte of each 4-byte entry)
         std::set<uint32_t> unique_groups;
         for (uint32_t i = 0; i < num_vertices; i++)
         {
             if (bone_group_data_start + (i + 1) * 4 <= data_size)
             {
-                uint32_t bone_group_idx;
-                std::memcpy(&bone_group_idx, &data[bone_group_data_start + i * 4], sizeof(uint32_t));
-                model.vertices[i].group = bone_group_idx;
+                // Read only the first byte - game's skinning code reads a single byte
+                uint8_t bone_group_idx = data[bone_group_data_start + i * 4];
+                model.vertices[i].group = static_cast<uint32_t>(bone_group_idx);
                 unique_groups.insert(bone_group_idx);
             }
             else

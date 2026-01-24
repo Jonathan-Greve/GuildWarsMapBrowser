@@ -167,6 +167,9 @@
     <Filter Include="GUI\BytePatternSearchPanel">
       <UniqueIdentifier>{12d893d0-227d-4e90-b848-646744092761}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Render\ModelViewer">
+      <UniqueIdentifier>{b5e8c0d1-3f2a-4a1b-9c5d-e7f6a8b9c0d2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h">
@@ -456,6 +459,15 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\model_exporter.h">
       <Filter>Exporter</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ModelViewer\ModelViewer.h">
+      <Filter>Render\ModelViewer</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ModelViewer\ModelViewerPanel.h">
+      <Filter>Render\ModelViewer</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\ModelViewer\OrbitalCamera.h">
+      <Filter>Render\ModelViewer</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\json.hpp">
       <Filter>json</Filter>
@@ -801,6 +813,15 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\model_exporter.cpp">
       <Filter>Exporter</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ModelViewer\ModelViewer.cpp">
+      <Filter>Render\ModelViewer</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ModelViewer\ModelViewerPanel.cpp">
+      <Filter>Render\ModelViewer</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\ModelViewer\OrbitalCamera.cpp">
+      <Filter>Render\ModelViewer</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\map_exporter.cpp">
       <Filter>Exporter</Filter>
