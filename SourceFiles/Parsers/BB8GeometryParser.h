@@ -67,7 +67,25 @@ struct BoneGroupData
     }
 
     /**
-     * @brief Maps a vertex's bone group index to its skeleton bone.
+     * @brief Maps a vertex's bone remap index to its skeleton bone.
+     *
+     * The vertex stores a direct index into skeletonBoneIndices (the remap table),
+     * NOT a group index. GW builds per-submodel bone matrices using this remap.
+     *
+     * @param remapIndex Index into the skeletonBoneIndices remap array.
+     * @return Skeleton bone index.
+     */
+    uint32_t MapRemapIndexToSkeletonBone(uint32_t remapIndex) const
+    {
+        if (remapIndex < skeletonBoneIndices.size())
+        {
+            return skeletonBoneIndices[remapIndex];
+        }
+        return 0;
+    }
+
+    /**
+     * @brief Maps a vertex's bone group index to its skeleton bone (DEPRECATED).
      *
      * @param groupIndex Bone group index from vertex data.
      * @return Skeleton bone index.
@@ -286,11 +304,12 @@ public:
             submesh.UpdateBounds(vertex.position);
 
             // Read bone index if present (at offset 12)
+            // IMPORTANT: Game reads only 1 BYTE for bone index (see GrFvf_SkinXYZNormal in Ghidra)
+            // The vertex layout for format 7 is: XYZ(12B) + bone_idx(1B) + padding(3B) + normal(12B)
             if (hasBoneIndex)
             {
-                uint32_t boneGroupIdx;
-                std::memcpy(&boneGroupIdx, &vertexData[12], sizeof(uint32_t));
-                vertexBoneGroupIndices.push_back(boneGroupIdx);
+                uint8_t boneGroupIdx = vertexData[12];  // Read single byte, not uint32!
+                vertexBoneGroupIndices.push_back(static_cast<uint32_t>(boneGroupIdx));
             }
             else
             {
@@ -329,11 +348,13 @@ public:
         // Build group mapping
         submesh.boneGroups.BuildGroupMapping();
 
-        // Map vertex bone groups to skeleton bones
+        // Map vertex bone palette indices to skeleton bones
+        // The vertex stores a DIRECT index into skeletonBoneIndices (the remap/palette),
+        // NOT a group index. See Ghidra analysis of MdlCombine_CopyBoneWeights.
         for (size_t i = 0; i < submesh.vertices.size(); i++)
         {
-            uint32_t groupIdx = vertexBoneGroupIndices[i];
-            uint32_t skelBone = submesh.boneGroups.MapGroupToSkeletonBone(groupIdx);
+            uint32_t paletteIdx = vertexBoneGroupIndices[i];
+            uint32_t skelBone = submesh.boneGroups.MapRemapIndexToSkeletonBone(paletteIdx);
             submesh.vertices[i].SetSingleBone(skelBone);
         }
 

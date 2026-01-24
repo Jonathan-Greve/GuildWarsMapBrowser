@@ -205,6 +205,22 @@ public:
 
     Camera* GetCamera() { return m_user_camera.get(); }
 
+    // Camera override for model viewer mode
+    void SetCameraOverride(const DirectX::XMMATRIX& view, const DirectX::XMMATRIX& proj, const DirectX::XMFLOAT3& pos)
+    {
+        m_cameraOverrideActive = true;
+        DirectX::XMStoreFloat4x4(&m_cameraOverrideView, view);
+        DirectX::XMStoreFloat4x4(&m_cameraOverrideProj, proj);
+        m_cameraOverridePos = pos;
+    }
+
+    void ClearCameraOverride()
+    {
+        m_cameraOverrideActive = false;
+    }
+
+    bool IsCameraOverrideActive() const { return m_cameraOverrideActive; }
+
     void SetFrustumAsPerspective(float fovY, float aspectRatio, float zNear, float zFar)
     {
         m_user_camera->SetFrustumAsPerspective(fovY, aspectRatio, zNear, zFar);
@@ -814,10 +830,19 @@ public:
         memcpy(mappedResourceFrame.pData, &frameCB, sizeof(PerFrameCB));
         m_deviceContext->Unmap(m_per_frame_cb.Get(), 0);
 
-        // Update camera CB
-        XMStoreFloat4x4(&m_per_camera_cb_data.view, XMMatrixTranspose(m_user_camera->GetView()));
-        XMStoreFloat4x4(&m_per_camera_cb_data.projection, XMMatrixTranspose(m_user_camera->GetProj()));
-        XMStoreFloat3(&m_per_camera_cb_data.position, m_user_camera->GetPosition());
+        // Update camera CB - use override if active (model viewer mode)
+        if (m_cameraOverrideActive)
+        {
+            XMStoreFloat4x4(&m_per_camera_cb_data.view, XMMatrixTranspose(XMLoadFloat4x4(&m_cameraOverrideView)));
+            XMStoreFloat4x4(&m_per_camera_cb_data.projection, XMMatrixTranspose(XMLoadFloat4x4(&m_cameraOverrideProj)));
+            m_per_camera_cb_data.position = m_cameraOverridePos;
+        }
+        else
+        {
+            XMStoreFloat4x4(&m_per_camera_cb_data.view, XMMatrixTranspose(m_user_camera->GetView()));
+            XMStoreFloat4x4(&m_per_camera_cb_data.projection, XMMatrixTranspose(m_user_camera->GetProj()));
+            XMStoreFloat3(&m_per_camera_cb_data.position, m_user_camera->GetPosition());
+        }
 
         D3D11_MAPPED_SUBRESOURCE mappedResource;
         ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
@@ -1153,6 +1178,13 @@ private:
     std::unique_ptr<RasterizerStateManager> m_rasterizer_state_manager;
     std::unique_ptr<DepthStencilStateManager> m_stencil_state_manager;
     std::unique_ptr<Camera> m_user_camera;
+
+    // Camera override for model viewer mode
+    bool m_cameraOverrideActive = false;
+    DirectX::XMFLOAT4X4 m_cameraOverrideView;
+    DirectX::XMFLOAT4X4 m_cameraOverrideProj;
+    DirectX::XMFLOAT3 m_cameraOverridePos;
+
     std::unique_ptr<VertexShader> m_vertex_shader;
     std::unique_ptr<SkinnedVertexShader> m_skinned_vertex_shader;
     std::unordered_map<PixelShaderType, std::unique_ptr<PixelShader>> m_pixel_shaders;

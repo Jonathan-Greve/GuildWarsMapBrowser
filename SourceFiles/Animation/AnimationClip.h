@@ -10,6 +10,21 @@ using namespace DirectX;
 namespace GW::Animation {
 
 /**
+ * @brief Hierarchy encoding mode detected from animation data.
+ *
+ * Guild Wars uses different methods to encode bone hierarchy:
+ * - TREE_DEPTH: Depth value = absolute level in tree (0=root, 1=child, etc.)
+ * - POP_COUNT: Depth value = number of levels to pop from matrix stack
+ * - SEQUENTIAL: No hierarchy data (world-space transforms)
+ */
+enum class HierarchyMode
+{
+    TreeDepth,   // TREE_DEPTH: depth = absolute level in hierarchy
+    PopCount,    // POP_COUNT: depth = levels to pop from stack
+    Sequential   // No hierarchy, world-space transforms
+};
+
+/**
  * @brief A single keyframe with a time and value.
  * @tparam T The value type (XMFLOAT3 for position/scale, XMFLOAT4 for rotation quaternion).
  */
@@ -142,12 +157,19 @@ struct AnimationClip
 
     float geometryScale = 1.0f;                  // Geometry scale factor from header (FA1 offset 0x20)
 
-    bool useWorldSpaceRotations = false;         // True if rotations are world-space (no parent accumulation)
-                                                  // Set when no proper hierarchy data exists (SEQUENTIAL mode)
+    HierarchyMode hierarchyMode = HierarchyMode::TreeDepth;  // Detected hierarchy encoding mode
 
     std::vector<BoneTrack> boneTracks;           // Per-bone animation data
     std::vector<int32_t> boneParents;            // Bone hierarchy (parent indices)
     std::vector<AnimationSequence> sequences;    // Animation sequences
+
+    // Intermediate bone tracking (from Ghidra RE @ Model_UpdateSkeletonTransforms)
+    // Bones with flag 0x10000000 are "intermediate" - they participate in hierarchy
+    // but don't produce output skinning matrices. Mesh vertices reference OUTPUT
+    // indices which skip intermediate bones.
+    std::vector<bool> boneIsIntermediate;        // True if bone has flag 0x10000000
+    std::vector<uint32_t> outputToAnimBone;      // Maps output index -> animation bone index
+    std::vector<int32_t> animBoneToOutput;       // Maps animation bone -> output index (-1 if intermediate)
 
     /**
      * @brief Gets the number of animated bones.
@@ -279,6 +301,78 @@ struct AnimationClip
             if (track.HasScaleAnimation()) count++;
         }
         return count;
+    }
+
+    /**
+     * @brief Builds the output-to-animation bone mapping.
+     *
+     * Based on Ghidra RE of Model_UpdateSkeletonTransforms @ 0x00754720:
+     * Bones with flag 0x10000000 are intermediate - they participate in the
+     * hierarchy calculation but don't produce output skinning matrices.
+     * Mesh vertices reference OUTPUT indices, which skip intermediate bones.
+     *
+     * Call this after setting boneIsIntermediate for all bones.
+     */
+    void BuildOutputMapping()
+    {
+        outputToAnimBone.clear();
+        animBoneToOutput.clear();
+        animBoneToOutput.resize(boneTracks.size(), -1);
+
+        // Ensure boneIsIntermediate has correct size
+        if (boneIsIntermediate.size() != boneTracks.size())
+        {
+            boneIsIntermediate.resize(boneTracks.size(), false);
+        }
+
+        uint32_t outputIndex = 0;
+        for (size_t i = 0; i < boneTracks.size(); i++)
+        {
+            if (!boneIsIntermediate[i])
+            {
+                outputToAnimBone.push_back(static_cast<uint32_t>(i));
+                animBoneToOutput[i] = static_cast<int32_t>(outputIndex);
+                outputIndex++;
+            }
+        }
+    }
+
+    /**
+     * @brief Gets the number of output (non-intermediate) bones.
+     */
+    size_t GetOutputBoneCount() const
+    {
+        return outputToAnimBone.size();
+    }
+
+    /**
+     * @brief Maps an output index to an animation bone index.
+     * @param outputIdx Output bone index (what mesh vertices reference).
+     * @return Animation bone index, or 0 if out of range.
+     */
+    uint32_t GetAnimBoneFromOutput(uint32_t outputIdx) const
+    {
+        if (outputIdx < outputToAnimBone.size())
+        {
+            return outputToAnimBone[outputIdx];
+        }
+        // Fallback: return identity mapping if no intermediate bones
+        return outputIdx;
+    }
+
+    /**
+     * @brief Maps an animation bone index to an output index.
+     * @param animBoneIdx Animation bone index.
+     * @return Output index, or -1 if bone is intermediate.
+     */
+    int32_t GetOutputFromAnimBone(uint32_t animBoneIdx) const
+    {
+        if (animBoneIdx < animBoneToOutput.size())
+        {
+            return animBoneToOutput[animBoneIdx];
+        }
+        // Fallback: return identity mapping if no intermediate bones
+        return static_cast<int32_t>(animBoneIdx);
     }
 };
 

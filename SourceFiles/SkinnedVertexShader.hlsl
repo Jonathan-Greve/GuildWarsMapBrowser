@@ -33,8 +33,37 @@ cbuffer PerObjectCB : register(b1)
     uint4 texture_types[2];
     uint num_uv_texture_pairs;
     uint object_id;
-    float pad1[2];
+    uint highlight_state; // 0=normal, 1=dark green, 2=light green, 3=color by bone index
+    float shore_max_alpha;
+    float shore_wave_speed;
+    float mesh_alpha;
+    float2 pad_object_color;
+    float4 object_color;
 };
+
+// Generate a unique color for each bone index using HSV to RGB conversion
+float3 BoneIndexToColor(uint boneIndex)
+{
+    // Use golden ratio to spread colors across the hue spectrum
+    float hue = frac((float)boneIndex * 0.618033988749895);
+    float saturation = 0.85;
+    float value = 0.95;
+
+    float c = value * saturation;
+    float h = hue * 6.0;
+    float x = c * (1.0 - abs(fmod(h, 2.0) - 1.0));
+    float m = value - c;
+
+    float3 rgb;
+    if (h < 1.0)      rgb = float3(c, x, 0);
+    else if (h < 2.0) rgb = float3(x, c, 0);
+    else if (h < 3.0) rgb = float3(0, c, x);
+    else if (h < 4.0) rgb = float3(0, x, c);
+    else if (h < 5.0) rgb = float3(x, 0, c);
+    else              rgb = float3(c, 0, x);
+
+    return rgb + m;
+}
 
 cbuffer PerCameraCB : register(b2)
 {
@@ -169,8 +198,19 @@ PixelInputType main(SkinnedVertexInputType input)
     output.tex_coords4 = input.tex_coords4;
     output.tex_coords5 = input.tex_coords5;
 
+    // Color by bone index mode
+    // highlight_state == 3: remapped skeleton bone (boneIndices[0])
+    // highlight_state == 4: raw FA0 palette index (boneIndices[1])
+    if (highlight_state >= 3)
+    {
+        // Choose which bone index to use based on mode
+        uint boneIdx = (highlight_state == 4) ? input.boneIndices[1] : input.boneIndices[0];
+        float3 boneColor = BoneIndexToColor(boneIdx);
+        output.lightingColor = float4(boneColor, 1.0);
+        output.TBN = float3x3(float3(1,0,0), float3(0,1,0), float3(0,0,1));
+    }
     // Lighting computation
-    if (input.tangent.x == 0.0f && input.tangent.y == 0.0f && input.tangent.z == 0.0f ||
+    else if (input.tangent.x == 0.0f && input.tangent.y == 0.0f && input.tangent.z == 0.0f ||
         input.bitangent.x == 0.0f && input.bitangent.y == 0.0f && input.bitangent.z == 0.0f)
     {
         float3 normal = normalize(output.normal);

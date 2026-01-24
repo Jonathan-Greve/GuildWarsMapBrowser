@@ -5,7 +5,9 @@
 #include "MapBrowser.h"
 #include "GuiGlobalConstants.h"
 #include "InputManager.h"
+#include "ModelViewer/ModelViewer.h"
 #include "Extract_BASS_DLL_resource.h"
+#include "imgui.h"
 #include <filesystem>
 #include <DbgHelp.h>
 
@@ -136,6 +138,12 @@ namespace
 {
     std::unique_ptr<MapBrowser> g_map_browser;
     std::unique_ptr<InputManager> g_input_manager;
+
+    // Model viewer mouse state
+    bool g_modelViewerLeftDown = false;
+    bool g_modelViewerRightDown = false;
+    POINT g_modelViewerLastMousePos = { 0, 0 };
+    POINT g_modelViewerClickStartPos = { 0, 0 };  // For detecting clicks vs drags
 }
 
 LPCWSTR g_szAppName = L"GuildWarsMapBrowser";
@@ -352,6 +360,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_KEYDOWN:
+        // Handle F key for model viewer fit-to-model
+        if (g_modelViewerState.isActive && wParam == 'F' && !ImGui::GetIO().WantCaptureKeyboard)
+        {
+            g_modelViewerState.camera->FitToBounds(
+                g_modelViewerState.boundsMin,
+                g_modelViewerState.boundsMax);
+        }
         g_input_manager->OnKeyDown(static_cast<UINT>(wParam), hWnd);
         break;
 
@@ -359,27 +374,119 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_input_manager->OnKeyUp(static_cast<UINT>(wParam), hWnd);
         break;
 
-        //case WM_MOUSEMOVE:
-        //    g_input_manager->OnMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd);
-        //    break;
+    case WM_MOUSEMOVE:
+        // Handle model viewer mouse drag
+        if (g_modelViewerState.isActive && (g_modelViewerLeftDown || g_modelViewerRightDown))
+        {
+            int x = GET_X_LPARAM(lParam);
+            int y = GET_Y_LPARAM(lParam);
+            float deltaX = static_cast<float>(x - g_modelViewerLastMousePos.x);
+            float deltaY = static_cast<float>(y - g_modelViewerLastMousePos.y);
+            g_modelViewerLastMousePos.x = x;
+            g_modelViewerLastMousePos.y = y;
+
+            if (g_modelViewerLeftDown)
+            {
+                g_modelViewerState.camera->OnOrbitDrag(deltaX, deltaY);
+            }
+            else if (g_modelViewerRightDown)
+            {
+                g_modelViewerState.camera->OnPanDrag(deltaX, deltaY);
+            }
+        }
+        break;
     case WM_INPUT:
     {
-        g_input_manager->ProcessRawInput(lParam);
+        // Skip raw input when model viewer is active
+        if (!g_modelViewerState.isActive)
+        {
+            g_input_manager->ProcessRawInput(lParam);
+        }
         break;
     }
     case WM_LBUTTONDOWN:
+        if (g_modelViewerState.isActive && !ImGui::GetIO().WantCaptureMouse)
+        {
+            g_modelViewerLeftDown = true;
+            g_modelViewerLastMousePos.x = GET_X_LPARAM(lParam);
+            g_modelViewerLastMousePos.y = GET_Y_LPARAM(lParam);
+            g_modelViewerClickStartPos = g_modelViewerLastMousePos;  // Store start pos for click detection
+            SetCapture(hWnd);
+        }
+        else if (!g_modelViewerState.isActive)
+        {
+            g_input_manager->OnMouseDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd, message);
+        }
+        break;
     case WM_MBUTTONDOWN:
-    case WM_RBUTTONDOWN:
         g_input_manager->OnMouseDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd, message);
+        break;
+    case WM_RBUTTONDOWN:
+        if (g_modelViewerState.isActive && !ImGui::GetIO().WantCaptureMouse)
+        {
+            g_modelViewerRightDown = true;
+            g_modelViewerLastMousePos.x = GET_X_LPARAM(lParam);
+            g_modelViewerLastMousePos.y = GET_Y_LPARAM(lParam);
+            SetCapture(hWnd);
+        }
+        else if (!g_modelViewerState.isActive)
+        {
+            g_input_manager->OnMouseDown(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd, message);
+        }
         break;
 
     case WM_LBUTTONUP:
+        if (g_modelViewerState.isActive)
+        {
+            // Check for bone picking if it was a click (not a drag)
+            int x = GET_X_LPARAM(lParam);
+            int y = GET_Y_LPARAM(lParam);
+            int dx = x - g_modelViewerClickStartPos.x;  // Compare against start pos, not last pos
+            int dy = y - g_modelViewerClickStartPos.y;
+            bool wasClick = (abs(dx) < 5 && abs(dy) < 5);
+
+            if (wasClick && !ImGui::GetIO().WantCaptureMouse)
+            {
+                RECT rect;
+                GetClientRect(hWnd, &rect);
+                float width = static_cast<float>(rect.right - rect.left);
+                float height = static_cast<float>(rect.bottom - rect.top);
+                int pickedBone = PickBoneAtScreenPos(static_cast<float>(x), static_cast<float>(y), width, height);
+                g_modelViewerState.SelectBone(pickedBone);
+            }
+
+            g_modelViewerLeftDown = false;
+            if (!g_modelViewerRightDown) ReleaseCapture();
+        }
+        else
+        {
+            g_input_manager->OnMouseUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd, message);
+        }
+        break;
     case WM_MBUTTONUP:
-    case WM_RBUTTONUP:
         g_input_manager->OnMouseUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd, message);
         break;
+    case WM_RBUTTONUP:
+        if (g_modelViewerState.isActive)
+        {
+            g_modelViewerRightDown = false;
+            if (!g_modelViewerLeftDown) ReleaseCapture();
+        }
+        else
+        {
+            g_input_manager->OnMouseUp(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), wParam, hWnd, message);
+        }
+        break;
     case WM_MOUSEWHEEL:
-        g_input_manager->OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam), hWnd);
+        if (g_modelViewerState.isActive && !ImGui::GetIO().WantCaptureMouse)
+        {
+            float delta = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA;
+            g_modelViewerState.camera->OnZoom(delta);
+        }
+        else if (!g_modelViewerState.isActive)
+        {
+            g_input_manager->OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam), hWnd);
+        }
         break;
     case WM_MOUSELEAVE:
         g_input_manager->OnMouseLeave(hWnd);

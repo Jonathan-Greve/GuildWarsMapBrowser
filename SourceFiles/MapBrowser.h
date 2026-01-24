@@ -10,6 +10,7 @@
 #include "Camera.h"
 #include "DATManager.h"
 #include "MapRenderer.h"
+#include "ModelViewer/ModelViewer.h"
 #include <draw_extract_panel.h>
 
 using namespace std::chrono;

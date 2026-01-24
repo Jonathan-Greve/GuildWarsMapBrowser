@@ -99,6 +99,23 @@ PSOutput main(PixelInputType input)
 {
     float4 finalColor = input.lightingColor;
 
+    // Color by bone index mode (highlight_state == 3 or 4)
+    // Vertex shader already computed the bone color in lightingColor
+    // 3 = remapped skeleton bone, 4 = raw FA0 palette index
+    if (highlight_state == 3 || highlight_state == 4)
+    {
+        PSOutput output;
+        output.rt_0_output = input.lightingColor;
+
+        float4 colorId = float4(0, 0, 0, 1);
+        colorId.r = (float) ((object_id & 0x00FF0000) >> 16) / 255.0f;
+        colorId.g = (float) ((object_id & 0x0000FF00) >> 8) / 255.0f;
+        colorId.b = (float) ((object_id & 0x000000FF)) / 255.0f;
+        output.rt_1_output = colorId;
+
+        return output;
+    }
+
     // If no textures, use solid object_color (for debug primitives like bone spheres/lines)
     if (num_uv_texture_pairs == 0)
     {

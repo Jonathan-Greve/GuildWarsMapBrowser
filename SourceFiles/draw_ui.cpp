@@ -13,7 +13,8 @@
 #include "draw_dat_compare_panel.h"
 #include "draw_file_info_editor_panel.h"
 #include "draw_pathfinding_panel.h"
-#include "draw_animation_panel.h"
+#include "animation_state.h"
+#include "ModelViewer/ModelViewerPanel.h"
 #include <draw_gui_window_controller.h>
 #include <draw_extract_panel.h>
 #include <byte_pattern_search_panel.h>
@@ -32,6 +33,9 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
 	std::vector<std::vector<std::string>>& csv_data, int& FPS_target, DX::StepTimer& timer, ExtractPanelInfo& extract_panel_info, bool& msaa_changed,
 	int& msaa_level_index, const std::vector<std::pair<int, int>>& msaa_levels, std::unordered_map<int, std::vector<int>>& hash_index)
 {
+	// Set DAT managers pointer for animation auto-loading (needs to be available in draw_dat_browser)
+	SetAnimationDATManagers(&dat_managers);
+
 	int initial_dat_manager_to_show = dat_manager_to_show;
 
 	if (!gw_dat_path_set)
@@ -55,7 +59,7 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
 				changed |= ImGui::MenuItem("Pathfinding Map", NULL, &GuiGlobalConstants::is_pathfinding_panel_open);
 				ImGui::Separator();
 				changed |= ImGui::MenuItem("Audio Controller", NULL, &GuiGlobalConstants::is_audio_controller_open);
-				changed |= ImGui::MenuItem("Animation Controller", NULL, &GuiGlobalConstants::is_animation_panel_open);
+				changed |= ImGui::MenuItem("Model Viewer", NULL, &GuiGlobalConstants::is_model_viewer_panel_open);
 				changed |= ImGui::MenuItem("Text Panel", NULL, &GuiGlobalConstants::is_text_panel_open);
 				ImGui::Separator();
 				changed |= ImGui::MenuItem("Extract Panel", NULL, &GuiGlobalConstants::is_extract_panel_open);
@@ -130,7 +134,8 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
 			draw_texture_panel(map_renderer);
 			draw_pathfinding_panel(map_renderer);
 			draw_audio_controller_panel(selected_audio_stream_handle);
-			draw_animation_panel(dat_managers);
+			// Animation Controller panel removed - functionality moved to Model Viewer
+			draw_model_viewer_panel(map_renderer, dat_managers);
 			draw_text_panel(selected_text_file_str);
 			draw_hex_editor_panel(selected_raw_data.data(), static_cast<int>(selected_raw_data.size()));
 		}

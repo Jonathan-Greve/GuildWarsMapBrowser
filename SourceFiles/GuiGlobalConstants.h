@@ -30,7 +30,7 @@ public:
 	inline static bool is_extract_panel_open = false;
 	inline static bool is_byte_search_panel_open = false;
 	inline static bool is_pathfinding_panel_open = false;
-	inline static bool is_animation_panel_open = false;
+	inline static bool is_model_viewer_panel_open = false;
 	inline static bool is_window_controller_open = true;
 
 	// Window settings
@@ -55,7 +55,7 @@ public:
 	inline static bool prev_is_extract_panel_open;
 	inline static bool prev_is_byte_search_panel_open;
 	inline static bool prev_is_pathfinding_panel_open;
-	inline static bool prev_is_animation_panel_open;
+	inline static bool prev_is_model_viewer_panel_open;
 	inline static bool prev_is_window_controller_open;
 
 	// Method to save the current state of all panels
@@ -76,7 +76,7 @@ public:
 		prev_is_extract_panel_open = is_extract_panel_open;
 		prev_is_byte_search_panel_open = is_byte_search_panel_open;
 		prev_is_pathfinding_panel_open = is_pathfinding_panel_open;
-		prev_is_animation_panel_open = is_animation_panel_open;
+		prev_is_model_viewer_panel_open = is_model_viewer_panel_open;
 		prev_is_window_controller_open = is_window_controller_open;
 	}
 
@@ -98,7 +98,7 @@ public:
 		is_extract_panel_open = prev_is_extract_panel_open;
 		is_byte_search_panel_open = prev_is_byte_search_panel_open;
 		is_pathfinding_panel_open = prev_is_pathfinding_panel_open;
-		is_animation_panel_open = prev_is_animation_panel_open;
+		is_model_viewer_panel_open = prev_is_model_viewer_panel_open;
 		is_window_controller_open = prev_is_window_controller_open;
 	}
 
@@ -126,7 +126,7 @@ public:
 			is_extract_panel_open = false;
 			is_byte_search_panel_open = false;
 			is_pathfinding_panel_open = false;
-			is_animation_panel_open = false;
+			is_model_viewer_panel_open = false;
 		}
 		else
 		{
@@ -154,7 +154,7 @@ public:
 		is_extract_panel_open = false;
 		is_byte_search_panel_open = false;
 		is_pathfinding_panel_open = false;
-		is_animation_panel_open = false;
+		is_model_viewer_panel_open = false;
 		is_window_controller_open = true;
 	}
 
@@ -223,7 +223,7 @@ public:
 		file << "extract_panel=" << (is_extract_panel_open ? 1 : 0) << "\n";
 		file << "byte_search_panel=" << (is_byte_search_panel_open ? 1 : 0) << "\n";
 		file << "pathfinding_panel=" << (is_pathfinding_panel_open ? 1 : 0) << "\n";
-		file << "animation_panel=" << (is_animation_panel_open ? 1 : 0) << "\n";
+		file << "model_viewer_panel=" << (is_model_viewer_panel_open ? 1 : 0) << "\n";
 		file << "window_controller=" << (is_window_controller_open ? 1 : 0) << "\n";
 
 		file << "window_width=" << window_width << "\n";
@@ -271,7 +271,7 @@ public:
 			else if (key == "extract_panel") is_extract_panel_open = (value != 0);
 			else if (key == "byte_search_panel") is_byte_search_panel_open = (value != 0);
 			else if (key == "pathfinding_panel") is_pathfinding_panel_open = (value != 0);
-			else if (key == "animation_panel") is_animation_panel_open = (value != 0);
+			else if (key == "model_viewer_panel") is_model_viewer_panel_open = (value != 0);
 			else if (key == "window_controller") is_window_controller_open = (value != 0);
 			else if (key == "window_width") window_width = value;
 			else if (key == "window_height") window_height = value;
