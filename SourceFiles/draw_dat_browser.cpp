@@ -1037,6 +1037,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			g_modelViewerState.meshes = g_animationState.originalMeshes;
 			g_modelViewerState.meshIds = g_animationState.meshIds;
 			g_modelViewerState.modelFileId = entry->Hash;
+			g_modelViewerState.modelMftIndex = index;
+			g_modelViewerState.modelDatManager = dat_manager;
 			g_modelViewerState.vertexBoneGroups = g_animationState.perVertexBoneGroups;
 			g_modelViewerState.animController = g_animationState.controller;
 			g_modelViewerState.animClip = g_animationState.clip;

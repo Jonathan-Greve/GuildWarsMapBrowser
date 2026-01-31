@@ -47,23 +47,20 @@ static bool CheckFileForMatchingAnimation(
         if (chunkId == 0 || chunkSize == 0)
             break;
 
-        // Check for BB9 or FA1 chunk
-        if (chunkId == GW::Parsers::CHUNK_ID_BB9 || chunkId == GW::Parsers::CHUNK_ID_FA1)
-        {
-            size_t chunkDataOffset = offset + 8;
+        size_t chunkDataOffset = offset + 8;
 
-            // Check if we have enough data for the header
+        // Check for BB9 chunk
+        if (chunkId == GW::Parsers::CHUNK_ID_BB9)
+        {
             if (chunkDataOffset + sizeof(GW::Parsers::BB9Header) <= dataSize)
             {
                 GW::Parsers::BB9Header header;
                 std::memcpy(&header, &data[chunkDataOffset], sizeof(header));
 
-                // Check if model hashes match
                 if (header.modelHash0 == targetHash0 && header.modelHash1 == targetHash1)
                 {
-                    outResult.chunkType = (chunkId == GW::Parsers::CHUNK_ID_BB9) ? "BB9" : "FA1";
+                    outResult.chunkType = "BB9";
 
-                    // Try to parse for more info
                     auto clipOpt = GW::Parsers::BB9AnimationParser::Parse(
                         &data[chunkDataOffset], chunkSize);
                     if (clipOpt)
@@ -71,6 +68,29 @@ static bool CheckFileForMatchingAnimation(
                         outResult.sequenceCount = static_cast<uint32_t>(clipOpt->sequences.size());
                         outResult.boneCount = static_cast<uint32_t>(clipOpt->boneTracks.size());
                     }
+
+                    return true;
+                }
+            }
+        }
+        // Check for FA1 chunk - uses different header structure!
+        // FA1Header has boundingBoxId/collisionMeshId at 0x0C/0x10 which serve as model hashes
+        else if (chunkId == GW::Parsers::CHUNK_ID_FA1)
+        {
+            if (chunkDataOffset + sizeof(GW::Parsers::FA1Header) <= dataSize)
+            {
+                GW::Parsers::FA1Header header;
+                std::memcpy(&header, &data[chunkDataOffset], sizeof(header));
+
+                // FA1 uses boundingBoxId/collisionMeshId as model hash equivalents
+                if (header.boundingBoxId == targetHash0 && header.collisionMeshId == targetHash1)
+                {
+                    outResult.chunkType = "FA1";
+
+                    // Use transformDataSize for sequence count, NOT sequenceCount0!
+                    // transformDataSize = actual number of 24-byte sequence entries
+                    outResult.sequenceCount = header.transformDataSize;
+                    outResult.boneCount = header.bindPoseBoneCount;
 
                     return true;
                 }
@@ -239,6 +259,14 @@ static void LoadAnimationFromResult(
             g_animationState.modelHash0 = savedHash0;
             g_animationState.modelHash1 = savedHash1;
             g_animationState.hasModel = savedHasModel;
+            g_animationState.currentChunkType = result.chunkType;
+
+            // Update model viewer state with animation file info for saving
+            g_modelViewerState.animFileId = result.fileId;
+            g_modelViewerState.animMftIndex = result.mftIndex;
+            g_modelViewerState.animDatManager = manager;
+            g_modelViewerState.animClip = clip;
+            g_modelViewerState.animController = g_animationState.controller;
         }
 
         delete[] fileData;
@@ -293,6 +321,14 @@ static bool TryLoadAnimationFromSameFile(
                         g_animationState.modelHash0 = savedHash0;
                         g_animationState.modelHash1 = savedHash1;
                         g_animationState.hasModel = savedHasModel;
+                        g_animationState.currentChunkType = clip->sourceChunkType;
+
+                        // Update model viewer state with animation file info for saving
+                        g_modelViewerState.animFileId = fileId;
+                        g_modelViewerState.animMftIndex = static_cast<int>(i);
+                        g_modelViewerState.animDatManager = manager;
+                        g_modelViewerState.animClip = clip;
+                        g_modelViewerState.animController = g_animationState.controller;
 
                         delete[] fileData;
                         return true;

@@ -17,6 +17,7 @@ class MapRenderer;
  * - Selected bone info (index, parent, position, vertex count)
  * - Background color picker
  * - Camera controls
+ * - Context menu on animation search results for loading and saving data
  *
  * @param mapRenderer The MapRenderer for visualization control
  * @param dat_managers Map of DAT managers for animation loading

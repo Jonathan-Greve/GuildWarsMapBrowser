@@ -82,9 +82,10 @@ struct AnimationPanelState
     std::shared_ptr<GW::Animation::AnimationClip> clip;
     std::shared_ptr<GW::Animation::Skeleton> skeleton;
 
-    uint32_t currentFileId = 0;  // File ID of the currently loaded animation/model
-    bool hasAnimation = false;   // Whether animation data is available
-    bool hasModel = false;       // Whether a model is loaded (for hash display)
+    uint32_t currentFileId = 0;      // File ID of the currently loaded animation/model
+    std::string currentChunkType;    // Chunk type of loaded animation ("BB9" or "FA1")
+    bool hasAnimation = false;       // Whether animation data is available
+    bool hasModel = false;           // Whether a model is loaded (for hash display)
 
     // Model hashes for finding matching animations (from BB8/FA0 geometry chunk)
     uint32_t modelHash0 = 0;
@@ -185,6 +186,7 @@ struct AnimationPanelState
         clip.reset();
         skeleton.reset();
         currentFileId = 0;
+        currentChunkType.clear();
         hasAnimation = false;
         hasModel = false;
         modelHash0 = 0;

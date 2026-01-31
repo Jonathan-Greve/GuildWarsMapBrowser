@@ -159,6 +159,8 @@ struct AnimationClip
 
     HierarchyMode hierarchyMode = HierarchyMode::TreeDepth;  // Detected hierarchy encoding mode
 
+    std::string sourceChunkType;                 // Source chunk type ("BB9" or "FA1")
+
     std::vector<BoneTrack> boneTracks;           // Per-bone animation data
     std::vector<int32_t> boneParents;            // Bone hierarchy (parent indices)
     std::vector<AnimationSequence> sequences;    // Animation sequences

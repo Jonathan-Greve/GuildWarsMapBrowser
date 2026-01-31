@@ -66,6 +66,13 @@ struct ModelViewerState
     std::vector<Mesh> meshes;
     std::vector<int> meshIds;           // IDs from MapRenderer
     uint32_t modelFileId = 0;
+    int modelMftIndex = -1;             // MFT index for saving
+    DATManager* modelDatManager = nullptr;  // DAT manager for saving model
+
+    // Animation data (for saving)
+    uint32_t animFileId = 0;            // Currently loaded animation file ID
+    int animMftIndex = -1;              // Animation MFT index
+    DATManager* animDatManager = nullptr;   // DAT manager for saving animation
 
     // Bounding box
     DirectX::XMFLOAT3 boundsMin = { 0.0f, 0.0f, 0.0f };
@@ -104,6 +111,11 @@ struct ModelViewerState
         meshes.clear();
         meshIds.clear();
         modelFileId = 0;
+        modelMftIndex = -1;
+        modelDatManager = nullptr;
+        animFileId = 0;
+        animMftIndex = -1;
+        animDatManager = nullptr;
         boundsMin = { 0.0f, 0.0f, 0.0f };
         boundsMax = { 0.0f, 0.0f, 0.0f };
         bones.clear();
