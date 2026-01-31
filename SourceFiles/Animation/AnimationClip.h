@@ -16,12 +16,14 @@ namespace GW::Animation {
  * - TREE_DEPTH: Depth value = absolute level in tree (0=root, 1=child, etc.)
  * - POP_COUNT: Depth value = number of levels to pop from matrix stack
  * - SEQUENTIAL: No hierarchy data (world-space transforms)
+ * - DIRECT_PARENT: FA1 format - low byte = (parent_index + 1), 0 = root
  */
 enum class HierarchyMode
 {
-    TreeDepth,   // TREE_DEPTH: depth = absolute level in hierarchy
-    PopCount,    // POP_COUNT: depth = levels to pop from stack
-    Sequential   // No hierarchy, world-space transforms
+    TreeDepth,    // TREE_DEPTH: depth = absolute level in hierarchy
+    PopCount,     // POP_COUNT: depth = levels to pop from stack
+    Sequential,   // No hierarchy, world-space transforms
+    DirectParent  // DIRECT_PARENT: FA1 format, value = parent + 1
 };
 
 /**

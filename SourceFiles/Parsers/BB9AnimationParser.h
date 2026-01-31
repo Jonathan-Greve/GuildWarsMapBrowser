@@ -8,6 +8,7 @@
 #include <cmath>
 #include <memory>
 #include <optional>
+#include <fstream>
 #include <DirectXMath.h>
 
 using namespace DirectX;
@@ -146,12 +147,13 @@ static_assert(sizeof(BB9BoneAnimHeader) == 22, "BB9BoneAnimHeader must be 22 byt
  * Found in FA1 chunks after the header + bounding cylinders.
  * Contains bind pose position and explicit parent information.
  *
- * Parent encoding:
- * - Low byte (0-255): parent bone index, or 0 for chain mode
- * - High byte flags: 0x10 indicates "parent is 0" explicitly (branch to root)
- * - When low byte = 0 AND no flag: parent = previous bone (chain)
- * - When low byte > 0: parent = low byte value (explicit override)
- * - When flag 0x10 set: parent = 0 (branch back to root)
+ * Parent encoding (discovered via analysis of 0x3AAA):
+ * - Low byte contains (parent_index + 1) where:
+ *   - 0 = root bone (no parent)
+ *   - 1 = parent is bone 0
+ *   - 2 = parent is bone 1
+ *   - N = parent is bone (N-1)
+ * - High bits (0x10000000 etc) are format flags, not parent info
  */
 #pragma pack(push, 1)
 struct FA1BindPoseEntry
@@ -165,34 +167,35 @@ struct FA1BindPoseEntry
     /**
      * @brief Gets the explicit parent index from the parentInfo field.
      *
-     * @param boneIndex The index of this bone (for chain mode).
+     * The low byte contains (parent_index + 1), so:
+     * - lowByte 0 = root (no parent) = return -1
+     * - lowByte 1 = parent is bone 0 = return 0
+     * - lowByte N = parent is bone (N-1) = return N-1
+     *
+     * @param boneIndex The index of this bone (unused, kept for compatibility).
      * @return Parent bone index, or -1 for root.
      */
     int32_t GetParentIndex(size_t boneIndex) const
     {
-        constexpr uint32_t FLAG_BRANCH_TO_ROOT = 0x10000000;
-
+        // First bone is always root regardless of parentInfo
         if (boneIndex == 0)
         {
-            return -1;  // First bone is always root
+            return -1;
         }
 
+        // Low byte contains (parent_index + 1)
+        // 0 = root, 1 = parent is bone 0, 2 = parent is bone 1, etc.
         uint8_t lowByte = static_cast<uint8_t>(parentInfo & 0xFF);
 
-        if (parentInfo & FLAG_BRANCH_TO_ROOT)
+        if (lowByte == 0)
         {
-            // Flag means parent = 0 (branch back to root/body center)
-            return 0;
-        }
-        else if (lowByte > 0)
-        {
-            // Explicit parent override
-            return static_cast<int32_t>(lowByte);
+            // This bone branches back to root
+            return -1;
         }
         else
         {
-            // Chain mode: parent = previous bone
-            return static_cast<int32_t>(boneIndex - 1);
+            // Parent is bone (lowByte - 1)
+            return static_cast<int32_t>(lowByte - 1);
         }
     }
 };
@@ -203,14 +206,20 @@ static_assert(sizeof(FA1BindPoseEntry) == 16, "FA1BindPoseEntry must be 16 bytes
 /**
  * @brief FA1 keyframe header structure (16 bytes).
  *
- * Found in FA1 chunks after bind pose entries for models that use
- * the FA1-specific VLE keyframe format (not BB9-style per-bone headers).
+ * Found in FA1 chunks after bind pose entries. The FA1 format stores animation
+ * data in a random-access layout optimized for runtime:
  *
- * This format is used by models like 0xBC68 (pig) where animation data
- * is stored as:
- *   1. This header (16 bytes)
- *   2. Bone offset table (bindPoseBoneCount × 4 bytes) - bit offsets into VLE stream
- *   3. VLE-encoded keyframe stream
+ *   1. This header (16 bytes) - total keyframe counts
+ *   2. Four offset arrays (4 × boneCount × 4 bytes):
+ *      - posTimesOffsets[boneCount]   - BIT offsets to position time data
+ *      - posValuesOffsets[boneCount]  - BIT offsets to position value data
+ *      - rotTimesOffsets[boneCount]   - BIT offsets to rotation time data
+ *      - rotValuesOffsets[boneCount]  - BIT offsets to rotation value data
+ *   3. Combined VLE stream containing all keyframe data
+ *
+ * The BIT offsets allow random access to any bone's animation data without
+ * sequential decoding. This is in contrast to BB9 which stores per-bone
+ * headers inline with data (sequential access required).
  */
 #pragma pack(push, 1)
 struct FA1KeyframeHeader
@@ -218,24 +227,41 @@ struct FA1KeyframeHeader
     uint16_t reserved0;         // 0x00: Always 0
     uint16_t reserved1;         // 0x02: Always 0
     uint16_t reserved2;         // 0x04: Always 0
-    uint16_t rotationKeyCount;  // 0x06: Total rotation keyframes across all bones
-    uint16_t positionKeyCount;  // 0x08: Total position keyframes across all bones
+    uint16_t positionKeyCount;  // 0x06: Total position keyframes across all bones
+    uint16_t rotationKeyCount;  // 0x08: Total rotation keyframes across all bones
     uint16_t reserved3;         // 0x0A: Always 0
-    uint16_t reserved4;         // 0x0C: Always 0
-    uint16_t reserved5;         // 0x0E: Always 0
+    uint16_t timeScaleLow;      // 0x0C: Time scale/duration (low 16 bits). NOT a keyframe count!
+    uint16_t timeScaleHigh;     // 0x0E: Time scale/duration (high 16 bits). Usually 0.
     // Total: 16 bytes
+
+    /**
+     * @brief Gets the time scale value for normalizing keyframe times.
+     *
+     * This 32-bit value at offset 0x0C appears to be related to animation duration
+     * or time scale. Examples: 3333 for 0x3AAA, 30000 for 0x47D9.
+     * Use this to normalize decoded time values if needed.
+     */
+    uint32_t GetTimeScale() const
+    {
+        return static_cast<uint32_t>(timeScaleLow) |
+               (static_cast<uint32_t>(timeScaleHigh) << 16);
+    }
 
     /**
      * @brief Checks if this looks like a valid FA1 keyframe header.
      *
-     * Valid headers have zeros in reserved fields and reasonable key counts.
+     * Valid headers have zeros in the reserved fields and reasonable key counts.
+     * Note: timeScaleLow (offset 0x0C) is NOT a keyframe count - it's a time scale
+     * or duration value (e.g., 3333 for 0x3AAA, 30000 for 0x47D9). Do NOT validate it.
      */
     bool IsValid() const
     {
+        // Check reserved fields are zero and key counts are reasonable
+        // timeScaleLow is NOT validated - it's a time scale value, not a keyframe count
         return reserved0 == 0 && reserved1 == 0 && reserved2 == 0 &&
-               reserved3 == 0 && reserved4 == 0 && reserved5 == 0 &&
-               rotationKeyCount < 5000 && positionKeyCount < 5000 &&
-               (rotationKeyCount > 0 || positionKeyCount > 0);
+               reserved3 == 0 && timeScaleHigh == 0 &&
+               positionKeyCount < 50000 && rotationKeyCount < 50000 &&
+               (positionKeyCount > 0 || rotationKeyCount > 0);
     }
 };
 #pragma pack(pop)
@@ -288,8 +314,15 @@ public:
             return 0;
         }
 
-        // Calculate offset to bind pose data: header + bounding cylinders
+        // Calculate offset to bind pose data: header + bounding cylinders + sequence entries
+        // FA1 format: Header(88) + BoundingCylinders(N*16) + SequenceEntries(M*24) + BindPose
         size_t bindPoseOffset = sizeof(FA1Header) + (header.boundingCylinderCount * 16);
+
+        // Skip sequence entries (transformDataSize * 24 bytes each)
+        if (header.transformDataSize > 0 && header.transformDataSize < 256)
+        {
+            bindPoseOffset += header.transformDataSize * sizeof(BB9SequenceEntry);
+        }
 
         // Check if there's enough data for all bind pose entries
         size_t bindPoseSize = boneCount * sizeof(FA1BindPoseEntry);
@@ -342,6 +375,7 @@ public:
         std::memcpy(&header, data, sizeof(BB9Header));
 
         Animation::AnimationClip clip;
+        clip.sourceChunkType = "BB9";
         clip.modelHash0 = header.modelHash0;
         clip.modelHash1 = header.modelHash1;
 
@@ -549,62 +583,232 @@ public:
         clip.ComputeTimeRange();
         clip.ComputeSequenceTimeRanges();
 
+        // Debug output for BB9 - same anomaly detection as FA1
+        {
+            std::ofstream debugLog("bb9_parse_debug.log", std::ios::app);
+            if (debugLog.is_open())
+            {
+                debugLog << "\n========================================" << std::endl;
+                debugLog << "=== BB9 Parse Complete ===" << std::endl;
+                debugLog << "Bones: " << clip.boneTracks.size() << std::endl;
+                debugLog << "Sequences: " << clip.sequences.size() << std::endl;
+                debugLog << "TimeRange: " << clip.minTime << " - " << clip.maxTime << std::endl;
+
+                // Log ALL sequences with their time ranges
+                debugLog << "\n=== SEQUENCE DETAILS ===" << std::endl;
+                for (size_t i = 0; i < clip.sequences.size(); i++)
+                {
+                    const auto& seq = clip.sequences[i];
+                    debugLog << "Sequence " << i << ": hash=0x" << std::hex << seq.hash << std::dec
+                             << " frames=" << seq.frameCount
+                             << " time=[" << seq.startTime << " - " << seq.endTime << "]"
+                             << " duration=" << (seq.endTime - seq.startTime) << std::endl;
+                }
+
+                // DETAILED ANALYSIS: Find keyframes with large position jumps
+                debugLog << "\n=== ANOMALY DETECTION: Large position jumps ===" << std::endl;
+                for (size_t boneIdx = 0; boneIdx < clip.boneTracks.size(); boneIdx++)
+                {
+                    const auto& track = clip.boneTracks[boneIdx];
+                    for (size_t k = 1; k < track.positionKeys.size(); k++)
+                    {
+                        const auto& prev = track.positionKeys[k-1];
+                        const auto& curr = track.positionKeys[k];
+                        float dx = curr.value.x - prev.value.x;
+                        float dy = curr.value.y - prev.value.y;
+                        float dz = curr.value.z - prev.value.z;
+                        float dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+                        if (dist > 50.0f)
+                        {
+                            debugLog << "  LARGE JUMP Bone " << boneIdx << " key " << (k-1) << "->" << k
+                                     << ": t=" << prev.time << "->" << curr.time
+                                     << " dist=" << dist
+                                     << " pos=(" << prev.value.x << "," << prev.value.y << "," << prev.value.z << ")"
+                                     << "->(" << curr.value.x << "," << curr.value.y << "," << curr.value.z << ")"
+                                     << std::endl;
+                        }
+                    }
+                }
+
+                // DETAILED ANALYSIS: Find keyframes with large rotation changes
+                debugLog << "\n=== ANOMALY DETECTION: Large rotation changes ===" << std::endl;
+                for (size_t boneIdx = 0; boneIdx < clip.boneTracks.size(); boneIdx++)
+                {
+                    const auto& track = clip.boneTracks[boneIdx];
+                    for (size_t k = 1; k < track.rotationKeys.size(); k++)
+                    {
+                        const auto& prev = track.rotationKeys[k-1];
+                        const auto& curr = track.rotationKeys[k];
+                        float dot = prev.value.x * curr.value.x + prev.value.y * curr.value.y +
+                                    prev.value.z * curr.value.z + prev.value.w * curr.value.w;
+                        float angle = std::acos(std::min(1.0f, std::abs(dot))) * 2.0f * 57.2958f;
+                        if (angle > 90.0f)
+                        {
+                            debugLog << "  LARGE ROT Bone " << boneIdx << " key " << (k-1) << "->" << k
+                                     << ": t=" << prev.time << "->" << curr.time
+                                     << " angle=" << angle << " deg"
+                                     << " quat=(" << prev.value.x << "," << prev.value.y << "," << prev.value.z << "," << prev.value.w << ")"
+                                     << "->(" << curr.value.x << "," << curr.value.y << "," << curr.value.z << "," << curr.value.w << ")"
+                                     << std::endl;
+                        }
+                    }
+                }
+                debugLog << std::endl;
+            }
+        }
+
         return clip;
     }
 
 private:
     /**
+     * @brief Bit-stream reader for FA1 VLE data.
+     *
+     * FA1 uses BIT offsets (not byte-aligned) into the VLE stream, so we need
+     * a reader that can extract bytes at arbitrary bit positions.
+     */
+    struct FA1BitStreamReader
+    {
+        const uint8_t* data;
+        size_t dataSize;
+        size_t bitOffset;
+
+        FA1BitStreamReader(const uint8_t* inData, size_t inSize, size_t startBitOffset = 0)
+            : data(inData), dataSize(inSize), bitOffset(startBitOffset)
+        {
+        }
+
+        void SetBitOffset(size_t offset) { bitOffset = offset; }
+        size_t GetBitOffset() const { return bitOffset; }
+
+        bool HasBits(size_t numBits) const
+        {
+            return (bitOffset + numBits) <= (dataSize * 8);
+        }
+
+        /**
+         * @brief Reads a byte from the current bit position (may be non-aligned).
+         */
+        uint8_t ReadByte()
+        {
+            if (!HasBits(8))
+            {
+                return 0;
+            }
+
+            size_t byteIndex = bitOffset / 8;
+            uint8_t bitShift = static_cast<uint8_t>(bitOffset % 8);
+
+            uint8_t b0 = (byteIndex < dataSize) ? data[byteIndex] : 0;
+            uint8_t result;
+
+            if (bitShift == 0)
+            {
+                result = b0;
+            }
+            else
+            {
+                uint8_t b1 = (byteIndex + 1 < dataSize) ? data[byteIndex + 1] : 0;
+                result = static_cast<uint8_t>((b0 >> bitShift) | (b1 << (8 - bitShift)));
+            }
+
+            bitOffset += 8;
+            return result;
+        }
+
+        /**
+         * @brief Reads a VLE-encoded value (1-5 bytes, same encoding as BB9).
+         *
+         * VLE format:
+         * - Byte 0: bits 0-5 = value, bit 6 = sign, bit 7 = continuation
+         * - Bytes 1-4: bits 0-6 = value, bit 7 = continuation
+         */
+        uint32_t ReadVLEValue(bool* outSign = nullptr)
+        {
+            uint8_t b = ReadByte();
+            uint32_t value = b & 0x3F;
+
+            if (outSign)
+            {
+                *outSign = (b & 0x40) != 0;
+            }
+
+            if (b & 0x80)
+            {
+                b = ReadByte();
+                value |= (b & 0x7F) << 6;
+
+                if (b & 0x80)
+                {
+                    b = ReadByte();
+                    value |= (b & 0x7F) << 13;
+
+                    if (b & 0x80)
+                    {
+                        b = ReadByte();
+                        value |= (b & 0x7F) << 20;
+
+                        if (b & 0x80)
+                        {
+                            b = ReadByte();
+                            value |= static_cast<uint32_t>(b) << 27;
+                        }
+                    }
+                }
+            }
+
+            return value;
+        }
+    };
+
+    /**
      * @brief Parses FA1-specific keyframe format.
      *
-     * This format is used by models like 0xBC68 (pig) where animation data
-     * is organized as:
-     *   1. FA1KeyframeHeader (16 bytes) - contains total rotation/position key counts
-     *   2. Bone offset table (boneCount × 4 bytes) - bit offsets into VLE stream
-     *   3. VLE-encoded keyframe stream
+     * FA1 uses RAW data (not VLE encoded like BB9):
      *
-     * The VLE stream contains interleaved keyframe data for all bones, indexed by
-     * the bit offsets in the offset table.
+     * Per-bone format:
+     *   [6-byte header: posCount|rotCount|scaleCount as uint16]
+     *   [posCount × uint32 timestamps]
+     *   [posCount × float3 positions]
+     *   [rotCount × uint32 timestamps]
+     *   [rotCount × float4 quaternions (XYZW)]
+     *   [scaleCount × uint32 timestamps]
+     *   [scaleCount × float3 scales]
+     *
+     * Bones are stored sequentially, one after another.
      *
      * @param data Pointer to chunk data.
      * @param dataSize Size of the chunk data.
      * @param bindPoseOffset Offset to bind pose entries (for reading base positions).
-     * @param keyframeOffset Current offset (after bind pose entries).
+     * @param keyframeOffset Current offset (start of per-bone animation data).
      * @param boneCount Number of bones.
      * @param clip Output animation clip.
      * @param boneDepths Output vector for hierarchy depths.
      * @return true if parsing succeeded, false on failure.
      */
     static bool ParseFA1KeyframeFormat(const uint8_t* data, size_t dataSize,
-                                        size_t bindPoseOffset, size_t keyframeOffset,
+                                        size_t bindPoseOffset, size_t animOffset,
                                         uint32_t boneCount, Animation::AnimationClip& clip,
                                         std::vector<uint8_t>& boneDepths)
     {
-        if (keyframeOffset + sizeof(FA1KeyframeHeader) > dataSize)
-        {
-            return false;
-        }
+        // FA1 uses RAW data format (not VLE like BB9):
+        // Per-bone: [6-byte header: posCount|rotCount|scaleCount]
+        //           [posCount × uint32 timestamps]
+        //           [posCount × float3 positions]
+        //           [rotCount × uint32 timestamps]
+        //           [rotCount × float4 quaternions XYZW]
+        //           [scaleCount × uint32 timestamps]
+        //           [scaleCount × float3 scales]
 
-        // Read keyframe header
-        FA1KeyframeHeader kfHeader;
-        std::memcpy(&kfHeader, &data[keyframeOffset], sizeof(FA1KeyframeHeader));
-        size_t offset = keyframeOffset + sizeof(FA1KeyframeHeader);
+        // First read bind pose entries to build bone tracks and hierarchy
+        clip.boneParents.clear();
+        clip.boneParents.reserve(boneCount);
+        clip.boneTracks.clear();
+        clip.boneTracks.reserve(boneCount);
+        boneDepths.clear();
+        boneDepths.reserve(boneCount);
+        clip.boneIsIntermediate.clear();
 
-        // Read bone offset table (boneCount × 4 bytes)
-        // Each entry is a bit offset into the VLE stream
-        if (offset + boneCount * sizeof(uint32_t) > dataSize)
-        {
-            return false;
-        }
-
-        std::vector<uint32_t> boneOffsets(boneCount);
-        for (uint32_t i = 0; i < boneCount; i++)
-        {
-            std::memcpy(&boneOffsets[i], &data[offset], sizeof(uint32_t));
-            offset += sizeof(uint32_t);
-        }
-
-        // Read bind pose entries to get base positions and hierarchy bytes
-        // Each FA1BindPoseEntry is 16 bytes: float3 position + uint32_t parentInfo
         for (uint32_t i = 0; i < boneCount; i++)
         {
             size_t bpOffset = bindPoseOffset + i * sizeof(FA1BindPoseEntry);
@@ -628,533 +832,222 @@ private:
 
             clip.boneTracks.push_back(std::move(track));
 
-            // Extract hierarchy byte from parentInfo (low byte is hierarchy/pop count)
+            // FA1 stores explicit parent indices: low byte = (parent + 1), 0 = root
+            int32_t parentIdx = bindPose.GetParentIndex(i);
+            clip.boneParents.push_back(parentIdx);
+
+            // Store hierarchy byte for compatibility
             uint8_t hierByte = static_cast<uint8_t>(bindPose.parentInfo & 0xFF);
             boneDepths.push_back(hierByte);
 
-            // FA1 format: parentInfo bit 0x10000000 means "branch to root" (parent=0),
-            // NOT "intermediate bone". FA1 bind pose doesn't have intermediate bone flags.
-            // Intermediate bone detection for FA1 would need to come from elsewhere.
-            // For now, assume all FA1 bones are non-intermediate (produce output matrices).
             clip.boneIsIntermediate.push_back(false);
         }
 
-        // Decode FA1 VLE stream (bit-level offsets)
-        // Observed on 0xBC68: offsets appear to be grouped in sets of 4 per animated bone:
-        //   [posTimes][posValues][rotTimes][rotValues]
-        // The data is bit-packed VLE; values are delta-encoded like BB9, but at bit offsets.
-        //
-        // Notes:
-        // - Position values are stored as signed 16-bit deltas (VLE) and appear to scale ~1/1024.
-        // - Rotation values are Euler deltas (VLE) using the same 16-bit angle mapping as BB9.
-        // - Time streams sometimes decode poorly; if invalid, we fall back to implicit 0..N-1.
-
-        struct BitVLEReader
+        // Debug logging
         {
-            const uint8_t* data;
-            size_t dataSize;
-            size_t bitOffset = 0;
-            size_t bitEnd = 0;
-
-            BitVLEReader(const uint8_t* inData, size_t inSize, size_t inBitOffset, size_t inBitEnd)
-                : data(inData), dataSize(inSize), bitOffset(inBitOffset), bitEnd(inBitEnd)
+            std::ofstream debugLog("fa1_parse_debug.log", std::ios::app);
+            if (debugLog.is_open())
             {
+                debugLog << "\n========================================" << std::endl;
+                debugLog << "=== FA1 RAW Keyframe Parsing ===" << std::endl;
+                debugLog << "Format: Per-bone 6-byte header + RAW uint32 times + RAW float data" << std::endl;
+                debugLog << "BoneCount: " << boneCount << std::endl;
+                debugLog << "BindPoseOffset: 0x" << std::hex << bindPoseOffset << std::dec << std::endl;
+                debugLog << "AnimOffset: 0x" << std::hex << animOffset << std::dec << std::endl;
+            }
+        }
+
+        // Helper to transform quaternion from GW to GWMB coordinates
+        auto processQuaternion = [](float qx, float qy, float qz, float qw,
+                                    const std::vector<XMFLOAT4>& prevQuats) -> XMFLOAT4 {
+            // FA1 quaternion to BB9/GWMB coordinate transform
+            // Comparing BB9 vs FA1 for Bone 31:
+            //   BB9: (0.00609624, 0.0828345, 0.799916, 0.594337)
+            //   Raw FA1: qx=-0.00606, qy=-0.7999, qz=0.08287, qw=0.5943
+            // So: GWMB_x = -FA1_x, GWMB_y = FA1_z, GWMB_z = -FA1_y, GWMB_w = FA1_w
+            XMFLOAT4 quat;
+            quat.x = -qx;
+            quat.y = qz;   // NOT negated - raw FA1 qz matches BB9 y
+            quat.z = -qy;
+            quat.w = qw;
+
+            // Normalize
+            float len = std::sqrt(quat.x*quat.x + quat.y*quat.y + quat.z*quat.z + quat.w*quat.w);
+            if (len > 0.0001f)
+            {
+                quat.x /= len;
+                quat.y /= len;
+                quat.z /= len;
+                quat.w /= len;
             }
 
-            bool HasBits(size_t bits) const
+            // Ensure quaternion continuity
+            if (!prevQuats.empty())
             {
-                return bitOffset + bits <= bitEnd;
+                const XMFLOAT4& prev = prevQuats.back();
+                float dot = quat.w * prev.w + quat.x * prev.x + quat.y * prev.y + quat.z * prev.z;
+                if (dot < 0.0f)
+                {
+                    quat.w = -quat.w;
+                    quat.x = -quat.x;
+                    quat.y = -quat.y;
+                    quat.z = -quat.z;
+                }
             }
 
-            uint8_t ReadByte()
-            {
-                if (!HasBits(8))
-                {
-                    // Clamp to end-of-stream to avoid exceptions on truncated bit ranges.
-                    bitOffset = bitEnd;
-                    return 0;
-                }
-
-                size_t byteIndex = bitOffset / 8;
-                uint8_t shift = static_cast<uint8_t>(bitOffset % 8);
-                uint8_t b0 = (byteIndex < dataSize) ? data[byteIndex] : 0;
-                uint8_t value;
-
-                if (shift == 0)
-                {
-                    value = b0;
-                }
-                else
-                {
-                    uint8_t b1 = (byteIndex + 1 < dataSize) ? data[byteIndex + 1] : 0;
-                    value = static_cast<uint8_t>((b0 >> shift) | (b1 << (8 - shift)));
-                }
-
-                bitOffset += 8;
-                return value;
-            }
-
-            uint32_t ReadVLEValue(bool* outSign = nullptr)
-            {
-                uint8_t b = ReadByte();
-                uint32_t value = b & 0x3F;
-
-                if (outSign)
-                {
-                    *outSign = (b & 0x40) != 0;
-                }
-
-                if (b & 0x80)
-                {
-                    b = ReadByte();
-                    value |= (b & 0x7F) << 6;
-
-                    if (b & 0x80)
-                    {
-                        b = ReadByte();
-                        value |= (b & 0x7F) << 13;
-
-                        if (b & 0x80)
-                        {
-                            b = ReadByte();
-                            value |= (b & 0x7F) << 20;
-
-                            if (b & 0x80)
-                            {
-                                b = ReadByte();
-                                value |= static_cast<uint32_t>(b) << 27;
-                            }
-                        }
-                    }
-                }
-
-                return value;
-            }
+            return quat;
         };
 
-        auto DecodeTimes = [](BitVLEReader& reader, size_t maxCount) -> std::vector<uint32_t>
+        // Parse per-bone animation data
+        size_t offset = animOffset;
+        bool success = true;
+
+        for (uint32_t boneIdx = 0; boneIdx < boneCount && success; boneIdx++)
         {
-            std::vector<uint32_t> times;
-            times.reserve(maxCount);
-
-            int32_t last1 = 0;
-            int32_t last2 = 0;
-
-            for (size_t i = 0; i < maxCount; i++)
+            // Read 6-byte per-bone header
+            if (offset + 6 > dataSize)
             {
-                if (!reader.HasBits(8))
-                {
-                    break;
-                }
-
-                bool signPositive = false;
-                uint32_t raw = reader.ReadVLEValue(&signPositive);
-                int32_t delta = signPositive ? static_cast<int32_t>(raw) : -static_cast<int32_t>(raw);
-                int32_t value = (last1 * 2 - last2) + delta;
-                times.push_back(static_cast<uint32_t>(value));
-                last2 = last1;
-                last1 = value;
+                success = false;
+                break;
             }
 
-            return times;
-        };
+            uint16_t posCount, rotCount, scaleCount;
+            std::memcpy(&posCount, &data[offset + 0], sizeof(uint16_t));
+            std::memcpy(&rotCount, &data[offset + 2], sizeof(uint16_t));
+            std::memcpy(&scaleCount, &data[offset + 4], sizeof(uint16_t));
 
-        auto DecodePositionValues = [](BitVLEReader& reader, size_t maxKeys, float scale) -> std::vector<XMFLOAT3>
-        {
-            std::vector<XMFLOAT3> values;
-            values.reserve(maxKeys);
-
-            int16_t prevX = 0, prevY = 0, prevZ = 0;
-
-            for (size_t i = 0; i < maxKeys; i++)
+            // Validate counts
+            if (posCount > 10000 || rotCount > 10000 || scaleCount > 10000)
             {
-                if (!reader.HasBits(8 * 3))
-                {
-                    break;
-                }
-
-                bool sign = false;
-                uint32_t raw = reader.ReadVLEValue(&sign);
-                prevX = sign ? static_cast<int16_t>((prevX + raw) & 0xFFFF)
-                             : static_cast<int16_t>((prevX - raw) & 0xFFFF);
-
-                raw = reader.ReadVLEValue(&sign);
-                prevY = sign ? static_cast<int16_t>((prevY + raw) & 0xFFFF)
-                             : static_cast<int16_t>((prevY - raw) & 0xFFFF);
-
-                raw = reader.ReadVLEValue(&sign);
-                prevZ = sign ? static_cast<int16_t>((prevZ + raw) & 0xFFFF)
-                             : static_cast<int16_t>((prevZ - raw) & 0xFFFF);
-
-                XMFLOAT3 pos = {
-                    static_cast<float>(prevX) * scale,
-                    static_cast<float>(prevY) * scale,
-                    static_cast<float>(prevZ) * scale
-                };
-
-                // Coordinate transform: (x, y, z) -> (x, -z, y)
-                values.push_back({pos.x, -pos.z, pos.y});
+                success = false;
+                break;
             }
 
-            return values;
-        };
+            // Calculate offsets for each section
+            size_t posTimesOff = offset + 6;
+            size_t posValsOff = posTimesOff + posCount * sizeof(uint32_t);
+            size_t rotTimesOff = posValsOff + posCount * sizeof(float) * 3;
+            size_t rotValsOff = rotTimesOff + rotCount * sizeof(uint32_t);
+            size_t scaleTimesOff = rotValsOff + rotCount * sizeof(float) * 4;
+            size_t scaleValsOff = scaleTimesOff + scaleCount * sizeof(uint32_t);
+            size_t nextOffset = scaleValsOff + scaleCount * sizeof(float) * 3;
 
-        auto DecodeRotationValues = [](BitVLEReader& reader, size_t maxKeys) -> std::vector<XMFLOAT4>
-        {
-            std::vector<XMFLOAT4> rotations;
-            rotations.reserve(maxKeys);
-
-            constexpr float ANGLE_SCALE = (2.0f * 3.14159265358979323846f) / 65536.0f;
-            constexpr float ANGLE_OFFSET = 3.14159265358979323846f;
-
-            int16_t prevX = 0, prevY = 0, prevZ = 0;
-
-            for (size_t i = 0; i < maxKeys; i++)
+            if (nextOffset > dataSize)
             {
-                if (!reader.HasBits(8 * 3))
-                {
-                    break;
-                }
-
-                bool sign = false;
-                uint32_t raw = reader.ReadVLEValue(&sign);
-                prevX = sign ? static_cast<int16_t>((prevX + raw) & 0xFFFF)
-                             : static_cast<int16_t>((prevX - raw) & 0xFFFF);
-
-                raw = reader.ReadVLEValue(&sign);
-                prevY = sign ? static_cast<int16_t>((prevY + raw) & 0xFFFF)
-                             : static_cast<int16_t>((prevY - raw) & 0xFFFF);
-
-                raw = reader.ReadVLEValue(&sign);
-                prevZ = sign ? static_cast<int16_t>((prevZ + raw) & 0xFFFF)
-                             : static_cast<int16_t>((prevZ - raw) & 0xFFFF);
-
-                float rx_gw = -(prevX * ANGLE_SCALE - ANGLE_OFFSET);
-                float ry_gw = -(prevY * ANGLE_SCALE - ANGLE_OFFSET);
-                float rz_gw = -(prevZ * ANGLE_SCALE - ANGLE_OFFSET);
-
-                XMFLOAT4 quat_gw = VLEDecoder::EulerToQuaternion(rx_gw, ry_gw, rz_gw);
-
-                XMFLOAT4 quat;
-                quat.x = quat_gw.x;
-                quat.y = -quat_gw.z;
-                quat.z = quat_gw.y;
-                quat.w = quat_gw.w;
-
-                if (!rotations.empty())
-                {
-                    const XMFLOAT4& prev = rotations.back();
-                    float dot = quat.w * prev.w + quat.x * prev.x + quat.y * prev.y + quat.z * prev.z;
-                    if (dot < 0.0f)
-                    {
-                        quat.w = -quat.w;
-                        quat.x = -quat.x;
-                        quat.y = -quat.y;
-                        quat.z = -quat.z;
-                    }
-                }
-
-                rotations.push_back(quat);
+                success = false;
+                break;
             }
 
-            return rotations;
-        };
+            Animation::BoneTrack& track = clip.boneTracks[boneIdx];
+            track.positionKeys.clear();
+            track.rotationKeys.clear();
+            track.scaleKeys.clear();
 
-        // Decode grouped offset layout: offsets are stored in 4 contiguous blocks
-        // [posTimes][posValues][rotTimes][rotValues], with animBoneCount = boneCount / 4
-        // (bind pose bones appear to be grouped in sets of 4 with near-identical positions).
-        if (boneCount >= 4 && (boneCount % 4) == 0)
-        {
-            const uint32_t animBoneCount = boneCount / 4;
-            const size_t streamStart = keyframeOffset + sizeof(FA1KeyframeHeader) + boneCount * sizeof(uint32_t);
-            const size_t streamSize = (streamStart < dataSize) ? (dataSize - streamStart) : 0;
-            const size_t streamBits = streamSize * 8;
-
-            if (animBoneCount > 0 && boneOffsets.size() >= static_cast<size_t>(animBoneCount) * 4 && streamBits > 0)
+            // Read position keyframes (raw uint32 timestamps + raw float3 values)
+            if (posCount > 0)
             {
-                const uint32_t* posTimesOffsets = boneOffsets.data();
-                const uint32_t* posValuesOffsets = boneOffsets.data() + animBoneCount;
-                const uint32_t* rotTimesOffsets = boneOffsets.data() + animBoneCount * 2;
-                const uint32_t* rotValuesOffsets = boneOffsets.data() + animBoneCount * 3;
-
-                auto IsValidTimes = [](const std::vector<uint32_t>& times, size_t keyCount) -> bool
+                track.positionKeys.reserve(posCount);
+                for (uint32_t k = 0; k < posCount; k++)
                 {
-                    if (times.empty())
-                    {
-                        return false;
-                    }
+                    uint32_t ts;
+                    float px, py, pz;
+                    std::memcpy(&ts, &data[posTimesOff + k * sizeof(uint32_t)], sizeof(uint32_t));
+                    std::memcpy(&px, &data[posValsOff + k * 12 + 0], sizeof(float));
+                    std::memcpy(&py, &data[posValsOff + k * 12 + 4], sizeof(float));
+                    std::memcpy(&pz, &data[posValsOff + k * 12 + 8], sizeof(float));
 
-                    uint32_t prev = times[0];
-                    for (size_t i = 1; i < times.size(); i++)
-                    {
-                        if (times[i] < prev)
-                        {
-                            return false;
-                        }
-                        prev = times[i];
-                    }
+                    // FA1 stores positions as (x, z, -y) relative to BB9's (x, y, z)
+                    // Convert to BB9 terms first: BB9_x=px, BB9_y=-pz, BB9_z=py
+                    // Then apply GWMB transform (x, -z, y): (px, -py, -pz)
+                    XMFLOAT3 pos = { px, -py, -pz };
+                    track.positionKeys.push_back({ static_cast<float>(ts), pos });
+                }
+            }
 
-                    const uint64_t softLimit = static_cast<uint64_t>(keyCount) * 10000ull;
-                    if (softLimit > 0 && times.back() > softLimit)
-                    {
-                        return false;
-                    }
+            // Read rotation keyframes (raw uint32 timestamps + raw float4 quaternions XYZW)
+            if (rotCount > 0)
+            {
+                track.rotationKeys.reserve(rotCount);
+                std::vector<XMFLOAT4> prevQuats;
+                prevQuats.reserve(rotCount);
 
-                    return true;
-                };
-
-                auto IsValidRange = [streamBits](size_t start, size_t end) -> bool
+                for (uint32_t k = 0; k < rotCount; k++)
                 {
-                    return start < end && end <= streamBits;
-                };
+                    uint32_t ts;
+                    float qx, qy, qz, qw;
+                    std::memcpy(&ts, &data[rotTimesOff + k * sizeof(uint32_t)], sizeof(uint32_t));
+                    std::memcpy(&qx, &data[rotValsOff + k * 16 + 0], sizeof(float));
+                    std::memcpy(&qy, &data[rotValsOff + k * 16 + 4], sizeof(float));
+                    std::memcpy(&qz, &data[rotValsOff + k * 16 + 8], sizeof(float));
+                    std::memcpy(&qw, &data[rotValsOff + k * 16 + 12], sizeof(float));
 
-                for (uint32_t animIdx = 0; animIdx < animBoneCount; animIdx++)
+                    XMFLOAT4 quat = processQuaternion(qx, qy, qz, qw, prevQuats);
+                    prevQuats.push_back(quat);
+                    track.rotationKeys.push_back({ static_cast<float>(ts), quat });
+                }
+            }
+
+            // Read scale keyframes (raw uint32 timestamps + raw float3 values)
+            if (scaleCount > 0)
+            {
+                track.scaleKeys.reserve(scaleCount);
+                for (uint32_t k = 0; k < scaleCount; k++)
                 {
-                    size_t bitPosTimes = posTimesOffsets[animIdx];
-                    size_t bitPosValues = posValuesOffsets[animIdx];
-                    size_t bitRotTimes = rotTimesOffsets[animIdx];
-                    size_t bitRotValues = rotValuesOffsets[animIdx];
+                    uint32_t ts;
+                    float sx, sy, sz;
+                    std::memcpy(&ts, &data[scaleTimesOff + k * sizeof(uint32_t)], sizeof(uint32_t));
+                    std::memcpy(&sx, &data[scaleValsOff + k * 12 + 0], sizeof(float));
+                    std::memcpy(&sy, &data[scaleValsOff + k * 12 + 4], sizeof(float));
+                    std::memcpy(&sz, &data[scaleValsOff + k * 12 + 8], sizeof(float));
 
-                    size_t bitEndPosTimes = (animIdx + 1 < animBoneCount)
-                                                ? static_cast<size_t>(posTimesOffsets[animIdx + 1])
-                                                : static_cast<size_t>(posValuesOffsets[0]);
-                    size_t bitEndPosValues = (animIdx + 1 < animBoneCount)
-                                                ? static_cast<size_t>(posValuesOffsets[animIdx + 1])
-                                                : static_cast<size_t>(rotTimesOffsets[0]);
-                    size_t bitEndRotTimes = (animIdx + 1 < animBoneCount)
-                                                ? static_cast<size_t>(rotTimesOffsets[animIdx + 1])
-                                                : static_cast<size_t>(rotValuesOffsets[0]);
-                    size_t bitEndRotValues = (animIdx + 1 < animBoneCount)
-                                                ? static_cast<size_t>(rotValuesOffsets[animIdx + 1])
-                                                : streamBits;
+                    XMFLOAT3 scale = { sx, sy, sz };
+                    track.scaleKeys.push_back({ static_cast<float>(ts), scale });
+                }
+            }
 
-                    if (!IsValidRange(bitPosTimes, bitEndPosTimes) ||
-                        !IsValidRange(bitPosValues, bitEndPosValues) ||
-                        !IsValidRange(bitRotTimes, bitEndRotTimes) ||
-                        !IsValidRange(bitRotValues, bitEndRotValues))
+            // If no keyframes, add identity
+            if (track.positionKeys.empty())
+            {
+                track.positionKeys.push_back({0.0f, {0.0f, 0.0f, 0.0f}});
+            }
+            if (track.rotationKeys.empty())
+            {
+                track.rotationKeys.push_back({0.0f, XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f)});
+            }
+
+            offset = nextOffset;
+        }
+
+        // Debug logging
+        {
+            std::ofstream debugLog("fa1_parse_debug.log", std::ios::app);
+            if (debugLog.is_open())
+            {
+                debugLog << "Parse success: " << (success ? "YES" : "PARTIAL") << std::endl;
+                if (!clip.boneTracks.empty())
+                {
+                    debugLog << "Parsed " << clip.boneTracks.size() << " bones" << std::endl;
+                    debugLog << "Sample bone 0: posKeys=" << clip.boneTracks[0].positionKeys.size()
+                             << ", rotKeys=" << clip.boneTracks[0].rotationKeys.size() << std::endl;
+                    if (!clip.boneTracks[0].positionKeys.empty())
                     {
-                        continue;
+                        const auto& key = clip.boneTracks[0].positionKeys[0];
+                        debugLog << "  First pos key: t=" << key.time
+                                 << " pos=(" << key.value.x << ", " << key.value.y << ", " << key.value.z << ")" << std::endl;
                     }
-
-                    BitVLEReader posTimesReader(&data[streamStart], streamSize, bitPosTimes, bitEndPosTimes);
-                    BitVLEReader posValuesReader(&data[streamStart], streamSize, bitPosValues, bitEndPosValues);
-                    BitVLEReader rotTimesReader(&data[streamStart], streamSize, bitRotTimes, bitEndRotTimes);
-                    BitVLEReader rotValuesReader(&data[streamStart], streamSize, bitRotValues, bitEndRotValues);
-
-                    std::vector<uint32_t> posTimes = DecodeTimes(posTimesReader, kfHeader.positionKeyCount);
-                    std::vector<XMFLOAT3> posValues = DecodePositionValues(posValuesReader, kfHeader.positionKeyCount, 1.0f / 1024.0f);
-                    std::vector<uint32_t> rotTimes = DecodeTimes(rotTimesReader, kfHeader.rotationKeyCount);
-                    std::vector<XMFLOAT4> rotValues = DecodeRotationValues(rotValuesReader, kfHeader.rotationKeyCount);
-
-                    size_t posCount = posValues.size();
-                    if (!posTimes.empty())
+                    if (!clip.boneTracks[0].rotationKeys.empty())
                     {
-                        posCount = std::min(posCount, posTimes.size());
-                    }
-
-                    size_t rotCount = rotValues.size();
-                    if (!rotTimes.empty())
-                    {
-                        rotCount = std::min(rotCount, rotTimes.size());
-                    }
-
-                    if (posCount == 0 && rotCount == 0)
-                    {
-                        continue;
-                    }
-
-                    bool usePosTimes = IsValidTimes(posTimes, posCount);
-                    bool useRotTimes = IsValidTimes(rotTimes, rotCount);
-
-                    std::vector<Animation::Keyframe<XMFLOAT3>> posKeys;
-                    if (posCount > 0)
-                    {
-                        posKeys.reserve(posCount);
-                        for (size_t i = 0; i < posCount; i++)
-                        {
-                            float t = usePosTimes ? static_cast<float>(posTimes[i]) : static_cast<float>(i);
-                            posKeys.push_back({t, posValues[i]});
-                        }
-                    }
-
-                    std::vector<Animation::Keyframe<XMFLOAT4>> rotKeys;
-                    if (rotCount > 0)
-                    {
-                        rotKeys.reserve(rotCount);
-                        for (size_t i = 0; i < rotCount; i++)
-                        {
-                            float t = useRotTimes ? static_cast<float>(rotTimes[i]) : static_cast<float>(i);
-                            rotKeys.push_back({t, rotValues[i]});
-                        }
-                    }
-
-                    // Apply this animation track to the 4-bone group
-                    const uint32_t groupStart = animIdx * 4;
-                    for (uint32_t groupOffset = 0; groupOffset < 4; groupOffset++)
-                    {
-                        uint32_t boneIndex = groupStart + groupOffset;
-                        if (boneIndex >= clip.boneTracks.size())
-                        {
-                            break;
-                        }
-
-                        Animation::BoneTrack& track = clip.boneTracks[boneIndex];
-                        if (!posKeys.empty())
-                        {
-                            track.positionKeys = posKeys;
-                        }
-                        if (!rotKeys.empty())
-                        {
-                            track.rotationKeys = rotKeys;
-                        }
+                        const auto& key = clip.boneTracks[0].rotationKeys[0];
+                        debugLog << "  First rot key: t=" << key.time
+                                 << " quat=(" << key.value.x << ", " << key.value.y << ", "
+                                 << key.value.z << ", " << key.value.w << ")" << std::endl;
                     }
                 }
             }
         }
 
-        return true;
-    }
-
-    /**
-     * @brief Parses BB9-style bone animation headers.
-     *
-     * This format is used by standalone BB9 animation files and some FA1 chunks.
-     * Each bone has:
-     *   1. BB9BoneAnimHeader (22 bytes) - base position, flags, key counts
-     *   2. VLE-encoded position times + float3 positions
-     *   3. VLE-encoded rotation times + VLE rotation deltas
-     *   4. VLE-encoded scale times + float3 scales
-     *
-     * @param data Pointer to chunk data.
-     * @param dataSize Size of the chunk data.
-     * @param offset Current offset (after bind pose entries).
-     * @param clip Output animation clip.
-     * @param boneDepths Output vector for hierarchy depths.
-     */
-    static void ParseBB9StyleBoneAnimations(const uint8_t* data, size_t dataSize, size_t offset,
-                                             Animation::AnimationClip& clip,
-                                             std::vector<uint8_t>& boneDepths)
-    {
-        VLEDecoder decoder(data, dataSize, offset);
-        int errorsInRow = 0;
-        uint32_t boneIdx = 0;
-        const uint32_t maxBones = 256;
-
-        while (decoder.RemainingBytes() >= sizeof(BB9BoneAnimHeader) &&
-               boneIdx < maxBones &&
-               errorsInRow < 3)
-        {
-            try
-            {
-                // Read bone header
-                BB9BoneAnimHeader boneHeader;
-                std::memcpy(&boneHeader, &data[decoder.GetOffset()], sizeof(BB9BoneAnimHeader));
-
-                // Validate header
-                bool keyCountsValid = (boneHeader.posKeyCount <= 1000 &&
-                                      boneHeader.rotKeyCount <= 1000 &&
-                                      boneHeader.scaleKeyCount <= 1000);
-
-                bool posValid = std::isfinite(boneHeader.baseX) &&
-                               std::isfinite(boneHeader.baseY) &&
-                               std::isfinite(boneHeader.baseZ) &&
-                               std::abs(boneHeader.baseX) < 100000.0f &&
-                               std::abs(boneHeader.baseY) < 100000.0f &&
-                               std::abs(boneHeader.baseZ) < 100000.0f;
-
-                if (!keyCountsValid || (!posValid && boneIdx > 0))
-                {
-                    break;
-                }
-
-                decoder.SetOffset(decoder.GetOffset() + sizeof(BB9BoneAnimHeader));
-
-                Animation::BoneTrack track;
-                track.boneIndex = boneIdx;
-
-                // Store base position with coordinate transform: (x, y, z) -> (x, -z, y)
-                track.basePosition = {
-                    boneHeader.baseX,
-                    -boneHeader.baseZ,
-                    boneHeader.baseY
-                };
-
-                uint8_t depth = boneHeader.GetHierarchyDepth();
-                boneDepths.push_back(depth);
-
-                // Parse position keyframes
-                if (boneHeader.posKeyCount > 0)
-                {
-                    auto posTimes = decoder.ExpandUnsignedDeltaVLE(boneHeader.posKeyCount);
-                    auto positions = decoder.ReadFloat3s(boneHeader.posKeyCount);
-
-                    track.positionKeys.reserve(boneHeader.posKeyCount);
-                    for (size_t i = 0; i < boneHeader.posKeyCount; i++)
-                    {
-                        XMFLOAT3 transformedPos = {
-                            positions[i].x,
-                            -positions[i].z,
-                            positions[i].y
-                        };
-                        track.positionKeys.push_back({
-                            static_cast<float>(posTimes[i]),
-                            transformedPos
-                        });
-                    }
-                }
-
-                // Parse rotation keyframes
-                if (boneHeader.rotKeyCount > 0)
-                {
-                    auto rotTimes = decoder.ExpandUnsignedDeltaVLE(boneHeader.rotKeyCount);
-                    auto rotations = decoder.DecompressQuaternionKeys(boneHeader.rotKeyCount);
-
-                    track.rotationKeys.reserve(boneHeader.rotKeyCount);
-                    for (size_t i = 0; i < boneHeader.rotKeyCount; i++)
-                    {
-                        track.rotationKeys.push_back({
-                            static_cast<float>(rotTimes[i]),
-                            rotations[i]
-                        });
-                    }
-                }
-
-                // Parse scale keyframes
-                if (boneHeader.scaleKeyCount > 0)
-                {
-                    auto scaleTimes = decoder.ExpandUnsignedDeltaVLE(boneHeader.scaleKeyCount);
-                    auto scales = decoder.ReadFloat3s(boneHeader.scaleKeyCount);
-
-                    track.scaleKeys.reserve(boneHeader.scaleKeyCount);
-                    for (size_t i = 0; i < boneHeader.scaleKeyCount; i++)
-                    {
-                        track.scaleKeys.push_back({
-                            static_cast<float>(scaleTimes[i]),
-                            scales[i]
-                        });
-                    }
-                }
-
-                clip.boneTracks.push_back(std::move(track));
-                errorsInRow = 0;
-                boneIdx++;
-            }
-            catch (const std::exception&)
-            {
-                errorsInRow++;
-                if (errorsInRow >= 3)
-                {
-                    break;
-                }
-
-                // Add empty track placeholder
-                Animation::BoneTrack emptyTrack;
-                emptyTrack.boneIndex = boneIdx;
-                clip.boneTracks.push_back(std::move(emptyTrack));
-                boneDepths.push_back(0);
-                boneIdx++;
-            }
-        }
+        // Return true if we have any bone data (even partial parse is usable)
+        return !clip.boneTracks.empty();
     }
 
 public:
@@ -1180,6 +1073,7 @@ public:
         std::memcpy(&header, data, sizeof(FA1Header));
 
         Animation::AnimationClip clip;
+        clip.sourceChunkType = "FA1";
         clip.modelHash0 = header.boundingBoxId;
         clip.modelHash1 = header.collisionMeshId;
 
@@ -1193,11 +1087,14 @@ public:
         // Skip bounding cylinders (16 bytes each)
         offset += header.boundingCylinderCount * 16;
 
-        // FA1 may have sequence data if HAS_ANIMATION_SEQUENCES flag is set
-        // and sequenceCount0 > 0
-        if (header.HasAnimationSequences() && header.sequenceCount0 > 0)
+        // FA1 may have sequence data - check transformDataSize, NOT classFlags!
+        // Some FA1 files (e.g., 0x47D9) have sequences but NO HAS_ANIMATION_SEQUENCES flag
+        // IMPORTANT: Use transformDataSize for sequence count, NOT sequenceCount0!
+        // transformDataSize = actual number of 24-byte sequence entries
+        // sequenceCount0 is something else (possibly total keyframe count or unused)
+        if (header.transformDataSize > 0 && header.transformDataSize < 256)
         {
-            for (uint16_t i = 0; i < header.sequenceCount0; i++)
+            for (uint32_t i = 0; i < header.transformDataSize; i++)
             {
                 if (offset + sizeof(BB9SequenceEntry) > dataSize) break;
 
@@ -1225,75 +1122,163 @@ public:
         clip.totalFrames = cumulativeFrames > 0 ? cumulativeFrames : 100;
 
         // Parse bone animation data
-        // FA1 format has bind pose entries followed by animation keyframe data
-        // Check for skeleton data using either HasSkeleton flag OR bindPoseBoneCount > 0
+        // FA1 format: bind pose entries (16 bytes each) followed by per-bone RAW animation data
+        // Per-bone: [6-byte header: posCount|rotCount|scaleCount] + raw timestamps + raw values
         bool hasSkeletonData = header.HasSkeleton() || (header.bindPoseBoneCount > 0 && header.bindPoseBoneCount < 256);
-        if (hasSkeletonData && offset < dataSize)
+        if (hasSkeletonData && offset < dataSize && header.bindPoseBoneCount > 0)
         {
-            // Save bind pose offset before skipping (needed for FA1 keyframe format parsing)
+            // Bind pose entries start here
             size_t bindPoseOffset = offset;
 
-            // Skip bind pose entries if present (bindPoseBoneCount × 16 bytes)
-            // These contain position + parent info, parsed separately by ParseFA1BindPose
-            if (header.bindPoseBoneCount > 0 && header.bindPoseBoneCount < 256)
+            // Keyframe data starts after bind pose entries
+            size_t keyframeOffset = bindPoseOffset + header.bindPoseBoneCount * sizeof(FA1BindPoseEntry);
+
+            if (keyframeOffset < dataSize)
             {
-                offset += header.bindPoseBoneCount * sizeof(FA1BindPoseEntry);
-            }
+                std::vector<uint8_t> boneDepths;
 
-            // Detect animation format: FA1-specific (with FA1KeyframeHeader) or BB9-style (with BB9BoneAnimHeader)
-            //
-            // FA1-specific format (used by models like 0xBC68):
-            //   1. FA1KeyframeHeader (16 bytes) - has zeros in reserved fields
-            //   2. Bone offset table (boneCount × 4 bytes) - bit offsets into VLE stream
-            //   3. VLE-encoded keyframe stream
-            //
-            // BB9-style format:
-            //   For each bone:
-            //     1. BB9BoneAnimHeader (22 bytes) - position + flags + key counts
-            //     2. VLE-encoded keyframe data for that bone
-
-            bool useFA1KeyframeFormat = false;
-            if (offset + sizeof(FA1KeyframeHeader) <= dataSize)
-            {
-                FA1KeyframeHeader testHeader;
-                std::memcpy(&testHeader, &data[offset], sizeof(FA1KeyframeHeader));
-                useFA1KeyframeFormat = testHeader.IsValid();
-            }
-
-            std::vector<uint8_t> boneDepths;
-
-            if (useFA1KeyframeFormat)
-            {
-                // Parse FA1-specific keyframe format
-                // Pass both bindPoseOffset (for reading base positions) and offset (keyframe data start)
-                if (!ParseFA1KeyframeFormat(data, dataSize, bindPoseOffset, offset, header.bindPoseBoneCount,
-                                            clip, boneDepths))
+                // Parse FA1 keyframe format (raw data, not VLE encoded)
+                if (ParseFA1KeyframeFormat(data, dataSize, bindPoseOffset, keyframeOffset,
+                                           header.bindPoseBoneCount, clip, boneDepths))
                 {
-                    // Fall through to BB9-style parsing
-                    useFA1KeyframeFormat = false;
+                    // FA1 format uses DIRECT parent indexing: parent = (lowByte - 1)
+                    clip.hierarchyMode = Animation::HierarchyMode::DirectParent;
                 }
+                else
+                {
+                    // Parsing failed - return nullopt
+                    return std::nullopt;
+                }
+
+                // Build output-to-animation bone mapping (for intermediate bone handling)
+                clip.BuildOutputMapping();
             }
-
-            if (!useFA1KeyframeFormat)
-            {
-                // Parse BB9-style bone animation headers
-                ParseBB9StyleBoneAnimations(data, dataSize, offset, clip, boneDepths);
-            }
-
-            // Compute bone hierarchy from depth values
-            bool usedSequentialMode = false;
-            Animation::HierarchyMode hierarchyMode = Animation::HierarchyMode::TreeDepth;
-            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode, &hierarchyMode);
-            clip.hierarchyMode = hierarchyMode;
-
-            // Build output-to-animation bone mapping (for intermediate bone handling)
-            // FA1 format doesn't have intermediate bone flags in bind pose, so all bones produce output
-            clip.BuildOutputMapping();
         }
 
         // Compute time ranges
         clip.ComputeTimeRange();
         clip.ComputeSequenceTimeRanges();
+
+        // Debug output to verify FA1 parsing
+        {
+            std::ofstream debugLog("fa1_parse_debug.log", std::ios::app);
+            if (debugLog.is_open())
+            {
+                debugLog << "=== FA1 ParseFA1 Complete (RAW data format) ===" << std::endl;
+                debugLog << "HierarchyMode: DirectParent" << std::endl;
+                debugLog << "Bones: " << clip.boneTracks.size() << std::endl;
+                debugLog << "Sequences: " << clip.sequences.size() << std::endl;
+                debugLog << "TimeRange: " << clip.minTime << " - " << clip.maxTime << std::endl;
+                debugLog << "Duration (raw units): " << clip.duration << std::endl;
+                debugLog << "Duration (approx seconds): " << (clip.duration / 33330.0f) << std::endl;
+                debugLog << "TotalFrames: " << clip.totalFrames << std::endl;
+
+                // Log ALL sequences with their time ranges
+                debugLog << "\n=== SEQUENCE DETAILS ===" << std::endl;
+                for (size_t i = 0; i < clip.sequences.size(); i++)
+                {
+                    const auto& seq = clip.sequences[i];
+                    debugLog << "Sequence " << i << ": hash=0x" << std::hex << seq.hash << std::dec
+                             << " frames=" << seq.frameCount
+                             << " time=[" << seq.startTime << " - " << seq.endTime << "]"
+                             << " duration=" << (seq.endTime - seq.startTime) << std::endl;
+                }
+
+                // Log first 10 bone parents
+                debugLog << "\nParent indices (first 10): ";
+                for (size_t i = 0; i < std::min(clip.boneParents.size(), size_t(10)); i++)
+                {
+                    debugLog << clip.boneParents[i] << " ";
+                }
+                debugLog << std::endl;
+
+                // DETAILED ANALYSIS: Find keyframes with large position jumps (potential head flying away)
+                debugLog << "\n=== ANOMALY DETECTION: Large position jumps ===" << std::endl;
+                for (size_t boneIdx = 0; boneIdx < clip.boneTracks.size(); boneIdx++)
+                {
+                    const auto& track = clip.boneTracks[boneIdx];
+                    for (size_t k = 1; k < track.positionKeys.size(); k++)
+                    {
+                        const auto& prev = track.positionKeys[k-1];
+                        const auto& curr = track.positionKeys[k];
+                        float dx = curr.value.x - prev.value.x;
+                        float dy = curr.value.y - prev.value.y;
+                        float dz = curr.value.z - prev.value.z;
+                        float dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+                        // Flag jumps > 50 units (likely anomalous for character animation)
+                        if (dist > 50.0f)
+                        {
+                            debugLog << "  LARGE JUMP Bone " << boneIdx << " key " << (k-1) << "->" << k
+                                     << ": t=" << prev.time << "->" << curr.time
+                                     << " dist=" << dist
+                                     << " pos=(" << prev.value.x << "," << prev.value.y << "," << prev.value.z << ")"
+                                     << "->(" << curr.value.x << "," << curr.value.y << "," << curr.value.z << ")"
+                                     << std::endl;
+                        }
+                    }
+                }
+
+                // DETAILED ANALYSIS: Find keyframes with large rotation changes
+                debugLog << "\n=== ANOMALY DETECTION: Large rotation changes ===" << std::endl;
+                for (size_t boneIdx = 0; boneIdx < clip.boneTracks.size(); boneIdx++)
+                {
+                    const auto& track = clip.boneTracks[boneIdx];
+                    for (size_t k = 1; k < track.rotationKeys.size(); k++)
+                    {
+                        const auto& prev = track.rotationKeys[k-1];
+                        const auto& curr = track.rotationKeys[k];
+                        // Dot product of quaternions - close to 1 means similar, close to 0 means 90 deg, negative means >90 deg
+                        float dot = prev.value.x * curr.value.x + prev.value.y * curr.value.y +
+                                    prev.value.z * curr.value.z + prev.value.w * curr.value.w;
+                        // Angle in degrees (approximate)
+                        float angle = std::acos(std::min(1.0f, std::abs(dot))) * 2.0f * 57.2958f;
+                        // Flag rotations > 90 degrees between consecutive keys
+                        if (angle > 90.0f)
+                        {
+                            debugLog << "  LARGE ROT Bone " << boneIdx << " key " << (k-1) << "->" << k
+                                     << ": t=" << prev.time << "->" << curr.time
+                                     << " angle=" << angle << " deg"
+                                     << " quat=(" << prev.value.x << "," << prev.value.y << "," << prev.value.z << "," << prev.value.w << ")"
+                                     << "->(" << curr.value.x << "," << curr.value.y << "," << curr.value.z << "," << curr.value.w << ")"
+                                     << std::endl;
+                        }
+                    }
+                }
+
+                // Log first 5 bone positions
+                debugLog << "\nBone positions (first 5):" << std::endl;
+                for (size_t i = 0; i < std::min(clip.boneTracks.size(), size_t(5)); i++)
+                {
+                    const auto& pos = clip.boneTracks[i].basePosition;
+                    debugLog << "  Bone " << i << ": (" << pos.x << ", " << pos.y << ", " << pos.z << ")" << std::endl;
+                }
+
+                // Log keyframe counts and first few time values for first 3 bones
+                debugLog << "Keyframe details (first 3 bones):" << std::endl;
+                for (size_t i = 0; i < std::min(clip.boneTracks.size(), size_t(3)); i++)
+                {
+                    const auto& track = clip.boneTracks[i];
+                    debugLog << "  Bone " << i << ": pos=" << track.positionKeys.size()
+                             << ", rot=" << track.rotationKeys.size();
+
+                    // Log first 5 position times
+                    if (!track.positionKeys.empty())
+                    {
+                        debugLog << "  posTimes=[";
+                        for (size_t j = 0; j < std::min(track.positionKeys.size(), size_t(5)); j++)
+                        {
+                            if (j > 0) debugLog << ", ";
+                            debugLog << track.positionKeys[j].time;
+                        }
+                        if (track.positionKeys.size() > 5) debugLog << ", ...";
+                        debugLog << "]";
+                    }
+                    debugLog << std::endl;
+                }
+
+                debugLog << std::endl;
+            }
+        }
 
         return clip;
     }
