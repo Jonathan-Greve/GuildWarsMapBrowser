@@ -4,7 +4,7 @@
 //
 // Covers:
 //   - Geometry: vertices, indices, materials, shaders, textures
-//   - Animation: VLE-compressed Euler angles → quaternions, bone hierarchy
+//   - Animation: BB9 uses VLE-compressed Euler angles, FA1 uses RAW float data
 //   - Skeleton: bone weights, attachment points, emitters
 //
 // Animation Runtime Notes (critical for matching GW's exact behavior):
@@ -17,7 +17,7 @@
 #include <std/mem.pat>
 #include <std/math.pat>
 #include <std/io.pat>
-#pragma pattern_limit 500000
+#pragma pattern_limit 5000000
 
 // =============================================================================
 // CHUNK ID REFERENCE
@@ -937,7 +937,7 @@ struct GeometryHeader_FA1 {
     u32 unknown_0x28;
     u32 bindPoseBoneCount;      // 0x2C: Number of bones in bind pose section
     u32 unknown_0x30;
-    u32 transformDataSize;      // 0x34
+    u32 transformDataSize;      // 0x34: Number of 24-byte sequence entries (NOT gated by flags!)
     u32 submeshCount;           // 0x38
     u32 unknown_0x3C;
     u16 sequenceCount0;         // 0x40
@@ -956,48 +956,47 @@ struct GeometryHeader_FA1 {
 // =============================================================================
 // FA1 BIND POSE ENTRY (16 bytes per bone)
 // =============================================================================
-// Located after FA1 header + bounding cylinders.
+// Located after FA1 header + bounding cylinders + sequences.
 // Contains bone position in model space + hierarchy encoding.
 //
-// IMPORTANT DISCOVERY: The parentInfo low byte is the SAME as BB9's hierarchyByte!
-// It is NOT a pre-computed parent index - it needs POP_COUNT algorithm to interpret.
+// FA1 HIERARCHY ENCODING (DIFFERENT FROM BB9!):
+//   FA1 uses DIRECT PARENT INDEXING, not POP_COUNT like BB9.
 //
 // parentInfo field encoding:
-//   Bits 0-7 (low byte):   hierarchyByte - POP_COUNT levels (same as BB9 BoneAnimHeader)
-//   Bit 28 (0x10000000):   BRANCH TO ROOT flag - when set, parent = 0 (root/body center)
-//                          NOTE: This is NOT the same as BB9's intermediate bone flag!
-//                          FA1 format does not have intermediate bone detection in bind pose.
+//   Bits 0-7 (low byte):   (parent_index + 1), where 0 = root bone (no parent)
+//   Bit 28 (0x10000000):   Unknown flag (possibly intermediate bone marker)
 //
-// Example (pig model 0xBC68 with 28 bones):
-//   hierarchyBytes: [0,0,0,0,0,0,0,0,4,0,0,0,6,0,0,0,0,0,1,1,1,4,0,0,3,0,0,5]
-//   These are POP_COUNT values, NOT direct parent indices!
-//
-// POP_COUNT ALGORITHM (from Ghidra RE of GrTrans_PushPopMatrix @ 0x0064ab40):
-//   - Maintain a stack of bone indices
+// DIRECT PARENT ALGORITHM:
 //   - For each bone:
-//     1. Pop hierarchyByte items from stack
-//     2. Parent = top of stack (or -1 if empty = root)
-//     3. Push current bone onto stack
+//     lowByte = parentInfo & 0xFF
+//     if (lowByte == 0) parent = -1 (this is a root bone)
+//     else parent = lowByte - 1
 //
-// This produces the correct skeleton hierarchy:
-//   Pig: 0→-1, 1→0, 2→1, 3→2, 4→3, 5→4, 6→5, 7→6, 8→3, 9→8, 10→9, 11→10, etc.
+// Example: parentInfo low bytes [0, 1, 2, 3, 3, 3, 6, 7, 6, 9, ...]
+//   Bone 0: lowByte=0 → parent=-1 (root)
+//   Bone 1: lowByte=1 → parent=0
+//   Bone 2: lowByte=2 → parent=1
+//   Bone 3: lowByte=3 → parent=2
+//   Bone 4: lowByte=3 → parent=2 (sibling of bone 3)
+//   etc.
 //
 struct FA1BindPoseEntry {
     float posX;                 // 0x00: Bind pose X position (model space)
     float posY;                 // 0x04: Bind pose Y position (model space)
     float posZ;                 // 0x08: Bind pose Z position (model space)
-    u32 parentInfo;             // 0x0C: Low byte = hierarchyByte (POP_COUNT value)
+    u32 parentInfo;             // 0x0C: Low byte = (parent_index + 1), 0 = root
 } [[format("format_fa1_bind_pose")]];
 
 fn format_fa1_bind_pose(FA1BindPoseEntry e) {
-    u8 hierarchyByte = e.parentInfo & 0xFF;
-    bool branchToRoot = (e.parentInfo & 0x10000000) != 0;
-    if (branchToRoot) {
-        return std::format("pos=({:.2f},{:.2f},{:.2f}) popCount={} BRANCH_TO_ROOT",
-            e.posX, e.posY, e.posZ, hierarchyByte);
+    u8 lowByte = e.parentInfo & 0xFF;
+    s32 parentIdx = (lowByte == 0) ? -1 : s32(lowByte - 1);
+    bool hasFlag = (e.parentInfo & 0x10000000) != 0;
+    if (hasFlag) {
+        return std::format("pos=({:.2f},{:.2f},{:.2f}) parent={} [FLAG]",
+            e.posX, e.posY, e.posZ, parentIdx);
     }
-    return std::format("pos=({:.2f},{:.2f},{:.2f}) popCount={}",
-        e.posX, e.posY, e.posZ, hierarchyByte);
+    return std::format("pos=({:.2f},{:.2f},{:.2f}) parent={}",
+        e.posX, e.posY, e.posZ, parentIdx);
 };
 
 // BB9 Sequence Entry (24 bytes = 6 DWORDs)
@@ -1623,6 +1622,14 @@ struct Chunk_BB9_Animation {
         u32 jointCountToUse = jointHeader.jointCount;
         if (jointCountToUse > 256) jointCountToUse = 256;
 
+        // Bounds check: each JointEntry is 21 bytes, ensure we have enough space
+        u32 jointBytesNeeded = jointCountToUse * 21;
+        u32 remainingInChunk = chunkSize - ($ - g_chunkDataStart);
+        if (jointBytesNeeded > remainingInChunk) {
+            // Not enough space - limit to what we can actually read
+            jointCountToUse = remainingInChunk / 21;
+        }
+
         if (jointCountToUse > 0) {
             JointEntry jointEntries[jointCountToUse]
                 [[name("Joint Entries (using header count - may be incomplete)")]];
@@ -2044,406 +2051,103 @@ struct Chunk_FA0_Geometry {
 };
 
 // =============================================================================
-// FA1 KEYFRAME DATA STRUCTURE
+// FA1 KEYFRAME DATA STRUCTURES
 // =============================================================================
 //
-// FA1 keyframe data has a DIFFERENT format than BB9. Structure discovered:
+// FA1 has TWO different keyframe formats:
 //
-// Header (16 bytes):
-//   u16[3]: zeros (padding or reserved)
-//   u16: rotationKeyframeCount (e.g., 214)
-//   u16: positionKeyframeCount (e.g., 148)
-//   u16[3]: zeros (padding or reserved)
+// FORMAT A (per-bone RAW): Used by some files (e.g., 0x10436)
+//   - Per-bone 6-byte header: [u16 posCount, u16 rotCount, u16 scaleCount]
+//   - Followed by RAW timestamps (u32) and values (float3/float4)
+//   - Bones stored sequentially
 //
-// Following the header is VLE-compressed keyframe data organized as:
-//   - Offset table: u32 offsets (bit positions) into VLE data for each bone/track
-//   - VLE timing data: delta-encoded keyframe times
-//   - Keyframe values: rotation (VLE Euler) and position (float3) data
+// FORMAT B (global header + VLE): Used by some files (e.g., 0x3AAA)
+//   - 16-byte FA1KeyframeHeader with total keyframe counts
+//   - Four offset arrays (boneCount × 4 bytes each): BIT offsets into VLE stream
+//   - VLE-encoded keyframe data stream
 //
-// The large offset values (12760, 15950, etc.) are BIT offsets into the VLE stream:
-//   12760 bits = 1595 bytes (offset to first data section)
-//   3190 bits = ~399 bytes (typical delta between sections)
+// Detection: Check first 12 bytes after bind pose
+//   - If bytes 0-5 zeros, bytes 6-9 have counts > 500, bytes 10-11 zeros → Format B
+//   - Otherwise → Format A
 //
 
+// FA1 Global Keyframe Header (16 bytes) - Format B only
+// Used when animation data is stored with offset arrays + VLE encoding
 struct FA1KeyframeHeader {
-    u16 reserved0;              // 0x00: Always 0
-    u16 reserved1;              // 0x02: Always 0
-    u16 reserved2;              // 0x04: Always 0
-    u16 rotationKeyCount;       // 0x06: Number of rotation keyframes (e.g., 214)
-    u16 positionKeyCount;       // 0x08: Number of position keyframes (e.g., 148)
-    u16 reserved3;              // 0x0A: Always 0
-    u16 reserved4;              // 0x0C: Always 0
-    u16 reserved5;              // 0x0E: Always 0
+    u16 reserved0;          // 0x00: Always 0
+    u16 reserved1;          // 0x02: Always 0
+    u16 reserved2;          // 0x04: Always 0
+    u16 totalPosKeyCount;   // 0x06: Total position keyframes across ALL bones
+    u16 totalRotKeyCount;   // 0x08: Total rotation keyframes across ALL bones
+    u16 reserved3;          // 0x0A: Always 0
+    u16 timeScaleLow;       // 0x0C: Animation time scale (e.g., 3333 for 0x3AAA)
+    u16 timeScaleHigh;      // 0x0E: Usually 0
 } [[format("format_fa1_keyframe_header")]];
 
 fn format_fa1_keyframe_header(FA1KeyframeHeader h) {
-    return std::format("rotKeys={} posKeys={}", h.rotationKeyCount, h.positionKeyCount);
+    return std::format("totalPos={} totalRot={} timeScale={}",
+        h.totalPosKeyCount, h.totalRotKeyCount,
+        h.timeScaleLow | (u32(h.timeScaleHigh) << 16));
 };
 
-// FA1 bit offsets (bit offsets into the VLE stream)
-// Observed layout: 4 contiguous blocks of animBoneCount offsets:
-//   [posTimes][posValues][rotTimes][rotValues]
-struct FA1BitOffset {
-    u32 bitOffset [[name("Bit Offset")]];
-} [[format("format_fa1_bit_offset")]];
+// FA1 per-bone animation header (6 bytes) - Format A only
+struct FA1BoneAnimHeader {
+    u16 posKeyCount;     // 0x00: Number of position keyframes
+    u16 rotKeyCount;     // 0x02: Number of rotation keyframes
+    u16 scaleKeyCount;   // 0x04: Number of scale keyframes (usually 0)
+} [[format("format_fa1_bone_anim_header")]];
 
-fn format_fa1_bit_offset(FA1BitOffset o) {
-    return std::format("{} (byte {} bit {})", o.bitOffset, o.bitOffset / 8, o.bitOffset % 8);
+fn format_fa1_bone_anim_header(FA1BoneAnimHeader h) {
+    return std::format("pos={} rot={} scale={}", h.posKeyCount, h.rotKeyCount, h.scaleKeyCount);
+};
+
+// Position keyframe value (float3, 12 bytes)
+struct FA1PositionKey {
+    float x;
+    float y;
+    float z;
+} [[format("format_fa1_pos_key")]];
+
+fn format_fa1_pos_key(FA1PositionKey p) {
+    return std::format("({:.3f}, {:.3f}, {:.3f})", p.x, p.y, p.z);
+};
+
+// Rotation keyframe value (float4 quaternion XYZW, 16 bytes)
+struct FA1RotationKey {
+    float x;
+    float y;
+    float z;
+    float w;
+} [[format("format_fa1_rot_key")]];
+
+fn format_fa1_rot_key(FA1RotationKey q) {
+    return std::format("({:.4f}, {:.4f}, {:.4f}, {:.4f})", q.x, q.y, q.z, q.w);
 };
 
 // Global for FA1 bone count (set by Chunk_FA1_Animation before parsing keyframe data)
 u32 g_fa1BoneCount;
 
-// FA1 keyframe data container - parses header, offset table, and VLE stream
-struct FA1KeyframeData {
-    FA1KeyframeHeader keyframeHeader [[name("Keyframe Header (16 bytes)")]];
+// FA1 per-bone keyframe data (variable size, parsed inline)
+// Contains: header + timestamps + position values + timestamps + rotation values + timestamps + scale values
+struct FA1BoneKeyframeData {
+    FA1BoneAnimHeader header [[name("Bone Anim Header (6 bytes)")]];
 
-    // Calculate remaining data for VLE keyframes
-    u32 keyframe_data_start = $;
-    u32 keyframe_data_end = g_chunkDataStart + g_chunkDataSize;
-    u32 keyframe_data_size = (keyframe_data_start < keyframe_data_end) ?
-                              (keyframe_data_end - keyframe_data_start) : 0;
+    // Position keyframes (some animations have 2000+ keys per bone)
+    if (header.posKeyCount > 0 && header.posKeyCount < 10000) {
+        u32 positionTimes[header.posKeyCount] [[name("Position Timestamps")]];
+        FA1PositionKey positionValues[header.posKeyCount] [[name("Position Values")]];
+    }
 
-    if (keyframe_data_size > 0 && g_fa1BoneCount > 0 && g_fa1BoneCount < 256) {
-        u32 animBoneCount = (g_fa1BoneCount % 4 == 0) ? (g_fa1BoneCount / 4) : 0;
-        // Offset table: 4 contiguous blocks of animBoneCount bit-offsets:
-        //   [posTimes][posValues][rotTimes][rotValues]
-        if (animBoneCount > 0) {
-            FA1BitOffset posTimesOffsets[animBoneCount] [[name("PosTimes Offsets")]];
-            FA1BitOffset posValuesOffsets[animBoneCount] [[name("PosValues Offsets")]];
-            FA1BitOffset rotTimesOffsets[animBoneCount] [[name("RotTimes Offsets")]];
-            FA1BitOffset rotValuesOffsets[animBoneCount] [[name("RotValues Offsets")]];
-        } else {
-            u32 boneOffsets[g_fa1BoneCount] [[name("Bone Bit-Offsets")]];
-        }
+    // Rotation keyframes
+    if (header.rotKeyCount > 0 && header.rotKeyCount < 10000) {
+        u32 rotationTimes[header.rotKeyCount] [[name("Rotation Timestamps")]];
+        FA1RotationKey rotationValues[header.rotKeyCount] [[name("Rotation Values (XYZW)")]];
+    }
 
-        // VLE-compressed keyframe data stream
-        // After the offset table, the remaining data is VLE-encoded keyframes:
-        //   - Position times (VLE delta-of-delta encoded)
-        //   - Position values (float3 per keyframe, 12 bytes each)
-        //   - Rotation times (VLE delta-of-delta encoded)
-        //   - Rotation values (3 VLE Euler angle deltas per keyframe)
-        //
-        // The offsets are BIT positions into this stream. To decode:
-        //   byte_offset = bit_offset / 8
-        //   bit_position = bit_offset % 8
-        //
-        u32 offset_table_size = g_fa1BoneCount * 4;
-        u32 vle_stream_size = keyframe_data_size - offset_table_size;
-        if (vle_stream_size > 0) {
-            // For small animBoneCount, split the stream into rough per-bone segments
-            // (byte-aligned approximation; bit offsets shown in the table above).
-            if (animBoneCount > 0 && animBoneCount <= 8) {
-                u32 streamStart = $;
-
-                // PosTimes block
-                if (animBoneCount > 0) {
-                    u32 pt0_start = posTimesOffsets[0].bitOffset / 8;
-                    u32 pt0_consumed = $ - streamStart;
-                    u32 pt0_gap = (pt0_start > pt0_consumed) ? (pt0_start - pt0_consumed) : 0;
-                    if (pt0_gap > 0) { u8 pt0_gapBytes[pt0_gap] [[name("VLE Gap (pre PosTimes 0)")]]; }
-                    u32 pt0_end = (animBoneCount > 1) ? (posTimesOffsets[1].bitOffset / 8) : (posValuesOffsets[0].bitOffset / 8);
-                    u32 pt0_size = (pt0_end > pt0_start) ? (pt0_end - pt0_start) : 0;
-                    if (pt0_size > 0) { u8 pt0_data[pt0_size] [[name("PosTimes[0] (bytes)")]]; }
-                }
-                if (animBoneCount > 1) {
-                    u32 pt1_start = posTimesOffsets[1].bitOffset / 8;
-                    u32 pt1_consumed = $ - streamStart;
-                    u32 pt1_gap = (pt1_start > pt1_consumed) ? (pt1_start - pt1_consumed) : 0;
-                    if (pt1_gap > 0) { u8 pt1_gapBytes[pt1_gap] [[name("VLE Gap (pre PosTimes 1)")]]; }
-                    u32 pt1_end = (animBoneCount > 2) ? (posTimesOffsets[2].bitOffset / 8) : (posValuesOffsets[0].bitOffset / 8);
-                    u32 pt1_size = (pt1_end > pt1_start) ? (pt1_end - pt1_start) : 0;
-                    if (pt1_size > 0) { u8 pt1_data[pt1_size] [[name("PosTimes[1] (bytes)")]]; }
-                }
-                if (animBoneCount > 2) {
-                    u32 pt2_start = posTimesOffsets[2].bitOffset / 8;
-                    u32 pt2_consumed = $ - streamStart;
-                    u32 pt2_gap = (pt2_start > pt2_consumed) ? (pt2_start - pt2_consumed) : 0;
-                    if (pt2_gap > 0) { u8 pt2_gapBytes[pt2_gap] [[name("VLE Gap (pre PosTimes 2)")]]; }
-                    u32 pt2_end = (animBoneCount > 3) ? (posTimesOffsets[3].bitOffset / 8) : (posValuesOffsets[0].bitOffset / 8);
-                    u32 pt2_size = (pt2_end > pt2_start) ? (pt2_end - pt2_start) : 0;
-                    if (pt2_size > 0) { u8 pt2_data[pt2_size] [[name("PosTimes[2] (bytes)")]]; }
-                }
-                if (animBoneCount > 3) {
-                    u32 pt3_start = posTimesOffsets[3].bitOffset / 8;
-                    u32 pt3_consumed = $ - streamStart;
-                    u32 pt3_gap = (pt3_start > pt3_consumed) ? (pt3_start - pt3_consumed) : 0;
-                    if (pt3_gap > 0) { u8 pt3_gapBytes[pt3_gap] [[name("VLE Gap (pre PosTimes 3)")]]; }
-                    u32 pt3_end = (animBoneCount > 4) ? (posTimesOffsets[4].bitOffset / 8) : (posValuesOffsets[0].bitOffset / 8);
-                    u32 pt3_size = (pt3_end > pt3_start) ? (pt3_end - pt3_start) : 0;
-                    if (pt3_size > 0) { u8 pt3_data[pt3_size] [[name("PosTimes[3] (bytes)")]]; }
-                }
-                if (animBoneCount > 4) {
-                    u32 pt4_start = posTimesOffsets[4].bitOffset / 8;
-                    u32 pt4_consumed = $ - streamStart;
-                    u32 pt4_gap = (pt4_start > pt4_consumed) ? (pt4_start - pt4_consumed) : 0;
-                    if (pt4_gap > 0) { u8 pt4_gapBytes[pt4_gap] [[name("VLE Gap (pre PosTimes 4)")]]; }
-                    u32 pt4_end = (animBoneCount > 5) ? (posTimesOffsets[5].bitOffset / 8) : (posValuesOffsets[0].bitOffset / 8);
-                    u32 pt4_size = (pt4_end > pt4_start) ? (pt4_end - pt4_start) : 0;
-                    if (pt4_size > 0) { u8 pt4_data[pt4_size] [[name("PosTimes[4] (bytes)")]]; }
-                }
-                if (animBoneCount > 5) {
-                    u32 pt5_start = posTimesOffsets[5].bitOffset / 8;
-                    u32 pt5_consumed = $ - streamStart;
-                    u32 pt5_gap = (pt5_start > pt5_consumed) ? (pt5_start - pt5_consumed) : 0;
-                    if (pt5_gap > 0) { u8 pt5_gapBytes[pt5_gap] [[name("VLE Gap (pre PosTimes 5)")]]; }
-                    u32 pt5_end = (animBoneCount > 6) ? (posTimesOffsets[6].bitOffset / 8) : (posValuesOffsets[0].bitOffset / 8);
-                    u32 pt5_size = (pt5_end > pt5_start) ? (pt5_end - pt5_start) : 0;
-                    if (pt5_size > 0) { u8 pt5_data[pt5_size] [[name("PosTimes[5] (bytes)")]]; }
-                }
-                if (animBoneCount > 6) {
-                    u32 pt6_start = posTimesOffsets[6].bitOffset / 8;
-                    u32 pt6_consumed = $ - streamStart;
-                    u32 pt6_gap = (pt6_start > pt6_consumed) ? (pt6_start - pt6_consumed) : 0;
-                    if (pt6_gap > 0) { u8 pt6_gapBytes[pt6_gap] [[name("VLE Gap (pre PosTimes 6)")]]; }
-                    u32 pt6_end = (animBoneCount > 7) ? (posTimesOffsets[7].bitOffset / 8) : (posValuesOffsets[0].bitOffset / 8);
-                    u32 pt6_size = (pt6_end > pt6_start) ? (pt6_end - pt6_start) : 0;
-                    if (pt6_size > 0) { u8 pt6_data[pt6_size] [[name("PosTimes[6] (bytes)")]]; }
-                }
-                if (animBoneCount > 7) {
-                    u32 pt7_start = posTimesOffsets[7].bitOffset / 8;
-                    u32 pt7_consumed = $ - streamStart;
-                    u32 pt7_gap = (pt7_start > pt7_consumed) ? (pt7_start - pt7_consumed) : 0;
-                    if (pt7_gap > 0) { u8 pt7_gapBytes[pt7_gap] [[name("VLE Gap (pre PosTimes 7)")]]; }
-                    u32 pt7_end = posValuesOffsets[0].bitOffset / 8;
-                    u32 pt7_size = (pt7_end > pt7_start) ? (pt7_end - pt7_start) : 0;
-                    if (pt7_size > 0) { u8 pt7_data[pt7_size] [[name("PosTimes[7] (bytes)")]]; }
-                }
-
-                // PosValues block
-                if (animBoneCount > 0) {
-                    u32 pv0_start = posValuesOffsets[0].bitOffset / 8;
-                    u32 pv0_consumed = $ - streamStart;
-                    u32 pv0_gap = (pv0_start > pv0_consumed) ? (pv0_start - pv0_consumed) : 0;
-                    if (pv0_gap > 0) { u8 pv0_gapBytes[pv0_gap] [[name("VLE Gap (pre PosValues 0)")]]; }
-                    u32 pv0_end = (animBoneCount > 1) ? (posValuesOffsets[1].bitOffset / 8) : (rotTimesOffsets[0].bitOffset / 8);
-                    u32 pv0_size = (pv0_end > pv0_start) ? (pv0_end - pv0_start) : 0;
-                    if (pv0_size > 0) { u8 pv0_data[pv0_size] [[name("PosValues[0] (bytes)")]]; }
-                }
-                if (animBoneCount > 1) {
-                    u32 pv1_start = posValuesOffsets[1].bitOffset / 8;
-                    u32 pv1_consumed = $ - streamStart;
-                    u32 pv1_gap = (pv1_start > pv1_consumed) ? (pv1_start - pv1_consumed) : 0;
-                    if (pv1_gap > 0) { u8 pv1_gapBytes[pv1_gap] [[name("VLE Gap (pre PosValues 1)")]]; }
-                    u32 pv1_end = (animBoneCount > 2) ? (posValuesOffsets[2].bitOffset / 8) : (rotTimesOffsets[0].bitOffset / 8);
-                    u32 pv1_size = (pv1_end > pv1_start) ? (pv1_end - pv1_start) : 0;
-                    if (pv1_size > 0) { u8 pv1_data[pv1_size] [[name("PosValues[1] (bytes)")]]; }
-                }
-                if (animBoneCount > 2) {
-                    u32 pv2_start = posValuesOffsets[2].bitOffset / 8;
-                    u32 pv2_consumed = $ - streamStart;
-                    u32 pv2_gap = (pv2_start > pv2_consumed) ? (pv2_start - pv2_consumed) : 0;
-                    if (pv2_gap > 0) { u8 pv2_gapBytes[pv2_gap] [[name("VLE Gap (pre PosValues 2)")]]; }
-                    u32 pv2_end = (animBoneCount > 3) ? (posValuesOffsets[3].bitOffset / 8) : (rotTimesOffsets[0].bitOffset / 8);
-                    u32 pv2_size = (pv2_end > pv2_start) ? (pv2_end - pv2_start) : 0;
-                    if (pv2_size > 0) { u8 pv2_data[pv2_size] [[name("PosValues[2] (bytes)")]]; }
-                }
-                if (animBoneCount > 3) {
-                    u32 pv3_start = posValuesOffsets[3].bitOffset / 8;
-                    u32 pv3_consumed = $ - streamStart;
-                    u32 pv3_gap = (pv3_start > pv3_consumed) ? (pv3_start - pv3_consumed) : 0;
-                    if (pv3_gap > 0) { u8 pv3_gapBytes[pv3_gap] [[name("VLE Gap (pre PosValues 3)")]]; }
-                    u32 pv3_end = (animBoneCount > 4) ? (posValuesOffsets[4].bitOffset / 8) : (rotTimesOffsets[0].bitOffset / 8);
-                    u32 pv3_size = (pv3_end > pv3_start) ? (pv3_end - pv3_start) : 0;
-                    if (pv3_size > 0) { u8 pv3_data[pv3_size] [[name("PosValues[3] (bytes)")]]; }
-                }
-                if (animBoneCount > 4) {
-                    u32 pv4_start = posValuesOffsets[4].bitOffset / 8;
-                    u32 pv4_consumed = $ - streamStart;
-                    u32 pv4_gap = (pv4_start > pv4_consumed) ? (pv4_start - pv4_consumed) : 0;
-                    if (pv4_gap > 0) { u8 pv4_gapBytes[pv4_gap] [[name("VLE Gap (pre PosValues 4)")]]; }
-                    u32 pv4_end = (animBoneCount > 5) ? (posValuesOffsets[5].bitOffset / 8) : (rotTimesOffsets[0].bitOffset / 8);
-                    u32 pv4_size = (pv4_end > pv4_start) ? (pv4_end - pv4_start) : 0;
-                    if (pv4_size > 0) { u8 pv4_data[pv4_size] [[name("PosValues[4] (bytes)")]]; }
-                }
-                if (animBoneCount > 5) {
-                    u32 pv5_start = posValuesOffsets[5].bitOffset / 8;
-                    u32 pv5_consumed = $ - streamStart;
-                    u32 pv5_gap = (pv5_start > pv5_consumed) ? (pv5_start - pv5_consumed) : 0;
-                    if (pv5_gap > 0) { u8 pv5_gapBytes[pv5_gap] [[name("VLE Gap (pre PosValues 5)")]]; }
-                    u32 pv5_end = (animBoneCount > 6) ? (posValuesOffsets[6].bitOffset / 8) : (rotTimesOffsets[0].bitOffset / 8);
-                    u32 pv5_size = (pv5_end > pv5_start) ? (pv5_end - pv5_start) : 0;
-                    if (pv5_size > 0) { u8 pv5_data[pv5_size] [[name("PosValues[5] (bytes)")]]; }
-                }
-                if (animBoneCount > 6) {
-                    u32 pv6_start = posValuesOffsets[6].bitOffset / 8;
-                    u32 pv6_consumed = $ - streamStart;
-                    u32 pv6_gap = (pv6_start > pv6_consumed) ? (pv6_start - pv6_consumed) : 0;
-                    if (pv6_gap > 0) { u8 pv6_gapBytes[pv6_gap] [[name("VLE Gap (pre PosValues 6)")]]; }
-                    u32 pv6_end = (animBoneCount > 7) ? (posValuesOffsets[7].bitOffset / 8) : (rotTimesOffsets[0].bitOffset / 8);
-                    u32 pv6_size = (pv6_end > pv6_start) ? (pv6_end - pv6_start) : 0;
-                    if (pv6_size > 0) { u8 pv6_data[pv6_size] [[name("PosValues[6] (bytes)")]]; }
-                }
-                if (animBoneCount > 7) {
-                    u32 pv7_start = posValuesOffsets[7].bitOffset / 8;
-                    u32 pv7_consumed = $ - streamStart;
-                    u32 pv7_gap = (pv7_start > pv7_consumed) ? (pv7_start - pv7_consumed) : 0;
-                    if (pv7_gap > 0) { u8 pv7_gapBytes[pv7_gap] [[name("VLE Gap (pre PosValues 7)")]]; }
-                    u32 pv7_end = rotTimesOffsets[0].bitOffset / 8;
-                    u32 pv7_size = (pv7_end > pv7_start) ? (pv7_end - pv7_start) : 0;
-                    if (pv7_size > 0) { u8 pv7_data[pv7_size] [[name("PosValues[7] (bytes)")]]; }
-                }
-
-                // RotTimes block
-                if (animBoneCount > 0) {
-                    u32 rt0_start = rotTimesOffsets[0].bitOffset / 8;
-                    u32 rt0_consumed = $ - streamStart;
-                    u32 rt0_gap = (rt0_start > rt0_consumed) ? (rt0_start - rt0_consumed) : 0;
-                    if (rt0_gap > 0) { u8 rt0_gapBytes[rt0_gap] [[name("VLE Gap (pre RotTimes 0)")]]; }
-                    u32 rt0_end = (animBoneCount > 1) ? (rotTimesOffsets[1].bitOffset / 8) : (rotValuesOffsets[0].bitOffset / 8);
-                    u32 rt0_size = (rt0_end > rt0_start) ? (rt0_end - rt0_start) : 0;
-                    if (rt0_size > 0) { u8 rt0_data[rt0_size] [[name("RotTimes[0] (bytes)")]]; }
-                }
-                if (animBoneCount > 1) {
-                    u32 rt1_start = rotTimesOffsets[1].bitOffset / 8;
-                    u32 rt1_consumed = $ - streamStart;
-                    u32 rt1_gap = (rt1_start > rt1_consumed) ? (rt1_start - rt1_consumed) : 0;
-                    if (rt1_gap > 0) { u8 rt1_gapBytes[rt1_gap] [[name("VLE Gap (pre RotTimes 1)")]]; }
-                    u32 rt1_end = (animBoneCount > 2) ? (rotTimesOffsets[2].bitOffset / 8) : (rotValuesOffsets[0].bitOffset / 8);
-                    u32 rt1_size = (rt1_end > rt1_start) ? (rt1_end - rt1_start) : 0;
-                    if (rt1_size > 0) { u8 rt1_data[rt1_size] [[name("RotTimes[1] (bytes)")]]; }
-                }
-                if (animBoneCount > 2) {
-                    u32 rt2_start = rotTimesOffsets[2].bitOffset / 8;
-                    u32 rt2_consumed = $ - streamStart;
-                    u32 rt2_gap = (rt2_start > rt2_consumed) ? (rt2_start - rt2_consumed) : 0;
-                    if (rt2_gap > 0) { u8 rt2_gapBytes[rt2_gap] [[name("VLE Gap (pre RotTimes 2)")]]; }
-                    u32 rt2_end = (animBoneCount > 3) ? (rotTimesOffsets[3].bitOffset / 8) : (rotValuesOffsets[0].bitOffset / 8);
-                    u32 rt2_size = (rt2_end > rt2_start) ? (rt2_end - rt2_start) : 0;
-                    if (rt2_size > 0) { u8 rt2_data[rt2_size] [[name("RotTimes[2] (bytes)")]]; }
-                }
-                if (animBoneCount > 3) {
-                    u32 rt3_start = rotTimesOffsets[3].bitOffset / 8;
-                    u32 rt3_consumed = $ - streamStart;
-                    u32 rt3_gap = (rt3_start > rt3_consumed) ? (rt3_start - rt3_consumed) : 0;
-                    if (rt3_gap > 0) { u8 rt3_gapBytes[rt3_gap] [[name("VLE Gap (pre RotTimes 3)")]]; }
-                    u32 rt3_end = (animBoneCount > 4) ? (rotTimesOffsets[4].bitOffset / 8) : (rotValuesOffsets[0].bitOffset / 8);
-                    u32 rt3_size = (rt3_end > rt3_start) ? (rt3_end - rt3_start) : 0;
-                    if (rt3_size > 0) { u8 rt3_data[rt3_size] [[name("RotTimes[3] (bytes)")]]; }
-                }
-                if (animBoneCount > 4) {
-                    u32 rt4_start = rotTimesOffsets[4].bitOffset / 8;
-                    u32 rt4_consumed = $ - streamStart;
-                    u32 rt4_gap = (rt4_start > rt4_consumed) ? (rt4_start - rt4_consumed) : 0;
-                    if (rt4_gap > 0) { u8 rt4_gapBytes[rt4_gap] [[name("VLE Gap (pre RotTimes 4)")]]; }
-                    u32 rt4_end = (animBoneCount > 5) ? (rotTimesOffsets[5].bitOffset / 8) : (rotValuesOffsets[0].bitOffset / 8);
-                    u32 rt4_size = (rt4_end > rt4_start) ? (rt4_end - rt4_start) : 0;
-                    if (rt4_size > 0) { u8 rt4_data[rt4_size] [[name("RotTimes[4] (bytes)")]]; }
-                }
-                if (animBoneCount > 5) {
-                    u32 rt5_start = rotTimesOffsets[5].bitOffset / 8;
-                    u32 rt5_consumed = $ - streamStart;
-                    u32 rt5_gap = (rt5_start > rt5_consumed) ? (rt5_start - rt5_consumed) : 0;
-                    if (rt5_gap > 0) { u8 rt5_gapBytes[rt5_gap] [[name("VLE Gap (pre RotTimes 5)")]]; }
-                    u32 rt5_end = (animBoneCount > 6) ? (rotTimesOffsets[6].bitOffset / 8) : (rotValuesOffsets[0].bitOffset / 8);
-                    u32 rt5_size = (rt5_end > rt5_start) ? (rt5_end - rt5_start) : 0;
-                    if (rt5_size > 0) { u8 rt5_data[rt5_size] [[name("RotTimes[5] (bytes)")]]; }
-                }
-                if (animBoneCount > 6) {
-                    u32 rt6_start = rotTimesOffsets[6].bitOffset / 8;
-                    u32 rt6_consumed = $ - streamStart;
-                    u32 rt6_gap = (rt6_start > rt6_consumed) ? (rt6_start - rt6_consumed) : 0;
-                    if (rt6_gap > 0) { u8 rt6_gapBytes[rt6_gap] [[name("VLE Gap (pre RotTimes 6)")]]; }
-                    u32 rt6_end = (animBoneCount > 7) ? (rotTimesOffsets[7].bitOffset / 8) : (rotValuesOffsets[0].bitOffset / 8);
-                    u32 rt6_size = (rt6_end > rt6_start) ? (rt6_end - rt6_start) : 0;
-                    if (rt6_size > 0) { u8 rt6_data[rt6_size] [[name("RotTimes[6] (bytes)")]]; }
-                }
-                if (animBoneCount > 7) {
-                    u32 rt7_start = rotTimesOffsets[7].bitOffset / 8;
-                    u32 rt7_consumed = $ - streamStart;
-                    u32 rt7_gap = (rt7_start > rt7_consumed) ? (rt7_start - rt7_consumed) : 0;
-                    if (rt7_gap > 0) { u8 rt7_gapBytes[rt7_gap] [[name("VLE Gap (pre RotTimes 7)")]]; }
-                    u32 rt7_end = rotValuesOffsets[0].bitOffset / 8;
-                    u32 rt7_size = (rt7_end > rt7_start) ? (rt7_end - rt7_start) : 0;
-                    if (rt7_size > 0) { u8 rt7_data[rt7_size] [[name("RotTimes[7] (bytes)")]]; }
-                }
-
-                // RotValues block
-                if (animBoneCount > 0) {
-                    u32 rv0_start = rotValuesOffsets[0].bitOffset / 8;
-                    u32 rv0_consumed = $ - streamStart;
-                    u32 rv0_gap = (rv0_start > rv0_consumed) ? (rv0_start - rv0_consumed) : 0;
-                    if (rv0_gap > 0) { u8 rv0_gapBytes[rv0_gap] [[name("VLE Gap (pre RotValues 0)")]]; }
-                    u32 rv0_end = (animBoneCount > 1) ? (rotValuesOffsets[1].bitOffset / 8) : (vle_stream_size);
-                    u32 rv0_size = (rv0_end > rv0_start) ? (rv0_end - rv0_start) : 0;
-                    if (rv0_size > 0) { u8 rv0_data[rv0_size] [[name("RotValues[0] (bytes)")]]; }
-                }
-                if (animBoneCount > 1) {
-                    u32 rv1_start = rotValuesOffsets[1].bitOffset / 8;
-                    u32 rv1_consumed = $ - streamStart;
-                    u32 rv1_gap = (rv1_start > rv1_consumed) ? (rv1_start - rv1_consumed) : 0;
-                    if (rv1_gap > 0) { u8 rv1_gapBytes[rv1_gap] [[name("VLE Gap (pre RotValues 1)")]]; }
-                    u32 rv1_end = (animBoneCount > 2) ? (rotValuesOffsets[2].bitOffset / 8) : (vle_stream_size);
-                    u32 rv1_size = (rv1_end > rv1_start) ? (rv1_end - rv1_start) : 0;
-                    if (rv1_size > 0) { u8 rv1_data[rv1_size] [[name("RotValues[1] (bytes)")]]; }
-                }
-                if (animBoneCount > 2) {
-                    u32 rv2_start = rotValuesOffsets[2].bitOffset / 8;
-                    u32 rv2_consumed = $ - streamStart;
-                    u32 rv2_gap = (rv2_start > rv2_consumed) ? (rv2_start - rv2_consumed) : 0;
-                    if (rv2_gap > 0) { u8 rv2_gapBytes[rv2_gap] [[name("VLE Gap (pre RotValues 2)")]]; }
-                    u32 rv2_end = (animBoneCount > 3) ? (rotValuesOffsets[3].bitOffset / 8) : (vle_stream_size);
-                    u32 rv2_size = (rv2_end > rv2_start) ? (rv2_end - rv2_start) : 0;
-                    if (rv2_size > 0) { u8 rv2_data[rv2_size] [[name("RotValues[2] (bytes)")]]; }
-                }
-                if (animBoneCount > 3) {
-                    u32 rv3_start = rotValuesOffsets[3].bitOffset / 8;
-                    u32 rv3_consumed = $ - streamStart;
-                    u32 rv3_gap = (rv3_start > rv3_consumed) ? (rv3_start - rv3_consumed) : 0;
-                    if (rv3_gap > 0) { u8 rv3_gapBytes[rv3_gap] [[name("VLE Gap (pre RotValues 3)")]]; }
-                    u32 rv3_end = (animBoneCount > 4) ? (rotValuesOffsets[4].bitOffset / 8) : (vle_stream_size);
-                    u32 rv3_size = (rv3_end > rv3_start) ? (rv3_end - rv3_start) : 0;
-                    if (rv3_size > 0) { u8 rv3_data[rv3_size] [[name("RotValues[3] (bytes)")]]; }
-                }
-                if (animBoneCount > 4) {
-                    u32 rv4_start = rotValuesOffsets[4].bitOffset / 8;
-                    u32 rv4_consumed = $ - streamStart;
-                    u32 rv4_gap = (rv4_start > rv4_consumed) ? (rv4_start - rv4_consumed) : 0;
-                    if (rv4_gap > 0) { u8 rv4_gapBytes[rv4_gap] [[name("VLE Gap (pre RotValues 4)")]]; }
-                    u32 rv4_end = (animBoneCount > 5) ? (rotValuesOffsets[5].bitOffset / 8) : (vle_stream_size);
-                    u32 rv4_size = (rv4_end > rv4_start) ? (rv4_end - rv4_start) : 0;
-                    if (rv4_size > 0) { u8 rv4_data[rv4_size] [[name("RotValues[4] (bytes)")]]; }
-                }
-                if (animBoneCount > 5) {
-                    u32 rv5_start = rotValuesOffsets[5].bitOffset / 8;
-                    u32 rv5_consumed = $ - streamStart;
-                    u32 rv5_gap = (rv5_start > rv5_consumed) ? (rv5_start - rv5_consumed) : 0;
-                    if (rv5_gap > 0) { u8 rv5_gapBytes[rv5_gap] [[name("VLE Gap (pre RotValues 5)")]]; }
-                    u32 rv5_end = (animBoneCount > 6) ? (rotValuesOffsets[6].bitOffset / 8) : (vle_stream_size);
-                    u32 rv5_size = (rv5_end > rv5_start) ? (rv5_end - rv5_start) : 0;
-                    if (rv5_size > 0) { u8 rv5_data[rv5_size] [[name("RotValues[5] (bytes)")]]; }
-                }
-                if (animBoneCount > 6) {
-                    u32 rv6_start = rotValuesOffsets[6].bitOffset / 8;
-                    u32 rv6_consumed = $ - streamStart;
-                    u32 rv6_gap = (rv6_start > rv6_consumed) ? (rv6_start - rv6_consumed) : 0;
-                    if (rv6_gap > 0) { u8 rv6_gapBytes[rv6_gap] [[name("VLE Gap (pre RotValues 6)")]]; }
-                    u32 rv6_end = (animBoneCount > 7) ? (rotValuesOffsets[7].bitOffset / 8) : (vle_stream_size);
-                    u32 rv6_size = (rv6_end > rv6_start) ? (rv6_end - rv6_start) : 0;
-                    if (rv6_size > 0) { u8 rv6_data[rv6_size] [[name("RotValues[6] (bytes)")]]; }
-                }
-                if (animBoneCount > 7) {
-                    u32 rv7_start = rotValuesOffsets[7].bitOffset / 8;
-                    u32 rv7_consumed = $ - streamStart;
-                    u32 rv7_gap = (rv7_start > rv7_consumed) ? (rv7_start - rv7_consumed) : 0;
-                    if (rv7_gap > 0) { u8 rv7_gapBytes[rv7_gap] [[name("VLE Gap (pre RotValues 7)")]]; }
-                    u32 rv7_end = vle_stream_size;
-                    u32 rv7_size = (rv7_end > rv7_start) ? (rv7_end - rv7_start) : 0;
-                    if (rv7_size > 0) { u8 rv7_data[rv7_size] [[name("RotValues[7] (bytes)")]]; }
-                }
-
-                u32 consumed = $ - streamStart;
-                if (consumed < vle_stream_size) {
-                    u32 tailSize = vle_stream_size - consumed;
-                    u8 vleStreamTail[tailSize] [[name("VLE Stream Tail")]];
-                }
-            } else {
-                u8 vleStream[vle_stream_size] [[name("VLE Keyframe Stream")]];
-            }
-        }
-    } else if (keyframe_data_size > 0) {
-        // Fallback: raw data if bone count is not set
-        u8 rawKeyframeData[keyframe_data_size] [[name("Raw Keyframe Data")]];
+    // Scale keyframes (usually 0)
+    if (header.scaleKeyCount > 0 && header.scaleKeyCount < 10000) {
+        u32 scaleTimes[header.scaleKeyCount] [[name("Scale Timestamps")]];
+        FA1PositionKey scaleValues[header.scaleKeyCount] [[name("Scale Values")]];
     }
 };
 
@@ -2464,17 +2168,82 @@ struct Chunk_FA1_Animation {
         BoundingCylinder cylinders[header.boundingCylinderCount] [[name("Bounding Cylinders")]];
     }
 
-    if (header.classFlags.HAS_ANIMATION_SEQUENCES && header.transformDataSize > 0 && header.transformDataSize < 256) {
+    // Animation sequences: Use transformDataSize NOT classFlags.HAS_ANIMATION_SEQUENCES!
+    // Some FA1 files have sequences but the flag is 0. transformDataSize = number of 24-byte entries.
+    if (header.transformDataSize > 0 && header.transformDataSize < 256) {
         SequenceEntry_BB9 sequences[header.transformDataSize] [[name("Animation Sequences")]];
     }
 
+    // Bind pose entries (16 bytes each): skeleton hierarchy with DIRECT PARENT indexing
     if (header.bindPoseBoneCount > 0 && header.bindPoseBoneCount < 256) {
         FA1BindPoseEntry bindPose[header.bindPoseBoneCount] [[name("Bind Pose (skeleton hierarchy)")]];
     }
-    
+
+    // Detect keyframe format by peeking at bytes after bind pose
+    //
+    // Format B (global header + VLE):
+    //   - Bytes 0-15: FA1KeyframeHeader with reserved fields = 0
+    //   - Bytes 16+: posTimesOffsets[0] = 0 or very small (BIT offset)
+    //
+    // Format A (per-bone RAW):
+    //   - Bytes 0-5: bone 0's 6-byte header (posCount, rotCount, scaleCount)
+    //   - Bytes 6-11: bone 1's 6-byte header
+    //   - Bytes 12+: bone 0/1's timestamps (uint32 values like 3333, 33333...)
+    //
+    // CRITICAL: When bone 0 has NO keyframes (0,0,0), bytes 0-5 are zeros which
+    // looks like Format B's reserved header fields! Distinguish by checking
+    // bytes 16-19: Format B has small offset (~0), Format A has timestamp (>10000).
+    //
+    u32 keyframeStart = $;
+    u16 peek0 @ keyframeStart;      // Format B: reserved0=0, Format A: bone0.posKeyCount
+    u16 peek1 @ keyframeStart + 2;  // Format B: reserved1=0, Format A: bone0.rotKeyCount
+    u16 peek2 @ keyframeStart + 4;  // Format B: reserved2=0, Format A: bone0.scaleKeyCount
+    u16 peek3 @ keyframeStart + 6;  // Format B: totalPosKeyCount, Format A: bone1.posKeyCount
+    u16 peek4 @ keyframeStart + 8;  // Format B: totalRotKeyCount, Format A: bone1.rotKeyCount
+    u16 peek5 @ keyframeStart + 10; // Format B: reserved3=0, Format A: bone1.scaleKeyCount
+    u32 peek6 @ keyframeStart + 16; // Format B: posTimesOffsets[0]≈0, Format A: 2nd timestamp>10000
+
+    // Format B detection:
+    // - First 6 bytes zeros (reserved0-2 in FA1KeyframeHeader)
+    // - Bytes 6-9 have high keyframe counts (>500)
+    // - Bytes 10-11 zero (reserved3)
+    // - Bytes 16-19 is posTimesOffsets[0], should be 0 or very small (<1000)
+    //
+    // Format A false positive prevention:
+    // - When bone 0 has 0 keyframes, bytes 0-5 are zeros (looks like Format B header)
+    // - But bytes 16-19 would be a timestamp value (>10000), not a small offset
+    bool isFormatB = (peek0 == 0 && peek1 == 0 && peek2 == 0 &&
+                      peek5 == 0 && (peek3 > 500 || peek4 > 500) &&
+                      peek6 < 1000);  // Key check: offset arrays start with small values
+
+    if (header.bindPoseBoneCount > 0 && header.bindPoseBoneCount < 256) {
+        if (isFormatB) {
+            // Format B: Global header + offset arrays + VLE data
+            FA1KeyframeHeader keyframeHeader [[name("Keyframe Header (Format B - 16 bytes)")]];
+
+            // Offset arrays: 4 arrays × boneCount × 4 bytes each (BIT offsets)
+            u32 offsetArraySize = header.bindPoseBoneCount * 4;
+            u32 posTimesOffsets[header.bindPoseBoneCount] [[name("Position Times BIT Offsets")]];
+            u32 posValuesOffsets[header.bindPoseBoneCount] [[name("Position Values BIT Offsets")]];
+            u32 rotTimesOffsets[header.bindPoseBoneCount] [[name("Rotation Times BIT Offsets")]];
+            u32 rotValuesOffsets[header.bindPoseBoneCount] [[name("Rotation Values BIT Offsets")]];
+
+            // Remaining is VLE-encoded keyframe data (complex to parse statically)
+            u32 vleConsumed = $ - g_chunkDataStart;
+            if (vleConsumed < chunkSize) {
+                u8 vleKeyframeData[chunkSize - vleConsumed]
+                    [[name("VLE Keyframe Data (Format B - requires runtime decoding)")]];
+            }
+        } else {
+            // Format A: Per-bone 6-byte headers + RAW data
+            FA1BoneKeyframeData keyframes[header.bindPoseBoneCount]
+                [[name("Per-Bone Keyframe Data (Format A - RAW)")]];
+        }
+    }
+
     u32 consumed = $ - g_chunkDataStart;
     if (consumed < chunkSize) {
-        u8 data[chunkSize - consumed] [[name("Unknown Data")]];
+        u8 remainingData[chunkSize - consumed] [[name("Remaining Data (should be 0)")]];
     }
 };
 
