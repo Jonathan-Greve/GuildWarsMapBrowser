@@ -8,6 +8,7 @@
 #include "imgui.h"
 #include <format>
 #include <algorithm>
+#include <filesystem>
 
 void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique_ptr<DATManager>>& dat_managers)
 {
@@ -73,6 +74,19 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
             {
                 auto& ctrl = *g_animationState.controller;
                 auto& settings = g_animationState.playbackSettings;
+
+                // Current animation info
+                ImGui::TextColored(ImVec4(0.6f, 1.0f, 0.6f, 1.0f), "[%s] 0x%X",
+                    g_animationState.currentChunkType.empty() ? "?" : g_animationState.currentChunkType.c_str(),
+                    g_animationState.currentFileId);
+                if (g_animationState.clip)
+                {
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("| %zu bones | %zu seq",
+                        g_animationState.clip->boneTracks.size(),
+                        g_animationState.clip->sequences.size());
+                }
+                ImGui::Spacing();
 
                 // Playback controls row
                 bool isPlaying = ctrl.IsPlaying();
@@ -201,8 +215,8 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                             const auto& result = g_animationState.searchResults[i];
                             bool isSelected = (g_animationState.selectedResultIndex == static_cast<int>(i));
 
-                            std::string label = std::format("0x{:X} - {} seq, {} bones##{}",
-                                result.fileId, result.sequenceCount, result.boneCount, i);
+                            std::string label = std::format("[{}] 0x{:X} - {} seq, {} bones##{}",
+                                result.chunkType, result.fileId, result.sequenceCount, result.boneCount, i);
 
                             if (ImGui::Selectable(label.c_str(), isSelected, ImGuiSelectableFlags_AllowDoubleClick))
                             {
@@ -217,8 +231,34 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
 
                             if (ImGui::IsItemHovered())
                             {
-                                ImGui::SetTooltip("File: 0x%X\nSequences: %u\nBones: %u\n\nDouble-click to load",
-                                    result.fileId, result.sequenceCount, result.boneCount);
+                                ImGui::SetTooltip("Type: %s\nFile: 0x%X\nSequences: %u\nBones: %u\n\nDouble-click to load\nRight-click for options",
+                                    result.chunkType.c_str(), result.fileId, result.sequenceCount, result.boneCount);
+                            }
+
+                            // Context menu for each animation result item
+                            std::string contextMenuId = std::format("AnimResultContext##{}", i);
+                            if (ImGui::BeginPopupContextItem(contextMenuId.c_str()))
+                            {
+                                if (ImGui::MenuItem("Load Animation"))
+                                {
+                                    LoadAnimationFromSearchResult(static_cast<int>(i), dat_managers);
+                                }
+
+                                if (ImGui::MenuItem("Save Decompressed Data to File"))
+                                {
+                                    // Find the DAT manager for this result
+                                    auto it = dat_managers.find(result.datAlias);
+                                    if (it != dat_managers.end() && it->second)
+                                    {
+                                        std::wstring savePath = OpenFileDialog(std::format(L"0x{:X}", result.fileId), L"gwraw");
+                                        if (!savePath.empty())
+                                        {
+                                            it->second->save_raw_decompressed_data_to_file(result.mftIndex, savePath);
+                                        }
+                                    }
+                                }
+
+                                ImGui::EndPopup();
                             }
                         }
                     }
@@ -234,6 +274,33 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                         LoadAnimationFromSearchResult(g_animationState.selectedResultIndex, dat_managers);
                     }
                     ImGui::EndDisabled();
+
+                    // Extract all animations button
+                    if (ImGui::Button("Extract All Animations", ImVec2(-1, 0)))
+                    {
+                        std::wstring saveDir = OpenDirectoryDialog();
+                        if (!saveDir.empty())
+                        {
+                            for (const auto& result : g_animationState.searchResults)
+                            {
+                                auto it = dat_managers.find(result.datAlias);
+                                if (it != dat_managers.end() && it->second)
+                                {
+                                    // Format: type_{chunkType}_fileId_{hash}_anim.gwraw
+                                    std::wstring filename = std::format(L"type_{}_fileId_0x{:X}_anim.gwraw",
+                                        result.chunkType == "FA1" ? L"FA1" : L"BB9",
+                                        result.fileId);
+
+                                    std::filesystem::path fullPath = std::filesystem::path(saveDir) / filename;
+                                    it->second->save_raw_decompressed_data_to_file(result.mftIndex, fullPath.wstring());
+                                }
+                            }
+                        }
+                    }
+                    if (ImGui::IsItemHovered())
+                    {
+                        ImGui::SetTooltip("Save all found animations to a folder");
+                    }
                 }
             }
         }

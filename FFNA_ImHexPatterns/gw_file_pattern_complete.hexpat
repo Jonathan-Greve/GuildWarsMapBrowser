@@ -2450,25 +2450,6 @@ struct FA1KeyframeData {
 // =============================================================================
 // FA1 ANIMATION CHUNK PARSING
 // =============================================================================
-//
-// FA1 chunk structure (type 2 "standard" format):
-//   1. GeometryHeader_FA1 (88 bytes)
-//   2. Bounding cylinders (16 bytes each × boundingCylinderCount)
-//   3. Bind pose entries (16 bytes each × bindPoseBoneCount)
-//      - Contains float3 position + u32 hierarchyByte for skeleton
-//   4. Animation keyframe data:
-//      - For each bone (bindPoseBoneCount total):
-//        a. BoneAnimHeader (22 bytes) - base position, hierarchy, key counts
-//        b. VLE-encoded position times (posKeyCount values)
-//        c. float3 position values (posKeyCount × 12 bytes)
-//        d. VLE-encoded rotation times (rotKeyCount values)
-//        e. VLE Euler angle deltas (rotKeyCount × 3 VLE values)
-//        f. VLE-encoded scale times (scaleKeyCount values)
-//        g. float3 scale values (scaleKeyCount × 12 bytes)
-//
-// NOTE: FA1 uses the SAME bone count (bindPoseBoneCount) for both bind pose
-// and keyframe animation data. This is confirmed by C++ parser behavior.
-//
 
 struct Chunk_FA1_Animation {
     u32 chunkId;
@@ -2483,78 +2464,17 @@ struct Chunk_FA1_Animation {
         BoundingCylinder cylinders[header.boundingCylinderCount] [[name("Bounding Cylinders")]];
     }
 
-    // Animation sequences (24 bytes each) - BEFORE bind pose
-    // Present when HAS_ANIMATION_SEQUENCES flag (0x100) is set AND sequenceCount0 > 0
-    if (header.classFlags.HAS_ANIMATION_SEQUENCES && header.sequenceCount0 > 0 && header.sequenceCount0 < 256) {
-        SequenceEntry_BB9 sequences[header.sequenceCount0] [[name("Animation Sequences")]];
+    if (header.classFlags.HAS_ANIMATION_SEQUENCES && header.transformDataSize > 0 && header.transformDataSize < 256) {
+        SequenceEntry_BB9 sequences[header.transformDataSize] [[name("Animation Sequences")]];
     }
 
-    // Bind pose entries (16 bytes per bone)
-    // Contains bone positions and parent hierarchy encoding
-    // The hierarchyByte in each entry encodes parent relationship:
-    //   - Used with POP_COUNT algorithm to build skeleton hierarchy
-    //   - Values are number of levels to pop from matrix stack
     if (header.bindPoseBoneCount > 0 && header.bindPoseBoneCount < 256) {
         FA1BindPoseEntry bindPose[header.bindPoseBoneCount] [[name("Bind Pose (skeleton hierarchy)")]];
     }
-
-    // Animation keyframe data
-    //
-    // FA1 in model files (with FA0 geometry) has a DIFFERENT format than standalone
-    // BB9 animation files. The data after bind pose contains:
-    //   - 16-byte header with keyframe counts
-    //   - VLE-compressed animation keyframes
-    //
-    // Structure:
-    //   - Header: u16[8] with rotationKeyCount at offset 6, positionKeyCount at offset 8
-    //   - VLE data: bit-offset indexed keyframe stream
-    //
-    u32 consumed_fa1 = $ - g_chunkDataStart;
-    if (consumed_fa1 < chunkSize) {
-        u32 remainingSize = chunkSize - consumed_fa1;
-
-        // Check if this looks like BB9-style bone animation headers by testing first header
-        // A valid BoneAnimHeader has: float3 position (12 bytes) + flags (4 bytes) + keyCounts (6 bytes)
-        // The key counts should be reasonable (< 1000 each)
-        u16 test_posKeys @ $ + 16;
-        u16 test_rotKeys @ $ + 18;
-        u16 test_scaleKeys @ $ + 20;
-        bool looks_like_bb9_format = (test_posKeys < 1000 && test_rotKeys < 1000 && test_scaleKeys < 1000 &&
-                                       (test_posKeys > 0 || test_rotKeys > 0 || test_scaleKeys > 0));
-
-        if (looks_like_bb9_format && header.bindPoseBoneCount > 0 && header.bindPoseBoneCount < 256) {
-            // Parse as BB9-style bone animation entries
-            BoneAnimationEntry boneAnimations[header.bindPoseBoneCount]
-                [[name("Bone Animation Data (BB9-style)")]];
-
-            // Capture any remaining data
-            u32 consumed_after_anim = $ - g_chunkDataStart;
-            if (consumed_after_anim < chunkSize) {
-                u32 remaining_after_anim = chunkSize - consumed_after_anim;
-                u8 additionalData[remaining_after_anim] [[name("Additional Animation Data")]];
-            }
-        } else {
-            // FA1-specific keyframe format (not BB9-style)
-            // First, check if keyframe header looks valid (zeros in reserved fields, reasonable key counts)
-            u16 test_reserved0 @ $;
-            u16 test_reserved1 @ $ + 2;
-            u16 test_rotKeys_fa1 @ $ + 6;
-            u16 test_posKeys_fa1 @ $ + 8;
-            bool valid_keyframe_header = (test_reserved0 == 0 && test_reserved1 == 0 &&
-                                          test_rotKeys_fa1 < 5000 && test_posKeys_fa1 < 5000 &&
-                                          (test_rotKeys_fa1 > 0 || test_posKeys_fa1 > 0));
-
-            if (valid_keyframe_header) {
-                // Set bone count for offset table parsing
-                g_fa1BoneCount = header.bindPoseBoneCount;
-                // Parse as structured VLE data (like 0xBC68)
-                FA1KeyframeData keyframeData [[name("VLE Animation Keyframes (FA1 format)")]];
-            } else {
-                // Unknown format - capture as raw data for analysis
-                // This happens with models like 0x228DD that have different animation structure
-                u8 unknownAnimData[remainingSize] [[name("Unknown Animation Data (raw)")]];
-            }
-        }
+    
+    u32 consumed = $ - g_chunkDataStart;
+    if (consumed < chunkSize) {
+        u8 data[chunkSize - consumed] [[name("Unknown Data")]];
     }
 };
 
@@ -2567,7 +2487,7 @@ struct Chunk_ATEX {
     u32 chunkSize;
     ATEXHeader header [[name("ATEX Header")]];
     if (chunkSize > sizeof(ATEXHeader)) {
-        u8 textureData[chunkSize - sizeof(ATEXHeader)] [[name("DXT Compressed Data")]];
+        u8 textureData[chunkSize - sizeof(header) - sizeof(ATEXHeader)] [[name("DXT Compressed Data")]];
     }
 };
 
