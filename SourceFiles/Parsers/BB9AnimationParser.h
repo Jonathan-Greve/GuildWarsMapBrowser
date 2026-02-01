@@ -8,20 +8,27 @@
 #include <cmath>
 #include <memory>
 #include <optional>
-#include <fstream>
+#include <unordered_map>
 #include <DirectXMath.h>
 
 using namespace DirectX;
 
 namespace GW::Parsers {
 
-// BB9/FA1 chunk IDs
-constexpr uint32_t CHUNK_ID_BB9 = 0x00000BB9;  // Animation data (type 2 "other" format)
-constexpr uint32_t CHUNK_ID_FA1 = 0x00000FA1;  // Animation data (type 2 "standard" format)
+// Animation chunk IDs
+// Hierarchy mode is determined by flag 0x4000 in header.flags/classFlags:
+//   - Flag set: tree-depth mode (depth = absolute level in tree)
+//   - Flag clear: pop-count mode (depth = levels to pop from stack)
+constexpr uint32_t CHUNK_ID_BB9 = 0x00000BB9;  // Animation chunk (44-byte header)
+constexpr uint32_t CHUNK_ID_BB8 = 0x00000BB8;  // Animation chunk variant (44-byte header)
+constexpr uint32_t CHUNK_ID_FA1 = 0x00000FA1;  // Animation chunk (88-byte header)
+constexpr uint32_t CHUNK_ID_FA0 = 0x00000FA0;  // Animation chunk variant (88-byte header)
+constexpr uint32_t CHUNK_ID_FA6 = 0x00000FA6;  // Animation chunk variant (88-byte header)
 
 // BB9 Header flags (different from FA1 ClassFlags!)
 constexpr uint32_t BB9_FLAG_HAS_SEQUENCES = 0x0008;         // Animation sequences present
 constexpr uint32_t BB9_FLAG_HAS_BONE_TRANSFORMS = 0x0010;   // Bone transform data present
+constexpr uint32_t BB9_FLAG_TREE_DEPTH_HIERARCHY = 0x4000;  // Use tree-depth hierarchy (vs pop-count)
 
 // FA1 ClassFlags (different from BB9 flags!)
 constexpr uint32_t FA1_FLAG_HAS_SKELETON = 0x0001;          // Has skeleton reference
@@ -30,6 +37,7 @@ constexpr uint32_t FA1_FLAG_HAS_ATTACHMENT_DATA = 0x0008;   // Attachment points
 constexpr uint32_t FA1_FLAG_HAS_LOD_DATA = 0x0010;          // LOD data (NOT bone transforms!)
 constexpr uint32_t FA1_FLAG_HAS_ANIMATION_SEQUENCES = 0x0100; // Animation sequences
 constexpr uint32_t FA1_FLAG_HAS_SKELETON_DATA = 0x0200;     // Skeleton/joint hierarchy
+constexpr uint32_t FA1_FLAG_TREE_DEPTH_HIERARCHY = 0x4000;  // Use tree-depth hierarchy (vs pop-count)
 
 /**
  * @brief BB9 animation chunk header structure (44 bytes).
@@ -145,15 +153,17 @@ static_assert(sizeof(BB9BoneAnimHeader) == 22, "BB9BoneAnimHeader must be 22 byt
  * @brief FA1 bind pose entry structure (16 bytes per bone).
  *
  * Found in FA1 chunks after the header + bounding cylinders.
- * Contains bind pose position and explicit parent information.
+ * Contains bind pose position and hierarchy information.
  *
- * Parent encoding (discovered via analysis of 0x3AAA):
- * - Low byte contains (parent_index + 1) where:
- *   - 0 = root bone (no parent)
- *   - 1 = parent is bone 0
- *   - 2 = parent is bone 1
- *   - N = parent is bone (N-1)
- * - High bits (0x10000000 etc) are format flags, not parent info
+ * Hierarchy encoding (low byte of parentInfo):
+ * The low byte encodes the same information as BB9's boneFlags low byte.
+ * It is processed by ComputeBoneParents which auto-detects the mode:
+ * - POP_COUNT mode: value = levels to pop from matrix stack (most common)
+ * - TREE_DEPTH mode: value = absolute depth in hierarchy tree
+ * - SEQUENTIAL mode: all zeros = world-space transforms
+ *
+ * High bits (0x10000000) indicate intermediate bones that don't produce
+ * output skinning matrices.
  */
 #pragma pack(push, 1)
 struct FA1BindPoseEntry
@@ -161,112 +171,31 @@ struct FA1BindPoseEntry
     float posX;             // 0x00: Bind pose X position
     float posY;             // 0x04: Bind pose Y position
     float posZ;             // 0x08: Bind pose Z position
-    uint32_t parentInfo;    // 0x0C: Parent index + flags
+    uint32_t parentInfo;    // 0x0C: Hierarchy byte (low) + flags (high)
     // Total: 16 bytes
 
     /**
-     * @brief Gets the explicit parent index from the parentInfo field.
-     *
-     * The low byte contains (parent_index + 1), so:
-     * - lowByte 0 = root (no parent) = return -1
-     * - lowByte 1 = parent is bone 0 = return 0
-     * - lowByte N = parent is bone (N-1) = return N-1
-     *
-     * @param boneIndex The index of this bone (unused, kept for compatibility).
-     * @return Parent bone index, or -1 for root.
+     * @brief Gets the hierarchy byte from the parentInfo field.
+     * @return Low byte containing hierarchy/depth information.
      */
-    int32_t GetParentIndex(size_t boneIndex) const
+    uint8_t GetHierarchyByte() const
     {
-        // First bone is always root regardless of parentInfo
-        if (boneIndex == 0)
-        {
-            return -1;
-        }
+        return static_cast<uint8_t>(parentInfo & 0xFF);
+    }
 
-        // Low byte contains (parent_index + 1)
-        // 0 = root, 1 = parent is bone 0, 2 = parent is bone 1, etc.
-        uint8_t lowByte = static_cast<uint8_t>(parentInfo & 0xFF);
-
-        if (lowByte == 0)
-        {
-            // This bone branches back to root
-            return -1;
-        }
-        else
-        {
-            // Parent is bone (lowByte - 1)
-            return static_cast<int32_t>(lowByte - 1);
-        }
+    /**
+     * @brief Checks if this bone is an intermediate bone.
+     * Intermediate bones participate in hierarchy but don't produce output matrices.
+     * @return true if intermediate flag (0x10000000) is set.
+     */
+    bool IsIntermediate() const
+    {
+        return (parentInfo & 0x10000000) != 0;
     }
 };
 #pragma pack(pop)
 
 static_assert(sizeof(FA1BindPoseEntry) == 16, "FA1BindPoseEntry must be 16 bytes!");
-
-/**
- * @brief FA1 keyframe header structure (16 bytes).
- *
- * Found in FA1 chunks after bind pose entries. The FA1 format stores animation
- * data in a random-access layout optimized for runtime:
- *
- *   1. This header (16 bytes) - total keyframe counts
- *   2. Four offset arrays (4 × boneCount × 4 bytes):
- *      - posTimesOffsets[boneCount]   - BIT offsets to position time data
- *      - posValuesOffsets[boneCount]  - BIT offsets to position value data
- *      - rotTimesOffsets[boneCount]   - BIT offsets to rotation time data
- *      - rotValuesOffsets[boneCount]  - BIT offsets to rotation value data
- *   3. Combined VLE stream containing all keyframe data
- *
- * The BIT offsets allow random access to any bone's animation data without
- * sequential decoding. This is in contrast to BB9 which stores per-bone
- * headers inline with data (sequential access required).
- */
-#pragma pack(push, 1)
-struct FA1KeyframeHeader
-{
-    uint16_t reserved0;         // 0x00: Always 0
-    uint16_t reserved1;         // 0x02: Always 0
-    uint16_t reserved2;         // 0x04: Always 0
-    uint16_t positionKeyCount;  // 0x06: Total position keyframes across all bones
-    uint16_t rotationKeyCount;  // 0x08: Total rotation keyframes across all bones
-    uint16_t reserved3;         // 0x0A: Always 0
-    uint16_t timeScaleLow;      // 0x0C: Time scale/duration (low 16 bits). NOT a keyframe count!
-    uint16_t timeScaleHigh;     // 0x0E: Time scale/duration (high 16 bits). Usually 0.
-    // Total: 16 bytes
-
-    /**
-     * @brief Gets the time scale value for normalizing keyframe times.
-     *
-     * This 32-bit value at offset 0x0C appears to be related to animation duration
-     * or time scale. Examples: 3333 for 0x3AAA, 30000 for 0x47D9.
-     * Use this to normalize decoded time values if needed.
-     */
-    uint32_t GetTimeScale() const
-    {
-        return static_cast<uint32_t>(timeScaleLow) |
-               (static_cast<uint32_t>(timeScaleHigh) << 16);
-    }
-
-    /**
-     * @brief Checks if this looks like a valid FA1 keyframe header.
-     *
-     * Valid headers have zeros in the reserved fields and reasonable key counts.
-     * Note: timeScaleLow (offset 0x0C) is NOT a keyframe count - it's a time scale
-     * or duration value (e.g., 3333 for 0x3AAA, 30000 for 0x47D9). Do NOT validate it.
-     */
-    bool IsValid() const
-    {
-        // Check reserved fields are zero and key counts are reasonable
-        // timeScaleLow is NOT validated - it's a time scale value, not a keyframe count
-        return reserved0 == 0 && reserved1 == 0 && reserved2 == 0 &&
-               reserved3 == 0 && timeScaleHigh == 0 &&
-               positionKeyCount < 50000 && rotationKeyCount < 50000 &&
-               (positionKeyCount > 0 || rotationKeyCount > 0);
-    }
-};
-#pragma pack(pop)
-
-static_assert(sizeof(FA1KeyframeHeader) == 16, "FA1KeyframeHeader must be 16 bytes!");
 
 /**
  * @brief Parser for BB9/FA1 animation chunks.
@@ -282,19 +211,18 @@ class BB9AnimationParser
 {
 public:
     /**
-     * @brief Parses FA1 bind pose entries and extracts parent array.
+     * @brief Parses FA1 bind pose entries and extracts parent indices and positions.
      *
-     * FA1 chunks contain explicit bind pose data with parent indices,
-     * which is more accurate than deriving hierarchy from BB9 hierarchyByte.
+     * This extracts bind pose data and computes parent indices using ComputeBoneParents.
      *
      * @param data Pointer to FA1 chunk data (starting at header).
      * @param dataSize Size of the chunk data.
-     * @param outParents Output vector for parent indices.
+     * @param outParentIndices Output vector for computed parent indices (-1 for root).
      * @param outBindPositions Output vector for bind positions.
      * @return Number of bones parsed, or 0 on failure.
      */
     static size_t ParseFA1BindPose(const uint8_t* data, size_t dataSize,
-                                    std::vector<int32_t>& outParents,
+                                    std::vector<int32_t>& outParentIndices,
                                     std::vector<XMFLOAT3>& outBindPositions)
     {
         if (dataSize < sizeof(FA1Header))
@@ -305,8 +233,53 @@ public:
         FA1Header header;
         std::memcpy(&header, data, sizeof(FA1Header));
 
-        // Bone count is at offset 0x2C (bindPoseBoneCount field)
-        uint32_t boneCount = header.bindPoseBoneCount;
+        size_t offset = sizeof(FA1Header);  // 88 bytes
+        uint32_t boneCount = 0;
+
+        // FA1 has two known variants with different post-header structures:
+        //
+        // Variant A: Standard format
+        //   - header.bindPoseBoneCount contains valid bone count (1-256)
+        //   - header.boundingCylinderCount cylinders follow header (16 bytes each)
+        //
+        // Variant B: Extended format
+        //   - header.bindPoseBoneCount contains garbage (float value)
+        //   - Post-header has: [12 padding][4 count][N×4 offsets][16 metadata]
+        //   - Bone count is in metadata section at position 1
+        //
+        // Detection: If bindPoseBoneCount is reasonable (1-256), use Variant A.
+
+        bool useVariantB = (header.bindPoseBoneCount == 0 || header.bindPoseBoneCount > 256);
+
+        if (useVariantB)
+        {
+            // Variant B: Extended post-header structure
+            offset += 12;  // Skip padding
+
+            uint32_t offsetCount = 0;
+            if (offset + 4 <= dataSize)
+            {
+                std::memcpy(&offsetCount, &data[offset], sizeof(uint32_t));
+                offset += 4;
+            }
+
+            offset += offsetCount * 4;  // Skip offset values
+
+            // Bone count is uint16 at offset+6 in metadata section
+            if (offset + 16 <= dataSize)
+            {
+                uint16_t boneCount16 = 0;
+                std::memcpy(&boneCount16, &data[offset + 6], sizeof(uint16_t));
+                boneCount = boneCount16;
+                offset += 16;
+            }
+        }
+        else
+        {
+            // Variant A: Standard format
+            boneCount = header.bindPoseBoneCount;
+            offset += header.boundingCylinderCount * 16;  // Skip cylinders
+        }
 
         // Validate bone count
         if (boneCount == 0 || boneCount > 256)
@@ -314,15 +287,8 @@ public:
             return 0;
         }
 
-        // Calculate offset to bind pose data: header + bounding cylinders + sequence entries
-        // FA1 format: Header(88) + BoundingCylinders(N*16) + SequenceEntries(M*24) + BindPose
-        size_t bindPoseOffset = sizeof(FA1Header) + (header.boundingCylinderCount * 16);
-
-        // Skip sequence entries (transformDataSize * 24 bytes each)
-        if (header.transformDataSize > 0 && header.transformDataSize < 256)
-        {
-            bindPoseOffset += header.transformDataSize * sizeof(BB9SequenceEntry);
-        }
+        // Bone hierarchy data starts at current offset
+        size_t bindPoseOffset = offset;
 
         // Check if there's enough data for all bind pose entries
         size_t bindPoseSize = boneCount * sizeof(FA1BindPoseEntry);
@@ -331,8 +297,8 @@ public:
             return 0;
         }
 
-        outParents.clear();
-        outParents.reserve(boneCount);
+        std::vector<uint8_t> hierarchyBytes;
+        hierarchyBytes.reserve(boneCount);
         outBindPositions.clear();
         outBindPositions.reserve(boneCount);
 
@@ -342,8 +308,7 @@ public:
             FA1BindPoseEntry entry;
             std::memcpy(&entry, &data[bindPoseOffset + i * sizeof(FA1BindPoseEntry)], sizeof(FA1BindPoseEntry));
 
-            int32_t parent = entry.GetParentIndex(i);
-            outParents.push_back(parent);
+            hierarchyBytes.push_back(entry.GetHierarchyByte());
 
             // Transform coordinates: (x, y, z) -> (x, -z, y) for DirectX
             outBindPositions.push_back({
@@ -353,11 +318,14 @@ public:
             });
         }
 
+        // Convert hierarchy bytes to parent indices using the same algorithm as animation parsing
+        ComputeBoneParents(outParentIndices, hierarchyBytes, nullptr, nullptr);
+
         return boneCount;
     }
 
     /**
-     * @brief Parses a BB9/FA1 animation chunk from raw data.
+     * @brief Parses a BB9/BB8 animation chunk from raw data.
      *
      * @param data Pointer to chunk data (after chunk ID and size).
      * @param dataSize Size of the chunk data.
@@ -498,7 +466,6 @@ public:
                         for (size_t i = 0; i < boneHeader.posKeyCount; i++)
                         {
                             // Apply coordinate transform: (x, y, z) -> (x, -z, y)
-                            // Scale will be applied after parsing if needed
                             XMFLOAT3 transformedPos = {
                                 positions[i].x,
                                 -positions[i].z,
@@ -564,9 +531,12 @@ public:
             }
 
             // Compute bone hierarchy from depth values
+            // Flag 0x4000 indicates tree-depth mode, otherwise use pop-count mode
             bool usedSequentialMode = false;
             Animation::HierarchyMode hierarchyMode = Animation::HierarchyMode::TreeDepth;
-            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode, &hierarchyMode);
+            bool useTreeDepth = (header.flags & BB9_FLAG_TREE_DEPTH_HIERARCHY) != 0;
+            int forceMode = useTreeDepth ? 1 : 0;  // 1 = tree-depth, 0 = pop-count
+            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode, &hierarchyMode, forceMode);
             clip.hierarchyMode = hierarchyMode;
 
             // Build output-to-animation bone mapping (for intermediate bone handling)
@@ -583,184 +553,10 @@ public:
         clip.ComputeTimeRange();
         clip.ComputeSequenceTimeRanges();
 
-        // Debug output for BB9 - same anomaly detection as FA1
-        {
-            std::ofstream debugLog("bb9_parse_debug.log", std::ios::app);
-            if (debugLog.is_open())
-            {
-                debugLog << "\n========================================" << std::endl;
-                debugLog << "=== BB9 Parse Complete ===" << std::endl;
-                debugLog << "Bones: " << clip.boneTracks.size() << std::endl;
-                debugLog << "Sequences: " << clip.sequences.size() << std::endl;
-                debugLog << "TimeRange: " << clip.minTime << " - " << clip.maxTime << std::endl;
-
-                // Log ALL sequences with their time ranges
-                debugLog << "\n=== SEQUENCE DETAILS ===" << std::endl;
-                for (size_t i = 0; i < clip.sequences.size(); i++)
-                {
-                    const auto& seq = clip.sequences[i];
-                    debugLog << "Sequence " << i << ": hash=0x" << std::hex << seq.hash << std::dec
-                             << " frames=" << seq.frameCount
-                             << " time=[" << seq.startTime << " - " << seq.endTime << "]"
-                             << " duration=" << (seq.endTime - seq.startTime) << std::endl;
-                }
-
-                // DETAILED ANALYSIS: Find keyframes with large position jumps
-                debugLog << "\n=== ANOMALY DETECTION: Large position jumps ===" << std::endl;
-                for (size_t boneIdx = 0; boneIdx < clip.boneTracks.size(); boneIdx++)
-                {
-                    const auto& track = clip.boneTracks[boneIdx];
-                    for (size_t k = 1; k < track.positionKeys.size(); k++)
-                    {
-                        const auto& prev = track.positionKeys[k-1];
-                        const auto& curr = track.positionKeys[k];
-                        float dx = curr.value.x - prev.value.x;
-                        float dy = curr.value.y - prev.value.y;
-                        float dz = curr.value.z - prev.value.z;
-                        float dist = std::sqrt(dx*dx + dy*dy + dz*dz);
-                        if (dist > 50.0f)
-                        {
-                            debugLog << "  LARGE JUMP Bone " << boneIdx << " key " << (k-1) << "->" << k
-                                     << ": t=" << prev.time << "->" << curr.time
-                                     << " dist=" << dist
-                                     << " pos=(" << prev.value.x << "," << prev.value.y << "," << prev.value.z << ")"
-                                     << "->(" << curr.value.x << "," << curr.value.y << "," << curr.value.z << ")"
-                                     << std::endl;
-                        }
-                    }
-                }
-
-                // DETAILED ANALYSIS: Find keyframes with large rotation changes
-                debugLog << "\n=== ANOMALY DETECTION: Large rotation changes ===" << std::endl;
-                for (size_t boneIdx = 0; boneIdx < clip.boneTracks.size(); boneIdx++)
-                {
-                    const auto& track = clip.boneTracks[boneIdx];
-                    for (size_t k = 1; k < track.rotationKeys.size(); k++)
-                    {
-                        const auto& prev = track.rotationKeys[k-1];
-                        const auto& curr = track.rotationKeys[k];
-                        float dot = prev.value.x * curr.value.x + prev.value.y * curr.value.y +
-                                    prev.value.z * curr.value.z + prev.value.w * curr.value.w;
-                        float angle = std::acos(std::min(1.0f, std::abs(dot))) * 2.0f * 57.2958f;
-                        if (angle > 90.0f)
-                        {
-                            debugLog << "  LARGE ROT Bone " << boneIdx << " key " << (k-1) << "->" << k
-                                     << ": t=" << prev.time << "->" << curr.time
-                                     << " angle=" << angle << " deg"
-                                     << " quat=(" << prev.value.x << "," << prev.value.y << "," << prev.value.z << "," << prev.value.w << ")"
-                                     << "->(" << curr.value.x << "," << curr.value.y << "," << curr.value.z << "," << curr.value.w << ")"
-                                     << std::endl;
-                        }
-                    }
-                }
-                debugLog << std::endl;
-            }
-        }
-
         return clip;
     }
 
 private:
-    /**
-     * @brief Bit-stream reader for FA1 VLE data.
-     *
-     * FA1 uses BIT offsets (not byte-aligned) into the VLE stream, so we need
-     * a reader that can extract bytes at arbitrary bit positions.
-     */
-    struct FA1BitStreamReader
-    {
-        const uint8_t* data;
-        size_t dataSize;
-        size_t bitOffset;
-
-        FA1BitStreamReader(const uint8_t* inData, size_t inSize, size_t startBitOffset = 0)
-            : data(inData), dataSize(inSize), bitOffset(startBitOffset)
-        {
-        }
-
-        void SetBitOffset(size_t offset) { bitOffset = offset; }
-        size_t GetBitOffset() const { return bitOffset; }
-
-        bool HasBits(size_t numBits) const
-        {
-            return (bitOffset + numBits) <= (dataSize * 8);
-        }
-
-        /**
-         * @brief Reads a byte from the current bit position (may be non-aligned).
-         */
-        uint8_t ReadByte()
-        {
-            if (!HasBits(8))
-            {
-                return 0;
-            }
-
-            size_t byteIndex = bitOffset / 8;
-            uint8_t bitShift = static_cast<uint8_t>(bitOffset % 8);
-
-            uint8_t b0 = (byteIndex < dataSize) ? data[byteIndex] : 0;
-            uint8_t result;
-
-            if (bitShift == 0)
-            {
-                result = b0;
-            }
-            else
-            {
-                uint8_t b1 = (byteIndex + 1 < dataSize) ? data[byteIndex + 1] : 0;
-                result = static_cast<uint8_t>((b0 >> bitShift) | (b1 << (8 - bitShift)));
-            }
-
-            bitOffset += 8;
-            return result;
-        }
-
-        /**
-         * @brief Reads a VLE-encoded value (1-5 bytes, same encoding as BB9).
-         *
-         * VLE format:
-         * - Byte 0: bits 0-5 = value, bit 6 = sign, bit 7 = continuation
-         * - Bytes 1-4: bits 0-6 = value, bit 7 = continuation
-         */
-        uint32_t ReadVLEValue(bool* outSign = nullptr)
-        {
-            uint8_t b = ReadByte();
-            uint32_t value = b & 0x3F;
-
-            if (outSign)
-            {
-                *outSign = (b & 0x40) != 0;
-            }
-
-            if (b & 0x80)
-            {
-                b = ReadByte();
-                value |= (b & 0x7F) << 6;
-
-                if (b & 0x80)
-                {
-                    b = ReadByte();
-                    value |= (b & 0x7F) << 13;
-
-                    if (b & 0x80)
-                    {
-                        b = ReadByte();
-                        value |= (b & 0x7F) << 20;
-
-                        if (b & 0x80)
-                        {
-                            b = ReadByte();
-                            value |= static_cast<uint32_t>(b) << 27;
-                        }
-                    }
-                }
-            }
-
-            return value;
-        }
-    };
-
     /**
      * @brief Parses FA1-specific keyframe format.
      *
@@ -780,7 +576,7 @@ private:
      * @param data Pointer to chunk data.
      * @param dataSize Size of the chunk data.
      * @param bindPoseOffset Offset to bind pose entries (for reading base positions).
-     * @param keyframeOffset Current offset (start of per-bone animation data).
+     * @param animOffset Current offset (start of per-bone animation data).
      * @param boneCount Number of bones.
      * @param clip Output animation clip.
      * @param boneDepths Output vector for hierarchy depths.
@@ -789,7 +585,8 @@ private:
     static bool ParseFA1KeyframeFormat(const uint8_t* data, size_t dataSize,
                                         size_t bindPoseOffset, size_t animOffset,
                                         uint32_t boneCount, Animation::AnimationClip& clip,
-                                        std::vector<uint8_t>& boneDepths)
+                                        std::vector<uint8_t>& boneDepths,
+                                        uint32_t classFlags = 0)
     {
         // FA1 uses RAW data format (not VLE like BB9):
         // Per-bone: [6-byte header: posCount|rotCount|scaleCount]
@@ -823,7 +620,9 @@ private:
             Animation::BoneTrack track;
             track.boneIndex = i;
 
-            // Store base position with coordinate transform: (x, y, z) -> (x, -z, y)
+            // Store base position with coordinate transform
+            // Original transform (x, -z, y) works for tree-based skeletons
+            // Stack-based skeletons also use this for bind pose
             track.basePosition = {
                 bindPose.posX,
                 -bindPose.posZ,
@@ -832,42 +631,42 @@ private:
 
             clip.boneTracks.push_back(std::move(track));
 
-            // FA1 stores explicit parent indices: low byte = (parent + 1), 0 = root
-            int32_t parentIdx = bindPose.GetParentIndex(i);
-            clip.boneParents.push_back(parentIdx);
-
-            // Store hierarchy byte for compatibility
+            // Store hierarchy byte for later interpretation by ComputeBoneParents
+            // The low byte encodes hierarchy info - whether it's tree-depth, pop-count,
+            // or direct-parent depends on the pattern detected by ComputeBoneParents
             uint8_t hierByte = static_cast<uint8_t>(bindPose.parentInfo & 0xFF);
             boneDepths.push_back(hierByte);
 
-            clip.boneIsIntermediate.push_back(false);
+            // Check for intermediate bone flag (same as BB9: 0x10000000)
+            // Intermediate bones participate in hierarchy but don't produce output matrices
+            constexpr uint32_t FLAG_INTERMEDIATE_BONE = 0x10000000;
+            bool isIntermediate = (bindPose.parentInfo & FLAG_INTERMEDIATE_BONE) != 0;
+            clip.boneIsIntermediate.push_back(isIntermediate);
         }
 
-        // Debug logging
+        // Compute bone hierarchy from depth values
+        // Flag 0x4000 indicates tree-depth mode, otherwise use pop-count mode
         {
-            std::ofstream debugLog("fa1_parse_debug.log", std::ios::app);
-            if (debugLog.is_open())
-            {
-                debugLog << "\n========================================" << std::endl;
-                debugLog << "=== FA1 RAW Keyframe Parsing ===" << std::endl;
-                debugLog << "Format: Per-bone 6-byte header + RAW uint32 times + RAW float data" << std::endl;
-                debugLog << "BoneCount: " << boneCount << std::endl;
-                debugLog << "BindPoseOffset: 0x" << std::hex << bindPoseOffset << std::dec << std::endl;
-                debugLog << "AnimOffset: 0x" << std::hex << animOffset << std::dec << std::endl;
-            }
+            bool usedSequentialMode = false;
+            Animation::HierarchyMode hierarchyMode = Animation::HierarchyMode::TreeDepth;
+            bool isTreeDepth = (classFlags & FA1_FLAG_TREE_DEPTH_HIERARCHY) != 0;
+            int forceMode = isTreeDepth ? 1 : 0;  // 1 = tree-depth, 0 = pop-count
+            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode, &hierarchyMode, forceMode);
+            clip.hierarchyMode = hierarchyMode;
         }
 
         // Helper to transform quaternion from GW to GWMB coordinates
         auto processQuaternion = [](float qx, float qy, float qz, float qw,
                                     const std::vector<XMFLOAT4>& prevQuats) -> XMFLOAT4 {
-            // FA1 quaternion to BB9/GWMB coordinate transform
-            // Comparing BB9 vs FA1 for Bone 31:
-            //   BB9: (0.00609624, 0.0828345, 0.799916, 0.594337)
-            //   Raw FA1: qx=-0.00606, qy=-0.7999, qz=0.08287, qw=0.5943
-            // So: GWMB_x = -FA1_x, GWMB_y = FA1_z, GWMB_z = -FA1_y, GWMB_w = FA1_w
             XMFLOAT4 quat;
+
+            // Coordinate transform from GW space to GWMB space + conjugate
+            // FA1 stores quaternions with opposite rotation direction vs BB9
+            // BB9 negates Euler angles before conversion; FA1 needs explicit conjugate
+            // Conjugate: negate x,y,z then coordinate transform (x,-z,y)
+            // Result: (-qx, qz, -qy, qw)
             quat.x = -qx;
-            quat.y = qz;   // NOT negated - raw FA1 qz matches BB9 y
+            quat.y = qz;
             quat.z = -qy;
             quat.w = qw;
 
@@ -956,9 +755,7 @@ private:
                     std::memcpy(&py, &data[posValsOff + k * 12 + 4], sizeof(float));
                     std::memcpy(&pz, &data[posValsOff + k * 12 + 8], sizeof(float));
 
-                    // FA1 stores positions as (x, z, -y) relative to BB9's (x, y, z)
-                    // Convert to BB9 terms first: BB9_x=px, BB9_y=-pz, BB9_z=py
-                    // Then apply GWMB transform (x, -z, y): (px, -py, -pz)
+                    // Coordinate transform: GW (x,y,z) -> GWMB (x,-y,-z)
                     XMFLOAT3 pos = { px, -py, -pz };
                     track.positionKeys.push_back({ static_cast<float>(ts), pos });
                 }
@@ -1018,35 +815,6 @@ private:
             offset = nextOffset;
         }
 
-        // Debug logging
-        {
-            std::ofstream debugLog("fa1_parse_debug.log", std::ios::app);
-            if (debugLog.is_open())
-            {
-                debugLog << "Parse success: " << (success ? "YES" : "PARTIAL") << std::endl;
-                if (!clip.boneTracks.empty())
-                {
-                    debugLog << "Parsed " << clip.boneTracks.size() << " bones" << std::endl;
-                    debugLog << "Sample bone 0: posKeys=" << clip.boneTracks[0].positionKeys.size()
-                             << ", rotKeys=" << clip.boneTracks[0].rotationKeys.size() << std::endl;
-                    if (!clip.boneTracks[0].positionKeys.empty())
-                    {
-                        const auto& key = clip.boneTracks[0].positionKeys[0];
-                        debugLog << "  First pos key: t=" << key.time
-                                 << " pos=(" << key.value.x << ", " << key.value.y << ", " << key.value.z << ")" << std::endl;
-                    }
-                    if (!clip.boneTracks[0].rotationKeys.empty())
-                    {
-                        const auto& key = clip.boneTracks[0].rotationKeys[0];
-                        debugLog << "  First rot key: t=" << key.time
-                                 << " quat=(" << key.value.x << ", " << key.value.y << ", "
-                                 << key.value.z << ", " << key.value.w << ")" << std::endl;
-                    }
-                }
-            }
-        }
-
-        // Return true if we have any bone data (even partial parse is usable)
         return !clip.boneTracks.empty();
     }
 
@@ -1082,16 +850,67 @@ public:
         bool needsAutoScale = !(headerScale > 0.001f && headerScale < 100.0f);
         clip.geometryScale = needsAutoScale ? 1.0f : headerScale;
 
-        size_t offset = sizeof(FA1Header);
+        size_t offset = sizeof(FA1Header);  // 88 bytes
+        uint32_t actualBoneCount = 0;
 
-        // Skip bounding cylinders (16 bytes each)
-        offset += header.boundingCylinderCount * 16;
+        // FA1 has two known variants with different post-header structures:
+        //
+        // Variant A (e.g., classFlags 0x409900): Standard format
+        //   - header.bindPoseBoneCount contains valid bone count (1-256)
+        //   - header.boundingCylinderCount cylinders follow header (16 bytes each)
+        //   - Sequence entries follow cylinders
+        //   - Bone data follows sequences
+        //
+        // Variant B (e.g., classFlags 0x0800): Extended format
+        //   - header.bindPoseBoneCount contains garbage (float value)
+        //   - Post-header has: [12 padding][4 count][N×4 offsets][16 metadata]
+        //   - Bone count is in metadata section at position 1
+        //
+        // Detection: If bindPoseBoneCount is reasonable (1-256), use Variant A.
+        // Otherwise, use Variant B and read bone count from metadata.
 
-        // FA1 may have sequence data - check transformDataSize, NOT classFlags!
-        // Some FA1 files (e.g., 0x47D9) have sequences but NO HAS_ANIMATION_SEQUENCES flag
-        // IMPORTANT: Use transformDataSize for sequence count, NOT sequenceCount0!
-        // transformDataSize = actual number of 24-byte sequence entries
-        // sequenceCount0 is something else (possibly total keyframe count or unused)
+        bool useVariantB = (header.bindPoseBoneCount == 0 || header.bindPoseBoneCount > 256);
+        uint16_t variantBParentOffset = 0;  // For Variant B parent calculation
+
+        if (useVariantB)
+        {
+            // Variant B: Extended post-header structure
+            // Skip 12 bytes of padding after header
+            offset += 12;
+
+            // Read offset count (tells us how many keyframe offset values follow)
+            uint32_t offsetCount = 0;
+            if (offset + 4 <= dataSize)
+            {
+                std::memcpy(&offsetCount, &data[offset], sizeof(uint32_t));
+                offset += 4;
+            }
+
+            // Skip the offset values
+            offset += offsetCount * 4;
+
+            // Read metadata section: [2 pad][uint16 parentOffset][2 pad][uint16 boneCount][2 pad][uint16 val3]...
+            // parentOffset (at +2) is used for bone parent calculation
+            // boneCount (at +6) is the number of bones
+            if (offset + 16 <= dataSize)
+            {
+                std::memcpy(&variantBParentOffset, &data[offset + 2], sizeof(uint16_t));
+                uint16_t boneCount16 = 0;
+                std::memcpy(&boneCount16, &data[offset + 6], sizeof(uint16_t));
+                actualBoneCount = boneCount16;
+                offset += 16;
+            }
+        }
+        else
+        {
+            // Variant A: Standard format
+            actualBoneCount = header.bindPoseBoneCount;
+
+            // Skip bounding cylinders (16 bytes each)
+            offset += header.boundingCylinderCount * 16;
+        }
+
+        // FA1 may have sequence data - check transformDataSize
         if (header.transformDataSize > 0 && header.transformDataSize < 256)
         {
             for (uint32_t i = 0; i < header.transformDataSize; i++)
@@ -1122,32 +941,86 @@ public:
         clip.totalFrames = cumulativeFrames > 0 ? cumulativeFrames : 100;
 
         // Parse bone animation data
-        // FA1 format: bind pose entries (16 bytes each) followed by per-bone RAW animation data
-        // Per-bone: [6-byte header: posCount|rotCount|scaleCount] + raw timestamps + raw values
-        bool hasSkeletonData = header.HasSkeleton() || (header.bindPoseBoneCount > 0 && header.bindPoseBoneCount < 256);
-        if (hasSkeletonData && offset < dataSize && header.bindPoseBoneCount > 0)
+        // FA1 format: bone hierarchy data followed by per-bone keyframe animation data
+        bool hasSkeletonData = actualBoneCount > 0;
+        if (hasSkeletonData && offset < dataSize)
         {
-            // Bind pose entries start here
+            // Bone hierarchy data starts here
             size_t bindPoseOffset = offset;
 
-            // Keyframe data starts after bind pose entries
-            size_t keyframeOffset = bindPoseOffset + header.bindPoseBoneCount * sizeof(FA1BindPoseEntry);
+            // Keyframe data offset depends on variant:
+            // Variant A: 16-byte FA1BindPoseEntry per bone
+            // Variant B: 2-byte uint16 hierarchy entry per bone
+            size_t boneDataSize = useVariantB ? (actualBoneCount * 2) : (actualBoneCount * sizeof(FA1BindPoseEntry));
+            size_t keyframeOffset = bindPoseOffset + boneDataSize;
 
             if (keyframeOffset < dataSize)
             {
                 std::vector<uint8_t> boneDepths;
 
-                // Parse FA1 keyframe format (raw data, not VLE encoded)
-                if (ParseFA1KeyframeFormat(data, dataSize, bindPoseOffset, keyframeOffset,
-                                           header.bindPoseBoneCount, clip, boneDepths))
+                if (useVariantB)
                 {
-                    // FA1 format uses DIRECT parent indexing: parent = (lowByte - 1)
+                    // Variant B: Parse uint16 hierarchy entries directly
+                    // Each entry is: lowByte = (parentOffset + boneCount) - parent (or 0 for root)
+                    // highByte = flags (usually 0x02)
+                    clip.boneParents.clear();
+                    clip.boneParents.reserve(actualBoneCount);
+                    clip.boneTracks.clear();
+                    clip.boneTracks.reserve(actualBoneCount);
+                    clip.boneIsIntermediate.clear();
+
+                    uint32_t parentBase = variantBParentOffset + actualBoneCount;
+
+                    for (uint32_t i = 0; i < actualBoneCount; i++)
+                    {
+                        size_t entryOffset = bindPoseOffset + i * 2;
+                        if (entryOffset + 2 > dataSize) break;
+
+                        uint16_t entry;
+                        std::memcpy(&entry, &data[entryOffset], sizeof(uint16_t));
+
+                        uint8_t lowByte = entry & 0xFF;
+                        uint8_t highByte = (entry >> 8) & 0xFF;
+
+                        // Compute parent index
+                        int32_t parentIdx;
+                        if (lowByte == 0)
+                        {
+                            parentIdx = -1;  // Root bone
+                        }
+                        else
+                        {
+                            parentIdx = static_cast<int32_t>(parentBase) - static_cast<int32_t>(lowByte);
+                            // Clamp to valid range
+                            if (parentIdx < 0 || parentIdx >= static_cast<int32_t>(actualBoneCount))
+                            {
+                                parentIdx = -1;
+                            }
+                        }
+                        clip.boneParents.push_back(parentIdx);
+
+                        // Create bone track (no base position in Variant B - will be 0)
+                        Animation::BoneTrack track;
+                        track.boneIndex = i;
+                        track.basePosition = {0.0f, 0.0f, 0.0f};
+                        clip.boneTracks.push_back(std::move(track));
+
+                        boneDepths.push_back(lowByte);
+                        clip.boneIsIntermediate.push_back(false);
+                    }
+
                     clip.hierarchyMode = Animation::HierarchyMode::DirectParent;
+                    // Note: Variant B keyframe parsing not yet implemented
                 }
                 else
                 {
-                    // Parsing failed - return nullopt
-                    return std::nullopt;
+                    // Variant A: Parse FA1 keyframe format (raw data, not VLE encoded)
+                    // Flag 0x4000 indicates tree-depth mode, otherwise use pop-count
+                    if (!ParseFA1KeyframeFormat(data, dataSize, bindPoseOffset, keyframeOffset,
+                                               actualBoneCount, clip, boneDepths, header.classFlags))
+                    {
+                        return std::nullopt;
+                    }
                 }
 
                 // Build output-to-animation bone mapping (for intermediate bone handling)
@@ -1158,127 +1031,6 @@ public:
         // Compute time ranges
         clip.ComputeTimeRange();
         clip.ComputeSequenceTimeRanges();
-
-        // Debug output to verify FA1 parsing
-        {
-            std::ofstream debugLog("fa1_parse_debug.log", std::ios::app);
-            if (debugLog.is_open())
-            {
-                debugLog << "=== FA1 ParseFA1 Complete (RAW data format) ===" << std::endl;
-                debugLog << "HierarchyMode: DirectParent" << std::endl;
-                debugLog << "Bones: " << clip.boneTracks.size() << std::endl;
-                debugLog << "Sequences: " << clip.sequences.size() << std::endl;
-                debugLog << "TimeRange: " << clip.minTime << " - " << clip.maxTime << std::endl;
-                debugLog << "Duration (raw units): " << clip.duration << std::endl;
-                debugLog << "Duration (approx seconds): " << (clip.duration / 33330.0f) << std::endl;
-                debugLog << "TotalFrames: " << clip.totalFrames << std::endl;
-
-                // Log ALL sequences with their time ranges
-                debugLog << "\n=== SEQUENCE DETAILS ===" << std::endl;
-                for (size_t i = 0; i < clip.sequences.size(); i++)
-                {
-                    const auto& seq = clip.sequences[i];
-                    debugLog << "Sequence " << i << ": hash=0x" << std::hex << seq.hash << std::dec
-                             << " frames=" << seq.frameCount
-                             << " time=[" << seq.startTime << " - " << seq.endTime << "]"
-                             << " duration=" << (seq.endTime - seq.startTime) << std::endl;
-                }
-
-                // Log first 10 bone parents
-                debugLog << "\nParent indices (first 10): ";
-                for (size_t i = 0; i < std::min(clip.boneParents.size(), size_t(10)); i++)
-                {
-                    debugLog << clip.boneParents[i] << " ";
-                }
-                debugLog << std::endl;
-
-                // DETAILED ANALYSIS: Find keyframes with large position jumps (potential head flying away)
-                debugLog << "\n=== ANOMALY DETECTION: Large position jumps ===" << std::endl;
-                for (size_t boneIdx = 0; boneIdx < clip.boneTracks.size(); boneIdx++)
-                {
-                    const auto& track = clip.boneTracks[boneIdx];
-                    for (size_t k = 1; k < track.positionKeys.size(); k++)
-                    {
-                        const auto& prev = track.positionKeys[k-1];
-                        const auto& curr = track.positionKeys[k];
-                        float dx = curr.value.x - prev.value.x;
-                        float dy = curr.value.y - prev.value.y;
-                        float dz = curr.value.z - prev.value.z;
-                        float dist = std::sqrt(dx*dx + dy*dy + dz*dz);
-                        // Flag jumps > 50 units (likely anomalous for character animation)
-                        if (dist > 50.0f)
-                        {
-                            debugLog << "  LARGE JUMP Bone " << boneIdx << " key " << (k-1) << "->" << k
-                                     << ": t=" << prev.time << "->" << curr.time
-                                     << " dist=" << dist
-                                     << " pos=(" << prev.value.x << "," << prev.value.y << "," << prev.value.z << ")"
-                                     << "->(" << curr.value.x << "," << curr.value.y << "," << curr.value.z << ")"
-                                     << std::endl;
-                        }
-                    }
-                }
-
-                // DETAILED ANALYSIS: Find keyframes with large rotation changes
-                debugLog << "\n=== ANOMALY DETECTION: Large rotation changes ===" << std::endl;
-                for (size_t boneIdx = 0; boneIdx < clip.boneTracks.size(); boneIdx++)
-                {
-                    const auto& track = clip.boneTracks[boneIdx];
-                    for (size_t k = 1; k < track.rotationKeys.size(); k++)
-                    {
-                        const auto& prev = track.rotationKeys[k-1];
-                        const auto& curr = track.rotationKeys[k];
-                        // Dot product of quaternions - close to 1 means similar, close to 0 means 90 deg, negative means >90 deg
-                        float dot = prev.value.x * curr.value.x + prev.value.y * curr.value.y +
-                                    prev.value.z * curr.value.z + prev.value.w * curr.value.w;
-                        // Angle in degrees (approximate)
-                        float angle = std::acos(std::min(1.0f, std::abs(dot))) * 2.0f * 57.2958f;
-                        // Flag rotations > 90 degrees between consecutive keys
-                        if (angle > 90.0f)
-                        {
-                            debugLog << "  LARGE ROT Bone " << boneIdx << " key " << (k-1) << "->" << k
-                                     << ": t=" << prev.time << "->" << curr.time
-                                     << " angle=" << angle << " deg"
-                                     << " quat=(" << prev.value.x << "," << prev.value.y << "," << prev.value.z << "," << prev.value.w << ")"
-                                     << "->(" << curr.value.x << "," << curr.value.y << "," << curr.value.z << "," << curr.value.w << ")"
-                                     << std::endl;
-                        }
-                    }
-                }
-
-                // Log first 5 bone positions
-                debugLog << "\nBone positions (first 5):" << std::endl;
-                for (size_t i = 0; i < std::min(clip.boneTracks.size(), size_t(5)); i++)
-                {
-                    const auto& pos = clip.boneTracks[i].basePosition;
-                    debugLog << "  Bone " << i << ": (" << pos.x << ", " << pos.y << ", " << pos.z << ")" << std::endl;
-                }
-
-                // Log keyframe counts and first few time values for first 3 bones
-                debugLog << "Keyframe details (first 3 bones):" << std::endl;
-                for (size_t i = 0; i < std::min(clip.boneTracks.size(), size_t(3)); i++)
-                {
-                    const auto& track = clip.boneTracks[i];
-                    debugLog << "  Bone " << i << ": pos=" << track.positionKeys.size()
-                             << ", rot=" << track.rotationKeys.size();
-
-                    // Log first 5 position times
-                    if (!track.positionKeys.empty())
-                    {
-                        debugLog << "  posTimes=[";
-                        for (size_t j = 0; j < std::min(track.positionKeys.size(), size_t(5)); j++)
-                        {
-                            if (j > 0) debugLog << ", ";
-                            debugLog << track.positionKeys[j].time;
-                        }
-                        if (track.positionKeys.size() > 5) debugLog << ", ...";
-                        debugLog << "]";
-                    }
-                    debugLog << std::endl;
-                }
-
-                debugLog << std::endl;
-            }
-        }
 
         return clip;
     }
@@ -1326,14 +1078,12 @@ private:
      *
      * Different GW models use different encodings for the depth byte:
      *
-     * 1. TREE_DEPTH mode: depth = absolute level in hierarchy tree
+     * 1. TREE_DEPTH mode (BB9 chunks): depth = absolute level in hierarchy tree
      *    Pattern: [0, 1, 2, 3, 2, 3, 1, 2, ...] - increases by 1 for children
-     *    Used by most standard models (e.g., 0x1FBCD)
      *
-     * 2. POP_COUNT mode: depth = number of levels to pop from matrix stack
+     * 2. POP_COUNT mode (BB8 chunks): depth = number of levels to pop from matrix stack
      *    Pattern: [0, 0, 0, 0, 3, 0, 0, ...] - mostly 0s with occasional jumps
      *    Based on Ghidra RE of GrTrans_PushPopMatrix @ 0x0064ab40
-     *    Used by some models (e.g., 0x14067)
      *
      * 3. WORLD_SPACE mode: No meaningful hierarchy (all zeros or invalid)
      *    Each bone is treated as independent with absolute transforms
@@ -1342,10 +1092,13 @@ private:
      * @param depths Vector of hierarchy values from bone flags.
      * @param outUsedSequentialMode Output flag: true if WORLD_SPACE mode was used.
      * @param outHierarchyMode Output: detected hierarchy encoding mode.
+     * @param forceTreeDepth If >= 0: 1 = force tree-depth mode, 0 = force pop-count mode.
+     *                       If < 0: auto-detect mode from data pattern.
      */
     static void ComputeBoneParents(std::vector<int32_t>& outParents, const std::vector<uint8_t>& depths,
                                     bool* outUsedSequentialMode = nullptr,
-                                    Animation::HierarchyMode* outHierarchyMode = nullptr)
+                                    Animation::HierarchyMode* outHierarchyMode = nullptr,
+                                    int forceTreeDepth = -1)
     {
         outParents.resize(depths.size(), -1);
         if (outUsedSequentialMode) *outUsedSequentialMode = false;
@@ -1353,31 +1106,41 @@ private:
 
         if (depths.empty()) return;
 
-        // Analyze the depth pattern to detect encoding type
+        // Analyze the depth pattern to detect encoding type (or check for world-space)
         int zeroCount = 0;
         int maxDepth = 0;
-        int valuesAboveBoneCount = 0;
 
         for (size_t i = 0; i < depths.size(); i++)
         {
             uint8_t d = depths[i];
             if (d == 0) zeroCount++;
             if (d > maxDepth) maxDepth = d;
-            if (d > static_cast<uint8_t>(i)) valuesAboveBoneCount++;
         }
 
-        // Detection logic:
-        // TREE_DEPTH: starts with 0,1 and values don't exceed bone index
-        // POP_COUNT: mostly zeros OR has values that can't be tree depths
-        // WORLD_SPACE: no meaningful hierarchy data
-
-        bool startsWithZeroOne = (depths.size() >= 2 && depths[0] == 0 && depths[1] == 1);
-        bool mostlyZeros = (zeroCount >= static_cast<int>(depths.size()) * 0.5);
-        bool hasValuesExceedingIndex = (valuesAboveBoneCount > 0);
-
-        bool looksLikeTreeDepths = startsWithZeroOne && !hasValuesExceedingIndex;
+        // Check for world-space mode (no hierarchy data)
         bool noHierarchyData = (zeroCount >= static_cast<int>(depths.size()) * 0.95) ||
                                 (maxDepth == 0 && depths.size() > 1);
+
+        // Determine hierarchy mode:
+        // - If forceTreeDepth >= 0, use that (1 = tree-depth, 0 = pop-count)
+        // - Otherwise fall back to heuristic detection (for legacy callers)
+        bool useTreeDepth;
+        if (forceTreeDepth >= 0)
+        {
+            useTreeDepth = (forceTreeDepth == 1);
+        }
+        else
+        {
+            // Fallback heuristic: tree-depth starts with 0,1 and has no zeros after root
+            int zerosAfterFirstBone = 0;
+            for (size_t i = 1; i < depths.size(); i++)
+            {
+                if (depths[i] == 0) zerosAfterFirstBone++;
+            }
+            bool startsWithZeroOne = (depths.size() >= 2 && depths[0] == 0 && depths[1] == 1);
+            bool hasZerosAfterRoot = (zerosAfterFirstBone >= 1);
+            useTreeDepth = startsWithZeroOne && !hasZerosAfterRoot;
+        }
 
         if (noHierarchyData)
         {
@@ -1391,9 +1154,9 @@ private:
                 outParents[boneIdx] = -1;
             }
         }
-        else if (looksLikeTreeDepths)
+        else if (useTreeDepth)
         {
-            // TREE_DEPTH MODE: depth = absolute level in hierarchy
+            // TREE_DEPTH MODE (BB9 chunks): depth = absolute level in hierarchy
             // Algorithm: track bones at each depth level, find parent at depth-1
             if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::TreeDepth;
             std::unordered_map<uint8_t, int32_t> depthToBone;
@@ -1552,15 +1315,33 @@ inline std::optional<Animation::AnimationClip> ParseAnimationFromFile(
         return std::nullopt;
     }
 
-    // Try BB9 first (type 2 "other" format) - uses 44-byte header
+    // Try BB9 first (tree-depth hierarchy mode) - uses 44-byte header
     size_t chunkOffset, chunkSize;
     if (FindChunk(fileData, fileSize, CHUNK_ID_BB9, chunkOffset, chunkSize))
     {
         return BB9AnimationParser::Parse(&fileData[chunkOffset], chunkSize);
     }
 
-    // Try FA1 (type 2 "standard" format) - uses 88-byte header
+    // Try BB8 - uses 44-byte header, hierarchy mode from flags
+    if (FindChunk(fileData, fileSize, CHUNK_ID_BB8, chunkOffset, chunkSize))
+    {
+        return BB9AnimationParser::Parse(&fileData[chunkOffset], chunkSize);
+    }
+
+    // Try FA1 - uses 88-byte header, hierarchy mode from classFlags
     if (FindChunk(fileData, fileSize, CHUNK_ID_FA1, chunkOffset, chunkSize))
+    {
+        return BB9AnimationParser::ParseFA1(&fileData[chunkOffset], chunkSize);
+    }
+
+    // Try FA6 (variant) - uses 88-byte header, hierarchy mode from classFlags
+    if (FindChunk(fileData, fileSize, CHUNK_ID_FA6, chunkOffset, chunkSize))
+    {
+        return BB9AnimationParser::ParseFA1(&fileData[chunkOffset], chunkSize);
+    }
+
+    // Try FA0 - uses 88-byte header, hierarchy mode from classFlags
+    if (FindChunk(fileData, fileSize, CHUNK_ID_FA0, chunkOffset, chunkSize))
     {
         return BB9AnimationParser::ParseFA1(&fileData[chunkOffset], chunkSize);
     }
