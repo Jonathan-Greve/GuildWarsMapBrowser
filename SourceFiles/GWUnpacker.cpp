@@ -238,6 +238,20 @@ unsigned char* GWDat::readFile(HANDLE file_handle, unsigned int n, bool translat
 			m.type = type;
 			m.uncompressedSize = OutSize;
 
+			// Extract chunk IDs from FFNA files (Type2 models and Type3 maps)
+			if (type == FFNA_Type2 || type == FFNA_Type3)
+			{
+				m.chunk_ids.clear();
+				int offset = 5;  // Skip FFNA header (4 bytes 'ffna' + 1 byte type)
+				while (offset + 8 <= OutSize)
+				{
+					uint32_t chunk_id = *reinterpret_cast<uint32_t*>(&Output[offset]);
+					uint32_t chunk_size = *reinterpret_cast<uint32_t*>(&Output[offset + 4]);
+					m.chunk_ids.push_back(chunk_id);
+					offset += 8 + chunk_size;
+				}
+			}
+
 			//saveToFile(typeToString(m.type), m.Hash, n, Output, OutSize);
 		}
 	}

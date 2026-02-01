@@ -65,6 +65,7 @@ struct MFTEntry
 	__int32 uncompressedSize;
 	__int32 Hash;
 	uint32_t murmurhash3;
+	std::vector<uint32_t> chunk_ids;  // Chunk IDs found in FFNA files
 };
 
 struct MFTExpansion
