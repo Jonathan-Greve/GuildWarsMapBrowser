@@ -16,19 +16,16 @@ using namespace DirectX;
 namespace GW::Parsers {
 
 // Animation chunk IDs
-// Hierarchy mode is determined by flag 0x4000 in header.flags/classFlags:
-//   - Flag set: tree-depth mode (depth = absolute level in tree)
-//   - Flag clear: pop-count mode (depth = levels to pop from stack)
+// Hierarchy mode is detected heuristically from depth patterns (0x4000 flag is NOT reliable)
 constexpr uint32_t CHUNK_ID_BB9 = 0x00000BB9;  // Animation chunk (44-byte header)
 constexpr uint32_t CHUNK_ID_BB8 = 0x00000BB8;  // Animation chunk variant (44-byte header)
 constexpr uint32_t CHUNK_ID_FA1 = 0x00000FA1;  // Animation chunk (88-byte header)
 constexpr uint32_t CHUNK_ID_FA0 = 0x00000FA0;  // Animation chunk variant (88-byte header)
 constexpr uint32_t CHUNK_ID_FA6 = 0x00000FA6;  // Animation chunk variant (88-byte header)
 
-// BB9 Header flags (different from FA1 ClassFlags!)
+// BB9 Header flags
 constexpr uint32_t BB9_FLAG_HAS_SEQUENCES = 0x0008;         // Animation sequences present
 constexpr uint32_t BB9_FLAG_HAS_BONE_TRANSFORMS = 0x0010;   // Bone transform data present
-constexpr uint32_t BB9_FLAG_TREE_DEPTH_HIERARCHY = 0x4000;  // Use tree-depth hierarchy (vs pop-count)
 
 // FA1 ClassFlags (different from BB9 flags!)
 constexpr uint32_t FA1_FLAG_HAS_SKELETON = 0x0001;          // Has skeleton reference
@@ -37,7 +34,6 @@ constexpr uint32_t FA1_FLAG_HAS_ATTACHMENT_DATA = 0x0008;   // Attachment points
 constexpr uint32_t FA1_FLAG_HAS_LOD_DATA = 0x0010;          // LOD data (NOT bone transforms!)
 constexpr uint32_t FA1_FLAG_HAS_ANIMATION_SEQUENCES = 0x0100; // Animation sequences
 constexpr uint32_t FA1_FLAG_HAS_SKELETON_DATA = 0x0200;     // Skeleton/joint hierarchy
-constexpr uint32_t FA1_FLAG_TREE_DEPTH_HIERARCHY = 0x4000;  // Use tree-depth hierarchy (vs pop-count)
 
 /**
  * @brief BB9 animation chunk header structure (44 bytes).
@@ -82,7 +78,7 @@ struct FA1Header
     uint16_t sequenceKeyframeCount1;  // 0x1A: Keyframe count 1
     uint32_t unknown_0x1C;            // 0x1C: Unknown
     float geometryScale;              // 0x20: Skeleton/geometry scale factor. If <=0, computed from bounding data
-    float unknown_0x24;               // 0x24: Unknown (often 0)
+    uint32_t hierarchyFlags;          // 0x24: Hierarchy flags (0x4000 = tree-depth mode)
     float unknown_0x28;               // 0x28: Unknown (often 1.0)
     uint32_t bindPoseBoneCount;       // 0x2C: Number of bones in bind pose section (discovered via RE)
     uint32_t unknown_0x30;            // 0x30: Unknown (often 3)
@@ -318,8 +314,9 @@ public:
             });
         }
 
-        // Convert hierarchy bytes to parent indices using the same algorithm as animation parsing
-        ComputeBoneParents(outParentIndices, hierarchyBytes, nullptr, nullptr);
+        // Convert hierarchy bytes to parent indices using heuristic detection
+        // The 0x4000 flag is NOT reliable for hierarchy mode
+        ComputeBoneParents(outParentIndices, hierarchyBytes, nullptr, nullptr, -1);
 
         return boneCount;
     }
@@ -530,13 +527,10 @@ public:
                 }
             }
 
-            // Compute bone hierarchy from depth values
-            // Flag 0x4000 indicates tree-depth mode, otherwise use pop-count mode
+            // Compute bone hierarchy from depth values using heuristic detection
             bool usedSequentialMode = false;
             Animation::HierarchyMode hierarchyMode = Animation::HierarchyMode::TreeDepth;
-            bool useTreeDepth = (header.flags & BB9_FLAG_TREE_DEPTH_HIERARCHY) != 0;
-            int forceMode = useTreeDepth ? 1 : 0;  // 1 = tree-depth, 0 = pop-count
-            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode, &hierarchyMode, forceMode);
+            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode, &hierarchyMode, -1);
             clip.hierarchyMode = hierarchyMode;
 
             // Build output-to-animation bone mapping (for intermediate bone handling)
@@ -585,8 +579,7 @@ private:
     static bool ParseFA1KeyframeFormat(const uint8_t* data, size_t dataSize,
                                         size_t bindPoseOffset, size_t animOffset,
                                         uint32_t boneCount, Animation::AnimationClip& clip,
-                                        std::vector<uint8_t>& boneDepths,
-                                        uint32_t classFlags = 0)
+                                        std::vector<uint8_t>& boneDepths)
     {
         // FA1 uses RAW data format (not VLE like BB9):
         // Per-bone: [6-byte header: posCount|rotCount|scaleCount]
@@ -644,14 +637,11 @@ private:
             clip.boneIsIntermediate.push_back(isIntermediate);
         }
 
-        // Compute bone hierarchy from depth values
-        // Flag 0x4000 indicates tree-depth mode, otherwise use pop-count mode
+        // Compute bone hierarchy from depth values using heuristic detection
         {
             bool usedSequentialMode = false;
             Animation::HierarchyMode hierarchyMode = Animation::HierarchyMode::TreeDepth;
-            bool isTreeDepth = (classFlags & FA1_FLAG_TREE_DEPTH_HIERARCHY) != 0;
-            int forceMode = isTreeDepth ? 1 : 0;  // 1 = tree-depth, 0 = pop-count
-            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode, &hierarchyMode, forceMode);
+            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode, &hierarchyMode, -1);
             clip.hierarchyMode = hierarchyMode;
         }
 
@@ -1015,9 +1005,8 @@ public:
                 else
                 {
                     // Variant A: Parse FA1 keyframe format (raw data, not VLE encoded)
-                    // Flag 0x4000 indicates tree-depth mode, otherwise use pop-count
                     if (!ParseFA1KeyframeFormat(data, dataSize, bindPoseOffset, keyframeOffset,
-                                               actualBoneCount, clip, boneDepths, header.classFlags))
+                                               actualBoneCount, clip, boneDepths))
                     {
                         return std::nullopt;
                     }
@@ -1106,31 +1095,47 @@ private:
 
         if (depths.empty()) return;
 
-        // Analyze the depth pattern to detect encoding type (or check for world-space)
-        int zeroCount = 0;
-        int maxDepth = 0;
-
-        for (size_t i = 0; i < depths.size(); i++)
-        {
-            uint8_t d = depths[i];
-            if (d == 0) zeroCount++;
-            if (d > maxDepth) maxDepth = d;
-        }
-
-        // Check for world-space mode (no hierarchy data)
-        bool noHierarchyData = (zeroCount >= static_cast<int>(depths.size()) * 0.95) ||
-                                (maxDepth == 0 && depths.size() > 1);
-
         // Determine hierarchy mode:
         // - If forceTreeDepth >= 0, use that (1 = tree-depth, 0 = pop-count)
         // - Otherwise fall back to heuristic detection (for legacy callers)
         bool useTreeDepth;
-        if (forceTreeDepth >= 0)
+        bool modeWasForced = (forceTreeDepth >= 0);
+
+        if (modeWasForced)
         {
             useTreeDepth = (forceTreeDepth == 1);
         }
         else
         {
+            // Analyze the depth pattern to detect encoding type
+            int zeroCount = 0;
+            int maxDepth = 0;
+
+            for (size_t i = 0; i < depths.size(); i++)
+            {
+                uint8_t d = depths[i];
+                if (d == 0) zeroCount++;
+                if (d > maxDepth) maxDepth = d;
+            }
+
+            // Check for world-space mode (no hierarchy data) - only when mode not forced
+            bool noHierarchyData = (zeroCount >= static_cast<int>(depths.size()) * 0.95) ||
+                                    (maxDepth == 0 && depths.size() > 1);
+
+            if (noHierarchyData)
+            {
+                // WORLD_SPACE MODE: No hierarchy data available
+                // Treat all bones as independent with world-space transforms
+                if (outUsedSequentialMode) *outUsedSequentialMode = true;
+                if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::Sequential;
+
+                for (size_t boneIdx = 0; boneIdx < depths.size(); boneIdx++)
+                {
+                    outParents[boneIdx] = -1;
+                }
+                return;  // Early exit for world-space mode
+            }
+
             // Fallback heuristic: tree-depth starts with 0,1 and has no zeros after root
             int zerosAfterFirstBone = 0;
             for (size_t i = 1; i < depths.size(); i++)
@@ -1142,73 +1147,36 @@ private:
             useTreeDepth = startsWithZeroOne && !hasZerosAfterRoot;
         }
 
-        if (noHierarchyData)
+        // Apply the determined mode
+        // When flag 0x4000 is set: the low byte is (parent_index + 1), where 0 = root
+        // When flag 0x4000 is clear: use pop-count mode (stack-based hierarchy)
+        if (useTreeDepth)
         {
-            // WORLD_SPACE MODE: No hierarchy data available
-            // Treat all bones as independent with world-space transforms
-            if (outUsedSequentialMode) *outUsedSequentialMode = true;
-            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::Sequential;
+            // DIRECT_PARENT MODE: value = parent_index + 1, or 0 for root
+            // This is the correct interpretation of the 0x4000 flag based on observed data patterns
+            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::DirectParent;
 
             for (size_t boneIdx = 0; boneIdx < depths.size(); boneIdx++)
             {
-                outParents[boneIdx] = -1;
-            }
-        }
-        else if (useTreeDepth)
-        {
-            // TREE_DEPTH MODE (BB9 chunks): depth = absolute level in hierarchy
-            // Algorithm: track bones at each depth level, find parent at depth-1
-            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::TreeDepth;
-            std::unordered_map<uint8_t, int32_t> depthToBone;
+                uint8_t value = depths[boneIdx];
+                int32_t parent;
 
-            for (size_t boneIdx = 0; boneIdx < depths.size(); boneIdx++)
-            {
-                uint8_t depth = depths[boneIdx];
-                int32_t parent = -1;
-
-                if (boneIdx == 0 || depth == 0)
+                if (value == 0)
                 {
                     parent = -1;  // Root bone
                 }
                 else
                 {
-                    // Clear depth entries >= current depth (from other branches)
-                    std::vector<uint8_t> depthsToClear;
-                    for (const auto& pair : depthToBone)
+                    // value = parent_index + 1, so parent = value - 1
+                    parent = static_cast<int32_t>(value) - 1;
+                    // Clamp to valid range
+                    if (parent < 0 || parent >= static_cast<int32_t>(depths.size()))
                     {
-                        if (pair.first >= depth)
-                        {
-                            depthsToClear.push_back(pair.first);
-                        }
-                    }
-                    for (uint8_t d : depthsToClear)
-                    {
-                        depthToBone.erase(d);
-                    }
-
-                    // Find parent at depth-1
-                    auto it = depthToBone.find(depth - 1);
-                    if (it != depthToBone.end())
-                    {
-                        parent = it->second;
-                    }
-                    else
-                    {
-                        // Fallback: search for nearest ancestor
-                        for (int searchDepth = static_cast<int>(depth) - 1; searchDepth >= 0; searchDepth--)
-                        {
-                            auto searchIt = depthToBone.find(static_cast<uint8_t>(searchDepth));
-                            if (searchIt != depthToBone.end())
-                            {
-                                parent = searchIt->second;
-                                break;
-                            }
-                        }
+                        parent = -1;
                     }
                 }
 
                 outParents[boneIdx] = parent;
-                depthToBone[depth] = static_cast<int32_t>(boneIdx);
             }
         }
         else

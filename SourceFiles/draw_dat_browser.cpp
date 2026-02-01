@@ -279,7 +279,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 			if (!using_other_model_format && !selected_raw_data.empty())
 			{
-				// Scan for FA1 chunk (0xFA1 = 4001)
+				// Scan for FA0/FA1/FA6 chunks (all use 88-byte header with bind pose data)
 				const uint8_t* data = selected_raw_data.data();
 				size_t dataSize = selected_raw_data.size();
 
@@ -288,9 +288,12 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 					uint32_t chunkId = *reinterpret_cast<const uint32_t*>(&data[offset]);
 					uint32_t chunkSize = *reinterpret_cast<const uint32_t*>(&data[offset + 4]);
 
-					if (chunkId == GW::Parsers::CHUNK_ID_FA1)
+					// Check for any FA-family chunk (FA0, FA1, FA6 all use same 88-byte header format)
+					if (chunkId == GW::Parsers::CHUNK_ID_FA0 ||
+						chunkId == GW::Parsers::CHUNK_ID_FA1 ||
+						chunkId == GW::Parsers::CHUNK_ID_FA6)
 					{
-						// Found FA1 chunk - extract bind pose data
+						// Found FA chunk - extract bind pose data
 						const uint8_t* fa1Data = &data[offset + 8]; // Skip chunk header
 						size_t fa1Size = std::min(static_cast<size_t>(chunkSize), dataSize - offset - 8);
 
@@ -303,7 +306,7 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 						{
 							g_animationState.hasFA1BindPose = true;
 							char debug[128];
-							sprintf_s(debug, "Extracted FA1 bind pose: %zu bones\n", boneCount);
+							sprintf_s(debug, "Extracted FA bind pose (chunk 0x%X): %zu bones\n", chunkId, boneCount);
 							LogBB8Debug(debug);
 						}
 						break;
@@ -329,8 +332,9 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				if (clipOpt)
 				{
 					auto clip = std::make_shared<GW::Animation::AnimationClip>(std::move(*clipOpt));
-					// NOTE: Parent indices are computed by POP_COUNT algorithm during parsing.
-					// DO NOT override with FA1 parentInfo - those are raw hierarchyBytes, not pre-computed parents.
+					// Parent indices are computed during parsing using header flags:
+					// - Flag 0x4000 set: tree-depth mode (depth = absolute level in hierarchy)
+					// - Flag 0x4000 clear: pop-count mode (depth = levels to pop from stack)
 					auto skeleton = std::make_shared<GW::Animation::Skeleton>(
 						GW::Parsers::BB9AnimationParser::CreateSkeleton(*clip));
 					g_animationState.Initialize(clip, skeleton, entry->Hash);
