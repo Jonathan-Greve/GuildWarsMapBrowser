@@ -135,14 +135,14 @@ struct TextureFileNamesChunkOther
 // Based on reverse engineering of MdlDecomp_ConvertGeometryChunk_0xBB8_to_0xFA0
 //
 // ClassFlags bitmask (offset 0x08) controls which data sections exist:
-//   0x002: Bone group data
+//   0x002: Bone group data (bb8_bone_palette)
 //   0x004: Bounding box data
 //   0x008: Submesh data (most important - contains vertex/index data)
 //   0x010: LOD data
-//   0x020: Vertex buffer data
+//   0x020: Embedded animation data (morph targets/vertex animation)
 //   0x040: Bone weights
-//   0x080: Morph target data
-//   0x100: Animation data
+//   0x080: Morph target/attachment data
+//   0x100: Animation sequences
 //   0x200: Skeleton data
 //   0x400: Extended LOD data
 // =============================================================================
@@ -156,20 +156,20 @@ constexpr float UV_SCALE_FACTOR = 0.46875f;
 #pragma pack(push, 1)
 struct ChunkBB8_Header
 {
-    uint32_t field_0x00;            // 0x00: Type/version (usually contains flags)
-    uint32_t field_0x04;            // 0x04: Usually 0
+    uint32_t geometry_flags;        // 0x00: Type/version (usually contains flags)
+    uint32_t reserved_0x04;         // 0x04: Usually 0
     uint32_t class_flags;           // 0x08: Bitmask controlling which data sections exist
-    uint32_t signature0;            // 0x0C: Model signature part 1
-    uint32_t signature1;            // 0x10: Model signature part 2
-    uint32_t field_0x14;            // 0x14
-    uint8_t num_bone_groups;        // 0x18: Number of bone groups (max 4)
-    uint8_t num_texture_groups;     // 0x19: Number of texture groups
+    uint32_t model_hash0;           // 0x0C: Model signature part 1
+    uint32_t model_hash1;           // 0x10: Model signature part 2
+    uint32_t unknown_0x14;          // 0x14
+    uint8_t shader_count;           // 0x18: Number of shaders (8 bytes each)
+    uint8_t num_texture_groups;     // 0x19: Number of texture groups (0=OLD UV format)
     uint16_t num_textures;          // 0x1A: Number of textures
-    uint8_t num_bone_weights;       // 0x1C: Number of bone weights
-    uint8_t num_bone_indices;       // 0x1D: Number of bone indices
+    uint8_t material_base_count;    // 0x1C: Base material count (9 bytes each)
+    uint8_t max_bone_indices;       // 0x1D: Max bone indices per vertex
     uint16_t num_materials;         // 0x1E: Number of materials
-    uint32_t num_bone_weight_sets;  // 0x20: Number of bone weight sets
-    uint32_t class_flags_output;    // 0x24: Output class flags (stored in output)
+    uint32_t bone_weight_set_count; // 0x20: Number of bone weight sets
+    uint32_t output_flags;          // 0x24: Output class flags (stored in output)
     float scale_x;                  // 0x28: X scale factor for submeshes
     float scale_y;                  // 0x2C: Y scale factor for submeshes
     // Total: 0x30 (48) bytes - NOT 64 bytes!
@@ -182,7 +182,7 @@ struct ChunkBB8_Header
     bool HasBoneGroups() const { return (class_flags & 0x002) != 0; }
     bool HasBoundingBox() const { return (class_flags & 0x004) != 0; }
     bool HasLODData() const { return (class_flags & 0x010) != 0; }
-    bool HasVertexBuffer() const { return (class_flags & 0x020) != 0; }
+    bool HasEmbeddedAnimation() const { return (class_flags & 0x020) != 0; }
     bool HasBoneWeights() const { return (class_flags & 0x040) != 0; }
     bool HasMorphTargets() const { return (class_flags & 0x080) != 0; }
     bool HasAnimation() const { return (class_flags & 0x100) != 0; }
@@ -215,21 +215,26 @@ struct TextureGroupOther
 static_assert(sizeof(TextureGroupOther) == 9, "TextureGroupOther must be 9 bytes!");
 
 
-// Submesh header for 0xBB8 format (24 bytes = 6 DWORDs)
-// Discovered through binary analysis of actual model files.
+// Submesh header for 0xBB8 format (32 bytes = 8 DWORDs)
+// Matches ImHex SubmeshHeader_BB8 structure.
 // Data after this header:
-//   - Index buffer: num_indices * 2 bytes (uint16 indices)
-//   - Position buffer: num_vertices * 12 bytes (float triplets)
+//   - Index buffer: indexCount * 2 bytes (uint16 indices)
+//   - Position buffer: vertexCount * 12 bytes (float triplets)
+//   - Per-vertex data: vertexCount * 4 bytes (bone weights/colors, NOT bone indices)
+//   - UV data: compressed or direct format
+//   - Bone data: vertexCountsPerGroup[boneGroupCount] (u16) + boneGroupSizes[boneGroupCount] (u8) + skeletonBoneIndices[totalBoneRefs] (u8)
 #pragma pack(push, 1)
 struct SubmeshBB8_Header
 {
-    uint32_t num_indices;           // 0x00: Number of indices (16-bit)
-    uint32_t num_vertices;          // 0x04: Number of vertices
-    uint32_t num_uv_sets;           // 0x08: Number of UV coordinate sets per vertex
-    uint32_t num_vertex_groups;     // 0x0C: Number of vertex groups/bone groups
-    uint32_t num_colors;            // 0x10: Number of color values
-    uint32_t num_normals;           // 0x14: Number of normals/additional data
-    // Total: 0x18 (24) bytes
+    uint32_t submeshFlags;          // 0x00: Visibility/render state flags (often 0)
+    uint32_t materialIndex;         // 0x04: Material/shader index
+    uint32_t indexCount;            // 0x08: Number of indices (16-bit)
+    uint32_t vertexCount;           // 0x0C: Number of vertices
+    uint32_t uvSetCount;            // 0x10: Number of UV coordinate sets per vertex
+    uint32_t boneGroupCount;        // 0x14: Number of bone groups
+    uint32_t totalBoneRefs;         // 0x18: Total skeleton bone references (sum of boneGroupSizes)
+    uint32_t triangleGroupCount;    // 0x1C: Number of triangle groups (often 0)
+    // Total: 0x20 (32) bytes
 
     SubmeshBB8_Header() = default;
     SubmeshBB8_Header(const unsigned char* data) { std::memcpy(this, data, sizeof(*this)); }
@@ -237,12 +242,12 @@ struct SubmeshBB8_Header
     // Calculate total size of submesh data (indices + positions)
     uint32_t GetDataSize() const
     {
-        return num_indices * 2 + num_vertices * 12;  // uint16 indices + float3 positions
+        return indexCount * 2 + vertexCount * 12;  // uint16 indices + float3 positions
     }
 };
 #pragma pack(pop)
 
-static_assert(sizeof(SubmeshBB8_Header) == 0x18, "SubmeshBB8_Header must be 24 bytes!");
+static_assert(sizeof(SubmeshBB8_Header) == 0x20, "SubmeshBB8_Header must be 32 bytes!");
 
 // Structure for inline ATEX texture data
 struct InlineATEXTexture
@@ -361,6 +366,11 @@ struct GeometryChunkOther
     // For BB8, vertex.group directly indexes into this array to get skeleton bone ID
     std::vector<uint32_t> bb8_bone_palette;
 
+    // Shader texture counts: textureCount field from each ShaderDefinition
+    // Used for OLD format to determine if a submesh should skip textures
+    // Index matches material_index; value is the number of textures for that shader
+    std::vector<uint8_t> shader_texture_counts;
+
     // Parsing status
     bool geometry_parsed = false;
 
@@ -434,6 +444,8 @@ private:
         uint32_t data_size = static_cast<uint32_t>(raw_geometry_data.size());
         uint32_t curr_offset = 0;
 
+        char debug_msg[256];
+
         // Parse bone group data if present (0x002 flag)
         // Format: count DWORD + count * 28 bytes (7 DWORDs each)
         // BoneGroup structure (28 bytes):
@@ -448,7 +460,6 @@ private:
             uint32_t bone_group_count = *reinterpret_cast<const uint32_t*>(&data[curr_offset]);
             curr_offset += 4;
 
-            char debug_msg[256];
             sprintf_s(debug_msg, "ParseGeometryData: Found %u bone groups (0x002 flag)\n", bone_group_count);
             LogBB8Debug(debug_msg);
 
@@ -488,6 +499,62 @@ private:
             // The size depends on various header fields
         }
 
+        // Parse shaders and skip materials (always present after bone groups/weights)
+        // Order: BoneGroups -> BoneWeights -> Shaders -> Materials -> TextureGroups -> ...
+        // ShaderDefinition: 8 bytes each (cullFlags, shaderType, shaderFlags[4], pixelShaderId, textureCount)
+        // MaterialDefinition: 9 bytes each (renderFlags, blendFlags, textureStageIndex, alphaTestRef, sortPriority, lodBias, uvChannel)
+        {
+            uint32_t shader_count = header.shader_count;
+            uint32_t material_base_count = header.material_base_count;
+            uint32_t shader_size = shader_count * 8;
+            uint32_t material_size = material_base_count * 9;
+            // Extra byte per material if boneWeightSetCount != 0
+            if (header.bone_weight_set_count != 0)
+            {
+                material_size += material_base_count;
+            }
+
+            sprintf_s(debug_msg, "ParseGeometryData: Parsing %u shaders (%u bytes), skipping %u materials (%u bytes)\n",
+                      shader_count, shader_size, material_base_count, material_size);
+            LogBB8Debug(debug_msg);
+
+            // Parse shader definitions to extract textureCount for each shader
+            // ShaderDefinition layout: cullFlags(1) + shaderType(1) + shaderFlags(4) + pixelShaderId(1) + textureCount(1) = 8 bytes
+            if (shader_count > 0)
+            {
+                if (curr_offset + shader_size > data_size)
+                {
+                    sprintf_s(debug_msg, "ParseGeometryData: ERROR - shader size exceeds data size!\n");
+                    LogBB8Debug(debug_msg);
+                    return false;
+                }
+
+                shader_texture_counts.resize(shader_count);
+                for (uint32_t i = 0; i < shader_count; i++)
+                {
+                    // textureCount is the last byte (offset 7) of each 8-byte shader
+                    uint8_t texture_count = data[curr_offset + i * 8 + 7];
+                    shader_texture_counts[i] = texture_count;
+
+                    sprintf_s(debug_msg, "  Shader[%u]: textureCount=%u\n", i, texture_count);
+                    LogBB8Debug(debug_msg);
+                }
+                curr_offset += shader_size;
+            }
+
+            // Skip materials
+            if (material_size > 0)
+            {
+                if (curr_offset + material_size > data_size)
+                {
+                    sprintf_s(debug_msg, "ParseGeometryData: ERROR - material size exceeds data size!\n");
+                    LogBB8Debug(debug_msg);
+                    return false;
+                }
+                curr_offset += material_size;
+            }
+        }
+
         // Parse texture group and material data based on header fields
         // This section exists if num_texture_groups (0x19) < 0xFF
         if (header.num_texture_groups < 0xFF && header.num_textures < 0x100 && header.num_materials < 0x100)
@@ -511,10 +578,10 @@ private:
                     LogBB8Debug(debug_msg);
                 }
 
-                // Parse bone index data: (3 or 4) * num_bone_indices bytes
+                // Parse bone index data: (3 or 4) * max_bone_indices bytes
                 // This section ALSO contains per-submesh texture indices at offset 8
-                uint32_t bone_idx_multiplier = (header.num_bone_weight_sets != 0) ? 4 : 3;
-                uint32_t bone_idx_size = bone_idx_multiplier * header.num_bone_indices;
+                uint32_t bone_idx_multiplier = (header.bone_weight_set_count != 0) ? 4 : 3;
+                uint32_t bone_idx_size = bone_idx_multiplier * header.max_bone_indices;
                 if (curr_offset + bone_idx_size > data_size) return false;
 
                 // Extract per-submesh texture indices from this section
@@ -561,8 +628,9 @@ private:
             }
         }
 
-        // Skip vertex buffer metadata if present (0x020 flag)
-        if (header.HasVertexBuffer())
+        // Skip embedded animation data if present (0x020 flag)
+        // Format: embeddedAnimTotalSize (u32) + embeddedAnimCount (u32) + data[embeddedAnimTotalSize]
+        if (header.HasEmbeddedAnimation())
         {
             if (curr_offset + 8 > data_size) return false;
             uint32_t vb_size = *reinterpret_cast<const uint32_t*>(&data[curr_offset]);
@@ -589,14 +657,117 @@ private:
         return false;
     }
 
-    // Parse the submesh section by scanning for the submesh header pattern
-    // Based on successful Python script analysis - scan at 2-byte boundaries
+    // Parse submeshes directly using the known BB8 format (no scanning)
+    // Structure: submeshCount (u32) + SubmeshData_BB8[submeshCount]
+    // Each SubmeshData_BB8 has: 32-byte header + indices + positions + boneData + UVs + colors + normals
     bool ParseSubmeshSection(const unsigned char* data, uint32_t data_size,
                              uint32_t start_offset, bool& parsed_correctly)
     {
-        // Scan for submesh header pattern (num_indices, num_vertices followed by valid data)
-        // The Python script found headers at non-4-byte-aligned offsets (e.g., 0x1E = 30 bytes)
-        return ScanForSubmeshHeader(data, data_size, parsed_correctly);
+        char debug_msg[256];
+        sprintf_s(debug_msg, "ParseSubmeshSection: start_offset=%u (0x%X), data_size=%u\n",
+                  start_offset, start_offset, data_size);
+        LogBB8Debug(debug_msg);
+
+        if (start_offset + 4 > data_size)
+        {
+            LogBB8Debug("ParseSubmeshSection: Not enough data for submesh count\n");
+            return false;
+        }
+
+        // Read submesh count
+        uint32_t submesh_count = *reinterpret_cast<const uint32_t*>(&data[start_offset]);
+        sprintf_s(debug_msg, "ParseSubmeshSection: submesh_count=%u\n", submesh_count);
+        LogBB8Debug(debug_msg);
+
+        if (submesh_count == 0 || submesh_count > 64)
+        {
+            sprintf_s(debug_msg, "ParseSubmeshSection: Invalid submesh count %u\n", submesh_count);
+            LogBB8Debug(debug_msg);
+            return false;
+        }
+
+        uint32_t curr_offset = start_offset + 4;  // After submeshCount
+
+        // Parse each submesh sequentially
+        for (uint32_t i = 0; i < submesh_count; i++)
+        {
+            sprintf_s(debug_msg, "ParseSubmeshSection: Parsing submesh %u at offset 0x%X\n", i, curr_offset);
+            LogBB8Debug(debug_msg);
+
+            uint32_t submesh_end = 0;
+            if (!ParseSubmeshDirect(data, data_size, curr_offset, parsed_correctly, submesh_end))
+            {
+                sprintf_s(debug_msg, "ParseSubmeshSection: Failed to parse submesh %u\n", i);
+                LogBB8Debug(debug_msg);
+                return false;
+            }
+
+            curr_offset = submesh_end;
+        }
+
+        sprintf_s(debug_msg, "ParseSubmeshSection: Successfully parsed %u submeshes\n", submesh_count);
+        LogBB8Debug(debug_msg);
+        return true;
+    }
+
+    // Parse a single submesh directly at the given offset using the 32-byte BB8 header
+    // Returns the end offset of this submesh data
+    bool ParseSubmeshDirect(const unsigned char* data, uint32_t data_size,
+                            uint32_t header_offset, bool& parsed_correctly, uint32_t& submesh_end_out)
+    {
+        constexpr uint32_t BB8_SUBMESH_HEADER_SIZE = 32;  // 8 DWORDs
+
+        if (header_offset + BB8_SUBMESH_HEADER_SIZE > data_size)
+        {
+            LogBB8Debug("ParseSubmeshDirect: Not enough data for header\n");
+            return false;
+        }
+
+        // Read the 32-byte BB8 submesh header
+        uint32_t submesh_flags = *reinterpret_cast<const uint32_t*>(&data[header_offset + 0]);
+        uint32_t material_index = *reinterpret_cast<const uint32_t*>(&data[header_offset + 4]);
+        uint32_t num_indices = *reinterpret_cast<const uint32_t*>(&data[header_offset + 8]);
+        uint32_t num_vertices = *reinterpret_cast<const uint32_t*>(&data[header_offset + 12]);
+        uint32_t num_uv_sets = *reinterpret_cast<const uint32_t*>(&data[header_offset + 16]);
+        uint32_t boneGroupCount = *reinterpret_cast<const uint32_t*>(&data[header_offset + 20]);
+        uint32_t totalBoneRefs = *reinterpret_cast<const uint32_t*>(&data[header_offset + 24]);
+        uint32_t num_triangle_groups = *reinterpret_cast<const uint32_t*>(&data[header_offset + 28]);
+
+        char debug_msg[256];
+        sprintf_s(debug_msg, "ParseSubmeshDirect: flags=0x%X, mat=%u, idx=%u, vtx=%u, uv=%u, col=%u, norm=%u, trig=%u\n",
+                  submesh_flags, material_index, num_indices, num_vertices, num_uv_sets, boneGroupCount, totalBoneRefs, num_triangle_groups);
+        LogBB8Debug(debug_msg);
+
+        // Validate counts
+        if (num_indices < 3 || num_indices > 200000 || num_vertices < 3 || num_vertices > 100000)
+        {
+            sprintf_s(debug_msg, "ParseSubmeshDirect: Invalid counts idx=%u vtx=%u\n", num_indices, num_vertices);
+            LogBB8Debug(debug_msg);
+            return false;
+        }
+
+        // Calculate offsets for each data section
+        uint32_t idx_start = header_offset + BB8_SUBMESH_HEADER_SIZE;
+        uint32_t idx_size = num_indices * 2;
+        uint32_t pos_start = idx_start + idx_size;
+        uint32_t pos_size = num_vertices * 12;
+        uint32_t bone_data_start = pos_start + pos_size;
+        uint32_t bone_data_size = num_vertices * 4;
+        uint32_t uv_section_start = bone_data_start + bone_data_size;
+
+        // Validate we have enough data for indices + positions + bone data
+        if (uv_section_start > data_size)
+        {
+            sprintf_s(debug_msg, "ParseSubmeshDirect: Not enough data for idx/pos/bone: need 0x%X, have %u\n",
+                      uv_section_start, data_size);
+            LogBB8Debug(debug_msg);
+            return false;
+        }
+
+        // Call ParseSubmeshAtOffset with all header values
+        return ParseSubmeshAtOffset(data, data_size, header_offset, material_index,
+                                    num_indices, num_vertices, num_uv_sets, boneGroupCount, totalBoneRefs, num_triangle_groups,
+                                    idx_start, pos_start, parsed_correctly, submesh_end_out);
     }
 
     // Helper to check if a float value is valid for position data
@@ -610,7 +781,7 @@ private:
     // Now scans for ALL submeshes, not just the first one
     bool ScanForSubmeshHeader(const unsigned char* data, uint32_t data_size, bool& parsed_correctly)
     {
-        constexpr uint32_t SUBMESH_HEADER_SIZE = 24; // 6 DWORDs
+        constexpr uint32_t SUBMESH_HEADER_SIZE = 32; // 8 DWORDs (matches SubmeshBB8_Header)
         constexpr uint32_t MAX_SCAN_OFFSET = 300;    // Don't scan too far for FIRST submesh
 
         // Ensure we have enough data to scan
@@ -635,12 +806,15 @@ private:
 
             // Scan at 1-byte boundaries - OLD format files can have headers at odd offsets
             // due to variable-size sections (e.g., 17-byte bone data section)
-            for (uint32_t test_offset = scan_start; test_offset < max_offset; test_offset += 1)
+            // We scan for indexCount/vertexCount pattern (at offsets 0x08/0x0C in the 32-byte header)
+            for (uint32_t scan_offset = scan_start; scan_offset < max_offset; scan_offset += 1)
             {
-                if (test_offset + SUBMESH_HEADER_SIZE > data_size)
+                // test_offset points to indexCount, header starts 8 bytes before
+                uint32_t test_offset = scan_offset + 8;
+                if (test_offset + 24 > data_size)  // Need at least 24 bytes from indexCount onwards
                     break;
 
-                // Read potential submesh header values
+                // Read potential submesh header values (indexCount at 0x08, vertexCount at 0x0C)
                 uint32_t num_indices = *reinterpret_cast<const uint32_t*>(&data[test_offset]);
                 uint32_t num_vertices = *reinterpret_cast<const uint32_t*>(&data[test_offset + 4]);
 
@@ -649,8 +823,9 @@ private:
                 if (num_vertices < 3 || num_vertices > 50000) continue;
                 if (num_indices < num_vertices) continue; // Usually more indices than vertices
 
-                // Calculate buffer positions
-                uint32_t idx_start = test_offset + SUBMESH_HEADER_SIZE;
+                // Calculate buffer positions (header starts at scan_offset)
+                uint32_t header_start = scan_offset;
+                uint32_t idx_start = header_start + SUBMESH_HEADER_SIZE;
                 uint32_t idx_size = num_indices * 2;
                 uint32_t pos_start = idx_start + idx_size;
                 uint32_t pos_size = num_vertices * 12;
@@ -704,14 +879,22 @@ private:
                 if (!valid_positions) continue;
                 if (non_zero_positions < 2) continue; // Most positions shouldn't be all zeros
 
-                // Found valid structure - parse it
+                // Found valid structure - parse it using 32-byte header offsets
+                uint32_t submesh_flags = *reinterpret_cast<const uint32_t*>(&data[header_start + 0x00]);
+                uint32_t material_index = *reinterpret_cast<const uint32_t*>(&data[header_start + 0x04]);
+                uint32_t num_uv_sets = *reinterpret_cast<const uint32_t*>(&data[header_start + 0x10]);
+                uint32_t boneGroupCount = *reinterpret_cast<const uint32_t*>(&data[header_start + 0x14]);
+                uint32_t totalBoneRefs = *reinterpret_cast<const uint32_t*>(&data[header_start + 0x18]);
+                uint32_t num_triangle_groups = *reinterpret_cast<const uint32_t*>(&data[header_start + 0x1C]);
+
                 char debug_msg[256];
                 sprintf_s(debug_msg, "ScanForSubmeshHeader: FOUND submesh[%u] at offset 0x%X, indices=%u, vertices=%u\n",
-                          submesh_count, test_offset, num_indices, num_vertices);
+                          submesh_count, header_start, num_indices, num_vertices);
                 LogBB8Debug(debug_msg);
 
                 uint32_t submesh_end = 0;
-                if (ParseSubmeshAtOffset(data, data_size, test_offset, num_indices, num_vertices,
+                if (ParseSubmeshAtOffset(data, data_size, header_start, material_index,
+                                         num_indices, num_vertices, num_uv_sets, boneGroupCount, totalBoneRefs, num_triangle_groups,
                                          idx_start, pos_start, parsed_correctly, submesh_end))
                 {
                     found_any = true;
@@ -741,37 +924,22 @@ private:
         return found_any;
     }
 
-    // Parse submesh once we've found the header location
-    // Returns the end offset of this submesh via submesh_end_out for continued scanning
+    // Parse submesh with all header values provided directly
+    // Returns the end offset of this submesh via submesh_end_out for continued parsing
     bool ParseSubmeshAtOffset(const unsigned char* data, uint32_t data_size,
-                              uint32_t header_offset, uint32_t num_indices, uint32_t num_vertices,
+                              uint32_t header_offset, uint32_t material_index,
+                              uint32_t num_indices, uint32_t num_vertices,
+                              uint32_t num_uv_sets, uint32_t boneGroupCount, uint32_t totalBoneRefs, uint32_t num_triangle_groups,
                               uint32_t idx_start, uint32_t pos_start, bool& parsed_correctly,
                               uint32_t& submesh_end_out)
     {
-        // Read additional header fields
-        uint32_t num_uv_sets = *reinterpret_cast<const uint32_t*>(&data[header_offset + 8]);
-        uint32_t num_vertex_groups = *reinterpret_cast<const uint32_t*>(&data[header_offset + 12]);
-        uint32_t num_colors = *reinterpret_cast<const uint32_t*>(&data[header_offset + 16]);
-        uint32_t num_normals = *reinterpret_cast<const uint32_t*>(&data[header_offset + 20]);
-
         char debug_msg[256];
-        sprintf_s(debug_msg, "ParseSubmeshAtOffset: num_uv_sets=%u, num_vertex_groups=%u, num_colors=%u, num_normals=%u\n",
-                  num_uv_sets, num_vertex_groups, num_colors, num_normals);
+        sprintf_s(debug_msg, "ParseSubmeshAtOffset: uv=%u, boneGroups=%u, boneRefs=%u, triGroups=%u, material=%u\n",
+                  num_uv_sets, boneGroupCount, totalBoneRefs, num_triangle_groups, material_index);
         LogBB8Debug(debug_msg);
 
         // Clamp UV sets to reasonable range
         if (num_uv_sets > 8) num_uv_sets = 1;
-
-        // Read material/texture group index from 4 bytes before header
-        // This tells us which texture indices to use for this submesh
-        uint32_t material_index = 0;
-        if (header_offset >= 4)
-        {
-            material_index = *reinterpret_cast<const uint32_t*>(&data[header_offset - 4]);
-        }
-        sprintf_s(debug_msg, "ParseSubmeshAtOffset: material_index=%u (from offset 0x%X)\n",
-                  material_index, header_offset - 4);
-        LogBB8Debug(debug_msg);
 
         GeometryModel model;
         model.unknown = material_index;  // Store material index for texture lookup
@@ -812,6 +980,38 @@ private:
 
             sprintf_s(debug_msg, "ParseSubmeshAtOffset: Populated bone mapping from BB8 palette: u0=%u, u1=%u\n",
                       model.u0, model.u1);
+            LogBB8Debug(debug_msg);
+        }
+        else
+        {
+            // When HAS_BONE_GROUPS=0, there's no bone palette - set flag to indicate
+            // that perVertexBoneData contains DIRECT skeleton bone indices, not group indices.
+            // The renderer should use vertex.group directly as the skeleton bone index.
+            // For now, create a simple 1:1 mapping for expected bone indices (0-255)
+            // This allows the ExtractBoneData() function to work
+            constexpr uint32_t MAX_DIRECT_BONES = 256;  // Full 8-bit range for bone indices
+            model.u0 = MAX_DIRECT_BONES;  // Number of "groups" (each maps to one bone)
+            model.u1 = MAX_DIRECT_BONES;  // Total bone refs
+            model.u2 = 0;
+
+            // Build identity mapping: group i -> bone i
+            model.extra_data.resize((model.u0 + model.u1) * 4);
+            uint8_t* extra_ptr = model.extra_data.data();
+
+            // All group sizes = 1
+            for (uint32_t i = 0; i < MAX_DIRECT_BONES; i++)
+            {
+                uint32_t one = 1;
+                std::memcpy(extra_ptr + i * 4, &one, sizeof(uint32_t));
+            }
+
+            // Identity mapping: group i -> bone i
+            for (uint32_t i = 0; i < MAX_DIRECT_BONES; i++)
+            {
+                std::memcpy(extra_ptr + (MAX_DIRECT_BONES + i) * 4, &i, sizeof(uint32_t));
+            }
+
+            sprintf_s(debug_msg, "ParseSubmeshAtOffset: No bone palette - using direct bone mapping (identity)\n");
             LogBB8Debug(debug_msg);
         }
 
@@ -1041,11 +1241,13 @@ private:
             model.avgZ = model.sumZ / num_vertices;
         }
 
-        // Calculate submesh end offset for multi-submesh scanning
+        // Calculate submesh end offset and parse bone mapping data
         // Layout: header(24) + indices(num_indices*2) + positions(num_vertices*12) + other_data(num_vertices*4) + UV section
+        // After UV: vertexCountsPerGroup (boneGroupCount * 2) + boneGroupSizes (boneGroupCount) + skeletonBoneIndices (totalBoneRefs) + triangleGroups (num_triangle_groups * 12)
         uint32_t pos_end_calc = pos_start + num_vertices * 12;
         uint32_t other_data_calc = num_vertices * 4;
         uint32_t uv_start_calc = pos_end_calc + other_data_calc;
+        uint32_t bone_data_start = 0;
 
         // Check if we have the UV section
         if (uv_start_calc + 4 <= data_size)
@@ -1059,22 +1261,133 @@ private:
                 uint32_t offset_arr_sz = (cnt0 + cnt1) * 4;
                 uint32_t delta_start_calc = uv_start_calc + 4 + offset_arr_sz;
                 uint32_t uv_data_size = num_uv_sets * num_vertices * 4;
-                submesh_end_out = delta_start_calc + uv_data_size;
+                bone_data_start = delta_start_calc + uv_data_size;
+                uint32_t trailing_size = boneGroupCount * 3 + totalBoneRefs + num_triangle_groups * 12;
+                submesh_end_out = bone_data_start + trailing_size;
             }
             else
             {
-                // Direct UV format: just num_uv_sets * num_vertices * 4 bytes of UV data
-                submesh_end_out = uv_start_calc + num_uv_sets * num_vertices * 4;
+                // Direct UV format
+                uint32_t uv_data_size = num_uv_sets * num_vertices * 4;
+                bone_data_start = uv_start_calc + uv_data_size;
+                uint32_t trailing_size = boneGroupCount * 3 + totalBoneRefs + num_triangle_groups * 12;
+                submesh_end_out = bone_data_start + trailing_size;
             }
         }
         else
         {
-            // No UV section, end after positions + other data
-            submesh_end_out = uv_start_calc;
+            bone_data_start = uv_start_calc;
+            // BB8 bone data layout: u16 vertexCounts[n] + u8 groupSizes[n] + u8 skeletonBoneIndices[m]
+            uint32_t trailing_size = boneGroupCount * 2 + boneGroupCount + totalBoneRefs + num_triangle_groups * 12;
+            submesh_end_out = bone_data_start + trailing_size;
         }
 
-        sprintf_s(debug_msg, "ParseSubmeshAtOffset: parsed %u vertices with %u UV sets, submesh_end=0x%X\n",
-                  num_vertices, num_uv_sets, submesh_end_out);
+        // Parse BB8 bone mapping data
+        // Layout: u16 vertexCountsPerGroup[boneGroupCount] + u8 boneGroupSizes[boneGroupCount] + u8 skeletonBoneIndices[totalBoneRefs]
+        // - vertexCountsPerGroup: how many vertices belong to each bone group (assigned sequentially)
+        // - boneGroupSizes: how many skeleton bones per group (same as FA0's extraData1)
+        // - skeletonBoneIndices: the actual skeleton bone IDs
+        uint32_t bone_data_total_size = boneGroupCount * 2 + boneGroupCount + totalBoneRefs;
+        if (boneGroupCount > 0 && totalBoneRefs > 0 && bone_data_start + bone_data_total_size <= data_size)
+        {
+            uint32_t vertex_counts_offset = bone_data_start;
+            uint32_t group_sizes_offset = bone_data_start + boneGroupCount * 2;
+            uint32_t skel_indices_offset = group_sizes_offset + boneGroupCount;
+
+            // Read vertex counts per bone group (u16 each)
+            std::vector<uint16_t> vertex_counts;
+            vertex_counts.reserve(boneGroupCount);
+            for (uint32_t i = 0; i < boneGroupCount; i++)
+            {
+                uint16_t count = *reinterpret_cast<const uint16_t*>(&data[vertex_counts_offset + i * 2]);
+                vertex_counts.push_back(count);
+            }
+
+            // Read bone group sizes (u8 each, same as FA0's extraData1)
+            std::vector<uint32_t> group_sizes;
+            group_sizes.reserve(boneGroupCount);
+            for (uint32_t i = 0; i < boneGroupCount; i++)
+            {
+                uint8_t group_size = data[group_sizes_offset + i];
+                group_sizes.push_back(group_size > 0 ? group_size : 1);
+            }
+
+            // Read skeleton bone indices (u8 each)
+            std::vector<uint32_t> skel_bone_indices;
+            skel_bone_indices.reserve(totalBoneRefs);
+            for (uint32_t i = 0; i < totalBoneRefs; i++)
+            {
+                uint8_t bone_idx = data[skel_indices_offset + i];
+                skel_bone_indices.push_back(bone_idx);
+            }
+
+            // Assign vertex.group based on sequential vertex counts
+            // Vertices are assigned to bone groups in order: first N vertices to group 0, next M to group 1, etc.
+            uint32_t vertex_idx = 0;
+            for (uint32_t group = 0; group < boneGroupCount && vertex_idx < num_vertices; group++)
+            {
+                uint32_t count = vertex_counts[group];
+                for (uint32_t v = 0; v < count && vertex_idx < num_vertices; v++, vertex_idx++)
+                {
+                    model.vertices[vertex_idx].group = group;
+                }
+            }
+
+            sprintf_s(debug_msg, "ParseSubmeshAtOffset: Assigned %u vertices to %u bone groups sequentially\n",
+                      vertex_idx, boneGroupCount);
+            LogBB8Debug(debug_msg);
+
+            // Update model's bone mapping to use parsed data
+            model.u0 = boneGroupCount;      // boneGroupCount
+            model.u1 = totalBoneRefs;     // totalBoneRefs
+            model.u2 = 0;
+
+            // Build extra_data in FA0 format: [groupSizes...][skeletonBoneIndices...]
+            model.extra_data.resize((model.u0 + model.u1) * 4);
+            uint8_t* extra_ptr = model.extra_data.data();
+
+            // Write group sizes
+            for (uint32_t i = 0; i < boneGroupCount; i++)
+            {
+                std::memcpy(extra_ptr + i * 4, &group_sizes[i], sizeof(uint32_t));
+            }
+
+            // Write skeleton bone indices
+            for (uint32_t i = 0; i < totalBoneRefs; i++)
+            {
+                std::memcpy(extra_ptr + (boneGroupCount + i) * 4, &skel_bone_indices[i], sizeof(uint32_t));
+            }
+
+            sprintf_s(debug_msg, "ParseSubmeshAtOffset: Parsed BB8 bone data: %u groups, %u bone refs\n",
+                      boneGroupCount, totalBoneRefs);
+            LogBB8Debug(debug_msg);
+
+            // Log first few vertex counts and group sizes
+            std::string vcounts_str = "  VertexCounts: ";
+            for (uint32_t i = 0; i < boneGroupCount && i < 10; i++)
+            {
+                char buf[16];
+                sprintf_s(buf, "%u ", vertex_counts[i]);
+                vcounts_str += buf;
+            }
+            if (boneGroupCount > 10) vcounts_str += "...";
+            vcounts_str += "\n";
+            LogBB8Debug(vcounts_str.c_str());
+
+            std::string gsizes_str = "  GroupSizes: ";
+            for (uint32_t i = 0; i < boneGroupCount && i < 10; i++)
+            {
+                char buf[16];
+                sprintf_s(buf, "%u ", group_sizes[i]);
+                gsizes_str += buf;
+            }
+            if (boneGroupCount > 10) gsizes_str += "...";
+            gsizes_str += "\n";
+            LogBB8Debug(gsizes_str.c_str());
+        }
+
+        sprintf_s(debug_msg, "ParseSubmeshAtOffset: parsed %u vertices with %u UV sets, boneGroups=%u, boneRefs=%u, submesh_end=0x%X\n",
+                  num_vertices, num_uv_sets, boneGroupCount, totalBoneRefs, submesh_end_out);
         LogBB8Debug(debug_msg);
 
         models.push_back(model);
@@ -1263,6 +1576,70 @@ struct FFNA_ModelFile_Other
                   model_index, sub_model.vertices.size(), sub_model.indices.size());
         LogBB8Debug(debug_msg);
 
+        // Comprehensive BB8 data dump for debugging
+        sprintf_s(debug_msg, "=== BB8 DATA DUMP for submesh %d ===\n", model_index);
+        LogBB8Debug(debug_msg);
+        sprintf_s(debug_msg, "Header: shaderCount=%u, textureGroupCount=%u, textureCount=%u, materialBaseCount=%u, materialCount=%u\n",
+                  geometry_chunk.header.shader_count, geometry_chunk.header.num_texture_groups,
+                  geometry_chunk.header.num_textures, geometry_chunk.header.material_base_count,
+                  geometry_chunk.header.num_materials);
+        LogBB8Debug(debug_msg);
+
+        // Log shader texture counts
+        sprintf_s(debug_msg, "shader_texture_counts[%zu]: ", geometry_chunk.shader_texture_counts.size());
+        LogBB8Debug(debug_msg);
+        for (size_t i = 0; i < geometry_chunk.shader_texture_counts.size(); i++)
+        {
+            sprintf_s(debug_msg, "%u ", geometry_chunk.shader_texture_counts[i]);
+            LogBB8Debug(debug_msg);
+        }
+        LogBB8Debug("\n");
+
+        // Log texture groups (if any)
+        sprintf_s(debug_msg, "texture_groups[%zu]: ", geometry_chunk.texture_groups.size());
+        LogBB8Debug(debug_msg);
+        for (size_t i = 0; i < geometry_chunk.texture_groups.size(); i++)
+        {
+            sprintf_s(debug_msg, "[flags0=%u,flags1=%u,f0x4=%u,f0x5=%u,num_tex=%u,f0x7=%u,f0x8=%u] ",
+                      geometry_chunk.texture_groups[i].some_flags0,
+                      geometry_chunk.texture_groups[i].some_flags1,
+                      geometry_chunk.texture_groups[i].f0x4,
+                      geometry_chunk.texture_groups[i].f0x5,
+                      geometry_chunk.texture_groups[i].num_textures_to_use,
+                      geometry_chunk.texture_groups[i].f0x7,
+                      geometry_chunk.texture_groups[i].f0x8);
+            LogBB8Debug(debug_msg);
+        }
+        LogBB8Debug("\n");
+
+        // Log submesh texture indices
+        sprintf_s(debug_msg, "submesh_texture_indices[%zu]:\n", geometry_chunk.submesh_texture_indices.size());
+        LogBB8Debug(debug_msg);
+        for (size_t i = 0; i < geometry_chunk.submesh_texture_indices.size(); i++)
+        {
+            sprintf_s(debug_msg, "  [%zu]: ", i);
+            LogBB8Debug(debug_msg);
+            for (size_t j = 0; j < geometry_chunk.submesh_texture_indices[i].size(); j++)
+            {
+                sprintf_s(debug_msg, "%u ", geometry_chunk.submesh_texture_indices[i][j]);
+                LogBB8Debug(debug_msg);
+            }
+            LogBB8Debug("\n");
+        }
+
+        // Log sub_model info
+        sprintf_s(debug_msg, "sub_model.unknown (materialIndex)=%u, num_texcoords=%u\n",
+                  sub_model.unknown,
+                  sub_model.vertices.empty() ? 0 : sub_model.vertices[0].num_texcoords);
+        LogBB8Debug(debug_msg);
+
+        // Log texture filenames count
+        sprintf_s(debug_msg, "texture_filenames_chunk.texture_filenames.size()=%zu\n",
+                  texture_filenames_chunk.texture_filenames.size());
+        LogBB8Debug(debug_msg);
+        sprintf_s(debug_msg, "=== END BB8 DATA DUMP ===\n");
+        LogBB8Debug(debug_msg);
+
         std::vector<GWVertex> vertices;
         std::vector<uint32_t> indices;
 
@@ -1347,6 +1724,69 @@ struct FFNA_ModelFile_Other
             indices.push_back(index2);
         }
 
+        // Compute normals from geometry if not already set
+        // BB8 format doesn't store per-vertex normals, so compute from faces
+        {
+            // Initialize normal accumulators
+            std::vector<XMFLOAT3> normal_accum(vertices.size(), XMFLOAT3(0.0f, 0.0f, 0.0f));
+
+            // Accumulate face normals for each vertex
+            for (size_t i = 0; i + 2 < indices.size(); i += 3)
+            {
+                uint32_t i0 = indices[i];
+                uint32_t i1 = indices[i + 1];
+                uint32_t i2 = indices[i + 2];
+
+                if (i0 >= vertices.size() || i1 >= vertices.size() || i2 >= vertices.size())
+                    continue;
+
+                XMFLOAT3& p0 = vertices[i0].position;
+                XMFLOAT3& p1 = vertices[i1].position;
+                XMFLOAT3& p2 = vertices[i2].position;
+
+                // Compute edge vectors
+                XMFLOAT3 e1(p1.x - p0.x, p1.y - p0.y, p1.z - p0.z);
+                XMFLOAT3 e2(p2.x - p0.x, p2.y - p0.y, p2.z - p0.z);
+
+                // Cross product for face normal
+                XMFLOAT3 face_normal(
+                    e1.y * e2.z - e1.z * e2.y,
+                    e1.z * e2.x - e1.x * e2.z,
+                    e1.x * e2.y - e1.y * e2.x
+                );
+
+                // Accumulate to each vertex of this face
+                normal_accum[i0].x += face_normal.x;
+                normal_accum[i0].y += face_normal.y;
+                normal_accum[i0].z += face_normal.z;
+                normal_accum[i1].x += face_normal.x;
+                normal_accum[i1].y += face_normal.y;
+                normal_accum[i1].z += face_normal.z;
+                normal_accum[i2].x += face_normal.x;
+                normal_accum[i2].y += face_normal.y;
+                normal_accum[i2].z += face_normal.z;
+            }
+
+            // Normalize and assign to vertices
+            for (size_t i = 0; i < vertices.size(); i++)
+            {
+                XMFLOAT3& n = normal_accum[i];
+                float len = std::sqrt(n.x * n.x + n.y * n.y + n.z * n.z);
+                if (len > 0.0001f)
+                {
+                    vertices[i].normal = XMFLOAT3(n.x / len, n.y / len, n.z / len);
+                }
+                else
+                {
+                    vertices[i].normal = XMFLOAT3(0.0f, 1.0f, 0.0f);  // Default up normal
+                }
+            }
+
+            sprintf_s(debug_msg, "GetMesh: Computed normals for %zu vertices from %zu triangles\n",
+                      vertices.size(), indices.size() / 3);
+            LogBB8Debug(debug_msg);
+        }
+
         // Use same indices for all LOD levels since we don't have LOD info
         std::vector<uint32_t> indices1 = indices;
         std::vector<uint32_t> indices2 = indices;
@@ -1378,10 +1818,10 @@ struct FFNA_ModelFile_Other
 
         if (geometry_chunk.texture_groups.empty())
         {
-            // OLD format: default to alpha blend (8)
-            blend_flag = 8;
-            blend_state = BlendState::AlphaBlend;
-            sprintf_s(debug_msg, "GetMesh: OLD format, using default blend_flag=8 (alpha blend)\n");
+            // OLD format: default to opaque (0) - FA0 materialBlendStates shows mostly 0s
+            blend_flag = 0;
+            blend_state = BlendState::Opaque;
+            sprintf_s(debug_msg, "GetMesh: OLD format, using default blend_flag=0 (opaque)\n");
             LogBB8Debug(debug_msg);
         }
         else
@@ -1430,21 +1870,62 @@ struct FFNA_ModelFile_Other
         }
         else
         {
-            // Fallback: no parsed texture indices for this material_index
-            size_t num_textures_to_use = std::min(static_cast<size_t>(num_vertex_uvs), total_textures);
+            // Fallback for OLD format BB8 (textureGroupCount=0): no parsed texture indices
+            // Texture layout assumption:
+            //   Texture 0: highlight/specular map (typically small, e.g., 128x128)
+            //   Texture 1+: main diffuse textures for each submesh
+            // Each submesh uses texture (material_index + 1) as its main diffuse
 
-            sprintf_s(debug_msg, "GetMesh: submesh[%d] material_index=%u has no parsed texture indices, using %zu textures (num_vertex_uvs=%u, total=%zu)\n",
-                      model_index, material_index, num_textures_to_use, num_vertex_uvs, total_textures);
+            // Get shader textureCount for this material
+            uint8_t shader_tex_count = 1;  // Default to 1 if not found
+            if (material_index < geometry_chunk.shader_texture_counts.size())
+            {
+                shader_tex_count = geometry_chunk.shader_texture_counts[material_index];
+            }
+
+            sprintf_s(debug_msg, "GetMesh: submesh[%d] material_index=%u shader_texture_count=%u (OLD format fallback, total=%zu)\n",
+                      model_index, material_index, shader_tex_count, total_textures);
             LogBB8Debug(debug_msg);
 
-            for (size_t i = 0; i < num_textures_to_use; i++)
+            // Texture mapping for OLD format based on shader textureCount:
+            // - Shaders with textureCount >= 2: use armor texture (1) + highlight (0)
+            // - Shaders with textureCount == 1: use face/detail texture (last texture)
+            uint8_t highlight_tex_idx = 0;
+            uint8_t armor_tex_idx = (total_textures > 1) ? 1 : 0;
+            uint8_t face_tex_idx = static_cast<uint8_t>(total_textures > 0 ? total_textures - 1 : 0);
+
+            if (shader_tex_count >= 2 && total_textures >= 2)
             {
-                uint8_t uv_set_index = static_cast<uint8_t>(i);
-                uv_coords_indices.push_back(uv_set_index);
-                tex_indices.push_back(static_cast<uint8_t>(i));
-                uint8_t tex_blend_flag = (i == 0) ? blend_flag : 7;
-                blend_flags.push_back(tex_blend_flag);
+                // Multi-texture shader: use armor texture + highlight
+                // First slot: armor texture with opaque blend
+                uv_coords_indices.push_back(0);
+                tex_indices.push_back(armor_tex_idx);
+                blend_flags.push_back(0);    // Opaque
                 texture_types.push_back(0xFFFF);
+
+                sprintf_s(debug_msg, "GetMesh: submesh[%d] slot 0: tex=%u (armor), blend=0\n", model_index, armor_tex_idx);
+                LogBB8Debug(debug_msg);
+
+                // Second slot: highlight texture with multiplicative blend
+                uint8_t uv_idx = (num_vertex_uvs >= 2) ? 1 : 0;
+                uv_coords_indices.push_back(uv_idx);
+                tex_indices.push_back(highlight_tex_idx);
+                blend_flags.push_back(3);    // Multiplicative for highlight
+                texture_types.push_back(0xFFFF);
+
+                sprintf_s(debug_msg, "GetMesh: submesh[%d] slot 1: tex=%u (highlight), blend=3\n", model_index, highlight_tex_idx);
+                LogBB8Debug(debug_msg);
+            }
+            else
+            {
+                // Single texture shader: use face/detail texture
+                uv_coords_indices.push_back(0);
+                tex_indices.push_back(face_tex_idx);
+                blend_flags.push_back(0);    // Opaque
+                texture_types.push_back(0xFFFF);
+
+                sprintf_s(debug_msg, "GetMesh: submesh[%d] single slot: tex=%u (face), blend=0\n", model_index, face_tex_idx);
+                LogBB8Debug(debug_msg);
             }
         }
 
