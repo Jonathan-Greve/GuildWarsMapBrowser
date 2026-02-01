@@ -256,9 +256,9 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			uint32_t modelHash0, modelHash1;
 			if (using_other_model_format)
 			{
-				// BB8 format: hashes are in header.signature0/signature1
-				modelHash0 = selected_ffna_model_file_other.geometry_chunk.header.signature0;
-				modelHash1 = selected_ffna_model_file_other.geometry_chunk.header.signature1;
+				// BB8 format: hashes are in header.model_hash0/model_hash1
+				modelHash0 = selected_ffna_model_file_other.geometry_chunk.header.model_hash0;
+				modelHash1 = selected_ffna_model_file_other.geometry_chunk.header.model_hash1;
 			}
 			else
 			{

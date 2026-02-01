@@ -626,8 +626,8 @@ struct SubmeshHeader_BB8 {
     u32 indexCount;             // 0x08: Number of vertex indices
     u32 vertexCount;            // 0x0C: Number of vertices
     u32 uvSetCount;             // 0x10: UV coordinate sets per vertex
-    u32 colorCount;             // 0x14: Vertex color count
-    u32 normalCount;            // 0x18: Normal vector count
+    u32 boneGroupCount;         // 0x14: Number of bone groups
+    u32 totalBoneRefs;          // 0x18: Total skeleton bone references
     u32 triangleGroupCount;     // 0x1C: Triangle strip/fan groups
 };
 
@@ -641,9 +641,10 @@ struct VertexExtraData {
     u8 data[4];
 };
 
-// RGB Color (3 bytes) - used in submesh color data
-struct ColorRGB {
-    u8 r, g, b;
+// Vertex count per bone group (2 bytes) - how many vertices are assigned to each bone group
+// Vertices are assigned sequentially: first N vertices to group 0, next M to group 1, etc.
+struct VertexCountPerBoneGroup {
+    u16 vertexCount;
 };
 
 // Triangle Group Entry (12 bytes) - face group with material assignment
@@ -728,6 +729,16 @@ struct SkeletonWeightEntry_BB8 {
 //   0x02 = Has compressed vertex deltas
 //   0x40 = UV animation uses morph_target_count instead of uv_anim_frame_count
 //   0x80000000 = Usually set
+//
+// Variable data size calculation (from GWMB's ComplexStruct):
+//   uVar2 = morphTargetCount
+//   iVar3 = (animFlags & 2) ? 0 : (morphTargetCount - baseVertexCount)
+//   uVar4 = (animFlags & 0x40) ? morphTargetCount : uvAnimFrameCount
+//   res0 = (scaleKeyCount + rotationKeyCount) * 2 + unknown_22 + keyframeData1Count + uVar4 + keyframeData0Count
+//   res1 = (iVar3 + positionDeltaCount * 2) * 9
+//   res2 = res1 + res0 * 2 + extraDataSize + compressedDataSize
+//   res3 = (boneWeightsPerVert * 8 + 12) * morphTargetCount
+//   size = res3 + res2 * 2
 struct EmbeddedAnimationEntry {
     u32 keyframeData0Count;     // 0x00: Count for keyframe data section 0
     u32 keyframeData1Count;     // 0x04: Count for keyframe data section 1
@@ -745,6 +756,36 @@ struct EmbeddedAnimationEntry {
     u16 scaleKeyCount;          // 0x26: Scale keyframe count
     u16 baseVertexCount;        // 0x28: Base pose vertex count
     u32 extraDataSize;          // 0x2A: Extra animation data size
+    // End of 46-byte header (0x2E)
+
+    // Calculate variable data size using GWMB's formula
+    u32 uVar2 = morphTargetCount;
+    u32 iVar3 = ((animFlags & 2) != 0) ? 0 : (uVar2 - baseVertexCount);
+    u32 uVar4 = ((animFlags & 0x40) != 0) ? uVar2 : uvAnimFrameCount;
+
+    u32 res0 = (scaleKeyCount + rotationKeyCount) * 2 + unknown_22 + keyframeData1Count + uVar4 + keyframeData0Count;
+    u32 res1 = (iVar3 + positionDeltaCount * 2) * 9;
+    u32 res2 = res1 + res0 * 2 + extraDataSize + compressedDataSize;
+    u32 res3 = (boneWeightsPerVert * 8 + 12) * uVar2;
+    u32 calculatedSize = res3 + res2 * 2;
+
+    // Use the safer approach: calculate expected size from embeddedAnimTotalSize
+    // Header size is 46 bytes (0x2E)
+    u32 headerSize = 46;
+    u32 sizeFromTotal = (g_embeddedAnimCount == 1 && g_embeddedAnimTotalSize > headerSize)
+                        ? (g_embeddedAnimTotalSize - headerSize) : 0;
+
+    // Prefer sizeFromTotal if available and reasonable - it's more reliable than
+    // the formula which may fail if field sizes differ between formats
+    u32 variableDataSize = (sizeFromTotal > 0 && sizeFromTotal < 0x100000)
+                           ? sizeFromTotal
+                           : ((calculatedSize > 0 && calculatedSize < 0x100000)
+                              ? calculatedSize : 0);
+
+    // Read the variable-length animation data
+    if (variableDataSize > 0 && variableDataSize < 0x100000) {
+        u8 animationData[variableDataSize] [[name("Animation Data")]];
+    }
 };
 
 // Legacy alias for backwards compatibility
@@ -1046,6 +1087,8 @@ u32 g_chunkDataSize;
 u32 g_chunkDataStart;
 bool g_isOldUVFormat;
 u8 g_textureGroupCount;
+u32 g_embeddedAnimTotalSize;  // Total size of embedded animation data (used to validate entry sizes)
+u32 g_embeddedAnimCount;       // Number of embedded animation entries
 
 // =============================================================================
 // BB8 GEOMETRY CHUNK PARSING
@@ -1060,29 +1103,53 @@ struct SubmeshData_BB8 {
     // Position buffer (12 bytes per vertex = float3)
     VertexPosition positions[header.vertexCount] [[name("Vertex Positions")]];
 
-    // Per-vertex extra data (4 bytes per vertex) - ALWAYS present
-    // This is part of the fixed buffer layout: (indexCount + vertexCount * 8) * 2 bytes
-    // Which equals: indexCount * 2 + vertexCount * 16 = indices + positions(12) + extra(4)
-    VertexExtraData extraData[header.vertexCount] [[name("Per-Vertex Extra Data")]];
+    // Per-vertex bone group data (4 bytes per vertex) - ALWAYS present after positions
+    // From C++ ParseSubmeshAtOffset: bone_group_data_start = pos_end;
+    // Each 4-byte entry contains: bone_group_idx (1 byte) + other data (3 bytes)
+    // The game's skinning (GrFvf_SkinXYZNormal) reads only the first byte for bone index
+    u32 perVertexBoneData[header.vertexCount] [[name("Per-Vertex Bone Data")]];
 
-    // UV data section - always uses compression format with header + thresholds + offsets + deltas
+    // UV data section - format detected by checking first two u16 values
+    // C++ logic: if both values < 256, use delta+offset format; otherwise direct format
     if (header.uvSetCount > 0) {
-        UVCompressionHeader uvHeader [[name("UV Compression Header")]];
-        u16 uThresholds[uvHeader.uOffsetCount] [[name("U Thresholds")]];
-        u16 vThresholds[uvHeader.vOffsetCount] [[name("V Thresholds")]];
-        s16 uOffsets[uvHeader.uOffsetCount] [[name("U Offsets")]];
-        s16 vOffsets[uvHeader.vOffsetCount] [[name("V Offsets")]];
-        UV_Delta uvDeltas[header.vertexCount * header.uvSetCount] [[name("UV Delta Data")]];
-    }
+        // Peek at first two u16 values to detect format
+        u16 peekCnt0 = std::mem::read_unsigned($, 2);
+        u16 peekCnt1 = std::mem::read_unsigned($ + 2, 2);
 
-    // Color data (colorCount * 3 bytes each - RGB)
-    if (header.colorCount > 0) {
-        ColorRGB colors[header.colorCount] [[name("Vertex Colors (RGB)")]];
-    }
+        if (peekCnt0 < 256 && peekCnt1 < 256) {
+            // DELTA+OFFSET UV FORMAT (detected by small header values)
+            // Structure: header(4) + offset_arrays((cnt0+cnt1)*4) + deltas(vertexCount*uvSetCount*4)
+            UVCompressionHeader uvHeader [[name("UV Compression Header")]];
+            u16 uThresholds[uvHeader.uOffsetCount] [[name("U Thresholds")]];
+            u16 vThresholds[uvHeader.vOffsetCount] [[name("V Thresholds")]];
+            s16 uOffsets[uvHeader.uOffsetCount] [[name("U Offsets")]];
+            s16 vOffsets[uvHeader.vOffsetCount] [[name("V Offsets")]];
+            UV_Delta uvDeltas[header.vertexCount * header.uvSetCount] [[name("UV Delta Data")]];
 
-    // Normal indices (normalCount * 1 byte each)
-    if (header.normalCount > 0) {
-        u8 normalIndices[header.normalCount] [[name("Normal Indices")]];
+            // Bone data: vertex counts per group (u16[]) + group sizes (u8[]) + skeleton bone indices (u8[])
+            if (header.boneGroupCount > 0) {
+                VertexCountPerBoneGroup vertexCountsPerGroup[header.boneGroupCount] [[name("Vertices Per Bone Group")]];
+                u8 boneGroupSizes[header.boneGroupCount] [[name("Bone Group Sizes (like FA0 extraData1)")]];
+            }
+
+            if (header.totalBoneRefs > 0) {
+                u8 skeletonBoneIndices[header.totalBoneRefs] [[name("Skeleton Bone Indices")]];
+            }
+        } else {
+            // DIRECT UV FORMAT (large first values = actual UV data)
+            // UVs stored directly as u16 pairs, scaled by 1/65536
+            UV_Delta uvData[header.vertexCount * header.uvSetCount] [[name("UV Data (Direct u16 pairs)")]];
+
+            // Bone data: vertex counts per group (u16[]) + group sizes (u8[]) + skeleton bone indices (u8[])
+            if (header.boneGroupCount > 0) {
+                VertexCountPerBoneGroup vertexCountsPerGroup[header.boneGroupCount] [[name("Vertices Per Bone Group")]];
+                u8 boneGroupSizes[header.boneGroupCount] [[name("Bone Group Sizes (like FA0 extraData1)")]];
+            }
+
+            if (header.totalBoneRefs > 0) {
+                u8 skeletonBoneIndices[header.totalBoneRefs] [[name("Skeleton Bone Indices")]];
+            }
+        }
     }
 
     // Triangle group data (triangleGroupCount * 12 bytes each)
@@ -1207,8 +1274,11 @@ struct Chunk_BB8_Geometry {
     if (header.classFlags.HAS_EMBEDDED_ANIMATION) {
         u32 embeddedAnimTotalSize [[name("Embedded Animation Total Size")]];
         u32 embeddedAnimCount [[name("Embedded Animation Count")]];
-        if (embeddedAnimCount > 0 && embeddedAnimCount < 256) {
-            EmbeddedAnimationEntry embeddedAnims[embeddedAnimCount] [[name("Embedded Animation Entries")]];
+        // Read the raw animation data - embeddedAnimTotalSize is the total size
+        // including all entry headers and data
+        // NOTE: The size value includes all entry data, not including the 8-byte header above
+        if (embeddedAnimTotalSize > 0 && embeddedAnimTotalSize < 0x1000000) {
+            u8 embeddedAnimData[embeddedAnimTotalSize] [[name("Embedded Animation Data (raw)")]];
         }
     }
 
@@ -1229,8 +1299,10 @@ struct Chunk_BB8_Geometry {
     // Note: In BB8 format, this flag controls submesh data presence
     if (header.classFlags.HAS_ATTACHMENT_DATA) {
         u32 submeshCount [[name("Submesh Count")]];
-        if (submeshCount > 0 && submeshCount < 255) {
-            SubmeshData_BB8 submeshes[submeshCount] [[name("Submeshes")]];
+        // Parse all submeshes
+        u32 parseCount = (submeshCount > 0 && submeshCount < 255) ? submeshCount : 0;
+        if (parseCount > 0) {
+            SubmeshData_BB8 submeshes[parseCount] [[name("Submeshes")]];
         }
     }
 
