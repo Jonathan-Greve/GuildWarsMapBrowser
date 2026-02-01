@@ -22,8 +22,8 @@ enum DatBrowserItemColumnID
 	DatBrowserItemColumnID_decompressed_size,
 	DatBrowserItemColumnID_map_id,
 	DatBrowserItemColumnID_is_pvp,
-	DatBrowserItemColumnID_murmurhash3
-
+	DatBrowserItemColumnID_murmurhash3,
+	DatBrowserItemColumnID_chunk_ids
 };
 
 struct DatBrowserItem
@@ -41,6 +41,8 @@ struct DatBrowserItem
 	std::vector<int> is_pvp;
 
 	uint32_t murmurhash3;
+
+	std::vector<uint32_t> chunk_ids;  // Chunk IDs found in FFNA files
 
 	static const ImGuiTableSortSpecs* s_current_sort_specs;
 

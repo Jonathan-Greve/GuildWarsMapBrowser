@@ -6,6 +6,7 @@
 #include "Parsers/BB9AnimationParser.h"
 
 #include <codecvt>
+#include <set>
 
 #include "GuiGlobalConstants.h"
 #include "maps_constant_data.h"
@@ -2054,6 +2055,10 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 	static std::unordered_map<std::string, std::vector<int>> name_index;
 	static std::unordered_map<bool, std::vector<int>> pvp_index;
 	static std::unordered_map<int, std::vector<int>> murmurhash3_index;
+	static std::unordered_map<uint32_t, std::vector<int>> chunk_id_index;
+	static std::set<uint32_t> all_unique_chunk_ids;
+	static std::set<uint32_t> selected_chunk_ids;
+	static std::unordered_map<uint32_t, int> chunk_id_counts;
 
 	static std::unordered_map<int, CustomFileInfoEntry> custom_file_info_map;
 
@@ -2099,6 +2104,10 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 		map_id_index.clear();
 		name_index.clear();
 		pvp_index.clear();
+		chunk_id_index.clear();
+		all_unique_chunk_ids.clear();
+		selected_chunk_ids.clear();
+		chunk_id_counts.clear();
 	}
 
 	if (!GuiGlobalConstants::is_dat_browser_resizeable)
@@ -2135,7 +2144,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 					encode_filehash(entry.Hash, filename_id_0, filename_id_1);
 
 					DatBrowserItem new_item{
-						i, entry.Hash, static_cast<FileType>(entry.type), entry.Size, entry.uncompressedSize, filename_id_0, filename_id_1, {}, {}, {}, entry.murmurhash3
+						i, entry.Hash, static_cast<FileType>(entry.type), entry.Size, entry.uncompressedSize, filename_id_0, filename_id_1, {}, {}, {}, entry.murmurhash3, entry.chunk_ids
 					};
 					auto custom_file_info_it = custom_file_info_map.find(entry.Hash);
 					if (custom_file_info_it == custom_file_info_map.end()) {
@@ -2193,6 +2202,12 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 							name_index[name].push_back(i);
 					}
 					for (const auto is_pvp : item.is_pvp) { pvp_index[is_pvp].push_back(i); }
+					for (const auto chunk_id : item.chunk_ids)
+					{
+						chunk_id_index[chunk_id].push_back(i);
+						all_unique_chunk_ids.insert(chunk_id);
+						chunk_id_counts[chunk_id]++;
+					}
 				}
 			}
 
@@ -2205,6 +2220,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 			static int curr_pvp_filter = -1;
 			static std::string curr_filename_filter = "";
 			static std::string curr_murmurhash3_filter = "";
+			static std::set<uint32_t> curr_chunk_filter;
 
 			// The values set by the user in the GUI
 			static std::string id_filter_text;
@@ -2267,6 +2283,12 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 			if (curr_murmurhash3_filter != murmurhash3_filter_text)
 			{
 				curr_murmurhash3_filter = murmurhash3_filter_text;
+				filter_update_required = true;
+			}
+
+			if (curr_chunk_filter != selected_chunk_ids)
+			{
+				curr_chunk_filter = selected_chunk_ids;
 				filter_update_required = true;
 			}
 
@@ -2420,9 +2442,29 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 					}
 				}
 
+				// Chunk ID filter (OR logic - match any selected chunk)
+				if (!selected_chunk_ids.empty())
+				{
+					std::vector<int> matching_indices;
+					for (uint32_t chunk_id : selected_chunk_ids)
+					{
+						if (chunk_id_index.contains(chunk_id))
+						{
+							for (int idx : chunk_id_index[chunk_id])
+							{
+								matching_indices.push_back(idx);
+							}
+						}
+					}
+					// Remove duplicates (file may have multiple selected chunks)
+					std::sort(matching_indices.begin(), matching_indices.end());
+					matching_indices.erase(std::unique(matching_indices.begin(), matching_indices.end()), matching_indices.end());
+					apply_filter(matching_indices, intersection);
+				}
+
 				if (id_filter_text.empty() && hash_filter_text.empty() && type_filter_value == NONE &&
 					map_id_filter_text.empty() && name_filter_text.empty() && pvp_filter_value == -1 && filename_filter_text.empty() &&
-					murmurhash3_filter_text.empty()) {
+					murmurhash3_filter_text.empty() && selected_chunk_ids.empty()) {
 					for (const auto& item : items) {
 						if (dat_compare_filter_result.contains(item.murmurhash3) || dat_compare_filter_result.empty())
 						{
@@ -2450,11 +2492,12 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 				curr_pvp_filter = pvp_filter_value;
 				curr_filename_filter = filename_filter_text;
 				curr_murmurhash3_filter = murmurhash3_filter_text;
+				curr_chunk_filter = selected_chunk_ids;
 			}
 
 			// Filter table
 			// Render the filter inputs and the table
-			ImGui::Columns(7);
+			ImGui::Columns(8);
 			ImGui::Text("Id:");
 			ImGui::SameLine();
 			ImGui::InputText("##IdFilter", &id_filter_text);
@@ -2488,6 +2531,47 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 			ImGui::Text("Murmur3:");
 			ImGui::SameLine();
 			ImGui::InputText("##Murmur3Filter", &murmurhash3_filter_text);
+			ImGui::NextColumn();
+
+			// Chunk filter - multi-select dropdown
+			ImGui::Text("Chunks:");
+			ImGui::SameLine();
+			{
+				// Build preview text
+				std::string chunk_filter_preview;
+				if (selected_chunk_ids.empty()) {
+					chunk_filter_preview = "None";
+				} else if (selected_chunk_ids.size() == 1) {
+					chunk_filter_preview = std::format("0x{:X}", *selected_chunk_ids.begin());
+				} else {
+					chunk_filter_preview = std::format("{} selected", selected_chunk_ids.size());
+				}
+
+				if (ImGui::BeginCombo("##ChunkFilter", chunk_filter_preview.c_str()))
+				{
+					// Clear all button
+					if (ImGui::Button("Clear All"))
+					{
+						selected_chunk_ids.clear();
+					}
+					ImGui::Separator();
+
+					for (uint32_t chunk_id : all_unique_chunk_ids)
+					{
+						bool is_selected = selected_chunk_ids.contains(chunk_id);
+						auto label = std::format("0x{:X} ({} files)", chunk_id, chunk_id_counts[chunk_id]);
+						if (ImGui::Checkbox(label.c_str(), &is_selected))
+						{
+							if (is_selected) {
+								selected_chunk_ids.insert(chunk_id);
+							} else {
+								selected_chunk_ids.erase(chunk_id);
+							}
+						}
+					}
+					ImGui::EndCombo();
+				}
+			}
 			ImGui::Columns(1);
 
 			ImGui::Separator();
@@ -2502,7 +2586,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 				ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
 				ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY;
 
-			if (ImGui::BeginTable("data browser", 10, flags))
+			if (ImGui::BeginTable("data browser", 11, flags))
 			{
 				// Declare columns
 				// We use the "user_id" parameter of TableSetupColumn() to specify a user id that will be stored in the sort specifications.
@@ -2521,6 +2605,7 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 				ImGui::TableSetupColumn("Map id", 0, 0.0f, DatBrowserItemColumnID_map_id);
 				ImGui::TableSetupColumn("PvP", 0, 0.0f, DatBrowserItemColumnID_is_pvp);
 				ImGui::TableSetupColumn("murmur3", 0, 0.0f, DatBrowserItemColumnID_murmurhash3);
+				ImGui::TableSetupColumn("Chunks", 0, 0.0f, DatBrowserItemColumnID_chunk_ids);
 				ImGui::TableSetupScrollFreeze(0, 1); // Make row always visible
 
 				ImGui::TableHeadersRow();
@@ -3119,6 +3204,46 @@ void draw_data_browser(DATManager* dat_manager, MapRenderer* map_renderer, const
 						ImGui::TableNextColumn();
 						ImGui::Text("%u", item.murmurhash3);
 
+						ImGui::TableNextColumn();
+						// Render chunk IDs as comma-separated hex values
+						if (!item.chunk_ids.empty())
+						{
+							std::string chunks_text;
+							for (size_t i = 0; i < item.chunk_ids.size(); i++)
+							{
+								chunks_text += std::format("0x{:X}", item.chunk_ids[i]);
+								if (i < item.chunk_ids.size() - 1) { chunks_text += ", "; }
+							}
+
+							// Check if the text would be clipped
+							ImVec2 textSize = ImGui::CalcTextSize(chunks_text.c_str());
+							float availableWidth = ImGui::GetContentRegionAvail().x;
+
+							if (textSize.x > availableWidth)
+							{
+								// Truncate the text to fit the available width
+								std::string truncatedChunksText = truncate_text_with_ellipsis(chunks_text, availableWidth);
+
+								// Display the truncated text
+								ImGui::TextUnformatted(truncatedChunksText.c_str());
+
+								// Check if the mouse is hovering over the text
+								if (ImGui::IsItemHovered())
+								{
+									// Show a tooltip with the full list of chunk IDs
+									ImGui::BeginTooltip();
+									ImGui::TextUnformatted(chunks_text.c_str());
+									ImGui::EndTooltip();
+								}
+							}
+							else
+							{
+								// Display the full text without truncation
+								ImGui::TextUnformatted(chunks_text.c_str());
+							}
+						}
+						else { ImGui::Text("-"); }
+
 						ImGui::PopID();
 					}
 				ImGui::EndTable();
@@ -3252,6 +3377,17 @@ inline int IMGUI_CDECL DatBrowserItem::CompareWithSortSpecs(const void* lhs, con
 			}
 			if (delta == 0)
 				delta = (a->is_pvp.size() - b->is_pvp.size());
+			break;
+		case DatBrowserItemColumnID_chunk_ids:
+			// Compare by first chunk ID, or by count if first IDs are equal
+			{
+				uint32_t a_first = a->chunk_ids.empty() ? 0 : a->chunk_ids[0];
+				uint32_t b_first = b->chunk_ids.empty() ? 0 : b->chunk_ids[0];
+				if (a_first != b_first)
+					delta = (a_first > b_first) ? 1 : -1;
+				else
+					delta = static_cast<int>(a->chunk_ids.size()) - static_cast<int>(b->chunk_ids.size());
+			}
 			break;
 		default:
 			IM_ASSERT(0);
