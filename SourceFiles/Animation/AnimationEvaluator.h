@@ -144,11 +144,13 @@ public:
      *                            If provided, these are used instead of animation basePosition.
      *                            This is essential for POP_COUNT mode models where animation
      *                            basePosition doesn't match mesh bind positions.
+     * @param lockRootPosition If true, root bones stay at bind pose position (no position animation).
      */
     void EvaluateHierarchical(const AnimationClip& clip, float time,
                               std::vector<XMFLOAT3>& outWorldPositions,
                               std::vector<XMFLOAT4>& outWorldRotations,
-                              const std::vector<XMFLOAT3>* customBindPositions = nullptr)
+                              const std::vector<XMFLOAT3>* customBindPositions = nullptr,
+                              bool lockRootPosition = false)
     {
         size_t boneCount = clip.boneTracks.size();
         outWorldPositions.resize(boneCount);
@@ -196,11 +198,19 @@ public:
             {
                 // ROOT BONE: Absolute position and rotation
                 const XMFLOAT3 bindPos = getBindPosition(i);
-                outWorldPositions[i] = {
-                    bindPos.x + localTransform.position.x,
-                    bindPos.y + localTransform.position.y,
-                    bindPos.z + localTransform.position.z
-                };
+                if (lockRootPosition)
+                {
+                    // Lock root at bind pose position (no position animation)
+                    outWorldPositions[i] = bindPos;
+                }
+                else
+                {
+                    outWorldPositions[i] = {
+                        bindPos.x + localTransform.position.x,
+                        bindPos.y + localTransform.position.y,
+                        bindPos.z + localTransform.position.z
+                    };
+                }
                 outWorldRotations[i] = localTransform.rotation;
             }
             else if (parentIdx < static_cast<int32_t>(i))
@@ -237,11 +247,18 @@ public:
             {
                 // Forward reference (parent not yet processed) - treat as root
                 const XMFLOAT3 bindPos = getBindPosition(i);
-                outWorldPositions[i] = {
-                    bindPos.x + localTransform.position.x,
-                    bindPos.y + localTransform.position.y,
-                    bindPos.z + localTransform.position.z
-                };
+                if (lockRootPosition)
+                {
+                    outWorldPositions[i] = bindPos;
+                }
+                else
+                {
+                    outWorldPositions[i] = {
+                        bindPos.x + localTransform.position.x,
+                        bindPos.y + localTransform.position.y,
+                        bindPos.z + localTransform.position.z
+                    };
+                }
                 outWorldRotations[i] = localTransform.rotation;
             }
         }
@@ -257,9 +274,12 @@ public:
      *
      * Both animation and mesh use the same coordinate transform: (x, -z, y) from GW's coords.
      * GW uses (left/right, front/back, down/up), GWMB uses (left/right, up/down, front/back).
+     *
+     * @param lockRootPosition If true, root bones stay at bind pose position.
      */
     void ComputeSkinningFromHierarchy(const AnimationClip& clip, float time,
-                                      std::vector<XMFLOAT4X4>& outSkinningMatrices)
+                                      std::vector<XMFLOAT4X4>& outSkinningMatrices,
+                                      bool lockRootPosition = false)
     {
         // Use animation bind positions directly
         std::vector<XMFLOAT3> bindPositions;
@@ -268,7 +288,7 @@ public:
         {
             bindPositions.push_back(track.basePosition);
         }
-        ComputeSkinningWithCustomBindPositions(clip, time, bindPositions, outSkinningMatrices);
+        ComputeSkinningWithCustomBindPositions(clip, time, bindPositions, outSkinningMatrices, lockRootPosition);
     }
 
     /**
@@ -290,15 +310,17 @@ public:
      * @param time Animation time.
      * @param customBindPositions Custom bind positions (typically derived from mesh vertex centroids).
      * @param outSkinningMatrices Output array of skinning matrices.
+     * @param lockRootPosition If true, root bones stay at bind pose position.
      */
     void ComputeSkinningWithCustomBindPositions(const AnimationClip& clip, float time,
                                                  const std::vector<XMFLOAT3>& customBindPositions,
-                                                 std::vector<XMFLOAT4X4>& outSkinningMatrices)
+                                                 std::vector<XMFLOAT4X4>& outSkinningMatrices,
+                                                 bool lockRootPosition = false)
     {
         // Evaluate hierarchical transforms
         std::vector<XMFLOAT3> worldPositions;
         std::vector<XMFLOAT4> worldRotations;
-        EvaluateHierarchical(clip, time, worldPositions, worldRotations, nullptr);
+        EvaluateHierarchical(clip, time, worldPositions, worldRotations, nullptr, lockRootPosition);
 
         size_t boneCount = clip.boneTracks.size();
 

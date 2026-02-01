@@ -282,6 +282,16 @@ public:
     bool IsAutoCyclingSequences() const { return m_autoCycleSequences; }
 
     /**
+     * @brief Sets whether to lock root bone positions to bind pose.
+     *
+     * When enabled, root bones (bones with no parent) will not have position
+     * animation applied - they stay at their bind pose position. This is useful
+     * for multi-character scene animations where root motion positions actors.
+     */
+    void SetLockRootPosition(bool lock) { m_lockRootPosition = lock; }
+    bool IsRootPositionLocked() const { return m_lockRootPosition; }
+
+    /**
      * @brief Gets the current sequence index.
      */
     size_t GetCurrentSequenceIndex() const { return m_currentSequenceIndex; }
@@ -370,11 +380,12 @@ private:
 
         // Evaluate hierarchical transforms to get world positions and rotations
         // These are needed for bone visualization and skinning
-        m_evaluator.EvaluateHierarchical(*m_clip, m_currentTime, m_boneWorldPositions, m_boneWorldRotations, nullptr);
+        // Pass lockRootPosition flag to keep roots at bind pose when enabled
+        m_evaluator.EvaluateHierarchical(*m_clip, m_currentTime, m_boneWorldPositions, m_boneWorldRotations, nullptr, m_lockRootPosition);
 
         // Compute skinning matrices using animation bind positions
         // GW's algorithm: T(basePos + delta) * R(localRot) * T(-basePos)
-        m_evaluator.ComputeSkinningFromHierarchy(*m_clip, m_currentTime, m_boneMatrices);
+        m_evaluator.ComputeSkinningFromHierarchy(*m_clip, m_currentTime, m_boneMatrices, m_lockRootPosition);
     }
 
     void NotifyCallback(const std::string& event)
@@ -394,6 +405,7 @@ private:
     float m_playbackSpeed = 100000.0f;  // Time units per second
     bool m_looping = true;
     bool m_autoCycleSequences = true;
+    bool m_lockRootPosition = false;
 
     size_t m_currentSequenceIndex = 0;
     float m_sequenceStartTime = 0.0f;
