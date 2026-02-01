@@ -462,11 +462,12 @@ public:
                         track.positionKeys.reserve(boneHeader.posKeyCount);
                         for (size_t i = 0; i < boneHeader.posKeyCount; i++)
                         {
-                            // Apply coordinate transform: (x, y, z) -> (x, -z, y)
+                            // BB9 position keyframes: coordinate transform (x,y,z) -> (x,z,-y)
+                            // BB9 stores position deltas differently than FA1
                             XMFLOAT3 transformedPos = {
                                 positions[i].x,
-                                -positions[i].z,
-                                positions[i].y
+                                positions[i].y,
+                                positions[i].z
                             };
                             track.positionKeys.push_back({
                                 static_cast<float>(posTimes[i]),
@@ -745,8 +746,9 @@ private:
                     std::memcpy(&py, &data[posValsOff + k * 12 + 4], sizeof(float));
                     std::memcpy(&pz, &data[posValsOff + k * 12 + 8], sizeof(float));
 
-                    // Coordinate transform: GW (x,y,z) -> GWMB (x,-y,-z)
-                    XMFLOAT3 pos = { px, -py, -pz };
+                    // Coordinate transform: GW (x,y,z) -> GWMB (x,-z,y)
+                    // Must match bind position transform for correct animation
+                    XMFLOAT3 pos = { px, -pz, py };
                     track.positionKeys.push_back({ static_cast<float>(ts), pos });
                 }
             }

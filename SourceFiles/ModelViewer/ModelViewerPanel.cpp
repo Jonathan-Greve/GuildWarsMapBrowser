@@ -323,6 +323,23 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
             ImGui::SliderFloat("##MeshAlpha", &vis.meshAlpha, 0.0f, 1.0f, "Mesh Alpha: %.2f");
 
+            // Lock root position option
+            if (g_animationState.hasAnimation && g_animationState.controller)
+            {
+                bool lockRoot = vis.lockRootPosition;
+                if (ImGui::Checkbox("Lock Root Position", &lockRoot))
+                {
+                    vis.lockRootPosition = lockRoot;
+                    g_animationState.controller->SetLockRootPosition(lockRoot);
+                }
+                if (ImGui::IsItemHovered())
+                {
+                    ImGui::SetTooltip("Keep root bones at bind pose position.\n"
+                                      "Useful for scene animations where root\n"
+                                      "motion positions multiple characters.");
+                }
+            }
+
             ImGui::Spacing();
 
             // Debug: color by bone index
@@ -443,6 +460,62 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                 ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Selected: Bone %d", bone.index);
                 ImGui::Text("Parent: %d | Vertices: %d", bone.parentIndex, bone.vertexCount);
             }
+        }
+
+        // ========== SUBMESHES SECTION ==========
+        if (g_animationState.submeshCount > 0 && ImGui::CollapsingHeader("Submeshes"))
+        {
+            // Ensure submesh visibility vector is properly sized
+            if (vis.submeshVisibility.size() != g_animationState.submeshCount)
+            {
+                vis.ResetSubmeshVisibility(g_animationState.submeshCount);
+            }
+
+            // Header row with show/hide all buttons
+            if (ImGui::SmallButton("Show All"))
+            {
+                for (size_t i = 0; i < vis.submeshVisibility.size(); i++)
+                {
+                    vis.submeshVisibility[i] = true;
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Hide All"))
+            {
+                for (size_t i = 0; i < vis.submeshVisibility.size(); i++)
+                {
+                    vis.submeshVisibility[i] = false;
+                }
+            }
+            ImGui::SameLine();
+            ImGui::TextDisabled("%zu submeshes", g_animationState.submeshCount);
+
+            // Submesh list with checkboxes
+            if (ImGui::BeginChild("##SubmeshList", ImVec2(-1, 120), true))
+            {
+                for (size_t i = 0; i < g_animationState.submeshCount; i++)
+                {
+                    bool visible = vis.IsSubmeshVisible(i);
+                    std::string label = std::format("Submesh {}##sub{}", i, i);
+
+                    if (ImGui::Checkbox(label.c_str(), &visible))
+                    {
+                        if (i < vis.submeshVisibility.size())
+                        {
+                            vis.submeshVisibility[i] = visible;
+                        }
+                    }
+
+                    // Show vertex count on hover if mesh data available
+                    if (ImGui::IsItemHovered() && i < g_animationState.originalMeshes.size())
+                    {
+                        const auto& mesh = g_animationState.originalMeshes[i];
+                        ImGui::SetTooltip("Submesh %zu\nVertices: %zu\nIndices: %zu",
+                            i, mesh.vertices.size(), mesh.indices.size());
+                    }
+                }
+            }
+            ImGui::EndChild();
         }
 
         // ========== EXIT BUTTON ==========

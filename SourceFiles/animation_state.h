@@ -55,6 +55,9 @@ struct AnimationVisualizationOptions
     bool showRawBoneIndex = true;  // If true, show raw FA0 palette index; if false, show remapped skeleton bone
     bool useMeshBindPositions = false; // If true, use mesh vertex centroids as bind positions instead of animation
 
+    // Root bone options
+    bool lockRootPosition = false; // If true, root bones stay at bind pose position (no translation animation)
+
     // Submesh visibility (indexed by submesh ID)
     std::vector<bool> submeshVisibility;
 
