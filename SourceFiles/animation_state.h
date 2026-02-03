@@ -2,6 +2,7 @@
 
 #include "Animation/AnimationController.h"
 #include "AnimatedMeshInstance.h"
+#include "Audio/AnimationSoundManager.h"
 #include "Vertex.h"
 #include "Mesh.h"
 #include "FFNA_ModelFile_Other.h"  // For LogBB8Debug
@@ -20,6 +21,31 @@
 class DATManager;
 
 /**
+ * @brief Playback mode for animation controller.
+ */
+enum class AnimationPlaybackMode
+{
+    FullAnimation,  // Play selected animation group (all its phases)
+    SinglePhase,    // Play only one sequence/phase
+    EntireFile,     // Play entire file start to end
+    SmartLoop,      // Play intro once, then loop the loop region (1 → 2 → 3 → 4 → 5 → 2 → ...)
+    SegmentLoop     // Play and loop a single animation segment (sub-animation within phases)
+};
+
+/**
+ * @brief Animation source entry for multi-file support (BBD references).
+ */
+struct AnimationSource
+{
+    uint32_t fileId = 0;
+    int mftIndex = -1;
+    int datAlias = 0;
+    std::string chunkType;
+    std::shared_ptr<GW::Animation::AnimationClip> clip;
+    bool isLoaded = false;
+};
+
+/**
  * @brief Result of an animation search - a file that contains matching animation data.
  */
 struct AnimationSearchResult
@@ -30,6 +56,17 @@ struct AnimationSearchResult
     uint32_t sequenceCount = 0; // Number of animation sequences
     uint32_t boneCount = 0;     // Number of bones
     std::string chunkType;      // "BB9" or "FA1"
+};
+
+/**
+ * @brief Sound event source entry from BBC references (Type 8 files).
+ */
+struct SoundEventSource
+{
+    uint32_t fileId = 0;
+    int mftIndex = -1;
+    int datAlias = 0;
+    bool isLoaded = false;
 };
 
 /**
@@ -123,6 +160,21 @@ struct AnimationPanelState
         bool hasBeenSet = false;  // True once user has changed any setting
     } playbackSettings;
 
+    // Animation group selection (for full animation playback)
+    int currentAnimationGroupIndex = 0;  // Which animation group is selected
+
+    // Playback mode (default: full animation)
+    AnimationPlaybackMode playbackMode = AnimationPlaybackMode::FullAnimation;
+
+    // Animation sources from BBD references (for multi-file support)
+    std::vector<AnimationSource> animationSources;
+    bool hasScannedReferences = false;
+
+    // Sound event manager and sources (from BBC references to Type 8 files)
+    std::shared_ptr<GW::Audio::AnimationSoundManager> soundManager;
+    std::vector<SoundEventSource> soundEventSources;
+    int currentSoundSourceIndex = -1;  // Which sound source is active
+
     // Submesh information (populated when model is loaded)
     std::vector<std::string> submeshNames;
     size_t submeshCount = 0;
@@ -213,6 +265,21 @@ struct AnimationPanelState
         fa1BindPoseParents.clear();
         fa1BindPosePositions.clear();
         hasFA1BindPose = false;
+
+        // Reset animation group and playback mode
+        currentAnimationGroupIndex = 0;
+        playbackMode = AnimationPlaybackMode::FullAnimation;
+        animationSources.clear();
+        hasScannedReferences = false;
+
+        // Clear sound event data
+        if (soundManager)
+        {
+            soundManager->Clear();
+        }
+        soundManager.reset();
+        soundEventSources.clear();
+        currentSoundSourceIndex = -1;
 
         // Restore playback settings
         playbackSettings = savedSettings;
@@ -604,3 +671,35 @@ void StartAnimationSearch(std::map<int, std::unique_ptr<DATManager>>& dat_manage
  * @param dat_managers Map of DAT managers for loading
  */
 void LoadAnimationFromSearchResult(int resultIndex, std::map<int, std::unique_ptr<DATManager>>& dat_managers);
+
+/**
+ * @brief Loads an animation from a referenced file (BBC/BBD chunk).
+ *
+ * @param refIndex Index into g_animationState.animationSources
+ * @param dat_managers Map of DAT managers for loading
+ */
+void LoadAnimationFromReference(int refIndex, std::map<int, std::unique_ptr<DATManager>>& dat_managers);
+
+/**
+ * @brief Loads sound events from a Type 8 file referenced in soundEventSources.
+ *
+ * @param refIndex Index into g_animationState.soundEventSources
+ * @param dat_managers Map of DAT managers for loading
+ */
+void LoadSoundEventsFromReference(int refIndex, std::map<int, std::unique_ptr<DATManager>>& dat_managers);
+
+/**
+ * @brief Loads all sound event sources that haven't been loaded yet.
+ *
+ * Called automatically when an animation is loaded to ensure sounds are available.
+ *
+ * @param dat_managers Map of DAT managers for loading
+ */
+void LoadAllSoundEventSources(std::map<int, std::unique_ptr<DATManager>>& dat_managers);
+
+/**
+ * @brief Updates the sound manager with current animation time.
+ *
+ * Call this each frame after animation controller update.
+ */
+void UpdateAnimationSounds();

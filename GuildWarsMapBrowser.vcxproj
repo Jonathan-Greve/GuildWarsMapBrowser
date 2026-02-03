@@ -257,6 +257,7 @@
     <ClInclude Include="SourceFiles\DirectionalLight.h" />
     <ClInclude Include="SourceFiles\draw_audio_controller_panel.h" />
     <ClInclude Include="SourceFiles\animation_state.h" />
+    <ClInclude Include="SourceFiles\Audio\AnimationSoundManager.h" />
     <ClInclude Include="SourceFiles\draw_chunk_20000000.h" />
     <ClInclude Include="SourceFiles\draw_chunk_20000003.h" />
     <ClInclude Include="SourceFiles\draw_dat_browser.h" />
@@ -427,6 +428,7 @@
     <ClCompile Include="SourceFiles\Dome.cpp" />
     <ClCompile Include="SourceFiles\draw_audio_controller_panel.cpp" />
     <ClCompile Include="SourceFiles\animation_state.cpp" />
+    <ClCompile Include="SourceFiles\Audio\AnimationSoundManager.cpp" />
     <ClCompile Include="SourceFiles\draw_chunk_20000000.cpp" />
     <ClCompile Include="SourceFiles\draw_chunk_20000003.cpp" />
     <ClCompile Include="SourceFiles\draw_dat_browser.cpp" />

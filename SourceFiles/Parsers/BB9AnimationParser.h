@@ -21,11 +21,15 @@ constexpr uint32_t CHUNK_ID_BB9 = 0x00000BB9;  // Animation chunk (44-byte heade
 constexpr uint32_t CHUNK_ID_BB8 = 0x00000BB8;  // Animation chunk variant (44-byte header)
 constexpr uint32_t CHUNK_ID_FA1 = 0x00000FA1;  // Animation chunk (88-byte header)
 constexpr uint32_t CHUNK_ID_FA0 = 0x00000FA0;  // Animation chunk variant (88-byte header)
-constexpr uint32_t CHUNK_ID_FA6 = 0x00000FA6;  // Animation chunk variant (88-byte header)
+// Note: FA6 (0x00000FA6) is a FILE REFERENCE chunk (equivalent of BBC in FA format)
+// It contains additional filename references (including Type 8 sound event files).
+// See FileReferenceParser.h and animation_state.cpp for FA6 file reference handling.
+// DO NOT use FA6 for animation parsing - it's not an animation chunk!
 
 // BB9 Header flags
 constexpr uint32_t BB9_FLAG_HAS_SEQUENCES = 0x0008;         // Animation sequences present
 constexpr uint32_t BB9_FLAG_HAS_BONE_TRANSFORMS = 0x0010;   // Bone transform data present
+constexpr uint32_t BB9_FLAG_HAS_PHASE_TIMING = 0x0100;      // Phase timing data present (between bone transforms and segments)
 
 // FA1 ClassFlags (different from BB9 flags!)
 constexpr uint32_t FA1_FLAG_HAS_SKELETON = 0x0001;          // Has skeleton reference
@@ -49,11 +53,14 @@ struct BB9Header
     uint32_t modelHash0;              // 0x0C: Model signature part 1
     uint32_t modelHash1;              // 0x10: Model signature part 2
     uint32_t boundingCylinderCount;   // 0x14: Number of bounding cylinders
-    uint32_t reserved[5];             // 0x18-0x2B: Reserved/unknown fields (5 x 4 = 20 bytes)
-    // Total: 6 fields (24) + reserved (20) = 44 (0x2C) bytes
+    uint32_t animationSegmentCount;  // 0x18: Number of animation segment entries (22 bytes each)
+    uint32_t reserved[4];             // 0x1C-0x2B: Reserved/unknown fields (4 x 4 = 16 bytes)
+    // Total: 7 fields (28) + reserved (16) = 44 (0x2C) bytes
 
     bool HasSequences() const { return (flags & BB9_FLAG_HAS_SEQUENCES) != 0; }
     bool HasBoneTransforms() const { return (flags & BB9_FLAG_HAS_BONE_TRANSFORMS) != 0; }
+    bool HasPhaseTiming() const { return (flags & BB9_FLAG_HAS_PHASE_TIMING) != 0; }
+    bool HasAnimationSegments() const { return animationSegmentCount > 0 && animationSegmentCount < 500; }
 };
 #pragma pack(pop)
 
@@ -144,6 +151,30 @@ struct BB9BoneAnimHeader
 #pragma pack(pop)
 
 static_assert(sizeof(BB9BoneAnimHeader) == 22, "BB9BoneAnimHeader must be 22 bytes!");
+
+/**
+ * @brief BB9 animation segment entry structure (22 bytes = 0x16).
+ *
+ * Defines animation regions within phases. Used for:
+ * - Loop boundaries (main segment vs intro)
+ * - Sub-animation markers within complex animation files
+ *
+ * For simple animations: the segment with largest duration defines the loop region.
+ * For complex animations: each segment defines a distinct sub-animation.
+ */
+#pragma pack(push, 1)
+struct BB9AnimationSegmentEntry
+{
+    uint32_t hash;              // 0x00: Animation segment identifier
+    uint32_t startTime;         // 0x04: Start time in animation units (100000 = 1 sec)
+    uint32_t endTime;           // 0x08: End time in animation units
+    uint16_t flags;             // 0x0C: Flags (0x1212 common)
+    uint8_t  reserved[8];       // 0x0E: Reserved/padding
+    // Total: 22 bytes (0x16)
+};
+#pragma pack(pop)
+
+static_assert(sizeof(BB9AnimationSegmentEntry) == 22, "BB9AnimationSegmentEntry must be 22 bytes!");
 
 /**
  * @brief FA1 bind pose entry structure (16 bytes per bone).
@@ -346,11 +377,11 @@ public:
 
         // Try to read geometry scale from header offset 0x20
         // For FA1: this is the actual geometry scale factor
-        // For BB9: this is reserved[2], which may contain scale data
+        // For BB9: this is reserved[1] (at offset 0x20), which may contain scale data
         // GW stores this at model+0x100 and uses it to scale bone positions
         // If the value is 0 or negative, GW computes scale from bounding data
         float headerScale;
-        std::memcpy(&headerScale, &header.reserved[2], sizeof(float));
+        std::memcpy(&headerScale, &header.reserved[1], sizeof(float));
         bool needsAutoScale = !(headerScale > 0.001f && headerScale < 100.0f);
         clip.geometryScale = needsAutoScale ? 1.0f : headerScale;
 
@@ -537,6 +568,81 @@ public:
             // Build output-to-animation bone mapping (for intermediate bone handling)
             // Based on Ghidra RE: bones with flag 0x10000000 don't produce output matrices
             clip.BuildOutputMapping();
+
+            // Parse phase timing data if present (flag 0x0100)
+            // Structure: count (u32) + timeValues (u32[count]) + phaseFlags (u8[count])
+            // This section appears between bone transforms and animation segments.
+            // Time values are phase boundaries in animation units (100000 = 1 second).
+            // Phase flags indicate phase types or transition modes.
+            size_t segmentOffset = decoder.GetOffset();
+
+            if (header.HasPhaseTiming())
+            {
+                if (segmentOffset + 4 <= dataSize)
+                {
+                    uint32_t phaseTimingCount;
+                    std::memcpy(&phaseTimingCount, &data[segmentOffset], sizeof(uint32_t));
+                    segmentOffset += 4;
+
+                    // Validate count (reasonable limit)
+                    if (phaseTimingCount > 0 && phaseTimingCount < 256)
+                    {
+                        // Skip phase time values (u32 each)
+                        size_t timeValuesSize = phaseTimingCount * sizeof(uint32_t);
+                        if (segmentOffset + timeValuesSize <= dataSize)
+                        {
+                            // Could store these values if needed for UI/debugging:
+                            // clip.phaseTimeValues.resize(phaseTimingCount);
+                            // std::memcpy(clip.phaseTimeValues.data(), &data[segmentOffset], timeValuesSize);
+                            segmentOffset += timeValuesSize;
+                        }
+
+                        // Skip phase flags (u8 each)
+                        size_t phaseFlagsSize = phaseTimingCount * sizeof(uint8_t);
+                        if (segmentOffset + phaseFlagsSize <= dataSize)
+                        {
+                            // Could store these values if needed:
+                            // clip.phaseFlags.resize(phaseTimingCount);
+                            // std::memcpy(clip.phaseFlags.data(), &data[segmentOffset], phaseFlagsSize);
+                            segmentOffset += phaseFlagsSize;
+                        }
+                    }
+                }
+            }
+
+            // Parse animation segment entries if present
+            // Format: 22 bytes per entry (hash, startTime, endTime, flags, reserved)
+            // These define loop regions and sub-animations within phases.
+            // With phase timing data properly parsed, segments follow directly.
+            if (header.HasAnimationSegments())
+            {
+                size_t entriesSize = header.animationSegmentCount * sizeof(BB9AnimationSegmentEntry);
+
+                if (segmentOffset + entriesSize <= dataSize)
+                {
+                    clip.animationSegments.reserve(header.animationSegmentCount);
+                    for (uint32_t i = 0; i < header.animationSegmentCount; i++)
+                    {
+                        BB9AnimationSegmentEntry rawEntry;
+                        std::memcpy(&rawEntry, &data[segmentOffset], sizeof(BB9AnimationSegmentEntry));
+                        segmentOffset += sizeof(BB9AnimationSegmentEntry);
+
+                        // Convert to AnimationClip's AnimationSegmentEntry format
+                        Animation::AnimationSegmentEntry entry;
+                        entry.hash = rawEntry.hash;
+                        entry.startTime = rawEntry.startTime;
+                        entry.endTime = rawEntry.endTime;
+                        entry.flags = rawEntry.flags;
+                        // reserved bytes are ignored
+
+                        // Only add entries with valid timing (reasonable time values)
+                        if (entry.startTime < 360000000 && entry.endTime < 360000000)
+                        {
+                            clip.animationSegments.push_back(entry);
+                        }
+                    }
+                }
+            }
 
             // Note: We do NOT apply geometry scale here during parsing.
             // The skeleton scale must match the mesh scale, which is computed
@@ -1304,11 +1410,8 @@ inline std::optional<Animation::AnimationClip> ParseAnimationFromFile(
         return BB9AnimationParser::ParseFA1(&fileData[chunkOffset], chunkSize);
     }
 
-    // Try FA6 (variant) - uses 88-byte header, hierarchy mode from classFlags
-    if (FindChunk(fileData, fileSize, CHUNK_ID_FA6, chunkOffset, chunkSize))
-    {
-        return BB9AnimationParser::ParseFA1(&fileData[chunkOffset], chunkSize);
-    }
+    // Note: FA6 is NOT an animation chunk - it's a file reference chunk (BBC equivalent)
+    // Do not try to parse FA6 as animation data.
 
     // Try FA0 - uses 88-byte header, hierarchy mode from classFlags
     if (FindChunk(fileData, fileSize, CHUNK_ID_FA0, chunkOffset, chunkSize))

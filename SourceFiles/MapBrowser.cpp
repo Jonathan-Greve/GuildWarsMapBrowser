@@ -203,6 +203,9 @@ void MapBrowser::Update(duration<double, std::milli> elapsed)
     {
         g_animationState.controller->Update(deltaSeconds);
 
+        // Update sound manager with animation timing
+        UpdateAnimationSounds();
+
         // Create animated meshes if we have animation and model but no skinned meshes yet
         if (!g_animationState.hasSkinnedMeshes && !g_animationState.originalMeshes.empty())
         {

@@ -7,14 +7,34 @@
 
 namespace GW::Parsers {
 
-// File reference chunk IDs
+// File reference chunk IDs (B-series for "other" format, F-series for "standard" format)
+// Note: Some chunk IDs like FA6 are defined in BB9AnimationParser.h as animation chunks
+#ifndef CHUNK_ID_BBB
 constexpr uint32_t CHUNK_ID_BBB = 0x00000BBB;  // Texture filenames (other format)
-constexpr uint32_t CHUNK_ID_BBC = 0x00000BBC;  // Additional filenames (other format)
-constexpr uint32_t CHUNK_ID_BBD = 0x00000BBD;  // Animation file references
+#endif
+#ifndef CHUNK_ID_BBC
+constexpr uint32_t CHUNK_ID_BBC = 0x00000BBC;  // Additional filenames / file references (other format)
+#endif
+#ifndef CHUNK_ID_BBD
+constexpr uint32_t CHUNK_ID_BBD = 0x00000BBD;  // Animation file references (other format)
+#endif
+#ifndef CHUNK_ID_BBA
 constexpr uint32_t CHUNK_ID_BBA = 0x00000BBA;  // Texture references (other format)
+#endif
+#ifndef CHUNK_ID_FA4
 constexpr uint32_t CHUNK_ID_FA4 = 0x00000FA4;  // Texture references (standard format)
+#endif
+#ifndef CHUNK_ID_FA5
 constexpr uint32_t CHUNK_ID_FA5 = 0x00000FA5;  // Texture filenames (standard format)
-constexpr uint32_t CHUNK_ID_FA6 = 0x00000FA6;  // Additional filenames (standard format)
+#endif
+// FA6 is a file reference chunk (equivalent to BBC in "other" format)
+// Contains additional filename references including Type 8 sound event files
+#ifndef CHUNK_ID_FA6
+constexpr uint32_t CHUNK_ID_FA6 = 0x00000FA6;  // Additional file references / sound events (standard format)
+#endif
+#ifndef CHUNK_ID_FA8
+constexpr uint32_t CHUNK_ID_FA8 = 0x00000FA8;  // Animation file references (standard format)
+#endif
 
 /**
  * @brief Encoded file reference structure (6 bytes).
@@ -40,10 +60,8 @@ struct FileRef
      */
     uint32_t DecodeFileId() const
     {
-        // Note: This formula assumes unsigned arithmetic
-        // The Python reference uses: (id0 - 0xff00ff) + (id1 * 0xff00)
-        // But since id0 is uint16, we need to handle the subtraction carefully
-        int32_t result = static_cast<int32_t>(id0) - 0x00FF;  // Simplified: 0xFF00FF wraps
+        // Formula: (id0 - 0xff00ff) + (id1 * 0xff00)
+        int32_t result = static_cast<int32_t>(id0) - 0xFF00FF;
         result += static_cast<int32_t>(id1) * 0xFF00;
         return static_cast<uint32_t>(result);
     }
@@ -75,7 +93,8 @@ struct TextureRef
 
     uint32_t DecodeFileId() const
     {
-        int32_t result = static_cast<int32_t>(id0) - 0x00FF;
+        // Formula: (id0 - 0xff00ff) + (id1 * 0xff00)
+        int32_t result = static_cast<int32_t>(id0) - 0xFF00FF;
         result += static_cast<int32_t>(id1) * 0xFF00;
         return static_cast<uint32_t>(result);
     }
@@ -272,7 +291,6 @@ public:
             case CHUNK_ID_BBB:
             case CHUNK_ID_BBC:
             case CHUNK_ID_FA5:
-            case CHUNK_ID_FA6:
                 parsed = ParseFileNameRefs(chunkData, chunkSize, chunkRefs);
                 break;
 
@@ -282,6 +300,7 @@ public:
                 break;
 
             case CHUNK_ID_BBD:
+            case CHUNK_ID_FA8:
                 parsed = ParseAnimationRefs(chunkData, chunkSize, chunkRefs);
                 for (auto& ref : chunkRefs)
                 {
