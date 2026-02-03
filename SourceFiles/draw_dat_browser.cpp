@@ -280,7 +280,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 			if (!using_other_model_format && !selected_raw_data.empty())
 			{
-				// Scan for FA0/FA1/FA6 chunks (all use 88-byte header with bind pose data)
+				// Scan for FA0/FA1 chunks (animation chunks with 88-byte header and bind pose data)
+				// Note: FA6 is a file reference chunk, NOT an animation chunk
 				const uint8_t* data = selected_raw_data.data();
 				size_t dataSize = selected_raw_data.size();
 
@@ -289,10 +290,9 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 					uint32_t chunkId = *reinterpret_cast<const uint32_t*>(&data[offset]);
 					uint32_t chunkSize = *reinterpret_cast<const uint32_t*>(&data[offset + 4]);
 
-					// Check for any FA-family chunk (FA0, FA1, FA6 all use same 88-byte header format)
+					// Check for FA0/FA1 animation chunks (88-byte header format)
 					if (chunkId == GW::Parsers::CHUNK_ID_FA0 ||
-						chunkId == GW::Parsers::CHUNK_ID_FA1 ||
-						chunkId == GW::Parsers::CHUNK_ID_FA6)
+						chunkId == GW::Parsers::CHUNK_ID_FA1)
 					{
 						// Found FA chunk - extract bind pose data
 						const uint8_t* fa1Data = &data[offset + 8]; // Skip chunk header
