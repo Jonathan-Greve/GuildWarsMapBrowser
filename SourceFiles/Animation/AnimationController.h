@@ -280,7 +280,17 @@ public:
             {
                 if (m_looping)
                 {
-                    m_currentTime = m_sequenceStartTime;
+                    float loopTime = m_sequenceStartTime;
+                    if (m_clip && m_currentSegmentIndex < m_clip->animationSegments.size())
+                    {
+                        const auto& seg = m_clip->animationSegments[m_currentSegmentIndex];
+                        float candidate = m_sequenceStartTime + static_cast<float>(seg.GetLoopStartOffset());
+                        if (candidate >= m_sequenceStartTime && candidate < m_sequenceEndTime)
+                        {
+                            loopTime = candidate;
+                        }
+                    }
+                    m_currentTime = loopTime;
                     NotifyCallback("segment_loop");
                 }
                 else

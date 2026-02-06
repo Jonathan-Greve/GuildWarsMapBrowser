@@ -35,6 +35,7 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
 {
 	// Set DAT managers pointer for animation auto-loading (needs to be available in draw_dat_browser)
 	SetAnimationDATManagers(&dat_managers);
+	PumpAnimationSearchResults(dat_managers);
 
 	int initial_dat_manager_to_show = dat_manager_to_show;
 

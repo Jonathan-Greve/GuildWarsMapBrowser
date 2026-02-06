@@ -5,10 +5,106 @@
 #include "GuiGlobalConstants.h"
 #include "MapRenderer.h"
 #include "DATManager.h"
+#include "Animation/GWAnimationHashes.h"
+#include "Parsers/FileReferenceParser.h"
 #include "imgui.h"
 #include <format>
 #include <algorithm>
 #include <filesystem>
+
+namespace
+{
+int FindFA8AnimationSourceIndex(const std::vector<AnimationSource>& sources, uint8_t sourceType)
+{
+    if (sourceType == 0)
+    {
+        return -1;
+    }
+
+    uint8_t current = 1;
+    for (size_t i = 0; i < sources.size(); i++)
+    {
+        if (sources[i].referenceChunkId == GW::Parsers::CHUNK_ID_FA8)
+        {
+            if (current == sourceType)
+            {
+                return static_cast<int>(i);
+            }
+            current++;
+        }
+    }
+    return -1;
+}
+
+size_t FindBestSegmentByHash(const GW::Animation::AnimationClip& clip, uint32_t hash)
+{
+    const auto& segments = clip.animationSegments;
+    if (segments.empty())
+    {
+        return static_cast<size_t>(-1);
+    }
+
+    const bool hasSourceTypes = (clip.animationSegmentSourceTypes.size() == segments.size());
+    size_t bestLocal = static_cast<size_t>(-1);
+    size_t bestAny = static_cast<size_t>(-1);
+    uint32_t bestLocalDuration = 0;
+    uint32_t bestAnyDuration = 0;
+
+    for (size_t i = 0; i < segments.size(); i++)
+    {
+        const auto& seg = segments[i];
+        if (seg.hash != hash)
+        {
+            continue;
+        }
+
+        const uint32_t duration = seg.GetDuration();
+        const bool isLocal = !hasSourceTypes || clip.GetSegmentSourceType(i) == 0;
+        if (isLocal && (bestLocal == static_cast<size_t>(-1) || duration > bestLocalDuration))
+        {
+            bestLocal = i;
+            bestLocalDuration = duration;
+        }
+        if (bestAny == static_cast<size_t>(-1) || duration > bestAnyDuration)
+        {
+            bestAny = i;
+            bestAnyDuration = duration;
+        }
+    }
+
+    return (bestLocal != static_cast<size_t>(-1)) ? bestLocal : bestAny;
+}
+
+bool ResolveAndPlayExternalFA1Segment(
+    uint8_t sourceType,
+    uint32_t segmentHash,
+    std::map<int, std::unique_ptr<DATManager>>& dat_managers)
+{
+    const int sourceIndex = FindFA8AnimationSourceIndex(g_animationState.animationSources, sourceType);
+    if (sourceIndex < 0)
+    {
+        return false;
+    }
+
+    LoadAnimationFromReference(sourceIndex, dat_managers);
+    if (!g_animationState.clip || !g_animationState.controller)
+    {
+        return false;
+    }
+
+    auto& resolvedClip = *g_animationState.clip;
+    const size_t resolvedSegment = FindBestSegmentByHash(resolvedClip, segmentHash);
+    if (resolvedSegment == static_cast<size_t>(-1))
+    {
+        return false;
+    }
+
+    g_animationState.playbackMode = AnimationPlaybackMode::SegmentLoop;
+    g_animationState.controller->SetPlaybackMode(GW::Animation::PlaybackMode::SegmentLoop);
+    g_animationState.controller->SetSegment(resolvedSegment);
+    return true;
+}
+} // namespace
 
 void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique_ptr<DATManager>>& dat_managers)
 {
@@ -55,6 +151,10 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
 
     if (ImGui::Begin("Model Viewer", &GuiGlobalConstants::is_model_viewer_panel_open))
     {
+        bool deferExternalSegmentResolve = false;
+        uint8_t deferredExternalSourceType = 0;
+        uint32_t deferredExternalSegmentHash = 0;
+
         GuiGlobalConstants::ClampWindowToScreen();
 
         // Model info header
@@ -132,25 +232,11 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                 ImGui::SameLine();
 
                 auto mode = g_animationState.playbackMode;
-                bool modeChanged = false;
 
-                if (ImGui::RadioButton("Full", mode == AnimationPlaybackMode::FullAnimation))
-                {
-                    g_animationState.playbackMode = AnimationPlaybackMode::FullAnimation;
-                    ctrl.SetPlaybackMode(GW::Animation::PlaybackMode::FullAnimation);
-                    modeChanged = true;
-                }
-                if (ImGui::IsItemHovered())
-                {
-                    ImGui::SetTooltip("Play all phases of the selected animation group");
-                }
-
-                ImGui::SameLine();
                 if (ImGui::RadioButton("Phase", mode == AnimationPlaybackMode::SinglePhase))
                 {
                     g_animationState.playbackMode = AnimationPlaybackMode::SinglePhase;
                     ctrl.SetPlaybackMode(GW::Animation::PlaybackMode::SinglePhase);
-                    modeChanged = true;
                 }
                 if (ImGui::IsItemHovered())
                 {
@@ -158,83 +244,26 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                 }
 
                 ImGui::SameLine();
-                if (ImGui::RadioButton("Smart", mode == AnimationPlaybackMode::SmartLoop))
-                {
-                    g_animationState.playbackMode = AnimationPlaybackMode::SmartLoop;
-                    ctrl.SetPlaybackMode(GW::Animation::PlaybackMode::SmartLoop);
-                    modeChanged = true;
-                }
-                if (ImGui::IsItemHovered())
-                {
-                    ImGui::SetTooltip("Smart loop: Play intro once, then loop the main region\n"
-                                      "Example: 1 -> 2 -> 3 -> 4 -> 5 -> 2 -> 3 -> 4 -> 5 -> ...");
-                }
-
-                ImGui::SameLine();
                 if (ImGui::RadioButton("All", mode == AnimationPlaybackMode::EntireFile))
                 {
                     g_animationState.playbackMode = AnimationPlaybackMode::EntireFile;
                     ctrl.SetPlaybackMode(GW::Animation::PlaybackMode::EntireFile);
-                    modeChanged = true;
                 }
                 if (ImGui::IsItemHovered())
                 {
                     ImGui::SetTooltip("Play entire file from start to end");
                 }
 
-                // Only show Segment mode if there are animation segments
-                if (clip && !clip->animationSegments.empty())
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Segment", mode == AnimationPlaybackMode::SegmentLoop))
                 {
-                    ImGui::SameLine();
-                    if (ImGui::RadioButton("Seg", mode == AnimationPlaybackMode::SegmentLoop))
-                    {
-                        g_animationState.playbackMode = AnimationPlaybackMode::SegmentLoop;
-                        ctrl.SetPlaybackMode(GW::Animation::PlaybackMode::SegmentLoop);
-                        modeChanged = true;
-                    }
-                    if (ImGui::IsItemHovered())
-                    {
-                        ImGui::SetTooltip("Play and loop a single animation segment\n"
-                                          "(sub-animation within phases like /laugh, /cheer, etc.)");
-                    }
+                    g_animationState.playbackMode = AnimationPlaybackMode::SegmentLoop;
+                    ctrl.SetPlaybackMode(GW::Animation::PlaybackMode::SegmentLoop);
                 }
-
-                // Show loop configuration info for Smart mode
-                if (mode == AnimationPlaybackMode::SmartLoop && clip)
+                if (ImGui::IsItemHovered())
                 {
-                    const auto& loopCfg = clip->loopConfig;
-                    if (loopCfg.hasIntro)
-                    {
-                        ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f),
-                            "Intro: Phase %zu | Loop: %zu-%zu",
-                            loopCfg.introEndSequence + 1,
-                            loopCfg.loopStartSequence + 1,
-                            loopCfg.GetLoopEndSequence(clip->sequences.size()) + 1);
-
-                        // Show if intro has played
-                        if (ctrl.HasPlayedIntro())
-                        {
-                            ImGui::SameLine();
-                            ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "(looping)");
-                        }
-
-                        // Button to play intro in reverse (exit animation)
-                        if (ctrl.HasPlayedIntro() && loopCfg.canPlayIntroReverse)
-                        {
-                            if (ImGui::SmallButton("Exit (Reverse Intro)"))
-                            {
-                                ctrl.PlayIntroReverse();
-                            }
-                            if (ImGui::IsItemHovered())
-                            {
-                                ImGui::SetTooltip("Play intro in reverse to smoothly exit the animation");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        ImGui::TextDisabled("No intro detected - full loop");
-                    }
+                    ImGui::SetTooltip("Play and loop a single animation segment\n"
+                                      "(sub-animation within phases like /laugh, /cheer, etc.)");
                 }
 
                 // Segment selector (shown only in SegmentLoop mode)
@@ -242,66 +271,216 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                 {
                     int currentSeg = static_cast<int>(ctrl.GetCurrentSegmentIndex());
                     const auto& segments = clip->animationSegments;
+                    const bool isFA1 = (clip->sourceChunkType == "FA1");
+                    const bool hasSourceTypes = (clip->animationSegmentSourceTypes.size() == segments.size());
 
-                    // Find the segment with longest duration for reference
-                    size_t longestSegIdx = 0;
-                    uint32_t longestDuration = 0;
+                    static bool s_showExternalFA1Segments = false;
+
+                    size_t localSegmentCount = 0;
+                    size_t externalSegmentCount = 0;
+                    std::vector<size_t> visibleIndices;
+                    std::vector<size_t> selectableIndices;
+                    visibleIndices.reserve(segments.size());
+                    selectableIndices.reserve(segments.size());
+
                     for (size_t i = 0; i < segments.size(); i++)
                     {
-                        uint32_t dur = segments[i].GetDuration();
-                        if (dur > longestDuration)
+                        uint8_t sourceType = clip->GetSegmentSourceType(i);
+                        bool isExternal = isFA1 && hasSourceTypes && sourceType != 0;
+                        if (isExternal) externalSegmentCount++;
+                        else localSegmentCount++;
+
+                        if (isExternal && !s_showExternalFA1Segments)
                         {
-                            longestDuration = dur;
-                            longestSegIdx = i;
+                            continue;
+                        }
+
+                        visibleIndices.push_back(i);
+                        if (!isExternal)
+                        {
+                            selectableIndices.push_back(i);
                         }
                     }
 
-                    std::string segLabel = std::format("Segment {} / {}", currentSeg + 1, segments.size());
-
-                    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-                    if (ImGui::BeginCombo("##Segment", segLabel.c_str()))
+                    if (isFA1 && hasSourceTypes)
                     {
-                        for (size_t i = 0; i < segments.size(); i++)
+                        ImGui::Checkbox("Show External FA1 Segments", &s_showExternalFA1Segments);
+                        ImGui::SameLine();
+                        ImGui::TextDisabled("%zu local | %zu external", localSegmentCount, externalSegmentCount);
+                    }
+
+                    if (!visibleIndices.empty())
+                    {
+                        auto isVisible = [&](size_t index) -> bool
                         {
-                            bool isSelected = (static_cast<int>(i) == currentSeg);
-                            const auto& seg = segments[i];
+                            return std::find(visibleIndices.begin(), visibleIndices.end(), index) != visibleIndices.end();
+                        };
+
+                        if (currentSeg < 0 || currentSeg >= static_cast<int>(segments.size()) ||
+                            !isVisible(static_cast<size_t>(currentSeg)))
+                        {
+                            if (!selectableIndices.empty())
+                            {
+                                ctrl.SetSegment(selectableIndices[0]);
+                                currentSeg = static_cast<int>(selectableIndices[0]);
+                            }
+                            else
+                            {
+                                currentSeg = static_cast<int>(visibleIndices[0]);
+                            }
+                        }
+
+                        // Find longest visible segment for reference.
+                        size_t longestSegIdx = visibleIndices[0];
+                        uint32_t longestDuration = 0;
+                        for (size_t idx : visibleIndices)
+                        {
+                            uint32_t dur = segments[idx].GetDuration();
+                            if (dur > longestDuration)
+                            {
+                                longestDuration = dur;
+                                longestSegIdx = idx;
+                            }
+                        }
+
+                        size_t displayPos = 0;
+                        for (size_t i = 0; i < visibleIndices.size(); i++)
+                        {
+                            if (static_cast<int>(visibleIndices[i]) == currentSeg)
+                            {
+                                displayPos = i;
+                                break;
+                            }
+                        }
+
+                        std::string segLabel = std::format("Segment {} / {}", displayPos + 1, visibleIndices.size());
+                        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+                        if (ImGui::BeginCombo("##Segment", segLabel.c_str()))
+                        {
+                            bool resolveExternal = false;
+                            uint8_t resolveSourceType = 0;
+                            uint32_t resolveHash = 0;
+
+                            for (size_t displayIndex = 0; displayIndex < visibleIndices.size(); displayIndex++)
+                            {
+                                size_t i = visibleIndices[displayIndex];
+                                bool isSelected = (static_cast<int>(i) == currentSeg);
+                                const auto& seg = segments[i];
+                                uint8_t sourceType = clip->GetSegmentSourceType(i);
+                                bool isExternal = isFA1 && hasSourceTypes && sourceType != 0;
+
+                                float durationSec = static_cast<float>(seg.GetDuration()) / 100000.0f;
+                                float startSec = static_cast<float>(seg.startTime) / 100000.0f;
+                                float endSec = static_cast<float>(seg.endTime) / 100000.0f;
+
+                                std::string marker = (i == longestSegIdx) ? " [main]" : "";
+                                std::string sourceLabel = isExternal
+                                    ? std::format(" src:ref{}", sourceType)
+                                    : " src:local";
+
+                                std::string animName = GW::Animation::GetAnimationNameFromHash(seg.hash);
+                                std::string hashStr = animName.empty() ? std::format("0x{:08X}", seg.hash) : animName;
+                                std::string label = std::format("Seg {} ({}) {:.2f}s [{:.2f}-{:.2f}]{}{}##{}",
+                                    displayIndex + 1, hashStr, durationSec, startSec, endSec, marker, sourceLabel, i);
+
+                                if (ImGui::Selectable(label.c_str(), isSelected))
+                                {
+                                    if (isExternal)
+                                    {
+                                        resolveExternal = true;
+                                        resolveSourceType = sourceType;
+                                        resolveHash = seg.hash;
+                                    }
+                                    else
+                                    {
+                                        ctrl.SetSegment(i);
+                                    }
+                                }
+                                if (isSelected)
+                                {
+                                    ImGui::SetItemDefaultFocus();
+                                }
+
+                                if (ImGui::IsItemHovered())
+                                {
+                                    std::string knownName = GW::Animation::GetAnimationCategorizedName(seg.hash);
+                                    float loopOffsetSec = static_cast<float>(seg.GetLoopStartOffset()) / 100000.0f;
+                                    ImGui::SetTooltip(
+                                        "Name: %s\nHash: 0x%08X\nStart: %.3fs\nEnd: %.3fs\nDuration: %.3fs\nPhase Range: [%u, %u)\nLoop Offset: %.3fs\nTransition: %.3f\nSource: %s",
+                                        knownName.c_str(), seg.hash, startSec, endSec, durationSec,
+                                        static_cast<unsigned>(seg.GetPhaseStartIndex()),
+                                        static_cast<unsigned>(seg.GetPhaseEndIndex()),
+                                        loopOffsetSec, seg.GetTransitionParam(),
+                                        isExternal ? "External FA1 reference (select to resolve and load source clip)"
+                                                   : "Local clip");
+                                }
+                            }
+                            ImGui::EndCombo();
+
+                            if (resolveExternal)
+                            {
+                                deferExternalSegmentResolve = true;
+                                deferredExternalSourceType = resolveSourceType;
+                                deferredExternalSegmentHash = resolveHash;
+                            }
+                        }
+
+                        // Show current segment info.
+                        if (currentSeg >= 0 && currentSeg < static_cast<int>(segments.size()))
+                        {
+                            const auto& seg = segments[currentSeg];
+                            uint8_t sourceType = clip->GetSegmentSourceType(static_cast<size_t>(currentSeg));
+                            bool isExternal = isFA1 && hasSourceTypes && sourceType != 0;
                             float durationSec = static_cast<float>(seg.GetDuration()) / 100000.0f;
-                            float startSec = static_cast<float>(seg.startTime) / 100000.0f;
-                            float endSec = static_cast<float>(seg.endTime) / 100000.0f;
-
-                            // Mark the main loop segment (longest duration)
-                            std::string marker = (i == longestSegIdx) ? " [main]" : "";
-
-                            std::string label = std::format("Seg {} (0x{:08X}) {:.2f}s [{:.2f}-{:.2f}]{}##{}",
-                                i + 1, seg.hash, durationSec, startSec, endSec, marker, i);
-
-                            if (ImGui::Selectable(label.c_str(), isSelected))
-                            {
-                                ctrl.SetSegment(i);
-                            }
-                            if (isSelected) ImGui::SetItemDefaultFocus();
-
-                            if (ImGui::IsItemHovered())
-                            {
-                                ImGui::SetTooltip("Hash: 0x%08X\nStart: %.3fs\nEnd: %.3fs\nDuration: %.3fs\nFlags: 0x%04X",
-                                    seg.hash, startSec, endSec, durationSec, seg.flags);
-                            }
-                        }
-                        ImGui::EndCombo();
-                    }
-
-                    // Show current segment info
-                    if (currentSeg >= 0 && currentSeg < static_cast<int>(segments.size()))
-                    {
-                        const auto& seg = segments[currentSeg];
-                        float durationSec = static_cast<float>(seg.GetDuration()) / 100000.0f;
-                        ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f),
-                            "0x%08X | %.2fs", seg.hash, durationSec);
-                        if (static_cast<size_t>(currentSeg) == longestSegIdx)
-                        {
+                            std::string segName = GW::Animation::GetAnimationDisplayName(seg.hash);
+                            std::string sourceLabel = isExternal
+                                ? std::format("[src ref{}]", sourceType)
+                                : "[src local]";
+                            ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f),
+                                "%s | %.2fs", segName.c_str(), durationSec);
                             ImGui::SameLine();
-                            ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "[main loop]");
+                            ImGui::TextDisabled("%s", sourceLabel.c_str());
+                            if (static_cast<size_t>(currentSeg) == longestSegIdx)
+                            {
+                                ImGui::SameLine();
+                                ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "[main loop]");
+                            }
                         }
+
+                        // Segment navigation uses only selectable (local-playable) entries.
+                        int currentSelectablePos = -1;
+                        for (size_t i = 0; i < selectableIndices.size(); i++)
+                        {
+                            if (static_cast<int>(selectableIndices[i]) == currentSeg)
+                            {
+                                currentSelectablePos = static_cast<int>(i);
+                                break;
+                            }
+                        }
+
+                        bool canPrev = currentSelectablePos > 0;
+                        bool canNext = currentSelectablePos >= 0 &&
+                                       currentSelectablePos < static_cast<int>(selectableIndices.size()) - 1;
+
+                        if (!canPrev) ImGui::BeginDisabled();
+                        if (ImGui::Button("< Prev Segment", ImVec2(110, 0)) && canPrev)
+                        {
+                            ctrl.SetSegment(selectableIndices[static_cast<size_t>(currentSelectablePos - 1)]);
+                        }
+                        if (!canPrev) ImGui::EndDisabled();
+
+                        ImGui::SameLine();
+
+                        if (!canNext) ImGui::BeginDisabled();
+                        if (ImGui::Button("Next Segment >", ImVec2(110, 0)) && canNext)
+                        {
+                            ctrl.SetSegment(selectableIndices[static_cast<size_t>(currentSelectablePos + 1)]);
+                        }
+                        if (!canNext) ImGui::EndDisabled();
+                    }
+                    else
+                    {
+                        ImGui::TextDisabled("No segments match the current FA1 segment filter.");
                     }
                 }
 
@@ -375,8 +554,9 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                         {
                             bool isSelected = (static_cast<int>(i) == currentSeq);
                             const auto& seq = sequences[i];
-                            std::string label = std::format("Phase {} (0x{:08X}, {:.2f}s)",
-                                i + 1, seq.hash, seq.GetDuration() / 100000.0f);
+                            std::string seqName = GW::Animation::GetAnimationDisplayName(seq.hash);
+                            std::string label = std::format("Phase {} ({}, {:.2f}s)",
+                                i + 1, seqName, seq.GetDuration() / 100000.0f);
                             if (ImGui::Selectable(label.c_str(), isSelected))
                             {
                                 ctrl.SetSequence(i);
@@ -394,11 +574,12 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                     if (phaseIdx >= 0 && phaseIdx < static_cast<int>(clip->sequences.size()))
                     {
                         const auto& seq = clip->sequences[phaseIdx];
+                        std::string phaseName = GW::Animation::GetAnimationDisplayName(seq.hash);
                         ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.3f, 1.0f),
-                            "Phase %d/%zu (0x%08X)",
+                            "Phase %d/%zu: %s",
                             phaseIdx + 1,
                             clip->sequences.size(),
-                            seq.hash);
+                            phaseName.c_str());
                     }
                 }
 
@@ -553,6 +734,11 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                         std::format("Searching... {}/{}",
                             g_animationState.filesProcessed.load(),
                             g_animationState.totalFiles.load()).c_str());
+
+                    if (ImGui::Button("Cancel Search", ImVec2(-1, 0)))
+                    {
+                        CancelAnimationSearch();
+                    }
                 }
                 else
                 {
@@ -691,8 +877,14 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                         ImVec4 color = isLoaded ? ImVec4(0.3f, 1.0f, 0.3f, 1.0f)
                             : (canLoad ? ImVec4(0.9f, 0.9f, 0.3f, 1.0f) : ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
 
+                        std::string chunkLabel = source.chunkType;
+                        if (source.referenceChunkId == GW::Parsers::CHUNK_ID_FA8 && source.referenceIndex > 0)
+                        {
+                            chunkLabel = std::format("{}#{}", source.chunkType, source.referenceIndex);
+                        }
+
                         std::string label = std::format("[{}] 0x{:X}{}##ref{}",
-                            source.chunkType,
+                            chunkLabel,
                             source.fileId,
                             isLoaded ? " (loaded)" : (canLoad ? "" : " (not found)"),
                             i);
@@ -709,8 +901,12 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
 
                         if (ImGui::IsItemHovered() && canLoad)
                         {
-                            ImGui::SetTooltip("File ID: 0x%X\nChunk: %s\nMFT Index: %d\n\nDouble-click to load",
-                                source.fileId, source.chunkType.c_str(), source.mftIndex);
+                            ImGui::SetTooltip(
+                                "File ID: 0x%X\nChunk: %s\nReference Index: %u\nMFT Index: %d\n\nDouble-click to load",
+                                source.fileId,
+                                source.chunkType.c_str(),
+                                source.referenceIndex,
+                                source.mftIndex);
                         }
 
                         // Context menu
@@ -1041,6 +1237,14 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                 }
             }
             ImGui::EndChild();
+        }
+
+        if (deferExternalSegmentResolve)
+        {
+            ResolveAndPlayExternalFA1Segment(
+                deferredExternalSourceType,
+                deferredExternalSegmentHash,
+                dat_managers);
         }
 
         // ========== EXIT BUTTON ==========

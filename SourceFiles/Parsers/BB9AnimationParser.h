@@ -16,7 +16,8 @@ using namespace DirectX;
 namespace GW::Parsers {
 
 // Animation chunk IDs
-// Hierarchy mode is detected heuristically from depth patterns (0x4000 flag is NOT reliable)
+// BB9/BB8/FA1/FA0 hierarchy mode is chosen deterministically from hierarchy-byte
+// stream validity (no offset scanning / no header-flag guesswork).
 constexpr uint32_t CHUNK_ID_BB9 = 0x00000BB9;  // Animation chunk (44-byte header)
 constexpr uint32_t CHUNK_ID_BB8 = 0x00000BB8;  // Animation chunk variant (44-byte header)
 constexpr uint32_t CHUNK_ID_FA1 = 0x00000FA1;  // Animation chunk (88-byte header)
@@ -81,17 +82,19 @@ struct FA1Header
     uint32_t boundingBoxId;           // 0x0C: Bounding box reference
     uint32_t collisionMeshId;         // 0x10: Collision mesh reference
     uint32_t boundingCylinderCount;   // 0x14: Number of bounding cylinders
-    uint16_t sequenceKeyframeCount0;  // 0x18: Keyframe count 0
-    uint16_t sequenceKeyframeCount1;  // 0x1A: Keyframe count 1
+    uint16_t animationSegmentCount;   // 0x18: Number of animation segment entries (23 bytes each) - FA1 uses padding
+    uint16_t reserved_0x1A;           // 0x1A: Reserved/unused
     uint32_t unknown_0x1C;            // 0x1C: Unknown
     float geometryScale;              // 0x20: Skeleton/geometry scale factor. If <=0, computed from bounding data
-    uint32_t hierarchyFlags;          // 0x24: Hierarchy flags (0x4000 = tree-depth mode)
+    uint32_t hierarchyFlags;          // 0x24: Unknown/reserved in FA1 files (not a reliable hierarchy-mode flag)
     float unknown_0x28;               // 0x28: Unknown (often 1.0)
     uint32_t bindPoseBoneCount;       // 0x2C: Number of bones in bind pose section (discovered via RE)
     uint32_t unknown_0x30;            // 0x30: Unknown (often 3)
     uint32_t transformDataSize;       // 0x34: Transform data size
     uint32_t submeshCount;            // 0x38: Submesh count
-    uint32_t unknown_0x3C;            // 0x3C: Unknown
+    // 0x3C: low 16 bits = phase/event count used by FA1 tail block.
+    // Layout after section 0x38 is: u32 phaseTimes[count] + u8 phaseFlags[count].
+    uint32_t unknown_0x3C;
     uint16_t sequenceCount0;          // 0x40: Sequence count 0
     uint16_t sequenceCount1;          // 0x42: Sequence count 1
     uint32_t unknown_0x44;            // 0x44: Unknown
@@ -108,6 +111,7 @@ struct FA1Header
     bool HasSkeleton() const { return (classFlags & FA1_FLAG_HAS_SKELETON) != 0; }
     bool HasAnimationSequences() const { return (classFlags & FA1_FLAG_HAS_ANIMATION_SEQUENCES) != 0; }
     bool HasSkeletonData() const { return (classFlags & FA1_FLAG_HAS_SKELETON_DATA) != 0; }
+    bool HasAnimationSegments() const { return animationSegmentCount > 0 && animationSegmentCount < 500; }
 };
 #pragma pack(pop)
 
@@ -155,12 +159,12 @@ static_assert(sizeof(BB9BoneAnimHeader) == 22, "BB9BoneAnimHeader must be 22 byt
 /**
  * @brief BB9 animation segment entry structure (22 bytes = 0x16).
  *
- * Defines animation regions within phases. Used for:
- * - Loop boundaries (main segment vs intro)
- * - Sub-animation markers within complex animation files
- *
- * For simple animations: the segment with largest duration defines the loop region.
- * For complex animations: each segment defines a distinct sub-animation.
+ * Runtime mapping in Gw.exe (MdlLoad.cpp):
+ * - hash (u32): animation segment identifier
+ * - startTime/endTime (u32/u32): playback window
+ * - phaseStartIndex/phaseEndIndex (u8/u8): index range into the phase timing table
+ * - loopStartOffset (u32): offset from startTime used for loop wrap
+ * - transitionParam (f32): unknown runtime parameter copied into segment state
  */
 #pragma pack(push, 1)
 struct BB9AnimationSegmentEntry
@@ -168,13 +172,37 @@ struct BB9AnimationSegmentEntry
     uint32_t hash;              // 0x00: Animation segment identifier
     uint32_t startTime;         // 0x04: Start time in animation units (100000 = 1 sec)
     uint32_t endTime;           // 0x08: End time in animation units
-    uint16_t flags;             // 0x0C: Flags (0x1212 common)
-    uint8_t  reserved[8];       // 0x0E: Reserved/padding
+    uint8_t phaseStartIndex;    // 0x0C: Start phase index
+    uint8_t phaseEndIndex;      // 0x0D: End phase index (exclusive)
+    uint32_t loopStartOffset;   // 0x0E: Loop start offset from startTime
+    float transitionParam;      // 0x12: Unknown runtime value
     // Total: 22 bytes (0x16)
 };
 #pragma pack(pop)
 
 static_assert(sizeof(BB9AnimationSegmentEntry) == 22, "BB9AnimationSegmentEntry must be 22 bytes!");
+
+/**
+ * @brief FA1 animation segment entry structure (23 bytes).
+ *
+ * Same logical fields as BB9, plus one leading byte.
+ */
+#pragma pack(push, 1)
+struct FA1AnimationSegmentEntry
+{
+    uint8_t segmentType;        // 0x00: Source selector (0=local clip, >0=external referenced source)
+    uint32_t hash;              // 0x01: Animation segment identifier
+    uint32_t startTime;         // 0x05: Start time in animation units (100000 = 1 sec)
+    uint32_t endTime;           // 0x09: End time in animation units
+    uint8_t phaseStartIndex;    // 0x0D: Start phase index
+    uint8_t phaseEndIndex;      // 0x0E: End phase index (exclusive)
+    uint32_t loopStartOffset;   // 0x0F: Loop start offset from startTime
+    float transitionParam;      // 0x13: Unknown runtime value
+    // Total: 23 bytes (0x17)
+};
+#pragma pack(pop)
+
+static_assert(sizeof(FA1AnimationSegmentEntry) == 23, "FA1AnimationSegmentEntry must be 23 bytes!");
 
 /**
  * @brief FA1 bind pose entry structure (16 bytes per bone).
@@ -183,11 +211,11 @@ static_assert(sizeof(BB9AnimationSegmentEntry) == 22, "BB9AnimationSegmentEntry 
  * Contains bind pose position and hierarchy information.
  *
  * Hierarchy encoding (low byte of parentInfo):
- * The low byte encodes the same information as BB9's boneFlags low byte.
- * It is processed by ComputeBoneParents which auto-detects the mode:
- * - POP_COUNT mode: value = levels to pop from matrix stack (most common)
- * - TREE_DEPTH mode: value = absolute depth in hierarchy tree
- * - SEQUENTIAL mode: all zeros = world-space transforms
+ * - External FA1 animation files commonly use direct-parent encoding (0=root, n>0 => parent=n-1)
+ * - Some embedded/model FA1 variants use pop-count encoding (levels to pop from matrix stack)
+ *
+ * The parser selects FA1 mode deterministically from stream validity
+ * (no offset scanning and no unreliable bitflag dependency).
  *
  * High bits (0x10000000) indicate intermediate bones that don't produce
  * output skinning matrices.
@@ -202,8 +230,8 @@ struct FA1BindPoseEntry
     // Total: 16 bytes
 
     /**
-     * @brief Gets the hierarchy byte from the parentInfo field.
-     * @return Low byte containing hierarchy/depth information.
+     * @brief Gets the raw hierarchy byte from the parentInfo field.
+     * @return Low byte containing hierarchy encoding payload.
      */
     uint8_t GetHierarchyByte() const
     {
@@ -237,10 +265,202 @@ static_assert(sizeof(FA1BindPoseEntry) == 16, "FA1BindPoseEntry must be 16 bytes
 class BB9AnimationParser
 {
 public:
+    enum class FA1HierarchyMode
+    {
+        DirectParent,
+        PopCount,
+        Sequential
+    };
+
+    /**
+     * @brief Converts FA1 direct-parent bytes into parent indices.
+     *
+     * Encoding: 0 = root, n>0 => parent = n-1.
+     * Invalid/forward parent references are clamped to root (-1).
+     */
+    static void ComputeDirectParents(std::vector<int32_t>& outParents,
+                                     const std::vector<uint8_t>& hierarchyBytes)
+    {
+        outParents.assign(hierarchyBytes.size(), -1);
+        const int32_t count = static_cast<int32_t>(hierarchyBytes.size());
+        for (int32_t i = 0; i < count; i++)
+        {
+            uint8_t value = hierarchyBytes[static_cast<size_t>(i)];
+            if (value == 0)
+            {
+                outParents[static_cast<size_t>(i)] = -1;
+                continue;
+            }
+
+            int32_t parent = static_cast<int32_t>(value) - 1;
+            if (parent >= 0 && parent < i)
+            {
+                outParents[static_cast<size_t>(i)] = parent;
+            }
+            else
+            {
+                outParents[static_cast<size_t>(i)] = -1;
+            }
+        }
+    }
+
+    /**
+     * @brief Converts pop-count bytes into parent indices (matrix-stack semantics).
+     */
+    static void ComputePopCountParents(std::vector<int32_t>& outParents,
+                                       const std::vector<uint8_t>& hierarchyBytes)
+    {
+        outParents.assign(hierarchyBytes.size(), -1);
+        std::vector<int32_t> stack;
+        stack.reserve(hierarchyBytes.size());
+
+        for (size_t i = 0; i < hierarchyBytes.size(); i++)
+        {
+            uint8_t popCount = hierarchyBytes[i];
+            for (uint8_t p = 0; p < popCount && !stack.empty(); p++)
+            {
+                stack.pop_back();
+            }
+
+            outParents[i] = stack.empty() ? -1 : stack.back();
+            stack.push_back(static_cast<int32_t>(i));
+        }
+    }
+
+    /**
+     * @brief Creates a sequential/world-space parent array (all roots).
+     */
+    static void ComputeSequentialParents(std::vector<int32_t>& outParents, size_t count)
+    {
+        outParents.assign(count, -1);
+    }
+
+    /**
+     * @brief Deterministic FA1 hierarchy-mode selection from hierarchy-byte stream.
+     *
+     * Rules:
+     * - All-zero stream => Sequential
+     * - If only one interpretation is valid, use it.
+     * - If both DirectParent and PopCount are valid, choose the one with less
+     *   root-fragmentation (fewer root bones). This matches ambiguous files
+     *   where direct-parent interpretation explodes into many disconnected roots.
+     */
+    static FA1HierarchyMode DetectFA1HierarchyMode(const std::vector<uint8_t>& hierarchyBytes)
+    {
+        if (hierarchyBytes.empty())
+        {
+            return FA1HierarchyMode::Sequential;
+        }
+
+        // True world-space case: no hierarchy payload.
+        bool allZero = true;
+        for (uint8_t v : hierarchyBytes)
+        {
+            if (v != 0)
+            {
+                allZero = false;
+                break;
+            }
+        }
+        if (allZero)
+        {
+            return FA1HierarchyMode::Sequential;
+        }
+
+        // Validate direct-parent interpretation.
+        bool directValid = true;
+        for (size_t i = 0; i < hierarchyBytes.size(); i++)
+        {
+            uint8_t value = hierarchyBytes[i];
+            if (value == 0)
+            {
+                continue;
+            }
+            int32_t parent = static_cast<int32_t>(value) - 1;
+            if (parent < 0 || parent >= static_cast<int32_t>(i))
+            {
+                directValid = false;
+                break;
+            }
+        }
+
+        // Validate pop-count interpretation using runtime stack constraints.
+        bool popValid = true;
+        int32_t stackDepth = 0;
+        for (uint8_t popCount : hierarchyBytes)
+        {
+            stackDepth += 1; // push current matrix index first
+            if (static_cast<int32_t>(popCount) > stackDepth)
+            {
+                popValid = false;
+                break;
+            }
+            stackDepth -= static_cast<int32_t>(popCount);
+        }
+
+        if (directValid && popValid)
+        {
+            size_t directRoots = 0;
+            for (uint8_t value : hierarchyBytes)
+            {
+                if (value == 0)
+                {
+                    directRoots++;
+                }
+            }
+
+            size_t popRoots = 0;
+            std::vector<int32_t> stack;
+            stack.reserve(hierarchyBytes.size());
+            for (size_t i = 0; i < hierarchyBytes.size(); i++)
+            {
+                uint8_t popCount = hierarchyBytes[i];
+                for (uint8_t p = 0; p < popCount && !stack.empty(); p++)
+                {
+                    stack.pop_back();
+                }
+                if (stack.empty())
+                {
+                    popRoots++;
+                }
+                stack.push_back(static_cast<int32_t>(i));
+            }
+
+            const size_t boneCount = hierarchyBytes.size();
+            const bool directRootHeavy = (directRoots * 4) > boneCount; // > 25% roots
+            const bool popRootHeavy = (popRoots * 4) > boneCount;       // > 25% roots
+
+            if (directRootHeavy != popRootHeavy)
+            {
+                return directRootHeavy ? FA1HierarchyMode::PopCount : FA1HierarchyMode::DirectParent;
+            }
+
+            if (popRoots < directRoots)
+            {
+                return FA1HierarchyMode::PopCount;
+            }
+
+            return FA1HierarchyMode::DirectParent;
+        }
+
+        if (directValid)
+        {
+            return FA1HierarchyMode::DirectParent;
+        }
+        if (popValid)
+        {
+            return FA1HierarchyMode::PopCount;
+        }
+
+        // Final fallback for malformed streams.
+        return FA1HierarchyMode::DirectParent;
+    }
+
     /**
      * @brief Parses FA1 bind pose entries and extracts parent indices and positions.
      *
-     * This extracts bind pose data and computes parent indices using ComputeBoneParents.
+     * This extracts bind pose data and computes parents using deterministic
+     * FA1 mode selection from hierarchy-byte validity.
      *
      * @param data Pointer to FA1 chunk data (starting at header).
      * @param dataSize Size of the chunk data.
@@ -260,53 +480,12 @@ public:
         FA1Header header;
         std::memcpy(&header, data, sizeof(FA1Header));
 
+        // Engine-accurate FA1 layout:
+        // header -> bounding cylinders -> sequence entries -> bind pose.
         size_t offset = sizeof(FA1Header);  // 88 bytes
-        uint32_t boneCount = 0;
-
-        // FA1 has two known variants with different post-header structures:
-        //
-        // Variant A: Standard format
-        //   - header.bindPoseBoneCount contains valid bone count (1-256)
-        //   - header.boundingCylinderCount cylinders follow header (16 bytes each)
-        //
-        // Variant B: Extended format
-        //   - header.bindPoseBoneCount contains garbage (float value)
-        //   - Post-header has: [12 padding][4 count][N×4 offsets][16 metadata]
-        //   - Bone count is in metadata section at position 1
-        //
-        // Detection: If bindPoseBoneCount is reasonable (1-256), use Variant A.
-
-        bool useVariantB = (header.bindPoseBoneCount == 0 || header.bindPoseBoneCount > 256);
-
-        if (useVariantB)
-        {
-            // Variant B: Extended post-header structure
-            offset += 12;  // Skip padding
-
-            uint32_t offsetCount = 0;
-            if (offset + 4 <= dataSize)
-            {
-                std::memcpy(&offsetCount, &data[offset], sizeof(uint32_t));
-                offset += 4;
-            }
-
-            offset += offsetCount * 4;  // Skip offset values
-
-            // Bone count is uint16 at offset+6 in metadata section
-            if (offset + 16 <= dataSize)
-            {
-                uint16_t boneCount16 = 0;
-                std::memcpy(&boneCount16, &data[offset + 6], sizeof(uint16_t));
-                boneCount = boneCount16;
-                offset += 16;
-            }
-        }
-        else
-        {
-            // Variant A: Standard format
-            boneCount = header.bindPoseBoneCount;
-            offset += header.boundingCylinderCount * 16;  // Skip cylinders
-        }
+        offset += static_cast<size_t>(header.boundingCylinderCount) * 16;
+        offset += static_cast<size_t>(header.transformDataSize) * sizeof(BB9SequenceEntry);
+        uint32_t boneCount = header.bindPoseBoneCount;
 
         // Validate bone count
         if (boneCount == 0 || boneCount > 256)
@@ -345,9 +524,19 @@ public:
             });
         }
 
-        // Convert hierarchy bytes to parent indices using heuristic detection
-        // The 0x4000 flag is NOT reliable for hierarchy mode
-        ComputeBoneParents(outParentIndices, hierarchyBytes, nullptr, nullptr, -1);
+        FA1HierarchyMode mode = DetectFA1HierarchyMode(hierarchyBytes);
+        if (mode == FA1HierarchyMode::DirectParent)
+        {
+            ComputeDirectParents(outParentIndices, hierarchyBytes);
+        }
+        else if (mode == FA1HierarchyMode::PopCount)
+        {
+            ComputePopCountParents(outParentIndices, hierarchyBytes);
+        }
+        else
+        {
+            ComputeSequentialParents(outParentIndices, hierarchyBytes.size());
+        }
 
         return boneCount;
     }
@@ -610,10 +799,8 @@ public:
                 }
             }
 
-            // Parse animation segment entries if present
-            // Format: 22 bytes per entry (hash, startTime, endTime, flags, reserved)
-            // These define loop regions and sub-animations within phases.
-            // With phase timing data properly parsed, segments follow directly.
+            // Parse animation segment entries if present.
+            // BB9 entry layout: hash/start/end + phase range + loop offset + transition param.
             if (header.HasAnimationSegments())
             {
                 size_t entriesSize = header.animationSegmentCount * sizeof(BB9AnimationSegmentEntry);
@@ -621,24 +808,29 @@ public:
                 if (segmentOffset + entriesSize <= dataSize)
                 {
                     clip.animationSegments.reserve(header.animationSegmentCount);
+                    clip.animationSegmentSourceTypes.reserve(header.animationSegmentCount);
                     for (uint32_t i = 0; i < header.animationSegmentCount; i++)
                     {
                         BB9AnimationSegmentEntry rawEntry;
                         std::memcpy(&rawEntry, &data[segmentOffset], sizeof(BB9AnimationSegmentEntry));
                         segmentOffset += sizeof(BB9AnimationSegmentEntry);
 
-                        // Convert to AnimationClip's AnimationSegmentEntry format
-                        Animation::AnimationSegmentEntry entry;
+                        Animation::AnimationSegmentEntry entry{};
                         entry.hash = rawEntry.hash;
                         entry.startTime = rawEntry.startTime;
                         entry.endTime = rawEntry.endTime;
-                        entry.flags = rawEntry.flags;
-                        // reserved bytes are ignored
+                        entry.flags = static_cast<uint16_t>(
+                            static_cast<uint16_t>(rawEntry.phaseStartIndex) |
+                            (static_cast<uint16_t>(rawEntry.phaseEndIndex) << 8));
+                        std::memcpy(&entry.reserved[0], &rawEntry.loopStartOffset, sizeof(uint32_t));
+                        std::memcpy(&entry.reserved[4], &rawEntry.transitionParam, sizeof(float));
 
                         // Only add entries with valid timing (reasonable time values)
-                        if (entry.startTime < 360000000 && entry.endTime < 360000000)
+                        if (entry.startTime < 360000000 && entry.endTime < 360000000 &&
+                            entry.startTime <= entry.endTime)
                         {
                             clip.animationSegments.push_back(entry);
+                            clip.animationSegmentSourceTypes.push_back(0);
                         }
                     }
                 }
@@ -681,12 +873,14 @@ private:
      * @param boneCount Number of bones.
      * @param clip Output animation clip.
      * @param boneDepths Output vector for hierarchy depths.
+     * @param outEndOffset Output: offset where keyframe data ends (start of structured tail parsing).
      * @return true if parsing succeeded, false on failure.
      */
     static bool ParseFA1KeyframeFormat(const uint8_t* data, size_t dataSize,
                                         size_t bindPoseOffset, size_t animOffset,
                                         uint32_t boneCount, Animation::AnimationClip& clip,
-                                        std::vector<uint8_t>& boneDepths)
+                                        std::vector<uint8_t>& boneDepths,
+                                        size_t& outEndOffset)
     {
         // FA1 uses RAW data format (not VLE like BB9):
         // Per-bone: [6-byte header: posCount|rotCount|scaleCount]
@@ -731,9 +925,7 @@ private:
 
             clip.boneTracks.push_back(std::move(track));
 
-            // Store hierarchy byte for later interpretation by ComputeBoneParents
-            // The low byte encodes hierarchy info - whether it's tree-depth, pop-count,
-            // or direct-parent depends on the pattern detected by ComputeBoneParents
+            // Raw hierarchy payload byte for deterministic FA1 mode selection.
             uint8_t hierByte = static_cast<uint8_t>(bindPose.parentInfo & 0xFF);
             boneDepths.push_back(hierByte);
 
@@ -744,12 +936,22 @@ private:
             clip.boneIsIntermediate.push_back(isIntermediate);
         }
 
-        // Compute bone hierarchy from depth values using heuristic detection
+        // Deterministic FA1 mode selection from byte-stream validity.
+        FA1HierarchyMode fa1Mode = DetectFA1HierarchyMode(boneDepths);
+        if (fa1Mode == FA1HierarchyMode::DirectParent)
         {
-            bool usedSequentialMode = false;
-            Animation::HierarchyMode hierarchyMode = Animation::HierarchyMode::TreeDepth;
-            ComputeBoneParents(clip.boneParents, boneDepths, &usedSequentialMode, &hierarchyMode, -1);
-            clip.hierarchyMode = hierarchyMode;
+            ComputeDirectParents(clip.boneParents, boneDepths);
+            clip.hierarchyMode = Animation::HierarchyMode::DirectParent;
+        }
+        else if (fa1Mode == FA1HierarchyMode::PopCount)
+        {
+            ComputePopCountParents(clip.boneParents, boneDepths);
+            clip.hierarchyMode = Animation::HierarchyMode::PopCount;
+        }
+        else
+        {
+            ComputeSequentialParents(clip.boneParents, boneDepths.size());
+            clip.hierarchyMode = Animation::HierarchyMode::Sequential;
         }
 
         // Helper to transform quaternion from GW to GWMB coordinates
@@ -913,7 +1115,126 @@ private:
             offset = nextOffset;
         }
 
+        // Return the offset where keyframes end (start of structured FA1 tail parsing)
+        outEndOffset = offset;
         return !clip.boneTracks.empty();
+    }
+
+    /**
+     * @brief Skips the FA1 variable-sized block controlled by header offset 0x38.
+     *
+     * Matches Gw.exe path:
+     * Model_ParseArrayWithCallback(..., entrySize=0x0C, callback=Buffer_CalcWeightOffset)
+     * where each entry is: 12 fixed bytes + (u32_at_offset_4 * 4) trailing bytes.
+     */
+    static bool SkipFA1Section0x38Block(const uint8_t* data, size_t dataSize,
+                                        const FA1Header& header, size_t& cursor)
+    {
+        for (uint32_t i = 0; i < header.submeshCount; i++)
+        {
+            if (cursor + 12 > dataSize)
+            {
+                return false;
+            }
+
+            uint32_t extraWords = 0;
+            std::memcpy(&extraWords, &data[cursor + 4], sizeof(uint32_t));
+            if (extraWords > 0x100000)
+            {
+                return false;
+            }
+
+            size_t entrySize = 12 + static_cast<size_t>(extraWords) * sizeof(uint32_t);
+            if (cursor + entrySize > dataSize)
+            {
+                return false;
+            }
+            cursor += entrySize;
+        }
+        return true;
+    }
+
+    /**
+     * @brief Structured FA1 segment location from engine counters (no scanning).
+     *
+     * Gw.exe parsing path:
+     *   [keyframe data ends at keyframeEndOffset]
+     *   [section 0x38 variable block: header.submeshCount entries]
+     *   [section 0x3C block: u32[count] + u8[count] (count = header.unknown_0x3C & 0xFFFF)]
+     *   [segments: header.animationSegmentCount * 23]
+     */
+    static bool FindFA1SegmentBlockStructured(const uint8_t* data, size_t dataSize,
+                                              const FA1Header& header, size_t keyframeEndOffset,
+                                              size_t& outOffset)
+    {
+        size_t cursor = keyframeEndOffset;
+
+        if (!SkipFA1Section0x38Block(data, dataSize, header, cursor))
+        {
+            return false;
+        }
+
+        uint32_t count3C = static_cast<uint32_t>(header.unknown_0x3C & 0xFFFF);
+        size_t timingSize = static_cast<size_t>(count3C) * 5;
+        if (cursor + timingSize > dataSize)
+        {
+            return false;
+        }
+        cursor += timingSize;
+
+        size_t entriesSize = static_cast<size_t>(header.animationSegmentCount) * sizeof(FA1AnimationSegmentEntry);
+        if (cursor + entriesSize > dataSize)
+        {
+            return false;
+        }
+
+        // Validate entries using required fields only.
+        // Entry layout: type(1), hash(4), start(4), end(4), phaseStart(1), phaseEnd(1), ...
+        constexpr uint32_t kMaxTime = 360000000;
+        uint32_t phaseCount = static_cast<uint32_t>(header.unknown_0x3C & 0xFFFF);
+        uint32_t nonZero = 0;
+        uint32_t nonZeroHashes = 0;
+        for (uint32_t i = 0; i < header.animationSegmentCount; i++)
+        {
+            size_t entryBase = cursor + i * sizeof(FA1AnimationSegmentEntry);
+            if (entryBase + 15 > dataSize)
+            {
+                return false;
+            }
+
+            uint32_t hash = 0;
+            uint32_t startTime = 0;
+            uint32_t endTime = 0;
+            std::memcpy(&hash, &data[entryBase + 1], sizeof(uint32_t));
+            std::memcpy(&startTime, &data[entryBase + 5], sizeof(uint32_t));
+            std::memcpy(&endTime, &data[entryBase + 9], sizeof(uint32_t));
+            uint8_t phaseStart = data[entryBase + 13];
+            uint8_t phaseEnd = data[entryBase + 14];
+
+            if (startTime > endTime || startTime >= kMaxTime || endTime >= kMaxTime)
+            {
+                return false;
+            }
+            if (phaseStart > phaseEnd || phaseEnd > phaseCount)
+            {
+                return false;
+            }
+            if (endTime > startTime)
+            {
+                nonZero++;
+            }
+            if (hash != 0)
+            {
+                nonZeroHashes++;
+            }
+        }
+        // Metadata-only clips can have zero-duration ranges but still carry valid segment hashes.
+        if (nonZero == 0 && nonZeroHashes == 0)
+        {
+            return false;
+        }
+        outOffset = cursor;
+        return true;
     }
 
 public:
@@ -948,66 +1269,19 @@ public:
         bool needsAutoScale = !(headerScale > 0.001f && headerScale < 100.0f);
         clip.geometryScale = needsAutoScale ? 1.0f : headerScale;
 
+        // Engine-accurate layout:
+        // header -> bounding cylinders -> sequence entries -> bind pose -> keyframe data -> tail sections.
         size_t offset = sizeof(FA1Header);  // 88 bytes
-        uint32_t actualBoneCount = 0;
+        offset += static_cast<size_t>(header.boundingCylinderCount) * 16;
+        uint32_t actualBoneCount = header.bindPoseBoneCount;
 
-        // FA1 has two known variants with different post-header structures:
-        //
-        // Variant A (e.g., classFlags 0x409900): Standard format
-        //   - header.bindPoseBoneCount contains valid bone count (1-256)
-        //   - header.boundingCylinderCount cylinders follow header (16 bytes each)
-        //   - Sequence entries follow cylinders
-        //   - Bone data follows sequences
-        //
-        // Variant B (e.g., classFlags 0x0800): Extended format
-        //   - header.bindPoseBoneCount contains garbage (float value)
-        //   - Post-header has: [12 padding][4 count][N×4 offsets][16 metadata]
-        //   - Bone count is in metadata section at position 1
-        //
-        // Detection: If bindPoseBoneCount is reasonable (1-256), use Variant A.
-        // Otherwise, use Variant B and read bone count from metadata.
-
-        bool useVariantB = (header.bindPoseBoneCount == 0 || header.bindPoseBoneCount > 256);
-        uint16_t variantBParentOffset = 0;  // For Variant B parent calculation
-
-        if (useVariantB)
+        // Validate bone count
+        if (actualBoneCount == 0 || actualBoneCount > 256)
         {
-            // Variant B: Extended post-header structure
-            // Skip 12 bytes of padding after header
-            offset += 12;
-
-            // Read offset count (tells us how many keyframe offset values follow)
-            uint32_t offsetCount = 0;
-            if (offset + 4 <= dataSize)
-            {
-                std::memcpy(&offsetCount, &data[offset], sizeof(uint32_t));
-                offset += 4;
-            }
-
-            // Skip the offset values
-            offset += offsetCount * 4;
-
-            // Read metadata section: [2 pad][uint16 parentOffset][2 pad][uint16 boneCount][2 pad][uint16 val3]...
-            // parentOffset (at +2) is used for bone parent calculation
-            // boneCount (at +6) is the number of bones
-            if (offset + 16 <= dataSize)
-            {
-                std::memcpy(&variantBParentOffset, &data[offset + 2], sizeof(uint16_t));
-                uint16_t boneCount16 = 0;
-                std::memcpy(&boneCount16, &data[offset + 6], sizeof(uint16_t));
-                actualBoneCount = boneCount16;
-                offset += 16;
-            }
-        }
-        else
-        {
-            // Variant A: Standard format
-            actualBoneCount = header.bindPoseBoneCount;
-
-            // Skip bounding cylinders (16 bytes each)
-            offset += header.boundingCylinderCount * 16;
+            return std::nullopt;
         }
 
+        // FA1 sequence entries follow the bounding cylinder section.
         // FA1 may have sequence data - check transformDataSize
         if (header.transformDataSize > 0 && header.transformDataSize < 256)
         {
@@ -1046,77 +1320,72 @@ public:
             // Bone hierarchy data starts here
             size_t bindPoseOffset = offset;
 
-            // Keyframe data offset depends on variant:
-            // Variant A: 16-byte FA1BindPoseEntry per bone
-            // Variant B: 2-byte uint16 hierarchy entry per bone
-            size_t boneDataSize = useVariantB ? (actualBoneCount * 2) : (actualBoneCount * sizeof(FA1BindPoseEntry));
+            // Bind pose uses 16-byte FA1 entries in engine layout.
+            size_t boneDataSize = static_cast<size_t>(actualBoneCount) * sizeof(FA1BindPoseEntry);
             size_t keyframeOffset = bindPoseOffset + boneDataSize;
 
             if (keyframeOffset < dataSize)
             {
                 std::vector<uint8_t> boneDepths;
 
-                if (useVariantB)
+                // Parse FA1 keyframe format (raw data, not VLE encoded)
+                size_t keyframeEndOffset = 0;
+                if (!ParseFA1KeyframeFormat(data, dataSize, bindPoseOffset, keyframeOffset,
+                                            actualBoneCount, clip, boneDepths, keyframeEndOffset))
                 {
-                    // Variant B: Parse uint16 hierarchy entries directly
-                    // Each entry is: lowByte = (parentOffset + boneCount) - parent (or 0 for root)
-                    // highByte = flags (usually 0x02)
-                    clip.boneParents.clear();
-                    clip.boneParents.reserve(actualBoneCount);
-                    clip.boneTracks.clear();
-                    clip.boneTracks.reserve(actualBoneCount);
-                    clip.boneIsIntermediate.clear();
+                    return std::nullopt;
+                }
 
-                    uint32_t parentBase = variantBParentOffset + actualBoneCount;
-
-                    for (uint32_t i = 0; i < actualBoneCount; i++)
+                // Parse FA1 animation segments deterministically from engine counters.
+                if (header.HasAnimationSegments())
+                {
+                    size_t segmentOffset = 0;
+                    size_t segmentCount = header.animationSegmentCount;
+                    if (FindFA1SegmentBlockStructured(data, dataSize, header, keyframeEndOffset, segmentOffset))
                     {
-                        size_t entryOffset = bindPoseOffset + i * 2;
-                        if (entryOffset + 2 > dataSize) break;
-
-                        uint16_t entry;
-                        std::memcpy(&entry, &data[entryOffset], sizeof(uint16_t));
-
-                        uint8_t lowByte = entry & 0xFF;
-                        uint8_t highByte = (entry >> 8) & 0xFF;
-
-                        // Compute parent index
-                        int32_t parentIdx;
-                        if (lowByte == 0)
+                        constexpr uint32_t kMaxTime = 360000000;
+                        clip.animationSegments.reserve(segmentCount);
+                        clip.animationSegmentSourceTypes.reserve(segmentCount);
+                        for (size_t i = 0; i < segmentCount; i++)
                         {
-                            parentIdx = -1;  // Root bone
-                        }
-                        else
-                        {
-                            parentIdx = static_cast<int32_t>(parentBase) - static_cast<int32_t>(lowByte);
-                            // Clamp to valid range
-                            if (parentIdx < 0 || parentIdx >= static_cast<int32_t>(actualBoneCount))
+                            size_t entryBase = segmentOffset + i * sizeof(FA1AnimationSegmentEntry);
+                            if (entryBase + 15 > dataSize)
                             {
-                                parentIdx = -1;
+                                break;
+                            }
+
+                            FA1AnimationSegmentEntry rawEntry{};
+                            rawEntry.segmentType = data[entryBase + 0];
+                            std::memcpy(&rawEntry.hash, &data[entryBase + 1], sizeof(uint32_t));
+                            std::memcpy(&rawEntry.startTime, &data[entryBase + 5], sizeof(uint32_t));
+                            std::memcpy(&rawEntry.endTime, &data[entryBase + 9], sizeof(uint32_t));
+                            rawEntry.phaseStartIndex = data[entryBase + 13];
+                            rawEntry.phaseEndIndex = data[entryBase + 14];
+                            if (entryBase + 19 <= dataSize)
+                            {
+                                std::memcpy(&rawEntry.loopStartOffset, &data[entryBase + 15], sizeof(uint32_t));
+                            }
+                            if (entryBase + sizeof(FA1AnimationSegmentEntry) <= dataSize)
+                            {
+                                std::memcpy(&rawEntry.transitionParam, &data[entryBase + 19], sizeof(float));
+                            }
+
+                            if (rawEntry.startTime < kMaxTime && rawEntry.endTime < kMaxTime &&
+                                rawEntry.startTime <= rawEntry.endTime)
+                            {
+                                Animation::AnimationSegmentEntry entry{};
+                                entry.hash = rawEntry.hash;
+                                entry.startTime = rawEntry.startTime;
+                                entry.endTime = rawEntry.endTime;
+                                entry.flags = static_cast<uint16_t>(
+                                    static_cast<uint16_t>(rawEntry.phaseStartIndex) |
+                                    (static_cast<uint16_t>(rawEntry.phaseEndIndex) << 8));
+                                std::memcpy(&entry.reserved[0], &rawEntry.loopStartOffset, sizeof(uint32_t));
+                                std::memcpy(&entry.reserved[4], &rawEntry.transitionParam, sizeof(float));
+                                clip.animationSegments.push_back(entry);
+                                clip.animationSegmentSourceTypes.push_back(rawEntry.segmentType);
                             }
                         }
-                        clip.boneParents.push_back(parentIdx);
-
-                        // Create bone track (no base position in Variant B - will be 0)
-                        Animation::BoneTrack track;
-                        track.boneIndex = i;
-                        track.basePosition = {0.0f, 0.0f, 0.0f};
-                        clip.boneTracks.push_back(std::move(track));
-
-                        boneDepths.push_back(lowByte);
-                        clip.boneIsIntermediate.push_back(false);
-                    }
-
-                    clip.hierarchyMode = Animation::HierarchyMode::DirectParent;
-                    // Note: Variant B keyframe parsing not yet implemented
-                }
-                else
-                {
-                    // Variant A: Parse FA1 keyframe format (raw data, not VLE encoded)
-                    if (!ParseFA1KeyframeFormat(data, dataSize, bindPoseOffset, keyframeOffset,
-                                               actualBoneCount, clip, boneDepths))
-                    {
-                        return std::nullopt;
                     }
                 }
 
@@ -1171,164 +1440,268 @@ public:
 
 private:
     /**
-     * @brief Computes bone parent indices from hierarchy depth values.
+     * @brief Computes parent indices from hierarchy bytes.
      *
-     * Different GW models use different encodings for the depth byte:
-     *
-     * 1. TREE_DEPTH mode (BB9 chunks): depth = absolute level in hierarchy tree
-     *    Pattern: [0, 1, 2, 3, 2, 3, 1, 2, ...] - increases by 1 for children
-     *
-     * 2. POP_COUNT mode (BB8 chunks): depth = number of levels to pop from matrix stack
-     *    Pattern: [0, 0, 0, 0, 3, 0, 0, ...] - mostly 0s with occasional jumps
-     *    Based on Ghidra RE of GrTrans_PushPopMatrix @ 0x0064ab40
-     *
-     * 3. WORLD_SPACE mode: No meaningful hierarchy (all zeros or invalid)
-     *    Each bone is treated as independent with absolute transforms
+     * Deterministic mode selection uses stream validity:
+     * - DirectParent: value = parent_index + 1, 0 = root
+     * - PopCount: value = stack-pop count before processing current bone
+     * - TreeDepth: value = absolute depth in hierarchy tree
+     * - Sequential: all-zero stream
      *
      * @param outParents Output vector of parent indices.
-     * @param depths Vector of hierarchy values from bone flags.
-     * @param outUsedSequentialMode Output flag: true if WORLD_SPACE mode was used.
-     * @param outHierarchyMode Output: detected hierarchy encoding mode.
-     * @param forceTreeDepth If >= 0: 1 = force tree-depth mode, 0 = force pop-count mode.
-     *                       If < 0: auto-detect mode from data pattern.
+     * @param depths Raw hierarchy bytes from bone flags.
+     * @param outUsedSequentialMode Output flag: true if sequential mode was used.
+     * @param outHierarchyMode Output: selected hierarchy encoding mode.
+     * @param forceTreeDepth Legacy override:
+     *   - 1: prefer TreeDepth (fallback DirectParent)
+     *   - 0: prefer PopCount (fallback DirectParent)
+     *   - -1: deterministic auto-detect
      */
     static void ComputeBoneParents(std::vector<int32_t>& outParents, const std::vector<uint8_t>& depths,
                                     bool* outUsedSequentialMode = nullptr,
                                     Animation::HierarchyMode* outHierarchyMode = nullptr,
                                     int forceTreeDepth = -1)
     {
-        outParents.resize(depths.size(), -1);
+        outParents.assign(depths.size(), -1);
         if (outUsedSequentialMode) *outUsedSequentialMode = false;
         if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::TreeDepth;
-
         if (depths.empty()) return;
 
-        // Determine hierarchy mode:
-        // - If forceTreeDepth >= 0, use that (1 = tree-depth, 0 = pop-count)
-        // - Otherwise fall back to heuristic detection (for legacy callers)
-        bool useTreeDepth;
-        bool modeWasForced = (forceTreeDepth >= 0);
+        auto isAllZero = [&depths]() -> bool {
+            for (uint8_t d : depths)
+            {
+                if (d != 0) return false;
+            }
+            return true;
+        };
 
-        if (modeWasForced)
-        {
-            useTreeDepth = (forceTreeDepth == 1);
-        }
-        else
-        {
-            // Analyze the depth pattern to detect encoding type
-            int zeroCount = 0;
-            int maxDepth = 0;
-
+        auto validateDirectParent = [&depths]() -> bool {
             for (size_t i = 0; i < depths.size(); i++)
             {
-                uint8_t d = depths[i];
-                if (d == 0) zeroCount++;
-                if (d > maxDepth) maxDepth = d;
-            }
-
-            // Check for world-space mode (no hierarchy data) - only when mode not forced
-            bool noHierarchyData = (zeroCount >= static_cast<int>(depths.size()) * 0.95) ||
-                                    (maxDepth == 0 && depths.size() > 1);
-
-            if (noHierarchyData)
-            {
-                // WORLD_SPACE MODE: No hierarchy data available
-                // Treat all bones as independent with world-space transforms
-                if (outUsedSequentialMode) *outUsedSequentialMode = true;
-                if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::Sequential;
-
-                for (size_t boneIdx = 0; boneIdx < depths.size(); boneIdx++)
+                uint8_t value = depths[i];
+                if (value == 0) continue;
+                int32_t parent = static_cast<int32_t>(value) - 1;
+                if (parent < 0 || parent >= static_cast<int32_t>(i))
                 {
-                    outParents[boneIdx] = -1;
+                    return false;
                 }
-                return;  // Early exit for world-space mode
             }
+            return true;
+        };
 
-            // Fallback heuristic: tree-depth starts with 0,1 and has no zeros after root
-            int zerosAfterFirstBone = 0;
-            for (size_t i = 1; i < depths.size(); i++)
+        auto validatePopCount = [&depths]() -> bool {
+            int32_t stackDepth = 0;
+            for (uint8_t popCount : depths)
             {
-                if (depths[i] == 0) zerosAfterFirstBone++;
-            }
-            bool startsWithZeroOne = (depths.size() >= 2 && depths[0] == 0 && depths[1] == 1);
-            bool hasZerosAfterRoot = (zerosAfterFirstBone >= 1);
-            useTreeDepth = startsWithZeroOne && !hasZerosAfterRoot;
-        }
-
-        // Apply the determined mode
-        // When flag 0x4000 is set: the low byte is (parent_index + 1), where 0 = root
-        // When flag 0x4000 is clear: use pop-count mode (stack-based hierarchy)
-        if (useTreeDepth)
-        {
-            // DIRECT_PARENT MODE: value = parent_index + 1, or 0 for root
-            // This is the correct interpretation of the 0x4000 flag based on observed data patterns
-            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::DirectParent;
-
-            for (size_t boneIdx = 0; boneIdx < depths.size(); boneIdx++)
-            {
-                uint8_t value = depths[boneIdx];
-                int32_t parent;
-
-                if (value == 0)
+                stackDepth += 1;
+                if (static_cast<int32_t>(popCount) > stackDepth)
                 {
-                    parent = -1;  // Root bone
+                    return false;
+                }
+                stackDepth -= static_cast<int32_t>(popCount);
+            }
+            return true;
+        };
+
+        auto validateTreeDepth = [&depths]() -> bool {
+            std::vector<int32_t> depthToBone(256, -1);
+            for (size_t i = 0; i < depths.size(); i++)
+            {
+                uint8_t depth = depths[i];
+                if (depth == 0)
+                {
+                    depthToBone[0] = static_cast<int32_t>(i);
                 }
                 else
                 {
-                    // value = parent_index + 1, so parent = value - 1
-                    parent = static_cast<int32_t>(value) - 1;
-                    // Clamp to valid range
-                    if (parent < 0 || parent >= static_cast<int32_t>(depths.size()))
+                    if (depthToBone[depth - 1] < 0)
                     {
-                        parent = -1;
+                        return false;
                     }
+                    depthToBone[depth] = static_cast<int32_t>(i);
                 }
 
-                outParents[boneIdx] = parent;
+                for (size_t d = static_cast<size_t>(depth) + 1; d < depthToBone.size(); d++)
+                {
+                    depthToBone[d] = -1;
+                }
             }
-        }
-        else
-        {
-            // POP_COUNT MODE - True stack-based hierarchy computation
-            //
-            // Based on Ghidra RE of GrTrans_PushPopMatrix @ 0x0064ab40
-            // The depth value is the number of levels to POP from the matrix stack
-            // before pushing the current bone.
-            //
-            // Algorithm:
-            // - Maintain a stack of bone indices
-            // - For each bone:
-            //   1. Pop depths[i] items from stack
-            //   2. Parent = top of stack (or -1 if empty)
-            //   3. Push current bone onto stack
-            //
-            // This creates hierarchies where:
-            // - depth=0: chain from previous (push without pop)
-            // - depth=N: go back N levels in the tree to find parent
-            //
-            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::PopCount;
+            return true;
+        };
 
+        auto computeDirectParent = [&outParents, &depths]() {
+            for (size_t i = 0; i < depths.size(); i++)
+            {
+                uint8_t value = depths[i];
+                if (value == 0)
+                {
+                    outParents[i] = -1;
+                    continue;
+                }
+                int32_t parent = static_cast<int32_t>(value) - 1;
+                outParents[i] = (parent >= 0 && parent < static_cast<int32_t>(i)) ? parent : -1;
+            }
+        };
+
+        auto computePopCount = [&outParents, &depths]() {
             std::vector<int32_t> stack;
             stack.reserve(depths.size());
-
-            for (size_t boneIdx = 0; boneIdx < depths.size(); boneIdx++)
+            for (size_t i = 0; i < depths.size(); i++)
             {
-                uint8_t popCount = depths[boneIdx];
-
-                // Pop 'popCount' items from stack
+                uint8_t popCount = depths[i];
                 for (uint8_t p = 0; p < popCount && !stack.empty(); p++)
                 {
                     stack.pop_back();
                 }
-
-                // Parent is top of stack, or -1 if stack is empty (root)
-                int32_t parent = stack.empty() ? -1 : stack.back();
-                outParents[boneIdx] = parent;
-
-                // Push current bone onto stack
-                stack.push_back(static_cast<int32_t>(boneIdx));
+                outParents[i] = stack.empty() ? -1 : stack.back();
+                stack.push_back(static_cast<int32_t>(i));
             }
+        };
+
+        auto computeTreeDepth = [&outParents, &depths]() {
+            std::vector<int32_t> depthToBone(256, -1);
+            for (size_t i = 0; i < depths.size(); i++)
+            {
+                uint8_t depth = depths[i];
+                outParents[i] = (depth == 0) ? -1 : depthToBone[depth - 1];
+                depthToBone[depth] = static_cast<int32_t>(i);
+                for (size_t d = static_cast<size_t>(depth) + 1; d < depthToBone.size(); d++)
+                {
+                    depthToBone[d] = -1;
+                }
+            }
+        };
+
+        if (isAllZero())
+        {
+            if (outUsedSequentialMode) *outUsedSequentialMode = true;
+            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::Sequential;
+            return;
         }
+
+        const bool directValid = validateDirectParent();
+        const bool popValid = validatePopCount();
+        const bool treeValid = validateTreeDepth();
+
+        if (forceTreeDepth == 1)
+        {
+            if (treeValid)
+            {
+                computeTreeDepth();
+                if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::TreeDepth;
+                return;
+            }
+
+            computeDirectParent();
+            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::DirectParent;
+            return;
+        }
+
+        if (forceTreeDepth == 0)
+        {
+            if (popValid)
+            {
+                computePopCount();
+                if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::PopCount;
+                return;
+            }
+
+            computeDirectParent();
+            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::DirectParent;
+            return;
+        }
+
+        // Ambiguous direct-vs-pop streams are resolved by root-fragmentation:
+        // pick the interpretation with fewer roots / less disconnected hierarchy.
+        if (directValid && popValid)
+        {
+            std::vector<int32_t> directParents(depths.size(), -1);
+            for (size_t i = 0; i < depths.size(); i++)
+            {
+                uint8_t value = depths[i];
+                if (value == 0)
+                {
+                    directParents[i] = -1;
+                    continue;
+                }
+                int32_t parent = static_cast<int32_t>(value) - 1;
+                directParents[i] = (parent >= 0 && parent < static_cast<int32_t>(i)) ? parent : -1;
+            }
+
+            std::vector<int32_t> popParents(depths.size(), -1);
+            std::vector<int32_t> stack;
+            stack.reserve(depths.size());
+            for (size_t i = 0; i < depths.size(); i++)
+            {
+                uint8_t popCount = depths[i];
+                for (uint8_t p = 0; p < popCount && !stack.empty(); p++)
+                {
+                    stack.pop_back();
+                }
+                popParents[i] = stack.empty() ? -1 : stack.back();
+                stack.push_back(static_cast<int32_t>(i));
+            }
+
+            auto countRoots = [](const std::vector<int32_t>& parents) -> size_t {
+                size_t roots = 0;
+                for (int32_t parent : parents)
+                {
+                    if (parent < 0)
+                    {
+                        roots++;
+                    }
+                }
+                return roots;
+            };
+
+            const size_t directRoots = countRoots(directParents);
+            const size_t popRoots = countRoots(popParents);
+            const size_t boneCount = depths.size();
+            const bool directRootHeavy = (directRoots * 4) > boneCount; // > 25% roots
+            const bool popRootHeavy = (popRoots * 4) > boneCount;       // > 25% roots
+
+            const bool preferPop = (directRootHeavy != popRootHeavy)
+                ? directRootHeavy
+                : (popRoots < directRoots);
+
+            if (preferPop)
+            {
+                outParents = std::move(popParents);
+                if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::PopCount;
+                return;
+            }
+
+            outParents = std::move(directParents);
+            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::DirectParent;
+            return;
+        }
+
+        // Deterministic auto-detection with priority order when unambiguous:
+        // DirectParent > PopCount > TreeDepth.
+        if (directValid)
+        {
+            computeDirectParent();
+            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::DirectParent;
+            return;
+        }
+
+        if (popValid)
+        {
+            computePopCount();
+            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::PopCount;
+            return;
+        }
+
+        if (treeValid)
+        {
+            computeTreeDepth();
+            if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::TreeDepth;
+            return;
+        }
+
+        // Final fallback for malformed streams.
+        computeDirectParent();
+        if (outHierarchyMode) *outHierarchyMode = Animation::HierarchyMode::DirectParent;
     }
 };
 
@@ -1391,20 +1764,20 @@ inline std::optional<Animation::AnimationClip> ParseAnimationFromFile(
         return std::nullopt;
     }
 
-    // Try BB9 first (tree-depth hierarchy mode) - uses 44-byte header
+    // Try BB9 first - uses 44-byte header
     size_t chunkOffset, chunkSize;
     if (FindChunk(fileData, fileSize, CHUNK_ID_BB9, chunkOffset, chunkSize))
     {
         return BB9AnimationParser::Parse(&fileData[chunkOffset], chunkSize);
     }
 
-    // Try BB8 - uses 44-byte header, hierarchy mode from flags
+    // Try BB8 - uses 44-byte header
     if (FindChunk(fileData, fileSize, CHUNK_ID_BB8, chunkOffset, chunkSize))
     {
         return BB9AnimationParser::Parse(&fileData[chunkOffset], chunkSize);
     }
 
-    // Try FA1 - uses 88-byte header, hierarchy mode from classFlags
+    // Try FA1 - uses 88-byte header
     if (FindChunk(fileData, fileSize, CHUNK_ID_FA1, chunkOffset, chunkSize))
     {
         return BB9AnimationParser::ParseFA1(&fileData[chunkOffset], chunkSize);
@@ -1413,7 +1786,7 @@ inline std::optional<Animation::AnimationClip> ParseAnimationFromFile(
     // Note: FA6 is NOT an animation chunk - it's a file reference chunk (BBC equivalent)
     // Do not try to parse FA6 as animation data.
 
-    // Try FA0 - uses 88-byte header, hierarchy mode from classFlags
+    // Try FA0 - uses 88-byte header
     if (FindChunk(fileData, fileSize, CHUNK_ID_FA0, chunkOffset, chunkSize))
     {
         return BB9AnimationParser::ParseFA1(&fileData[chunkOffset], chunkSize);
@@ -1423,3 +1796,4 @@ inline std::optional<Animation::AnimationClip> ParseAnimationFromFile(
 }
 
 } // namespace GW::Parsers
+

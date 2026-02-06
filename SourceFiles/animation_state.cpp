@@ -5,16 +5,16 @@
 #include <DATManager.h>
 #include "Parsers/BB9AnimationParser.h"
 #include "Parsers/FileReferenceParser.h"
+#include "Animation/GWAnimationHashes.h"  // For animation hash lookup
 #include "FFNA_ModelFile_Other.h"  // For LogBB8Debug
+#include <condition_variable>
 #include <format>
-#include <thread>
 #include <mutex>
+#include <optional>
+#include <thread>
 
 // Global animation state
 AnimationPanelState g_animationState;
-
-// Local state for animation search
-static std::mutex s_resultsMutex;
 
 /**
  * @brief Logs detailed sequence information for debugging animation structure.
@@ -24,6 +24,17 @@ static void LogSequenceData(const GW::Animation::AnimationClip& clip, uint32_t f
     char msg[512];
     sprintf_s(msg, "\n=== Animation Sequence Data for File 0x%X ===\n", fileId);
     LogBB8Debug(msg);
+
+    // One-time verification of hash lookup tables
+    static bool s_hashLookupVerified = false;
+    if (!s_hashLookupVerified)
+    {
+        s_hashLookupVerified = true;
+        LogBB8Debug("Verifying animation hash lookup tables...\n");
+        GW::Animation::DebugDumpComputedSegmentHashes();
+        GW::Animation::DebugVerifyHashLookup();
+        LogBB8Debug("Hash lookup verification complete.\n");
+    }
 
     sprintf_s(msg, "Clip: minTime=%.1f, maxTime=%.1f, totalFrames=%u, source=%s\n",
         clip.minTime, clip.maxTime, clip.totalFrames, clip.sourceChunkType.c_str());
@@ -38,15 +49,19 @@ static void LogSequenceData(const GW::Animation::AnimationClip& clip, uint32_t f
         float durationMs = seq.endTime - seq.startTime;
         float durationSec = durationMs / 100000.0f;
 
-        sprintf_s(msg, "  [%zu] hash=0x%08X seqIdx=%u frames=%u time=[%.1f - %.1f] (%.2fs) bounds=(%.1f, %.1f, %.1f)\n",
+        // Look up the animation name from hash
+        std::string animName = GW::Animation::GetAnimationNameFromHash(seq.hash);
+        std::string nameStr = animName.empty() ? "(unknown)" : animName;
+
+        sprintf_s(msg, "  [%zu] hash=0x%08X -> '%s' seqIdx=%u frames=%u time=[%.1f - %.1f] (%.2fs)\n",
             i,
             seq.hash,
+            nameStr.c_str(),
             seq.sequenceIndex,
             seq.frameCount,
             seq.startTime,
             seq.endTime,
-            durationSec,
-            seq.bounds.x, seq.bounds.y, seq.bounds.z);
+            durationSec);
         LogBB8Debug(msg);
     }
 
@@ -76,6 +91,39 @@ static void LogSequenceData(const GW::Animation::AnimationClip& clip, uint32_t f
         }
         seqList += "\n";
         LogBB8Debug(seqList.c_str());
+    }
+
+    // Log animation segments with hash lookup
+    if (!clip.animationSegments.empty())
+    {
+        sprintf_s(msg, "\nAnimation Segments: %zu total\n", clip.animationSegments.size());
+        LogBB8Debug(msg);
+
+        for (size_t i = 0; i < clip.animationSegments.size(); i++)
+        {
+            const auto& seg = clip.animationSegments[i];
+            float durationSec = static_cast<float>(seg.GetDuration()) / 100000.0f;
+            uint8_t sourceType = clip.GetSegmentSourceType(i);
+            const char* sourceLabel = (sourceType == 0) ? "local" : "external";
+
+            // Look up the animation name from segment hash
+            std::string segName = GW::Animation::GetAnimationNameFromHash(seg.hash);
+            std::string nameStr = segName.empty() ? "(unknown)" : segName;
+            uint32_t maskedHash = seg.hash & 0xFFFFFF00;
+
+            sprintf_s(msg, "  [%zu] hash=0x%08X (masked=0x%08X) -> '%s' time=[%u - %u] (%.2fs) flags=0x%04X src=%s(%u)\n",
+                i,
+                seg.hash,
+                maskedHash,
+                nameStr.c_str(),
+                seg.startTime,
+                seg.endTime,
+                durationSec,
+                seg.flags,
+                sourceLabel,
+                static_cast<unsigned>(sourceType));
+            LogBB8Debug(msg);
+        }
     }
 
     LogBB8Debug("=== End Sequence Data ===\n\n");
@@ -239,24 +287,14 @@ static void ScanForAnimationReferences(
                         }
                     }
 
-                    // Type 8 = Sound Event files, others = Animation files
-                    // BBC/FA6 chunks primarily contain Type 8 sound event references
-                    // BBD/FA8 chunks primarily contain additional animation references
-                    if (ffnaType == 8)
-                    {
-                        SoundEventSource soundSource;
-                        soundSource.fileId = fileId;
-                        soundSource.mftIndex = foundMftIndex;
-                        soundSource.datAlias = foundDatAlias;
-                        soundSource.isLoaded = false;
-                        g_animationState.soundEventSources.push_back(soundSource);
+                    // FA8/BBD are animation source tables and preserve source ordering used by FA1 segmentType.
+                    // FA6/BBC usually point to Type 8 sound event files.
+                    const bool isAnimationReferenceChunk =
+                        (chunkId == GW::Parsers::CHUNK_ID_FA8 || chunkId == GW::Parsers::CHUNK_ID_BBD);
+                    const bool isSoundEventFile = (ffnaType == 8);
 
-                        sprintf_s(msg, "    -> Type 8 (Sound Event) file\n");
-                        LogBB8Debug(msg);
-                    }
-                    else
+                    if (isAnimationReferenceChunk || !isSoundEventFile)
                     {
-                        // Create AnimationSource entry
                         AnimationSource source;
                         source.fileId = fileId;
                         if (chunkId == GW::Parsers::CHUNK_ID_FA8)
@@ -267,11 +305,24 @@ static void ScanForAnimationReferences(
                             source.chunkType = "BBC";
                         else
                             source.chunkType = "BBD";
+                        source.referenceChunkId = chunkId;
+                        source.referenceIndex = i + 1;
                         source.isLoaded = false;
                         source.mftIndex = foundMftIndex;
                         source.datAlias = foundDatAlias;
-
                         g_animationState.animationSources.push_back(source);
+                    }
+                    else
+                    {
+                        SoundEventSource soundSource;
+                        soundSource.fileId = fileId;
+                        soundSource.mftIndex = foundMftIndex;
+                        soundSource.datAlias = foundDatAlias;
+                        soundSource.isLoaded = false;
+                        g_animationState.soundEventSources.push_back(soundSource);
+
+                        sprintf_s(msg, "    -> Type 8 (Sound Event) file\n");
+                        LogBB8Debug(msg);
                     }
 
                     entryOffset += 6;
@@ -289,8 +340,50 @@ static void ScanForAnimationReferences(
     LogBB8Debug("=== End Animation References ===\n\n");
 }
 
-// Pointer to DAT managers for use in search thread
+// Pointer to DAT managers for use in animation search/load helpers.
 static std::map<int, std::unique_ptr<DATManager>>* s_datManagersPtr = nullptr;
+
+namespace
+{
+enum class AnimationSearchMode
+{
+    ManualAllResults,
+    AutoFirstMatch
+};
+
+struct AnimationSearchRequest
+{
+    uint32_t targetHash0 = 0;
+    uint32_t targetHash1 = 0;
+    uint32_t modelFileId = 0;
+    AnimationSearchMode mode = AnimationSearchMode::ManualAllResults;
+};
+
+struct CompletedAnimationSearch
+{
+    AnimationSearchRequest request;
+    std::vector<AnimationSearchResult> results;
+};
+
+std::mutex s_searchControlMutex;
+std::condition_variable s_searchRequestCv;
+std::optional<AnimationSearchRequest> s_pendingSearchRequest;
+std::optional<CompletedAnimationSearch> s_completedSearch;
+std::atomic<bool> s_abortActiveSearch{ false };
+std::atomic<bool> s_searchWorkerStarted{ false };
+
+bool HasPendingSearchRequest()
+{
+    std::lock_guard<std::mutex> lock(s_searchControlMutex);
+    return s_pendingSearchRequest.has_value();
+}
+
+void PublishCompletedSearch(const AnimationSearchRequest& request, std::vector<AnimationSearchResult>&& results)
+{
+    std::lock_guard<std::mutex> lock(s_searchControlMutex);
+    s_completedSearch = CompletedAnimationSearch{ request, std::move(results) };
+}
+} // namespace
 
 /**
  * @brief Searches a file for BB9 or FA1 animation chunks with matching model hashes.
@@ -323,6 +416,8 @@ static bool CheckFileForMatchingAnimation(
             break;
 
         size_t chunkDataOffset = offset + 8;
+        if (chunkDataOffset + chunkSize > dataSize)
+            break;
 
         // Check for BB9 chunk
         if (chunkId == GW::Parsers::CHUNK_ID_BB9)
@@ -334,17 +429,15 @@ static bool CheckFileForMatchingAnimation(
 
                 if (header.modelHash0 == targetHash0 && header.modelHash1 == targetHash1)
                 {
-                    outResult.chunkType = "BB9";
-
                     auto clipOpt = GW::Parsers::BB9AnimationParser::Parse(
                         &data[chunkDataOffset], chunkSize);
-                    if (clipOpt)
+                    if (clipOpt && clipOpt->IsValid())
                     {
+                        outResult.chunkType = "BB9";
                         outResult.sequenceCount = static_cast<uint32_t>(clipOpt->sequences.size());
                         outResult.boneCount = static_cast<uint32_t>(clipOpt->boneTracks.size());
+                        return true;
                     }
-
-                    return true;
                 }
             }
         }
@@ -360,14 +453,15 @@ static bool CheckFileForMatchingAnimation(
                 // FA1 uses boundingBoxId/collisionMeshId as model hash equivalents
                 if (header.boundingBoxId == targetHash0 && header.collisionMeshId == targetHash1)
                 {
-                    outResult.chunkType = "FA1";
-
-                    // Use transformDataSize for sequence count, NOT sequenceCount0!
-                    // transformDataSize = actual number of 24-byte sequence entries
-                    outResult.sequenceCount = header.transformDataSize;
-                    outResult.boneCount = header.bindPoseBoneCount;
-
-                    return true;
+                    auto clipOpt = GW::Parsers::BB9AnimationParser::ParseFA1(
+                        &data[chunkDataOffset], chunkSize);
+                    if (clipOpt && clipOpt->IsValid())
+                    {
+                        outResult.chunkType = "FA1";
+                        outResult.sequenceCount = static_cast<uint32_t>(clipOpt->sequences.size());
+                        outResult.boneCount = static_cast<uint32_t>(clipOpt->boneTracks.size());
+                        return true;
+                    }
                 }
             }
         }
@@ -379,27 +473,22 @@ static bool CheckFileForMatchingAnimation(
 }
 
 /**
- * @brief Worker function to search DAT files for matching animations.
+ * @brief Executes one animation search request.
+ *
+ * Runs on the background worker thread and aborts early when a newer request
+ * has been queued or cancellation was requested.
  */
-static void SearchForAnimationsWorker(uint32_t targetHash0, uint32_t targetHash1)
+static void RunAnimationSearchRequest(const AnimationSearchRequest& request)
 {
     if (!s_datManagersPtr)
     {
-        g_animationState.searchInProgress.store(false);
         return;
     }
 
     auto& dat_managers = *s_datManagersPtr;
-
-    // Clear previous results
-    {
-        std::lock_guard<std::mutex> lock(s_resultsMutex);
-        g_animationState.searchResults.clear();
-    }
-
     g_animationState.filesProcessed.store(0);
 
-    // Count total files
+    // Count total files for progress reporting.
     int totalFiles = 0;
     for (const auto& pair : dat_managers)
     {
@@ -412,41 +501,44 @@ static void SearchForAnimationsWorker(uint32_t targetHash0, uint32_t targetHash1
 
     if (totalFiles == 0)
     {
-        g_animationState.searchInProgress.store(false);
+        PublishCompletedSearch(request, {});
         return;
     }
 
-    // Search each DAT
+    std::vector<AnimationSearchResult> localResults;
+    if (request.mode == AnimationSearchMode::AutoFirstMatch)
+    {
+        localResults.reserve(1);
+    }
+
+    // Search each DAT.
     for (const auto& pair : dat_managers)
     {
-        if (!g_animationState.searchInProgress.load())
-            break;
+        if (s_abortActiveSearch.load() || HasPendingSearchRequest())
+        {
+            return;
+        }
 
         DATManager* manager = pair.second.get();
         int datAlias = pair.first;
 
         if (!manager)
+        {
             continue;
+        }
 
         const auto& mft = manager->get_MFT();
-
         for (size_t i = 0; i < mft.size(); ++i)
         {
-            if (!g_animationState.searchInProgress.load())
-                break;
+            if (s_abortActiveSearch.load() || HasPendingSearchRequest())
+            {
+                return;
+            }
 
             const auto& entry = mft[i];
 
-            // Skip small files that can't contain animation data
-            // FFNA header (5) + chunk header (8) + BB9 header (44) = 57 bytes minimum
-            if (entry.uncompressedSize < 57)
-            {
-                g_animationState.filesProcessed.fetch_add(1);
-                continue;
-            }
-
-            // Only check FFNA Type2 files (models that might have animation)
-            if (entry.type != FFNA_Type2)
+            // Skip files that cannot contain model animation chunks.
+            if (entry.uncompressedSize < 57 || entry.type != FFNA_Type2)
             {
                 g_animationState.filesProcessed.fetch_add(1);
                 continue;
@@ -465,8 +557,8 @@ static void SearchForAnimationsWorker(uint32_t targetHash0, uint32_t targetHash1
                 bool found = CheckFileForMatchingAnimation(
                     fileData,
                     entry.uncompressedSize,
-                    targetHash0,
-                    targetHash1,
+                    request.targetHash0,
+                    request.targetHash1,
                     result);
 
                 if (found)
@@ -474,23 +566,118 @@ static void SearchForAnimationsWorker(uint32_t targetHash0, uint32_t targetHash1
                     result.fileId = entry.Hash;
                     result.mftIndex = static_cast<int>(i);
                     result.datAlias = datAlias;
+                    localResults.push_back(result);
 
-                    std::lock_guard<std::mutex> lock(s_resultsMutex);
-                    g_animationState.searchResults.push_back(result);
+                    if (request.mode == AnimationSearchMode::AutoFirstMatch)
+                    {
+                        delete[] fileData;
+                        g_animationState.filesProcessed.fetch_add(1);
+                        if (s_abortActiveSearch.load() || HasPendingSearchRequest())
+                        {
+                            return;
+                        }
+                        PublishCompletedSearch(request, std::move(localResults));
+                        return;
+                    }
                 }
 
                 delete[] fileData;
             }
             catch (...)
             {
-                // Ignore errors for individual files
+                // Ignore errors for individual files.
             }
 
             g_animationState.filesProcessed.fetch_add(1);
         }
     }
 
-    g_animationState.searchInProgress.store(false);
+    if (s_abortActiveSearch.load() || HasPendingSearchRequest())
+    {
+        return;
+    }
+    PublishCompletedSearch(request, std::move(localResults));
+}
+
+/**
+ * @brief Background worker that processes queued animation searches.
+ *
+ * Only one scan runs at a time. New requests replace old ones, and the active
+ * scan exits quickly so the latest model request takes priority.
+ */
+static void AnimationSearchWorkerLoop()
+{
+    for (;;)
+    {
+        AnimationSearchRequest request;
+        {
+            std::unique_lock<std::mutex> lock(s_searchControlMutex);
+            s_searchRequestCv.wait(lock, [] { return s_pendingSearchRequest.has_value(); });
+            request = *s_pendingSearchRequest;
+            s_pendingSearchRequest.reset();
+        }
+
+        s_abortActiveSearch.store(false);
+        g_animationState.searchInProgress.store(true);
+        RunAnimationSearchRequest(request);
+
+        bool hasPendingRequest = false;
+        {
+            std::lock_guard<std::mutex> lock(s_searchControlMutex);
+            hasPendingRequest = s_pendingSearchRequest.has_value();
+        }
+
+        if (!hasPendingRequest)
+        {
+            g_animationState.searchInProgress.store(false);
+        }
+    }
+}
+
+static void EnsureAnimationSearchWorkerStarted()
+{
+    if (s_searchWorkerStarted.exchange(true))
+    {
+        return;
+    }
+
+    std::thread(AnimationSearchWorkerLoop).detach();
+}
+
+static void QueueAnimationSearchRequest(const AnimationSearchRequest& request, bool clearCurrentResults)
+{
+    if (clearCurrentResults)
+    {
+        g_animationState.searchResults.clear();
+        g_animationState.selectedResultIndex = -1;
+    }
+
+    g_animationState.filesProcessed.store(0);
+    g_animationState.totalFiles.store(0);
+    g_animationState.searchInProgress.store(true);
+
+    EnsureAnimationSearchWorkerStarted();
+    {
+        std::lock_guard<std::mutex> lock(s_searchControlMutex);
+        s_pendingSearchRequest = request;
+        s_completedSearch.reset();
+        // Signal the current scan to stop; the worker will pick up the latest request.
+        s_abortActiveSearch.store(true);
+    }
+    s_searchRequestCv.notify_one();
+}
+
+static bool TryConsumeCompletedSearch(CompletedAnimationSearch& outCompleted)
+{
+    std::lock_guard<std::mutex> lock(s_searchControlMutex);
+    if (!s_completedSearch.has_value())
+    {
+        return false;
+    }
+
+    outCompleted = std::move(*s_completedSearch);
+    s_completedSearch.reset();
+    return true;
 }
 
 /**
@@ -546,9 +733,8 @@ static void LoadAnimationFromResult(
             g_animationState.hasModel = savedHasModel;
             g_animationState.currentChunkType = result.chunkType;
 
-            // Reset animation group selection
+            // Reset animation group selection (playback mode is set by Initialize).
             g_animationState.currentAnimationGroupIndex = 0;
-            g_animationState.playbackMode = AnimationPlaybackMode::FullAnimation;
 
             // Update model viewer state with animation file info for saving
             g_modelViewerState.animFileId = result.fileId;
@@ -603,7 +789,7 @@ static bool TryLoadAnimationFromSameFile(
                         continue;
 
                     auto clipOpt = GW::Parsers::ParseAnimationFromFile(fileData, mft[i].uncompressedSize);
-                    if (clipOpt && !clipOpt->boneTracks.empty())
+                    if (clipOpt && clipOpt->IsValid())
                     {
                         auto clip = std::make_shared<GW::Animation::AnimationClip>(std::move(*clipOpt));
 
@@ -632,9 +818,8 @@ static bool TryLoadAnimationFromSameFile(
                         g_animationState.hasModel = savedHasModel;
                         g_animationState.currentChunkType = clip->sourceChunkType;
 
-                        // Reset animation group selection
+                        // Reset animation group selection (playback mode is set by Initialize).
                         g_animationState.currentAnimationGroupIndex = 0;
-                        g_animationState.playbackMode = AnimationPlaybackMode::FullAnimation;
 
                         // Update model viewer state with animation file info for saving
                         g_modelViewerState.animFileId = fileId;
@@ -655,6 +840,15 @@ static bool TryLoadAnimationFromSameFile(
                         delete[] fileData;
                         return true;
                     }
+                    if (clipOpt && !clipOpt->IsValid())
+                    {
+                        char msg[192];
+                        sprintf_s(msg,
+                            "AutoLoad: file 0x%X has no playable animation keyframes (chunk=%s), continuing search\n",
+                            fileId,
+                            clipOpt->sourceChunkType.empty() ? "?" : clipOpt->sourceChunkType.c_str());
+                        LogBB8Debug(msg);
+                    }
                     delete[] fileData;
                 }
                 catch (...)
@@ -665,71 +859,6 @@ static bool TryLoadAnimationFromSameFile(
         }
     }
     return false;
-}
-
-/**
- * @brief Synchronously searches for matching animations and returns results.
- */
-static std::vector<AnimationSearchResult> SearchForAnimationsSync(
-    uint32_t targetHash0,
-    uint32_t targetHash1,
-    std::map<int, std::unique_ptr<DATManager>>& dat_managers,
-    int maxResults = 10)
-{
-    std::vector<AnimationSearchResult> results;
-
-    for (const auto& pair : dat_managers)
-    {
-        DATManager* manager = pair.second.get();
-        int datAlias = pair.first;
-
-        if (!manager)
-            continue;
-
-        const auto& mft = manager->get_MFT();
-
-        for (size_t i = 0; i < mft.size(); ++i)
-        {
-            const auto& entry = mft[i];
-
-            if (entry.uncompressedSize < 57 || entry.type != FFNA_Type2)
-                continue;
-
-            try
-            {
-                uint8_t* fileData = manager->read_file(static_cast<int>(i));
-                if (!fileData)
-                    continue;
-
-                AnimationSearchResult result;
-                bool found = CheckFileForMatchingAnimation(
-                    fileData, entry.uncompressedSize,
-                    targetHash0, targetHash1, result);
-
-                if (found)
-                {
-                    result.fileId = entry.Hash;
-                    result.mftIndex = static_cast<int>(i);
-                    result.datAlias = datAlias;
-                    results.push_back(result);
-
-                    if (results.size() >= static_cast<size_t>(maxResults))
-                    {
-                        delete[] fileData;
-                        return results;
-                    }
-                }
-
-                delete[] fileData;
-            }
-            catch (...)
-            {
-                // Ignore errors
-            }
-        }
-    }
-
-    return results;
 }
 
 void SetAnimationDATManagers(std::map<int, std::unique_ptr<DATManager>>* dat_managers)
@@ -747,46 +876,88 @@ void AutoLoadAnimationFromStoredManagers()
 
 void AutoLoadAnimation(std::map<int, std::unique_ptr<DATManager>>& dat_managers)
 {
-    // Store DAT managers pointer for potential future use
+    // Store DAT managers pointer for background search and deferred loading.
     s_datManagersPtr = &dat_managers;
 
-    // Skip if no model loaded or animation already loaded
+    // Skip if no model loaded or animation already loaded.
     if (!g_animationState.hasModel || g_animationState.hasAnimation)
-        return;
-
-    // First, try to load animation from the same file as the model
-    if (TryLoadAnimationFromSameFile(g_animationState.currentFileId, dat_managers))
-        return;
-
-    // Search for animations matching the model hashes
-    auto results = SearchForAnimationsSync(
-        g_animationState.modelHash0,
-        g_animationState.modelHash1,
-        dat_managers,
-        1);  // Just need the first match
-
-    if (!results.empty())
     {
-        LoadAnimationFromResult(results[0], dat_managers);
+        return;
     }
+
+    // First, try to load animation from the same file as the model.
+    if (TryLoadAnimationFromSameFile(g_animationState.currentFileId, dat_managers))
+    {
+        return;
+    }
+
+    // Queue cancellable background discovery and auto-load the first match.
+    AnimationSearchRequest request;
+    request.targetHash0 = g_animationState.modelHash0;
+    request.targetHash1 = g_animationState.modelHash1;
+    request.modelFileId = g_animationState.currentFileId;
+    request.mode = AnimationSearchMode::AutoFirstMatch;
+    QueueAnimationSearchRequest(request, true);
 }
 
 void StartAnimationSearch(std::map<int, std::unique_ptr<DATManager>>& dat_managers)
 {
-    if (g_animationState.searchInProgress.load())
+    if (!g_animationState.hasModel)
+    {
         return;
+    }
 
     s_datManagersPtr = &dat_managers;
-    g_animationState.searchInProgress.store(true);
+    AnimationSearchRequest request;
+    request.targetHash0 = g_animationState.modelHash0;
+    request.targetHash1 = g_animationState.modelHash1;
+    request.modelFileId = g_animationState.currentFileId;
+    request.mode = AnimationSearchMode::ManualAllResults;
+    QueueAnimationSearchRequest(request, true);
+}
+
+void CancelAnimationSearch()
+{
+    s_abortActiveSearch.store(true);
+    {
+        std::lock_guard<std::mutex> lock(s_searchControlMutex);
+        s_pendingSearchRequest.reset();
+        s_completedSearch.reset();
+    }
+
+    g_animationState.searchInProgress.store(false);
     g_animationState.filesProcessed.store(0);
     g_animationState.totalFiles.store(0);
-    g_animationState.searchResults.clear();
-    g_animationState.selectedResultIndex = -1;
+}
 
-    uint32_t hash0 = g_animationState.modelHash0;
-    uint32_t hash1 = g_animationState.modelHash1;
+void PumpAnimationSearchResults(std::map<int, std::unique_ptr<DATManager>>& dat_managers)
+{
+    CompletedAnimationSearch completed;
+    if (!TryConsumeCompletedSearch(completed))
+    {
+        return;
+    }
 
-    std::thread(SearchForAnimationsWorker, hash0, hash1).detach();
+    const bool modelMatchesRequest =
+        g_animationState.hasModel &&
+        g_animationState.currentFileId == completed.request.modelFileId &&
+        g_animationState.modelHash0 == completed.request.targetHash0 &&
+        g_animationState.modelHash1 == completed.request.targetHash1;
+
+    if (!modelMatchesRequest)
+    {
+        return;
+    }
+
+    g_animationState.searchResults = std::move(completed.results);
+    g_animationState.selectedResultIndex = g_animationState.searchResults.empty() ? -1 : 0;
+
+    if (completed.request.mode == AnimationSearchMode::AutoFirstMatch &&
+        !g_animationState.searchResults.empty() &&
+        !g_animationState.hasAnimation)
+    {
+        LoadAnimationFromResult(g_animationState.searchResults.front(), dat_managers);
+    }
 }
 
 void LoadAnimationFromSearchResult(int resultIndex, std::map<int, std::unique_ptr<DATManager>>& dat_managers)
@@ -860,9 +1031,8 @@ void LoadAnimationFromReference(int refIndex, std::map<int, std::unique_ptr<DATM
             g_animationState.hasModel = savedHasModel;
             g_animationState.currentChunkType = clip->sourceChunkType;
 
-            // Reset animation group selection
+            // Reset animation group selection (playback mode is set by Initialize).
             g_animationState.currentAnimationGroupIndex = 0;
-            g_animationState.playbackMode = AnimationPlaybackMode::FullAnimation;
 
             // Update model viewer state with animation file info for saving
             g_modelViewerState.animFileId = source.fileId;

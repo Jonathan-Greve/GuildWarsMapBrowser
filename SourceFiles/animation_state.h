@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Animation/AnimationController.h"
+#include "Animation/GWAnimationHashes.h"
 #include "AnimatedMeshInstance.h"
 #include "Audio/AnimationSoundManager.h"
 #include "Vertex.h"
@@ -41,6 +42,8 @@ struct AnimationSource
     int mftIndex = -1;
     int datAlias = 0;
     std::string chunkType;
+    uint32_t referenceChunkId = 0; // Source chunk id (e.g., FA8/BBD/FA6/BBC)
+    uint32_t referenceIndex = 0;   // 1-based index within the source chunk
     std::shared_ptr<GW::Animation::AnimationClip> clip;
     bool isLoaded = false;
 };
@@ -163,8 +166,8 @@ struct AnimationPanelState
     // Animation group selection (for full animation playback)
     int currentAnimationGroupIndex = 0;  // Which animation group is selected
 
-    // Playback mode (default: full animation)
-    AnimationPlaybackMode playbackMode = AnimationPlaybackMode::FullAnimation;
+    // Playback mode (default: segment loop for easier sub-animation browsing)
+    AnimationPlaybackMode playbackMode = AnimationPlaybackMode::SegmentLoop;
 
     // Animation sources from BBD references (for multi-file support)
     std::vector<AnimationSource> animationSources;
@@ -268,7 +271,7 @@ struct AnimationPanelState
 
         // Reset animation group and playback mode
         currentAnimationGroupIndex = 0;
-        playbackMode = AnimationPlaybackMode::FullAnimation;
+        playbackMode = AnimationPlaybackMode::SegmentLoop;
         animationSources.clear();
         hasScannedReferences = false;
 
@@ -527,6 +530,121 @@ struct AnimationPanelState
             controller->SetPlaybackSpeed(playbackSettings.playbackSpeed * 100000.0f);
             controller->SetLooping(playbackSettings.looping);
             controller->SetAutoCycleSequences(playbackSettings.autoCycle);
+
+            // Default to segment mode in model viewer.
+            playbackMode = AnimationPlaybackMode::SegmentLoop;
+            controller->SetPlaybackMode(GW::Animation::PlaybackMode::SegmentLoop);
+
+            // Auto-play priority:
+            // 1) Slow move (0xC2416C88, 0xC2416C7C)
+            // 2) Idle segments
+            // 3) Run forward (0xC2420D5A)
+            // If none are found, keep playback stopped.
+            static constexpr uint32_t kSlowMoveSegmentHashes[] = {
+                0xC2416C88u,
+                0xC2416C7Cu
+            };
+            static constexpr uint32_t kRunForwardSegmentHashes[] = {
+                0xC2420D5Au
+            };
+            static constexpr uint32_t kKnownIdleSegmentHashes[] = {
+                0x8985FC26u, // Idle (RH open. LH closed)
+                0x8985FC2Cu, // Idle (2H Carrying flag)
+                0x8985FC36u, // Idle (Both hands closed)
+                0x8985FC38u, // Idle (Both hands open)
+                0x8935FC39u, // Idle (RH closed. LH open)
+                0x33E48DF5u, // Idle/Stand (fallback hash seen in some files)
+                0x33E48D3Cu, // Idle Variant
+                0x33E46F23u  // Idle Variant 2
+            };
+            const auto& segments = clip->animationSegments;
+            const bool hasSourceTypes = (clip->animationSegmentSourceTypes.size() == segments.size());
+            const size_t kNotFound = static_cast<size_t>(-1);
+
+            auto isLocalPlayable = [&](size_t idx) -> bool
+            {
+                return !hasSourceTypes || clip->GetSegmentSourceType(idx) == 0;
+            };
+
+            auto hashInList = [](uint32_t value, const uint32_t* list, size_t count) -> bool
+            {
+                for (size_t i = 0; i < count; i++)
+                {
+                    if (list[i] == value)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            auto findFirstLocalByHashes = [&](const uint32_t* hashes, size_t hashCount) -> size_t
+            {
+                for (size_t i = 0; i < segments.size(); i++)
+                {
+                    if (!isLocalPlayable(i))
+                    {
+                        continue;
+                    }
+
+                    if (hashInList(segments[i].hash, hashes, hashCount))
+                    {
+                        return i; // First found in file order.
+                    }
+                }
+                return kNotFound;
+            };
+
+            auto findFirstLocalIdle = [&]() -> size_t
+            {
+                for (size_t i = 0; i < segments.size(); i++)
+                {
+                    if (!isLocalPlayable(i))
+                    {
+                        continue;
+                    }
+
+                    uint32_t hash = segments[i].hash;
+                    if (hashInList(hash, kKnownIdleSegmentHashes, sizeof(kKnownIdleSegmentHashes) / sizeof(kKnownIdleSegmentHashes[0])))
+                    {
+                        return i;
+                    }
+
+                    // Fallback category-based check for model-specific idle segment hashes.
+                    if (GW::Animation::AnimationHashLookup::Instance().GetAnimationCategory(hash) == "Idle")
+                    {
+                        return i;
+                    }
+                }
+                return kNotFound;
+            };
+
+            size_t selected = findFirstLocalByHashes(
+                kSlowMoveSegmentHashes,
+                sizeof(kSlowMoveSegmentHashes) / sizeof(kSlowMoveSegmentHashes[0]));
+
+            if (selected == kNotFound)
+            {
+                selected = findFirstLocalIdle();
+            }
+
+            if (selected == kNotFound)
+            {
+                selected = findFirstLocalByHashes(
+                    kRunForwardSegmentHashes,
+                    sizeof(kRunForwardSegmentHashes) / sizeof(kRunForwardSegmentHashes[0]));
+            }
+
+            if (selected != kNotFound)
+            {
+                controller->SetLooping(true);
+                controller->SetSegment(selected);
+                controller->Play();
+            }
+            else
+            {
+                controller->Stop();
+            }
         }
         else
         {
@@ -642,7 +760,8 @@ void SetAnimationDATManagers(std::map<int, std::unique_ptr<DATManager>>* dat_man
  * @brief Automatically loads animation for the current model.
  *
  * First tries to load animation from the same file as the model.
- * If not found, searches for files with matching model hashes and loads the first one.
+ * If not found, queues a background search for matching files and
+ * auto-loads the first match when it is discovered.
  *
  * @param dat_managers Map of DAT managers to search
  */
@@ -663,6 +782,19 @@ void AutoLoadAnimationFromStoredManagers();
  * @param dat_managers Map of DAT managers to search
  */
 void StartAnimationSearch(std::map<int, std::unique_ptr<DATManager>>& dat_managers);
+
+/**
+ * @brief Cancels any active or queued background animation search.
+ */
+void CancelAnimationSearch();
+
+/**
+ * @brief Applies completed background search results on the main thread.
+ *
+ * This also performs deferred auto-load when background auto-discovery finds
+ * a matching animation.
+ */
+void PumpAnimationSearchResults(std::map<int, std::unique_ptr<DATManager>>& dat_managers);
 
 /**
  * @brief Loads an animation from the search results by index.
