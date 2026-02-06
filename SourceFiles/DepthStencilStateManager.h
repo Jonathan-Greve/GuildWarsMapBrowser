@@ -4,6 +4,7 @@
 enum class DepthStencilStateType
 {
     Enabled,
+    EnabledForward,
     Disabled
 };
 
@@ -19,18 +20,30 @@ public:
         ZeroMemory(&dsDescEnabled, sizeof(dsDescEnabled));
         dsDescEnabled.DepthEnable = true;
         dsDescEnabled.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-        dsDescEnabled.DepthFunc = D3D11_COMPARISON_LESS;
+        dsDescEnabled.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
 
         ID3D11DepthStencilState* pDSStateEnabled;
         m_device->CreateDepthStencilState(&dsDescEnabled, &pDSStateEnabled);
         m_depthStencilStates[static_cast<size_t>(DepthStencilStateType::Enabled)] = pDSStateEnabled;
+
+        // Create depth stencil state for forward-depth passes (e.g. shadow map)
+        D3D11_DEPTH_STENCIL_DESC dsDescEnabledForward;
+        ZeroMemory(&dsDescEnabledForward, sizeof(dsDescEnabledForward));
+        dsDescEnabledForward.DepthEnable = true;
+        dsDescEnabledForward.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+        dsDescEnabledForward.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+
+        ID3D11DepthStencilState* pDSStateEnabledForward;
+        m_device->CreateDepthStencilState(&dsDescEnabledForward, &pDSStateEnabledForward);
+        m_depthStencilStates[static_cast<size_t>(DepthStencilStateType::EnabledForward)] =
+          pDSStateEnabledForward;
 
         // Create depth stencil state for Disabled
         D3D11_DEPTH_STENCIL_DESC dsDescDisabled;
         ZeroMemory(&dsDescDisabled, sizeof(dsDescDisabled));
         dsDescDisabled.DepthEnable = false;
         dsDescDisabled.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-        dsDescDisabled.DepthFunc = D3D11_COMPARISON_LESS;
+        dsDescDisabled.DepthFunc = D3D11_COMPARISON_GREATER_EQUAL;
 
         ID3D11DepthStencilState* pDSStateDisabled;
         m_device->CreateDepthStencilState(&dsDescDisabled, &pDSStateDisabled);
@@ -57,5 +70,5 @@ private:
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_deviceContext;
 
-    std::array<ID3D11DepthStencilState*, 2> m_depthStencilStates;
+    std::array<ID3D11DepthStencilState*, 3> m_depthStencilStates = { nullptr, nullptr, nullptr };
 };

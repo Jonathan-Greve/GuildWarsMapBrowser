@@ -239,7 +239,7 @@ PSOutput main(PixelInputType input)
 
         // Add a bias to reduce shadow acne, especially on steep surfaces
         float bias = max(0.001 * (1.0 - dot(normalize(input.normal), -normalize(directionalLight.direction))), 0.0005);
-        shadowDepth -= bias;
+        shadowDepth += bias;
 
         // PCF
         float shadow = 0.0;

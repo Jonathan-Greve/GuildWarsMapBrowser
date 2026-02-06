@@ -231,9 +231,19 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 	break;
 	break;
 	case FFNA_Type2:
+		// Fully clear previous map/model scene state before loading a standalone model.
+		if (g_modelViewerState.isActive)
+		{
+			DeactivateModelViewer(map_renderer);
+		}
+		else
+		{
+			map_renderer->ClearCameraOverride();
+		}
+
 		// Clear up some GPU memory (especially important for GPUs with little VRAM)
 		map_renderer->GetTextureManager()->Clear();
-		map_renderer->ClearProps();
+		map_renderer->ClearSceneForModeSwitch();
 
 		// Check if this is an "other" model format (uses 0xBB* chunks instead of 0xFA*)
 		using_other_model_format = dat_manager->is_other_model_format(index);
@@ -344,7 +354,6 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				}
 			}
 
-			map_renderer->UnsetTerrain();
 			// Disable shadows for models when viewing standalone (no terrain = no shadow map)
 			map_renderer->SetShouldRenderShadowsForModels(false);
 			// Clear the shadow map binding from slot 0 to avoid D3D11 validation errors
@@ -1038,20 +1047,10 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			success = true;
 
 			// Auto-activate model viewer when loading a model
-			g_modelViewerState.meshes = g_animationState.originalMeshes;
-			g_modelViewerState.meshIds = g_animationState.meshIds;
+			ActivateModelViewer(map_renderer);
 			g_modelViewerState.modelFileId = entry->Hash;
 			g_modelViewerState.modelMftIndex = index;
 			g_modelViewerState.modelDatManager = dat_manager;
-			g_modelViewerState.vertexBoneGroups = g_animationState.perVertexBoneGroups;
-			g_modelViewerState.animController = g_animationState.controller;
-			g_modelViewerState.animClip = g_animationState.clip;
-			g_modelViewerState.ComputeBounds();
-			g_modelViewerState.UpdateBoneInfo();
-			g_modelViewerState.camera->FitToBounds(
-				g_modelViewerState.boundsMin,
-				g_modelViewerState.boundsMax);
-			g_modelViewerState.isActive = true;
 			GuiGlobalConstants::is_model_viewer_panel_open = true;
 
 			// After the mesh is ready and visible, start animation discovery in background.
@@ -1065,6 +1064,21 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 		{
 			break;
 		}
+
+		// Switching to map mode must clear all model-viewer/animation state first.
+		CancelAnimationSearch();
+		if (g_modelViewerState.isActive)
+		{
+			DeactivateModelViewer(map_renderer);
+		}
+		else
+		{
+			map_renderer->ClearCameraOverride();
+		}
+		g_animationState.Reset();
+		g_modelViewerState.Reset();
+		map_renderer->ClearSceneForModeSwitch();
+		map_renderer->SetShouldRenderShadowsForModels(true);
 
 
 
@@ -1082,8 +1096,6 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 		{
 			// Clear up some GPU memory (especially important for GPUs with little VRAM)
 			map_renderer->GetTextureManager()->Clear();
-			map_renderer->ClearProps();
-			map_renderer->GetMeshManager()->RemoveMesh(map_renderer->GetSkyMeshId());
 
 
 			const auto& environment_info_chunk = selected_ffna_map_file.environment_info_chunk;
@@ -1367,12 +1379,6 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 			auto& terrain_shadow_map =
 				selected_ffna_map_file.terrain_chunk.terrain_shadow_map;
-
-			// Deactivate model viewer when loading a map
-			if (g_modelViewerState.isActive)
-			{
-				DeactivateModelViewer(map_renderer);
-			}
 
 			// Create terrain
 			terrain = std::make_unique<Terrain>(selected_ffna_map_file.terrain_chunk.terrain_x_dims,

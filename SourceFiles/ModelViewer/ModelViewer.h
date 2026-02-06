@@ -98,6 +98,7 @@ struct ModelViewerState
     // Previous map state (for restoring when exiting model viewer)
     bool hadMapLoaded = false;
     int previousTerrainId = -1;
+    bool previousShouldRenderFog = true;
 
     ModelViewerState()
     {
@@ -123,6 +124,9 @@ struct ModelViewerState
         animController.reset();
         animClip.reset();
         vertexBoneGroups.clear();
+        hadMapLoaded = false;
+        previousTerrainId = -1;
+        previousShouldRenderFog = true;
         options = ModelViewerOptions();
         camera->Reset();
     }

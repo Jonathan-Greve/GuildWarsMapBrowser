@@ -845,6 +845,7 @@ void MapBrowser::RenderWaterReflection()
         const auto camera_aspect_ration = m_map_renderer->GetCamera()->GetAspectRatio();
         const auto camera_near = m_map_renderer->GetCamera()->GetNearZ();
         const auto camera_far = m_map_renderer->GetCamera()->GetFarZ();
+        const auto camera_uses_reverse_z = m_map_renderer->GetCamera()->UsesReverseZ();
 
         float water_level = m_map_renderer->GetWaterLevel();
         const auto cam_look = NormalizeXMFLOAT3(m_map_renderer->GetCamera()->GetLook3f());
@@ -894,14 +895,17 @@ void MapBrowser::RenderWaterReflection()
         if (camera_type == CameraType::Perspective)
         {
             m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
-            m_map_renderer->GetCamera()->SetFrustumAsPerspective(camera_fovY, camera_aspect_ration, camera_near, camera_far);
+            m_map_renderer->GetCamera()->SetFrustumAsPerspective(
+              camera_fovY, camera_aspect_ration, camera_near, camera_far, camera_uses_reverse_z);
             m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
 
         }
         else
         {
             m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
-            m_map_renderer->GetCamera()->SetFrustumAsOrthographic(camera_frustrum_width, camera_frustrum_height, camera_near, camera_far);
+            m_map_renderer->GetCamera()->SetFrustumAsOrthographic(
+              camera_frustrum_width, camera_frustrum_height, camera_near, camera_far,
+              camera_uses_reverse_z);
             m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
         }
 
@@ -926,6 +930,7 @@ void MapBrowser::RenderShadows()
         const auto camera_aspect_ration = m_map_renderer->GetCamera()->GetAspectRatio();
         const auto camera_near = m_map_renderer->GetCamera()->GetNearZ();
         const auto camera_far = m_map_renderer->GetCamera()->GetFarZ();
+        const auto camera_uses_reverse_z = m_map_renderer->GetCamera()->UsesReverseZ();
 
         XMFLOAT3 corners[8] = {
             { m_map_renderer->GetTerrain()->m_bounds.map_min_x, m_map_renderer->GetTerrain()->m_bounds.map_min_y, m_map_renderer->GetTerrain()->m_bounds.map_min_z }, // Min corner
@@ -975,7 +980,8 @@ void MapBrowser::RenderShadows()
         float frustum_far = maxZ;
 
 
-        m_map_renderer->SetFrustumAsOrthographic(frustum_width, frustum_height, frustum_near, frustum_far);
+        m_map_renderer->SetFrustumAsOrthographic(
+          frustum_width, frustum_height, frustum_near, frustum_far, true);
         m_map_renderer->GetCamera()->Update(0);
 
 #ifdef _DEBUG
@@ -1026,14 +1032,17 @@ void MapBrowser::RenderShadows()
         if (camera_type == CameraType::Perspective)
         {
             m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
-            m_map_renderer->GetCamera()->SetFrustumAsPerspective(camera_fovY, camera_aspect_ration, camera_near, camera_far);
+            m_map_renderer->GetCamera()->SetFrustumAsPerspective(
+              camera_fovY, camera_aspect_ration, camera_near, camera_far, camera_uses_reverse_z);
             m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
 
         }
         else
         {
             m_map_renderer->GetCamera()->SetPosition(camera_pos.x, camera_pos.y, camera_pos.z);
-            m_map_renderer->GetCamera()->SetFrustumAsOrthographic(camera_frustrum_width, camera_frustrum_height, camera_near, camera_far);
+            m_map_renderer->GetCamera()->SetFrustumAsOrthographic(
+              camera_frustrum_width, camera_frustrum_height, camera_near, camera_far,
+              camera_uses_reverse_z);
             m_map_renderer->GetCamera()->SetOrientation(camera_pitch, camera_yaw);
         }
 
@@ -1068,7 +1077,7 @@ void MapBrowser::Clear()
     // Clear picking target with a color that represents "no object" (e.g., black or white with alpha 1)
     float pickingClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // Or {1,1,1,1}
     context->ClearRenderTargetView(pickingRenderTarget, pickingClearColor);
-    context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
 
     ID3D11RenderTargetView* multipleRenderTargets[] = { renderTarget, pickingRenderTarget };
     context->OMSetRenderTargets(2, multipleRenderTargets, depthStencil);
@@ -1089,7 +1098,7 @@ void MapBrowser::ClearOffscreen() {
 
     const auto& clear_color = m_map_renderer->GetClearColor();
     context->ClearRenderTargetView(renderTarget, (float*)(&clear_color));
-    context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
 
     context->OMSetRenderTargets(1, &renderTarget, depthStencil);
 
@@ -1105,7 +1114,7 @@ void MapBrowser::ClearShadow()
     auto depthStencil = m_deviceResources->GetShadowMapDSV();
 
     context->OMSetRenderTargets(0, nullptr, depthStencil);
-    context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH, 0.0f, 0);
 
 
 
@@ -1125,7 +1134,7 @@ void MapBrowser::ClearReflection()
 
     const auto& clear_color = m_map_renderer->GetClearColor();
     context->ClearRenderTargetView(renderTarget, (float*)(&clear_color));
-    context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 0.0f, 0);
 
     context->OMSetRenderTargets(1, &renderTarget, depthStencil);
 
@@ -1496,3 +1505,4 @@ void MapBrowser::WriteToTextureErrorLog(int mft_index, int file_hash, const std:
 
 
 #pragma endregion
+

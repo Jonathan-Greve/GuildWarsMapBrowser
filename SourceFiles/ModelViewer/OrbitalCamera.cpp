@@ -14,6 +14,7 @@ OrbitalCamera::OrbitalCamera()
     , m_aspectRatio(16.0f / 9.0f)
     , m_nearZ(1.0f)
     , m_farZ(200000.0f)
+    , m_useReverseZ(true)
     , m_viewDirty(true)
     , m_dragMode(0)
 {
@@ -83,19 +84,28 @@ void OrbitalCamera::FitToBounds(const XMFLOAT3& boundsMin, const XMFLOAT3& bound
     m_viewDirty = true;
 }
 
-void OrbitalCamera::SetPerspective(float fovY, float aspect, float nearZ, float farZ)
+void OrbitalCamera::SetPerspective(float fovY, float aspect, float nearZ, float farZ, bool reverse_z)
 {
     m_fovY = fovY;
     m_aspectRatio = aspect;
     m_nearZ = nearZ;
     m_farZ = farZ;
-    XMStoreFloat4x4(&m_proj, XMMatrixPerspectiveFovLH(fovY, aspect, nearZ, farZ));
+    m_useReverseZ = reverse_z;
+
+    if (m_useReverseZ)
+    {
+        XMStoreFloat4x4(&m_proj, XMMatrixPerspectiveFovLH(fovY, aspect, farZ, nearZ));
+    }
+    else
+    {
+        XMStoreFloat4x4(&m_proj, XMMatrixPerspectiveFovLH(fovY, aspect, nearZ, farZ));
+    }
 }
 
 void OrbitalCamera::OnViewportChanged(float width, float height)
 {
     m_aspectRatio = width / height;
-    SetPerspective(m_fovY, m_aspectRatio, m_nearZ, m_farZ);
+    SetPerspective(m_fovY, m_aspectRatio, m_nearZ, m_farZ, m_useReverseZ);
 }
 
 void OrbitalCamera::OnOrbitDrag(float deltaX, float deltaY)

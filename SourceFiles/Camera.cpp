@@ -29,30 +29,33 @@ XMVECTOR Camera::GetLook() const { return XMLoadFloat3(&m_look); }
 
 XMFLOAT3 Camera::GetLook3f() const { return m_look; }
 
-void Camera::SetFrustumAsPerspective(float fovY, float aspectRatio, float zNear, float zFar)
+void Camera::SetFrustumAsPerspective(float fovY, float aspectRatio, float zNear, float zFar, bool reverse_z)
 {
-    XMStoreFloat4x4(&m_proj, XMMatrixPerspectiveFovLH(fovY, aspectRatio, zNear, zFar));
     m_fov = fovY;
     m_aspectRatio = aspectRatio;
     m_nearZ = zNear;
     m_farZ = zFar;
+    m_use_reverse_z = reverse_z;
 
     m_camera_type = CameraType::Perspective;
+    UpdateProjectionMatrix();
 }
 
-void Camera::SetFrustumAsOrthographic(float view_width, float view_height, float zn, float zf)
+void Camera::SetFrustumAsOrthographic(float view_width, float view_height, float zn, float zf,
+                                      bool reverse_z)
 {
     view_width = std::max(1.0f, view_width);
     view_height = std::max(1.0f, view_height);
 
-    XMStoreFloat4x4(&m_proj, XMMatrixOrthographicLH(view_width, view_height, zn, zf));
     m_viewWidth = view_width;
     m_viewHeight = view_height;
 
     m_nearZ = zn;
     m_farZ = zf;
+    m_use_reverse_z = reverse_z;
 
     m_camera_type = CameraType::Orthographic;
+    UpdateProjectionMatrix();
 }
 
 void Camera::LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp)
@@ -192,10 +195,7 @@ XMFLOAT4X4 Camera::GetProj4x4() const { return m_proj; }
 void Camera::OnViewPortChanged(const float viewport_width, const float viewport_height)
 {
     m_aspectRatio = viewport_width / viewport_height;
-    if (m_camera_type == CameraType::Perspective)
-        XMStoreFloat4x4(&m_proj, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
-    else
-        XMStoreFloat4x4(&m_proj, XMMatrixOrthographicLH(m_viewWidth, m_viewHeight, m_nearZ, m_farZ));
+    UpdateProjectionMatrix();
     m_view_should_update = true;
 }
 
@@ -210,6 +210,8 @@ float Camera::GetViewHeight() const { return m_viewHeight; }
 float Camera::GetNearZ() const { return m_nearZ; }
 
 float Camera::GetFarZ() const { return m_farZ; }
+
+bool Camera::UsesReverseZ() const { return m_use_reverse_z; }
 
 CameraType Camera::GetCameraType() const { return m_camera_type; }
 
@@ -239,6 +241,32 @@ void Camera::UpdateViewMatrix()
         XMStoreFloat3(&m_position, position);
 
         m_view_should_update = false;
+    }
+}
+
+void Camera::UpdateProjectionMatrix()
+{
+    if (m_camera_type == CameraType::Perspective)
+    {
+        if (m_use_reverse_z)
+        {
+            XMStoreFloat4x4(&m_proj, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_farZ, m_nearZ));
+        }
+        else
+        {
+            XMStoreFloat4x4(&m_proj, XMMatrixPerspectiveFovLH(m_fov, m_aspectRatio, m_nearZ, m_farZ));
+        }
+    }
+    else
+    {
+        if (m_use_reverse_z)
+        {
+            XMStoreFloat4x4(&m_proj, XMMatrixOrthographicLH(m_viewWidth, m_viewHeight, m_farZ, m_nearZ));
+        }
+        else
+        {
+            XMStoreFloat4x4(&m_proj, XMMatrixOrthographicLH(m_viewWidth, m_viewHeight, m_nearZ, m_farZ));
+        }
     }
 }
 

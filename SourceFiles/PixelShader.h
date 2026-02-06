@@ -164,15 +164,15 @@ public:
         shadowSamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
         shadowSamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
         shadowSamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
-        shadowSamplerDesc.BorderColor[0] = 1.0f;
-        shadowSamplerDesc.BorderColor[1] = 1.0f;
-        shadowSamplerDesc.BorderColor[2] = 1.0f;
-        shadowSamplerDesc.BorderColor[3] = 1.0f;
+        shadowSamplerDesc.BorderColor[0] = 0.0f;
+        shadowSamplerDesc.BorderColor[1] = 0.0f;
+        shadowSamplerDesc.BorderColor[2] = 0.0f;
+        shadowSamplerDesc.BorderColor[3] = 0.0f;
         shadowSamplerDesc.MinLOD = 0.f;
         shadowSamplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
         shadowSamplerDesc.MipLODBias = 0.f;
         shadowSamplerDesc.MaxAnisotropy = 0;
-        shadowSamplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL;
+        shadowSamplerDesc.ComparisonFunc = D3D11_COMPARISON_GREATER_EQUAL;
         shadowSamplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 
         D3D11_SAMPLER_DESC samplerDesc = {};
@@ -214,3 +214,4 @@ private:
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_deviceContext;
 };
+

@@ -34,6 +34,7 @@ void ActivateModelViewer(MapRenderer* mapRenderer)
     // Store map state for restoration (if terrain was loaded)
     g_modelViewerState.hadMapLoaded = (mapRenderer->GetTerrain() != nullptr);
     g_modelViewerState.previousTerrainId = mapRenderer->GetTerrainMeshId();
+    g_modelViewerState.previousShouldRenderFog = mapRenderer->GetShouldRenderFog();
 
     // Hide terrain/map meshes when in model viewer mode
     if (g_modelViewerState.hadMapLoaded)
@@ -51,6 +52,9 @@ void ActivateModelViewer(MapRenderer* mapRenderer)
             mapRenderer->SetMeshShouldRender(waterId, false);
         }
     }
+
+    // Fog is map-specific and should not affect standalone model viewing.
+    mapRenderer->SetShouldRenderFog(false);
 
     g_modelViewerState.isActive = true;
     // Defer camera fit to first frame when viewport is properly set
@@ -101,6 +105,7 @@ void DeactivateModelViewer(MapRenderer* mapRenderer)
 
     // Clear camera override so map camera takes over
     mapRenderer->ClearCameraOverride();
+    mapRenderer->SetShouldRenderFog(g_modelViewerState.previousShouldRenderFog);
 
     // Reset model viewer state
     g_modelViewerState.isActive = false;
@@ -108,7 +113,19 @@ void DeactivateModelViewer(MapRenderer* mapRenderer)
     g_modelViewerState.meshes.clear();
     g_modelViewerState.meshIds.clear();
     g_modelViewerState.bones.clear();
+    g_modelViewerState.boneParents.clear();
     g_modelViewerState.modelFileId = 0;
+    g_modelViewerState.modelMftIndex = -1;
+    g_modelViewerState.modelDatManager = nullptr;
+    g_modelViewerState.animFileId = 0;
+    g_modelViewerState.animMftIndex = -1;
+    g_modelViewerState.animDatManager = nullptr;
+    g_modelViewerState.animController.reset();
+    g_modelViewerState.animClip.reset();
+    g_modelViewerState.vertexBoneGroups.clear();
+    g_modelViewerState.hadMapLoaded = false;
+    g_modelViewerState.previousTerrainId = -1;
+    g_modelViewerState.previousShouldRenderFog = true;
     g_modelViewerState.camera->Reset();
 
     // Disable bone visualization when leaving model viewer
@@ -257,8 +274,10 @@ int PickBoneAtScreenPos(float screenX, float screenY, float screenWidth, float s
 
     // Unproject near and far points
     XMMATRIX invViewProj = XMMatrixInverse(nullptr, viewProj);
-    XMVECTOR nearPoint = XMVector3TransformCoord(XMVectorSet(ndcX, ndcY, 0.0f, 1.0f), invViewProj);
-    XMVECTOR farPoint = XMVector3TransformCoord(XMVectorSet(ndcX, ndcY, 1.0f, 1.0f), invViewProj);
+    const float nearDepth = camera->UsesReverseZ() ? 1.0f : 0.0f;
+    const float farDepth = camera->UsesReverseZ() ? 0.0f : 1.0f;
+    XMVECTOR nearPoint = XMVector3TransformCoord(XMVectorSet(ndcX, ndcY, nearDepth, 1.0f), invViewProj);
+    XMVECTOR farPoint = XMVector3TransformCoord(XMVectorSet(ndcX, ndcY, farDepth, 1.0f), invViewProj);
     XMVECTOR rayDir = XMVector3Normalize(farPoint - nearPoint);
 
     // Use the same joint radius as the bone visualization for picking
