@@ -4,8 +4,10 @@
 #include <vector>
 #include <map>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <format>
+#include "GWAnimationHashes.h"
 
 using namespace DirectX;
 
@@ -222,9 +224,9 @@ struct AnimationGroup
 };
 
 /**
- * @brief Animation segment entry (22 bytes).
+ * @brief Animation segment entry (engine-normalized metadata container).
  *
- * Parsed from BB9 chunk. These define animation regions within phases:
+ * Parsed from BB9/FA1 chunk. These define animation regions within phases:
  * - Loop boundaries (main animation segment vs intro)
  * - Sub-animation markers (/laugh, /cheer, strafe variants within a phase)
  *
@@ -244,9 +246,13 @@ struct AnimationSegmentEntry
     uint32_t hash = 0;              // 0x00: Animation segment identifier
     uint32_t startTime = 0;         // 0x04: Start time in animation units (100000 = 1 sec)
     uint32_t endTime = 0;           // 0x08: End time in animation units
-    uint16_t flags = 0;             // 0x0C: Flags (0x1212 common)
-    uint8_t  reserved[8] = {};      // 0x0E: Reserved/padding
-    // Total: 22 bytes (0x16)
+    // Packed from BB9/FA1 runtime fields:
+    // - flags low/high bytes: phaseStartIndex/phaseEndIndex
+    // - reserved[0..3]: loopStartOffset (u32)
+    // - reserved[4..7]: transitionParam (f32)
+    uint16_t flags = 0;
+    uint8_t  reserved[8] = {};
+    // Total: 22 bytes (0x16) for backward compatibility with existing code.
 
     /**
      * @brief Gets the start time in seconds.
@@ -272,6 +278,30 @@ struct AnimationSegmentEntry
     uint32_t GetDuration() const
     {
         return endTime > startTime ? endTime - startTime : 0;
+    }
+
+    uint8_t GetPhaseStartIndex() const
+    {
+        return static_cast<uint8_t>(flags & 0xFF);
+    }
+
+    uint8_t GetPhaseEndIndex() const
+    {
+        return static_cast<uint8_t>((flags >> 8) & 0xFF);
+    }
+
+    uint32_t GetLoopStartOffset() const
+    {
+        uint32_t value = 0;
+        std::memcpy(&value, &reserved[0], sizeof(uint32_t));
+        return value;
+    }
+
+    float GetTransitionParam() const
+    {
+        float value = 0.0f;
+        std::memcpy(&value, &reserved[4], sizeof(float));
+        return value;
     }
 };
 #pragma pack(pop)
@@ -305,7 +335,10 @@ struct AnimationClip
     std::vector<int32_t> boneParents;            // Bone hierarchy (parent indices)
     std::vector<AnimationSequence> sequences;    // Animation sequences
     std::vector<AnimationGroup> animationGroups; // Grouped animations by animationId
-    std::vector<AnimationSegmentEntry> animationSegments;  // Animation segment definitions from BB9
+    std::vector<AnimationSegmentEntry> animationSegments;  // Segment timing/hash entries (BB9/FA1)
+    // For FA1 only: per-segment source selector from segmentType.
+    // 0 = local clip, >0 = external referenced animation source index.
+    std::vector<uint8_t> animationSegmentSourceTypes;
 
     AnimationLoopConfig loopConfig;                  // Loop configuration (intro/loop regions)
 
@@ -328,6 +361,21 @@ struct AnimationClip
     size_t GetSequenceCount() const { return sequences.size(); }
 
     /**
+     * @brief Gets FA1 segment source type for a segment index.
+     *
+     * Returns 0 for BB9 segments (local clip) and also for FA1 segments when source
+     * metadata is unavailable.
+     */
+    uint8_t GetSegmentSourceType(size_t segmentIndex) const
+    {
+        if (segmentIndex < animationSegmentSourceTypes.size())
+        {
+            return animationSegmentSourceTypes[segmentIndex];
+        }
+        return 0;
+    }
+
+    /**
      * @brief Checks if the clip has valid animation data.
      */
     bool IsValid() const { return !boneTracks.empty() && maxTime > minTime; }
@@ -342,6 +390,11 @@ struct AnimationClip
 
         for (const auto& track : boneTracks)
         {
+            if (!track.HasKeyframes())
+            {
+                continue;
+            }
+
             float trackMin, trackMax;
             track.GetTimeRange(trackMin, trackMax);
             minTime = std::min(minTime, trackMin);
@@ -408,7 +461,8 @@ struct AnimationClip
                 group.animationId = seq.hash;
                 group.startTime = seq.startTime;
                 group.endTime = seq.endTime;
-                group.displayName = std::format("Anim 0x{:08X}", seq.hash);
+                // Use hash lookup for known animation names
+                group.displayName = GetAnimationCategorizedName(seq.hash);
             }
             else
             {

@@ -969,8 +969,8 @@ struct GeometryHeader_FA1 {
     u32 boundingBoxId;          // 0x0C
     u32 collisionMeshId;        // 0x10
     u32 boundingCylinderCount;  // 0x14
-    u16 sequenceKeyframeCount0; // 0x18
-    u16 sequenceKeyframeCount1; // 0x1A
+    u16 animationSegmentCount;  // 0x18: Number of 23-byte animation segment entries (FA1 has padding)
+    u16 reserved_0x1A;          // 0x1A: Reserved/unused
     u32 unknown_0x1C;
     float geometryScale;        // 0x20: Skeleton/geometry scale factor (GW stores at model+0x100)
                                 //       If negative/zero, GW computes scale from bounding data
@@ -980,7 +980,7 @@ struct GeometryHeader_FA1 {
     u32 unknown_0x30;
     u32 transformDataSize;      // 0x34: Number of 24-byte sequence entries (NOT gated by flags!)
     u32 submeshCount;           // 0x38
-    u32 unknown_0x3C;
+    u32 unknown_0x3C;           // 0x3C: Event/phase count in skeleton-data variants (count * 5 bytes)
     u16 sequenceCount0;         // 0x40
     u16 sequenceCount1;         // 0x42
     u32 unknown_0x44;
@@ -1000,18 +1000,28 @@ struct GeometryHeader_FA1 {
 // Located after FA1 header + bounding cylinders + sequences.
 // Contains bone position in model space + hierarchy encoding.
 //
-// FA1 HIERARCHY ENCODING (DIFFERENT FROM BB9!):
-//   FA1 uses DIRECT PARENT INDEXING, not POP_COUNT like BB9.
+// FA1 HIERARCHY ENCODING:
+//   Two encodings are observed:
+//   1) Direct-parent (common in external FA1 animation files)
+//      lowByte = parent_index + 1, where 0 = root
+//   2) Pop-count (seen in some embedded/model FA1 variants)
+//      lowByte = levels to pop from matrix stack
+//   Mode selection is deterministic from hierarchy-byte stream validity
+//   (no offset scanning/search required).
 //
-// parentInfo field encoding:
-//   Bits 0-7 (low byte):   (parent_index + 1), where 0 = root bone (no parent)
-//   Bit 28 (0x10000000):   Unknown flag (possibly intermediate bone marker)
+// parentInfo field:
+//   Bits 0-7 (low byte):   hierarchy payload byte (mode-dependent)
+//   Bit 28 (0x10000000):   Intermediate-bone marker
 //
 // DIRECT PARENT ALGORITHM:
 //   - For each bone:
 //     lowByte = parentInfo & 0xFF
 //     if (lowByte == 0) parent = -1 (this is a root bone)
 //     else parent = lowByte - 1
+//
+// POP COUNT ALGORITHM:
+//   - Maintain matrix-stack depth while iterating bones in order
+//   - Pop lowByte levels, parent = stack.top(), then push current bone
 //
 // Example: parentInfo low bytes [0, 1, 2, 3, 3, 3, 6, 7, 6, 9, ...]
 //   Bone 0: lowByte=0 → parent=-1 (root)
@@ -1025,19 +1035,19 @@ struct FA1BindPoseEntry {
     float posX;                 // 0x00: Bind pose X position (model space)
     float posY;                 // 0x04: Bind pose Y position (model space)
     float posZ;                 // 0x08: Bind pose Z position (model space)
-    u32 parentInfo;             // 0x0C: Low byte = (parent_index + 1), 0 = root
+    u32 parentInfo;             // 0x0C: Low byte = hierarchy payload, high bits = flags
 } [[format("format_fa1_bind_pose")]];
 
 fn format_fa1_bind_pose(FA1BindPoseEntry e) {
     u8 lowByte = e.parentInfo & 0xFF;
-    s32 parentIdx = (lowByte == 0) ? -1 : s32(lowByte - 1);
+    s32 directParentIdx = (lowByte == 0) ? -1 : s32(lowByte - 1);
     bool hasFlag = (e.parentInfo & 0x10000000) != 0;
     if (hasFlag) {
-        return std::format("pos=({:.2f},{:.2f},{:.2f}) parent={} [FLAG]",
-            e.posX, e.posY, e.posZ, parentIdx);
+        return std::format("pos=({:.2f},{:.2f},{:.2f}) low={} directParent={} [FLAG]",
+            e.posX, e.posY, e.posZ, lowByte, directParentIdx);
     }
-    return std::format("pos=({:.2f},{:.2f},{:.2f}) parent={}",
-        e.posX, e.posY, e.posZ, parentIdx);
+    return std::format("pos=({:.2f},{:.2f},{:.2f}) low={} directParent={}",
+        e.posX, e.posY, e.posZ, lowByte, directParentIdx);
 };
 
 // BB9 Sequence Entry (24 bytes = 6 DWORDs)
@@ -1277,7 +1287,10 @@ struct Chunk_BB8_Geometry {
         // Read the raw animation data - embeddedAnimTotalSize is the total size
         // including all entry headers and data
         // NOTE: The size value includes all entry data, not including the 8-byte header above
-        if (embeddedAnimTotalSize > 0 && embeddedAnimTotalSize < 0x1000000) {
+        u32 consumedInChunk = $ - g_chunkDataStart;
+        u32 remainingInChunk = (consumedInChunk <= g_chunkDataSize) ? (g_chunkDataSize - consumedInChunk) : 0;
+        if (embeddedAnimTotalSize > 0 && embeddedAnimTotalSize < 0x1000000 &&
+            embeddedAnimTotalSize <= remainingInChunk) {
             u8 embeddedAnimData[embeddedAnimTotalSize] [[name("Embedded Animation Data (raw)")]];
         }
     }
@@ -1411,19 +1424,24 @@ struct BoneTransformHeader_BB9 {
 //
 // KEY DISCOVERIES:
 //   1. base_position is ABSOLUTE world coordinate in bind pose, NOT relative to parent
-//   2. The hierarchyByte has TWO possible interpretations (auto-detected at parse time):
-//      - TREE_DEPTH mode: absolute level in hierarchy (0=root, 1=child, 2=grandchild)
+//   2. hierarchyByte is interpreted deterministically from stream validity:
+//      - DIRECT_PARENT mode: value = parent_index + 1, 0 = root
 //      - POP_COUNT mode: levels to pop from internal matrix stack before pushing
+//      - If both are valid, choose the less-fragmented hierarchy (fewer roots).
+//      - TREE_DEPTH remains a fallback for malformed legacy streams.
 //   3. Runtime applies (basePos + animDelta) then subtracts basePos, leaving only animDelta
 //
 // HIERARCHY ENCODING DETECTION:
-//   TREE_DEPTH mode: Values like [0,1,2,3,2,3,1,2] - increases by 1 for children, decreases at branches
-//   POP_COUNT mode:  Values like [0,0,0,0,3,0,0] - mostly 0s with occasional jumps at branch points
+//   DIRECT_PARENT: Values like [0,1,2,3,4,5,2,7,...] (parent = value - 1)
+//   POP_COUNT:     Values like [0,0,0,0,3,0,0] (stack pop counts)
+//   AMBIGUOUS:     If both pass, prefer the mode with fewer roots and avoid root-heavy trees.
+//   TREE_DEPTH:    Values like [0,1,2,3,2,3,1,2] (absolute depth levels, legacy fallback)
 //   WORLD_SPACE mode: All zeros - each bone has independent absolute transforms (no hierarchy)
 //
 // PARENT COMPUTATION ALGORITHMS:
-//   TREE_DEPTH: Track bones at each depth level, parent = most recent bone at (depth-1)
-//   POP_COUNT:  Maintain stack of bone indices, pop N entries, parent = stack.top(), push current
+//   DIRECT_PARENT: parent = (value == 0) ? -1 : value - 1
+//   POP_COUNT:     Maintain stack of bone indices, pop N entries, parent = stack.top(), push current
+//   TREE_DEPTH:    Track bones at each depth level, parent = most recent bone at (depth-1)
 //
 // RUNTIME TRANSFORM ALGORITHM (per bone, in order):
 //   1. Pop 'hierarchyByte' levels from matrix stack (returns to parent's transform)
@@ -1435,7 +1453,7 @@ struct BoneTransformHeader_BB9 {
 // NET EFFECT: bone's animated position = parent_rotation * animDelta + parent_position
 //
 // BONEFLAGS (u32 at offset 0x0C):
-//   Bits 0-7 (hierarchyByte):  Tree depth OR pop count (see detection logic above)
+//   Bits 0-7 (hierarchyByte):  Direct-parent OR pop-count OR tree-depth payload
 //   Bit 28 (0x10000000):       INTERMEDIATE BONE FLAG
 //                              When set, bone participates in hierarchy (matrix stack push/pop)
 //                              but does NOT produce an output skinning matrix.
@@ -1446,7 +1464,7 @@ struct BoneAnimHeader {
     float basePositionX;    // 0x00: Bone's ABSOLUTE X position in bind pose (world space)
     float basePositionY;    // 0x04: Bone's ABSOLUTE Y position in bind pose (world space)
     float basePositionZ;    // 0x08: Bone's ABSOLUTE Z position in bind pose (world space)
-    u8 hierarchyByte;       // 0x0C: Tree depth OR pop count (see detection logic above)
+    u8 hierarchyByte;       // 0x0C: Hierarchy payload byte (mode-dependent)
     u8 flagsByte1;          // 0x0D: Special handling flags
     u8 flagsByte2;          // 0x0E: Bit flags for light attachments, render skipping
     u8 flagsByte3;          // 0x0F: Bit 4 (0x10) = INTERMEDIATE BONE (no output matrix)
@@ -1473,11 +1491,11 @@ struct BoneAnimHeader {
 fn format_bone_anim_header(BoneAnimHeader h) {
     bool isIntermediate = (h.flagsByte3 & 0x10) != 0;  // 0x10 in byte3 = 0x10000000 in u32
     if (isIntermediate) {
-        return std::format("pos=({:.1f},{:.1f},{:.1f}) pop={} keys=P{}R{}S{} [INTERMEDIATE]",
+        return std::format("pos=({:.1f},{:.1f},{:.1f}) hier={} keys=P{}R{}S{} [INTERMEDIATE]",
             h.basePositionX, h.basePositionY, h.basePositionZ,
             h.hierarchyByte, h.posKeyCount, h.rotKeyCount, h.scaleKeyCount);
     }
-    return std::format("pos=({:.1f},{:.1f},{:.1f}) pop={} keys=P{}R{}S{}",
+    return std::format("pos=({:.1f},{:.1f},{:.1f}) hier={} keys=P{}R{}S{}",
         h.basePositionX, h.basePositionY, h.basePositionZ,
         h.hierarchyByte, h.posKeyCount, h.rotKeyCount, h.scaleKeyCount);
 };
@@ -1532,19 +1550,35 @@ fn format_bone_anim_header(BoneAnimHeader h) {
 // BB9 SECTION STRUCTURES (defined before Chunk_BB9_Animation)
 // =============================================================================
 
-// Animation Segment Entry (22 bytes per entry)
-// These define animation regions within phases, used for:
-// - Loop boundaries (main animation segment vs intro)
-// - Sub-animation markers (/laugh, /cheer, strafe variants within a phase)
-// The hash field identifies the animation type/category.
-// For looping: the segment with the largest time range defines the loop region.
+// BB9 Animation Segment Entry (22 bytes per entry)
+// Engine runtime fields:
+//   hash, startTime, endTime, phaseStartIndex, phaseEndIndex, loopStartOffset, transitionParam
 struct AnimationSegmentEntry {
     u32 hash [[name("Segment Hash")]];                // 0x00: Animation segment identifier
     u32 startTime [[name("Start Time")]];             // 0x04: Segment start in animation units (100000 = 1 sec)
     u32 endTime [[name("End Time")]];                 // 0x08: Segment end in animation units
-    u16 flags [[name("Flags")]];                      // 0x0C: Flags (0x1212 common)
-    u8  reserved[8] [[name("Reserved")]];             // 0x0E: Reserved/padding
+    u8 phaseStartIndex [[name("Phase Start Index")]]; // 0x0C
+    u8 phaseEndIndex [[name("Phase End Index")]];     // 0x0D (exclusive)
+    u32 loopStartOffset [[name("Loop Start Offset")]];// 0x0E
+    float transitionParam [[name("Transition Param")]];// 0x12
 };  // 22 bytes total (0x16)
+
+// FA1 Animation Segment Entry (23 bytes per entry)
+// Ghidra (Model_ParseGeometryChunk0xFA1):
+// - segmentType is copied as a runtime selector field.
+// - 0 = local clip segment (uses keyframes in this FA1 chunk)
+// - >0 = external segment source (typically references from FA8 chunk, 1-based)
+//   so FA1 files can dispatch many segment definitions across chained clips.
+struct FA1AnimationSegmentEntry {
+    u8 segmentType [[name("Segment Type (0=local, >0=external source)")]]; // 0x00
+    u32 hash [[name("Segment Hash")]];                // 0x01: Animation segment identifier
+    u32 startTime [[name("Start Time")]];             // 0x05: Segment start in animation units
+    u32 endTime [[name("End Time")]];                 // 0x09: Segment end in animation units
+    u8 phaseStartIndex [[name("Phase Start Index")]]; // 0x0D
+    u8 phaseEndIndex [[name("Phase End Index")]];     // 0x0E (exclusive)
+    u32 loopStartOffset [[name("Loop Start Offset")]];// 0x0F
+    float transitionParam [[name("Transition Param")]];// 0x13
+};  // 23 bytes total (0x17)
 
 // Per-bone data entry - maps animation hashes to skeleton bone indices
 // Discovered format: 24 bytes per entry (not 12 as originally thought)
@@ -1575,7 +1609,7 @@ struct JointEntry {
 // Joint data section header
 // IMPORTANT: jointCount often UNDERSTATES actual joint entries (e.g., 25 in header vs 44 actual)
 // The constraintCount field is actually a TIME VALUE (e.g., 13333), NOT a count!
-// Must scan for valid entries or calculate from remaining bytes.
+// Keep post-joint bytes as raw tail until this section is fully reversed.
 struct JointHeader {
     u16 jointCount [[name("Joint Count (often understated!)")]];
     u16 compressFlag [[name("Compress Flag")]];        // ~(this >> 16) & 1 for input size
@@ -1698,147 +1732,40 @@ struct Chunk_BB9_Animation {
     }
 
     // Section 3: Joint data (flag 0x0200)
-    // NOTE: Header jointCount often UNDERSTATES actual entries (e.g., 25 vs 44).
-    // The header's second field (timeValue) is NOT a constraint count - it's a time value!
-    // For reliable parsing: use header count for joints, calculate constraints from remaining space.
+    // Deterministic parse only: consume count-derived entries from header.
+    // Any unresolved tail bytes are left raw (no searching/scanning heuristics).
     if ((header.flags & 0x0200) != 0) {
         JointHeader jointHeader [[name("Joint Header")]];
 
-        // Use header's stated joint count (may miss some entries, but avoids corruption)
-        // The timeValue field was incorrectly labeled constraintCount in earlier analysis
         u32 jointCountToUse = jointHeader.jointCount;
         if (jointCountToUse > 256) jointCountToUse = 256;
 
-        // Bounds check: each JointEntry is 21 bytes, ensure we have enough space
-        u32 jointBytesNeeded = jointCountToUse * 21;
         u32 remainingInChunk = chunkSize - ($ - g_chunkDataStart);
-        if (jointBytesNeeded > remainingInChunk) {
-            // Not enough space - limit to what we can actually read
-            jointCountToUse = remainingInChunk / 21;
+        u32 maxJointCountBySize = remainingInChunk / 21;
+        if (jointCountToUse > maxJointCountBySize) {
+            jointCountToUse = maxJointCountBySize;
         }
 
         if (jointCountToUse > 0) {
             JointEntry jointEntries[jointCountToUse]
-                [[name("Joint Entries (using header count - may be incomplete)")]];
+                [[name("Joint Entries (count-derived deterministic parse)")]];
         }
 
-        // Calculate remaining space for additional data (extra joints + constraints)
+        // Preserve unresolved post-joint bytes deterministically as raw data.
         u32 remainingAfterJoints = chunkSize - ($ - g_chunkDataStart);
-
-        // Calculate EXACT attachment reserve by searching for valid count
-        // Attachment section is at the very end: header(4) + count*24 bytes
-        // The count field is a small positive number (typically 1-10)
-        // Estimate attachment section size for reserve calculation
-        // Attachment section: count (4) + entries (48 each) + frame/seq data
-        // Fallback to ~100 bytes if we can't estimate
-        u32 attachmentReserve = 100;
-
-        // Parse remaining joint+constraint data as generic bytes for now
-        // The exact split between extra joints and constraints requires scanning
-        if (remainingAfterJoints > attachmentReserve) {
-            u32 extraDataSize = remainingAfterJoints - attachmentReserve;
-            u8 jointConstraintOverflow[extraDataSize]
-                [[name("Extra Joint/Constraint Data (header understated joint count)")]];
+        if (remainingAfterJoints > 0) {
+            u8 jointConstraintOverflow[remainingAfterJoints]
+                [[name("Post-Joint Tail (unresolved, no scan)")]];
         }
     }
 
-    // Section 4: Standard bone transforms (flag 0x0020)
-    // Format: count (2 DWORDs) + per-entry (24 bytes header + VLE times + float3 values)
-    // VLE makes static parsing complex - capture remaining space minus attachment reserve
-    if ((header.flags & 0x0020) != 0) {
-        u32 remainingForBoneTransforms = chunkSize - ($ - g_chunkDataStart);
-        // Reserve space for attachment if that flag is also set
-        u32 boneTransformReserve = 0;
-        if ((header.flags & 0x0080) != 0) {
-            boneTransformReserve = 52;  // header(4) + ~2 entries(48)
-        }
-        if (remainingForBoneTransforms > boneTransformReserve) {
-            u32 boneTransformDataSize = remainingForBoneTransforms - boneTransformReserve;
-            u8 standardBoneTransformData[boneTransformDataSize]
-                [[name("Standard Bone Transform Data (flag 0x20 - VLE encoded)")]];
-        }
-    }
-
-    // Section 5: Attachment data (flag 0x0080)
-    // - Count at start (4 bytes)
-    // - Each entry is 48 bytes (12 DWORDs)
-    // - Entry fields [10] and [11] are frameDataCount and seqDataCount
-    // - After entries: frameData (24 bytes each) + seqData (16 bytes each)
-    //
-    // PROBLEM: Previous sections may not be fully parsed, leaving cursor wrong.
-    // SOLUTION: Search backward from chunk end for valid attachment count.
-    // The attachment section is ALWAYS at the end of the BB9 chunk.
-    if ((header.flags & 0x0080) != 0) {
-        u32 attachChunkEnd = g_chunkDataStart + chunkSize;
-        u32 attachCurrentPos = $;
-        u32 attachFoundCount = 0;
-        u32 attachStart = 0;
-
-        // Search for attachment section by looking for count value that matches position
-        // For count N, the section is at: attachChunkEnd - totalSize
-        // Where totalSize = 4 + N*48 + variable (frame+seq data)
-        //
-        // Since frame/seq data sizes are unknown, we estimate with count*48+4 minimum
-        // and scan for a valid count value (1-20) at plausible positions
-
-        // Minimum attachment section size: 4 (header) + 48 (1 entry) = 52 bytes
-        // Maximum reasonable: 4 + 20*48 + 100*24 + 100*16 = 4 + 960 + 2400 + 1600 = 4964 bytes
-
-        // Scan for count values 1-10 at positions that make sense
-        // At position P, if value V is there, section size is at least: 4 + V*48
-
-        // Try count = 1 (minimum size ~52-100 bytes from end)
-        u32 test1Pos = attachChunkEnd - 52;
-        if (test1Pos >= attachCurrentPos) {
-            u32 val1 @ test1Pos;
-            if (val1 == 1) { attachFoundCount = 1; attachStart = test1Pos; }
-        }
-
-        // Try count = 2 (minimum size ~100 bytes from end)
-        if (attachFoundCount == 0) {
-            u32 test2Pos = attachChunkEnd - 100;
-            if (test2Pos >= attachCurrentPos) {
-                u32 val2 @ test2Pos;
-                if (val2 == 2) { attachFoundCount = 2; attachStart = test2Pos; }
-            }
-        }
-
-        // Try count = 3
-        if (attachFoundCount == 0) {
-            u32 test3Pos = attachChunkEnd - 148;
-            if (test3Pos >= attachCurrentPos) {
-                u32 val3 @ test3Pos;
-                if (val3 == 3) { attachFoundCount = 3; attachStart = test3Pos; }
-            }
-        }
-
-        // If count search failed, fall back to reading remaining data
-        if (attachFoundCount > 0 && attachStart > attachCurrentPos) {
-            // Skip unparsed data between current position and attachment section
-            u32 skipSize = attachStart - attachCurrentPos;
-            u8 unparsedPreAttachment[skipSize] [[name("Unparsed Data (before attachment)")]];
-
-            // Now parse attachment section
-            AttachmentHeader attachmentHeader [[name("Attachment Header")]];
-            AttachmentEntry attachmentEntries[attachFoundCount] [[name("Attachment Entries")]];
-
-            // Calculate total frame and sequence counts from entries
-            u32 totalFrameCount = 0;
-            u32 totalSeqCount = 0;
-            if (attachFoundCount >= 1) { totalFrameCount = totalFrameCount + attachmentEntries[0].frameDataCount; totalSeqCount = totalSeqCount + attachmentEntries[0].seqDataCount; }
-            if (attachFoundCount >= 2) { totalFrameCount = totalFrameCount + attachmentEntries[1].frameDataCount; totalSeqCount = totalSeqCount + attachmentEntries[1].seqDataCount; }
-            if (attachFoundCount >= 3) { totalFrameCount = totalFrameCount + attachmentEntries[2].frameDataCount; totalSeqCount = totalSeqCount + attachmentEntries[2].seqDataCount; }
-
-            // Parse frame transform data (6 DWORDs = 24 bytes each)
-            if (totalFrameCount > 0 && totalFrameCount < 100) {
-                AttachmentFrameData frameData[totalFrameCount] [[name("Frame Transform Data")]];
-            }
-
-            // Parse sequence data (4 DWORDs = 16 bytes each)
-            if (totalSeqCount > 0 && totalSeqCount < 100) {
-                AttachmentSeqData seqData[totalSeqCount] [[name("Sequence Data")]];
-            }
-        }
+    // Sections controlled by 0x0020/0x0080 remain unresolved in this pattern revision.
+    // Keep deterministic parsing by treating remaining bytes as opaque tail data.
+    if (($ - g_chunkDataStart) < chunkSize &&
+        (((header.flags & 0x0020) != 0) || ((header.flags & 0x0080) != 0))) {
+        u32 unresolvedTail = chunkSize - ($ - g_chunkDataStart);
+        u8 unresolvedAnimTail[unresolvedTail]
+            [[name("Unresolved Anim Tail (flags 0x20/0x80, no scan)")]];
     }
 
     // Capture any remaining unparsed data
@@ -2198,47 +2125,19 @@ struct Chunk_FA0_Geometry {
 // FA1 KEYFRAME DATA STRUCTURES
 // =============================================================================
 //
-// FA1 has TWO different keyframe formats:
-//
-// FORMAT A (per-bone RAW): Used by some files (e.g., 0x10436)
-//   - Per-bone 6-byte header: [u16 posCount, u16 rotCount, u16 scaleCount]
-//   - Followed by RAW timestamps (u32) and values (float3/float4)
-//   - Bones stored sequentially
-//
-// FORMAT B (global header + VLE): Used by some files (e.g., 0x3AAA)
-//   - 16-byte FA1KeyframeHeader with total keyframe counts
-//   - Four offset arrays (boneCount × 4 bytes each): BIT offsets into VLE stream
-//   - VLE-encoded keyframe data stream
-//
-// Detection: Check first 12 bytes after bind pose
-//   - If bytes 0-5 zeros, bytes 6-9 have counts > 500, bytes 10-11 zeros → Format B
-//   - Otherwise → Format A
+// Ghidra evidence (Model_ParseGeometryChunk0xFA1 @ 0x0076a9c0):
+// - FA1 keyframes are parsed as PER-BONE RAW data (no format switch).
+// - After keyframes, the parser advances deterministically:
+//   1) section 0x38 callback array: submeshCount entries, each 12 + (dword@+4 * 4) bytes
+//   2) phase timing block: (header.unknown_0x3C & 0xFFFF) * 5 bytes
+//   3) segment table: animationSegmentCount * 23 bytes
 //
 
-// FA1 Global Keyframe Header (16 bytes) - Format B only
-// Used when animation data is stored with offset arrays + VLE encoding
-struct FA1KeyframeHeader {
-    u16 reserved0;          // 0x00: Always 0
-    u16 reserved1;          // 0x02: Always 0
-    u16 reserved2;          // 0x04: Always 0
-    u16 totalPosKeyCount;   // 0x06: Total position keyframes across ALL bones
-    u16 totalRotKeyCount;   // 0x08: Total rotation keyframes across ALL bones
-    u16 reserved3;          // 0x0A: Always 0
-    u16 timeScaleLow;       // 0x0C: Animation time scale (e.g., 3333 for 0x3AAA)
-    u16 timeScaleHigh;      // 0x0E: Usually 0
-} [[format("format_fa1_keyframe_header")]];
-
-fn format_fa1_keyframe_header(FA1KeyframeHeader h) {
-    return std::format("totalPos={} totalRot={} timeScale={}",
-        h.totalPosKeyCount, h.totalRotKeyCount,
-        h.timeScaleLow | (u32(h.timeScaleHigh) << 16));
-};
-
-// FA1 per-bone animation header (6 bytes) - Format A only
+// FA1 per-bone animation header (6 bytes)
 struct FA1BoneAnimHeader {
-    u16 posKeyCount;     // 0x00: Number of position keyframes
-    u16 rotKeyCount;     // 0x02: Number of rotation keyframes
-    u16 scaleKeyCount;   // 0x04: Number of scale keyframes (usually 0)
+    u16 posKeyCount;            // 0x00: Position key count
+    u16 rotKeyCount;            // 0x02: Rotation key count
+    u16 scaleKeyCount;          // 0x04: Scale key count
 } [[format("format_fa1_bone_anim_header")]];
 
 fn format_fa1_bone_anim_header(FA1BoneAnimHeader h) {
@@ -2268,32 +2167,50 @@ fn format_fa1_rot_key(FA1RotationKey q) {
     return std::format("({:.4f}, {:.4f}, {:.4f}, {:.4f})", q.x, q.y, q.z, q.w);
 };
 
-// Global for FA1 bone count (set by Chunk_FA1_Animation before parsing keyframe data)
-u32 g_fa1BoneCount;
-
-// FA1 per-bone keyframe data (variable size, parsed inline)
-// Contains: header + timestamps + position values + timestamps + rotation values + timestamps + scale values
+// FA1 per-bone keyframe data (variable size):
+// [6-byte header]
+// [pos times u32[posKeyCount]]
+// [pos values float3[posKeyCount]]
+// [rot times u32[rotKeyCount]]
+// [rot values float4[rotKeyCount]]
+// [scale times u32[scaleKeyCount]]
+// [scale values float3[scaleKeyCount]]
 struct FA1BoneKeyframeData {
     FA1BoneAnimHeader header [[name("Bone Anim Header (6 bytes)")]];
 
-    // Position keyframes (some animations have 2000+ keys per bone)
     if (header.posKeyCount > 0 && header.posKeyCount < 10000) {
         u32 positionTimes[header.posKeyCount] [[name("Position Timestamps")]];
         FA1PositionKey positionValues[header.posKeyCount] [[name("Position Values")]];
     }
 
-    // Rotation keyframes
     if (header.rotKeyCount > 0 && header.rotKeyCount < 10000) {
         u32 rotationTimes[header.rotKeyCount] [[name("Rotation Timestamps")]];
         FA1RotationKey rotationValues[header.rotKeyCount] [[name("Rotation Values (XYZW)")]];
     }
 
-    // Scale keyframes (usually 0)
     if (header.scaleKeyCount > 0 && header.scaleKeyCount < 10000) {
         u32 scaleTimes[header.scaleKeyCount] [[name("Scale Timestamps")]];
         FA1PositionKey scaleValues[header.scaleKeyCount] [[name("Scale Values")]];
     }
 };
+
+// Engine section at header offset 0x38:
+// parsed with Model_ParseArrayWithCallback(..., 0x0C, Buffer_CalcWeightOffset)
+// entry size = 12 + (u32 at +4 * 4)
+struct FA1Section0x38Entry {
+    u32 field0 [[name("Field 0x00")]];
+    u32 extraWordCount [[name("Extra Word Count")]];
+    u32 field8 [[name("Field 0x08")]];
+    if (extraWordCount > 0 && extraWordCount < 0x10000) {
+        u32 extraWords[extraWordCount] [[name("Extra Words")]];
+    }
+};
+
+// Engine section 0x3C layout:
+//   u32 phaseTimeValues[count]
+//   u8  phaseFlags[count]
+// The parser multiplies count by 5 to advance to the segment table, but the
+// bytes are stored as two contiguous arrays (not interleaved 5-byte structs).
 
 // =============================================================================
 // FA1 ANIMATION CHUNK PARSING
@@ -2303,7 +2220,7 @@ struct Chunk_FA1_Animation {
     u32 chunkId;
     u32 chunkSize;
     g_chunkDataStart = $;
-    g_chunkDataSize = chunkSize;  // Set global for nested structs
+    g_chunkDataSize = chunkSize;
 
     GeometryHeader_FA1 header [[name("Animation Header (88 bytes)")]];
 
@@ -2312,85 +2229,49 @@ struct Chunk_FA1_Animation {
         BoundingCylinder cylinders[header.boundingCylinderCount] [[name("Bounding Cylinders")]];
     }
 
-    // Animation sequences: Use transformDataSize NOT classFlags.HAS_ANIMATION_SEQUENCES!
-    // Some FA1 files have sequences but the flag is 0. transformDataSize = number of 24-byte entries.
+    // Sequence entries are controlled by transformDataSize in FA1
     if (header.transformDataSize > 0 && header.transformDataSize < 256) {
         SequenceEntry_BB9 sequences[header.transformDataSize] [[name("Animation Sequences")]];
     }
 
-    // Bind pose entries (16 bytes each): skeleton hierarchy with DIRECT PARENT indexing
+    // Bind pose entries
     if (header.bindPoseBoneCount > 0 && header.bindPoseBoneCount < 256) {
         FA1BindPoseEntry bindPose[header.bindPoseBoneCount] [[name("Bind Pose (skeleton hierarchy)")]];
     }
 
-    // Detect keyframe format by peeking at bytes after bind pose
-    //
-    // Format B (global header + VLE):
-    //   - Bytes 0-15: FA1KeyframeHeader with reserved fields = 0
-    //   - Bytes 16+: posTimesOffsets[0] = 0 or very small (BIT offset)
-    //
-    // Format A (per-bone RAW):
-    //   - Bytes 0-5: bone 0's 6-byte header (posCount, rotCount, scaleCount)
-    //   - Bytes 6-11: bone 1's 6-byte header
-    //   - Bytes 12+: bone 0/1's timestamps (uint32 values like 3333, 33333...)
-    //
-    // CRITICAL: When bone 0 has NO keyframes (0,0,0), bytes 0-5 are zeros which
-    // looks like Format B's reserved header fields! Distinguish by checking
-    // bytes 16-19: Format B has small offset (~0), Format A has timestamp (>10000).
-    //
-    u32 keyframeStart = $;
-    u16 peek0 @ keyframeStart;      // Format B: reserved0=0, Format A: bone0.posKeyCount
-    u16 peek1 @ keyframeStart + 2;  // Format B: reserved1=0, Format A: bone0.rotKeyCount
-    u16 peek2 @ keyframeStart + 4;  // Format B: reserved2=0, Format A: bone0.scaleKeyCount
-    u16 peek3 @ keyframeStart + 6;  // Format B: totalPosKeyCount, Format A: bone1.posKeyCount
-    u16 peek4 @ keyframeStart + 8;  // Format B: totalRotKeyCount, Format A: bone1.rotKeyCount
-    u16 peek5 @ keyframeStart + 10; // Format B: reserved3=0, Format A: bone1.scaleKeyCount
-    u32 peek6 @ keyframeStart + 16; // Format B: posTimesOffsets[0]≈0, Format A: 2nd timestamp>10000
-
-    // Format B detection:
-    // - First 6 bytes zeros (reserved0-2 in FA1KeyframeHeader)
-    // - Bytes 6-9 have high keyframe counts (>500)
-    // - Bytes 10-11 zero (reserved3)
-    // - Bytes 16-19 is posTimesOffsets[0], should be 0 or very small (<1000)
-    //
-    // Format A false positive prevention:
-    // - When bone 0 has 0 keyframes, bytes 0-5 are zeros (looks like Format B header)
-    // - But bytes 16-19 would be a timestamp value (>10000), not a small offset
-    bool isFormatB = (peek0 == 0 && peek1 == 0 && peek2 == 0 &&
-                      peek5 == 0 && (peek3 > 500 || peek4 > 500) &&
-                      peek6 < 1000);  // Key check: offset arrays start with small values
-
+    // Per-bone RAW keyframe blocks
     if (header.bindPoseBoneCount > 0 && header.bindPoseBoneCount < 256) {
-        if (isFormatB) {
-            // Format B: Global header + offset arrays + VLE data
-            FA1KeyframeHeader keyframeHeader [[name("Keyframe Header (Format B - 16 bytes)")]];
-
-            // Offset arrays: 4 arrays × boneCount × 4 bytes each (BIT offsets)
-            u32 offsetArraySize = header.bindPoseBoneCount * 4;
-            u32 posTimesOffsets[header.bindPoseBoneCount] [[name("Position Times BIT Offsets")]];
-            u32 posValuesOffsets[header.bindPoseBoneCount] [[name("Position Values BIT Offsets")]];
-            u32 rotTimesOffsets[header.bindPoseBoneCount] [[name("Rotation Times BIT Offsets")]];
-            u32 rotValuesOffsets[header.bindPoseBoneCount] [[name("Rotation Values BIT Offsets")]];
-
-            // Remaining is VLE-encoded keyframe data (complex to parse statically)
-            u32 vleConsumed = $ - g_chunkDataStart;
-            if (vleConsumed < chunkSize) {
-                u8 vleKeyframeData[chunkSize - vleConsumed]
-                    [[name("VLE Keyframe Data (Format B - requires runtime decoding)")]];
-            }
-        } else {
-            // Format A: Per-bone 6-byte headers + RAW data
-            FA1BoneKeyframeData keyframes[header.bindPoseBoneCount]
-                [[name("Per-Bone Keyframe Data (Format A - RAW)")]];
-        }
+        FA1BoneKeyframeData keyframes[header.bindPoseBoneCount]
+            [[name("Per-Bone Keyframe Data (RAW)")]];
     }
 
+    // Deterministic section at 0x38: submeshCount callback entries.
+    if (header.submeshCount > 0 && header.submeshCount < 4096) {
+        FA1Section0x38Entry section38[header.submeshCount] [[name("FA1 Section 0x38 Entries")]];
+    }
+
+    // Deterministic section at 0x3C:
+    // low 16 bits are entry count, encoded as u32[count] + u8[count].
+    u32 phaseEntryCount = header.unknown_0x3C & 0xFFFF;
+    if (phaseEntryCount > 0 && phaseEntryCount < 65536) {
+        u32 phaseTimeValues[phaseEntryCount] [[name("FA1 Phase Time Values (u32 array)")]];
+        u8 phaseFlags[phaseEntryCount] [[name("FA1 Phase Flags (u8 array)")]];
+    }
+
+    // Deterministic segment table (23 bytes each)
+    if (header.animationSegmentCount > 0 && header.animationSegmentCount < 500) {
+        FA1AnimationSegmentEntry fa1Segments[header.animationSegmentCount]
+            [[name("FA1 Animation Segments")]];
+        // NOTE: A high segment count is expected for dispatch clips.
+        // Most entries may be external (segmentType > 0) and are not local keyframe ranges.
+    }
+
+    // Keep tail deterministic but untyped until each callback section is fully decoded.
     u32 consumed = $ - g_chunkDataStart;
     if (consumed < chunkSize) {
-        u8 remainingData[chunkSize - consumed] [[name("Remaining Data (should be 0)")]];
+        u8 remainingTailData[chunkSize - consumed] [[name("Remaining Tail Data")]];
     }
 };
-
 // =============================================================================
 // INLINE TEXTURE CHUNK
 // =============================================================================
@@ -3541,7 +3422,8 @@ struct FFNAFile {
     u8 fileType [[name("File Type")]];
 
     // Different file types have different chunk structures
-    Chunk chunks[while($ < sizeof($))] [[name("Chunks")]];
+    // Ensure at least 8 bytes remain for chunk header
+    Chunk chunks[while($ + 8 <= sizeof($))] [[name("Chunks")]];
 };
 
 FFNAFile file @ 0;

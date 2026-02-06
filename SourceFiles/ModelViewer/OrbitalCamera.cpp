@@ -7,9 +7,9 @@ using namespace DirectX;
 
 OrbitalCamera::OrbitalCamera()
     : m_target{ 0.0f, 0.0f, 0.0f }
-    , m_distance(1000.0f)
-    , m_yaw(0.0f)
-    , m_pitch(XM_PIDIV4)  // Start at 45 degrees down
+    , m_distance(2000.0f)
+    , m_yaw(-XM_PIDIV2)
+    , m_pitch(XM_PI / 6.0f) // 30 degrees down
     , m_fovY(60.0f * XM_PI / 180.0f)
     , m_aspectRatio(16.0f / 9.0f)
     , m_nearZ(1.0f)
@@ -35,9 +35,9 @@ void OrbitalCamera::Update(float dt)
 void OrbitalCamera::Reset()
 {
     m_target = { 0.0f, 0.0f, 0.0f };
-    m_distance = 1000.0f;
-    m_yaw = 0.0f;
-    m_pitch = XM_PIDIV4;
+    m_distance = 2000.0f;
+    m_yaw = -XM_PIDIV2;
+    m_pitch = XM_PI / 6.0f;
     m_viewDirty = true;
 }
 
@@ -60,28 +60,25 @@ void OrbitalCamera::FitToBounds(const XMFLOAT3& boundsMin, const XMFLOAT3& bound
     m_target.y = (boundsMin.y + boundsMax.y) * 0.5f;
     m_target.z = (boundsMin.z + boundsMax.z) * 0.5f;
 
-    // Calculate bounding sphere radius
+    // Compute distance from model bounds so camera never spawns inside large models.
     float dx = boundsMax.x - boundsMin.x;
     float dy = boundsMax.y - boundsMin.y;
     float dz = boundsMax.z - boundsMin.z;
     float radius = std::sqrt(dx * dx + dy * dy + dz * dz) * 0.5f;
-
-    // Ensure minimum radius for very small models
     radius = std::max(radius, 10.0f);
 
-    // Calculate distance needed to fit the model in view
-    // Use tan(halfFov) to ensure the entire sphere is visible
     float halfFovY = m_fovY * 0.5f;
     float halfFovX = std::atan(std::tan(halfFovY) * m_aspectRatio);
     float halfFov = std::min(halfFovY, halfFovX);
 
-    // Add padding (2.0x) for comfortable viewing
-    m_distance = (radius / std::tan(halfFov)) * 2.0f;
-    m_distance = std::clamp(m_distance, m_minDistance, m_maxDistance);
+    // Use larger padding and floor so default view is 2x farther back.
+    float fitDistance = (radius / std::tan(halfFov)) * 2.4f;
+    m_distance = std::clamp(std::max(4000.0f, fitDistance), m_minDistance, m_maxDistance);
 
-    // Reset orbit angles to a nice viewing angle
-    m_yaw = XM_PIDIV4;        // 45 degrees around
-    m_pitch = XM_PIDIV4;      // 45 degrees down
+    // Default load view: directly in front of the model, looking straight at it.
+    // (Model front in current GWMB coordinates points along -X.)
+    m_yaw = -XM_PIDIV2;
+    m_pitch = XM_PI / 6.0f;
 
     m_viewDirty = true;
 }

@@ -247,6 +247,9 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			selected_ffna_model_file = dat_manager->parse_ffna_model_file(index);
 		}
 
+		// Cancel any in-flight animation search from the previous model.
+		CancelAnimationSearch();
+
 		// Reset animation state
 		g_animationState.Reset();
 
@@ -333,17 +336,13 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				if (clipOpt)
 				{
 					auto clip = std::make_shared<GW::Animation::AnimationClip>(std::move(*clipOpt));
-					// Parent indices are computed during parsing using header flags:
-					// - Flag 0x4000 set: tree-depth mode (depth = absolute level in hierarchy)
-					// - Flag 0x4000 clear: pop-count mode (depth = levels to pop from stack)
+					// Parent indices are computed during parsing from hierarchy-byte stream
+					// validity (deterministic; no 0x4000 mode switch assumption).
 					auto skeleton = std::make_shared<GW::Animation::Skeleton>(
 						GW::Parsers::BB9AnimationParser::CreateSkeleton(*clip));
 					g_animationState.Initialize(clip, skeleton, entry->Hash);
 				}
 			}
-
-			// Also try to load from matching animation files
-			AutoLoadAnimationFromStoredManagers();
 
 			map_renderer->UnsetTerrain();
 			// Disable shadows for models when viewing standalone (no terrain = no shadow map)
@@ -1054,6 +1053,9 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				g_modelViewerState.boundsMax);
 			g_modelViewerState.isActive = true;
 			GuiGlobalConstants::is_model_viewer_panel_open = true;
+
+			// After the mesh is ready and visible, start animation discovery in background.
+			AutoLoadAnimationFromStoredManagers();
 		}
 
 		break;
