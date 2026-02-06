@@ -35,7 +35,7 @@ public:
     void FitToBounds(const XMFLOAT3& boundsMin, const XMFLOAT3& boundsMax);
 
     // Projection setup
-    void SetPerspective(float fovY, float aspect, float nearZ, float farZ);
+    void SetPerspective(float fovY, float aspect, float nearZ, float farZ, bool reverse_z = true);
     void OnViewportChanged(float width, float height);
 
     // Input handling
@@ -70,6 +70,7 @@ public:
     float GetAspectRatio() const { return m_aspectRatio; }
     float GetNearZ() const { return m_nearZ; }
     float GetFarZ() const { return m_farZ; }
+    bool UsesReverseZ() const { return m_useReverseZ; }
 
     // Orbit angles
     float GetYaw() const { return m_yaw; }
@@ -96,6 +97,7 @@ private:
     float m_aspectRatio;
     float m_nearZ;
     float m_farZ;
+    bool m_useReverseZ;
 
     // Cached matrices
     XMFLOAT4X4 m_view;

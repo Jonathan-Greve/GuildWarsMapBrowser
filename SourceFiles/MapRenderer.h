@@ -221,13 +221,15 @@ public:
 
     bool IsCameraOverrideActive() const { return m_cameraOverrideActive; }
 
-    void SetFrustumAsPerspective(float fovY, float aspectRatio, float zNear, float zFar)
+    void SetFrustumAsPerspective(float fovY, float aspectRatio, float zNear, float zFar,
+                                 bool reverse_z = true)
     {
-        m_user_camera->SetFrustumAsPerspective(fovY, aspectRatio, zNear, zFar);
+        m_user_camera->SetFrustumAsPerspective(fovY, aspectRatio, zNear, zFar, reverse_z);
     }
-    void SetFrustumAsOrthographic(float view_width, float view_height, float near_z, float far_z)
+    void SetFrustumAsOrthographic(float view_width, float view_height, float near_z, float far_z,
+                                  bool reverse_z = true)
     {
-        m_user_camera->SetFrustumAsOrthographic(view_width, view_height, near_z, far_z);
+        m_user_camera->SetFrustumAsOrthographic(view_width, view_height, near_z, far_z, reverse_z);
     }
 
     void SetDirectionalLight(DirectionalLight new_directional_light)
@@ -413,6 +415,12 @@ public:
             m_mesh_manager->RemoveMesh(m_terrain_mesh_id);
             m_is_terrain_mesh_set = false;
             m_terrain = nullptr;
+            m_terrain_mesh_id = -1;
+        }
+        else
+        {
+            m_terrain = nullptr;
+            m_terrain_mesh_id = -1;
         }
 
         for (const auto& [model_id, model_prop_ids] : m_prop_mesh_ids)
@@ -428,6 +436,54 @@ public:
         }
 
         m_prop_mesh_ids.clear();
+        extra_mesh_ids.clear();
+        m_terrain_checkered_texture_id = -1;
+        m_terrain_texture_indices_id = -1;
+        m_terrain_shadow_map_id = -1;
+        m_terrain_texture_atlas_id = -1;
+    }
+
+    void ClearMapAuxiliaryMeshes()
+    {
+        if (m_sky_mesh_id >= 0)
+        {
+            m_mesh_manager->RemoveMesh(m_sky_mesh_id);
+            m_sky_mesh_id = -1;
+        }
+
+        if (m_clouds_mesh_id >= 0)
+        {
+            m_mesh_manager->RemoveMesh(m_clouds_mesh_id);
+            m_clouds_mesh_id = -1;
+        }
+
+        if (m_water_mesh_id >= 0)
+        {
+            m_mesh_manager->RemoveMesh(m_water_mesh_id);
+            m_water_mesh_id = -1;
+        }
+
+        for (const auto mesh_id : m_shore_mesh_ids)
+        {
+            m_mesh_manager->RemoveMesh(mesh_id);
+        }
+        m_shore_mesh_ids.clear();
+        should_render_shore_mesh_id.clear();
+
+        for (const auto mesh_id : m_pathfinding_mesh_ids)
+        {
+            m_mesh_manager->RemoveMesh(mesh_id);
+        }
+        m_pathfinding_mesh_ids.clear();
+        m_pathfinding_plane_mesh_ids.clear();
+        should_render_pathfinding_mesh_id.clear();
+    }
+
+    void ClearSceneForModeSwitch()
+    {
+        UnsetTerrain();
+        ClearMapAuxiliaryMeshes();
+        m_should_rerender_shadows = true;
     }
 
     void SetTerrainMeshId(int terrain_mesh_id) { m_terrain_mesh_id = terrain_mesh_id; }
@@ -490,6 +546,10 @@ public:
 
     void SetShore(std::vector<Mesh>& shore_meshes, std::vector<ID3D11ShaderResourceView*> textures, std::vector<PerObjectCB>& object_cbs, PixelShaderType pixel_shader_type)
     {
+        for (const auto mesh_id : m_shore_mesh_ids)
+        {
+            m_mesh_manager->RemoveMesh(mesh_id);
+        }
         m_shore_mesh_ids.clear();
         should_render_shore_mesh_id.clear();
 
@@ -628,6 +688,10 @@ public:
 
     void SetPathfinding(std::vector<Mesh>& pathfinding_meshes, const std::vector<uint32_t>& plane_sizes, PixelShaderType pixel_shader_type)
     {
+        for (const auto mesh_id : m_pathfinding_mesh_ids)
+        {
+            m_mesh_manager->RemoveMesh(mesh_id);
+        }
         m_pathfinding_mesh_ids.clear();
         m_pathfinding_plane_mesh_ids.clear();
         should_render_pathfinding_mesh_id.clear();
@@ -856,6 +920,7 @@ public:
     void Render(ID3D11RenderTargetView* render_target_view, ID3D11RenderTargetView* picking_render_target, ID3D11DepthStencilView* depth_stencil_view)
     {
         m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
+        m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Enabled);
 
         // Render sky before anything else
         if (m_sky_mesh_id >= 0 && m_should_render_sky) {
@@ -952,6 +1017,7 @@ public:
     void RenderForReflection(ID3D11RenderTargetView* render_target_view, ID3D11DepthStencilView* depth_stencil_view)
     {
         m_deviceContext->OMSetRenderTargets(1, &render_target_view, depth_stencil_view);
+        m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Enabled);
 
         // Render sky before anything else
         if (m_sky_mesh_id >= 0 && m_should_render_sky) {
@@ -986,6 +1052,7 @@ public:
     void RenderForShadowMap(ID3D11DepthStencilView* depth_stencil_view)
     {
         m_deviceContext->OMSetRenderTargets(0, nullptr, depth_stencil_view);
+        m_stencil_state_manager->SetDepthStencilState(DepthStencilStateType::Enabled);
 
         if (m_terrain_mesh_id) {
             m_mesh_manager->RenderMesh(m_pixel_shaders, m_blend_state_manager.get(), m_rasterizer_state_manager.get(),
@@ -1248,3 +1315,4 @@ private:
 
     PerCameraCB m_per_camera_cb_data;
 };
+

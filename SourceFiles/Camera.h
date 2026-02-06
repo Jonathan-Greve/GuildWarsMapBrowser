@@ -42,8 +42,8 @@ public:
     XMVECTOR GetLook() const;
     XMFLOAT3 GetLook3f() const;
 
-    void SetFrustumAsPerspective(float fovY, float aspect, float zn, float zf);
-    void SetFrustumAsOrthographic(float view_width, float view_height, float zn, float zf);
+    void SetFrustumAsPerspective(float fovY, float aspect, float zn, float zf, bool reverse_z = true);
+    void SetFrustumAsOrthographic(float view_width, float view_height, float zn, float zf, bool reverse_z = true);
     void LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp);
     void LookAt(FXMVECTOR target, FXMVECTOR worldUp);
     void SetOrientation(float pitch, float yaw);
@@ -67,6 +67,7 @@ public:
     float GetViewHeight() const;
     float GetNearZ() const;
     float GetFarZ() const;
+    bool UsesReverseZ() const;
     CameraType GetCameraType() const;
 
     float GetYaw() const;
@@ -78,6 +79,7 @@ public:
 
 private:
     void UpdateViewMatrix();
+    void UpdateProjectionMatrix();
 
     // Set for perspective projection
     float m_fov = 70 * XM_PI / 180;
@@ -90,6 +92,7 @@ private:
     // Set for both projection types
     float m_nearZ = 10;
     float m_farZ = 200000;
+    bool m_use_reverse_z = true;
 
     XMFLOAT3 m_position;
     XMFLOAT3 m_right;

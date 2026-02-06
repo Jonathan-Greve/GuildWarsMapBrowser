@@ -319,7 +319,7 @@ float4 main(PixelInputType input) : SV_TARGET0
 
         // Add a bias to reduce shadow acne, especially on steep surfaces
         float bias = max(0.001 * (1.0 - dot(input.normal, -directionalLight.direction)), 0.0005);
-        shadowDepth -= bias;
+        shadowDepth += bias;
 
         // PCF
         float shadow = 0.0;
