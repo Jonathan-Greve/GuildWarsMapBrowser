@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 struct PerTerrainCB
 {
     int grid_dim_x;
@@ -17,6 +18,12 @@ struct PerTerrainCB
     float water_distortion_tex_speed;
     float water_color_tex_scale;
     float water_color_tex_speed;
+    float water_fresnel;
+    float water_specular_scale;
+    uint32_t water_technique;
+    float water_runtime_param_28;
     DirectX::XMFLOAT4 color0;
     DirectX::XMFLOAT4 color1;
+    float water_flow_dir[2];
+    float water_flow_padding[2];
 };

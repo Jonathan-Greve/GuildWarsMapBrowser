@@ -1052,89 +1052,134 @@ struct EnvSubChunk5_other {
 };
 
 struct EnvSubChunk6 {
-    uint8_t unknown[9];
-    float unknown1;
-    float water_distortion_tex_scale;
-    float water_distortion_scale;
-    float water_distortion_tex_speed;
-    float water_color_tex_scale;
-    float water_color_tex_speed;
-    float water_color_and_alpha_related;
-    float water0;
-    float water1;
-    uint8_t blue_color0;
-    uint8_t green_color0;
-    uint8_t red_color0;
-    uint8_t alpha0;
-    uint8_t blue_color1;
-    uint8_t green_color1;
-    uint8_t red_color1;
-    uint8_t alpha1;
+    uint8_t water_mode;
+    uint8_t water_flags;
+    uint8_t unknown_padding[3];
+
+    // Raw water params from tag 6 (size = 0x39).
+    // Runtime packing in Gw.exe is not 1:1 by semantic name; EnvData_ParseParams
+    // and Env_finalize_sun_and_cloud_layer_data shift these into MapWater_render offsets.
+    float water_surface_base_height;
+    float water_surface_reload_sentinel;
+    float water_wave_amplitude;
+    float water_secondary_tex_scale;
+    float water_wave_scale;
+    float water_secondary_speed;
+    float water_primary_tex_scale;
+    float water_primary_speed;
+    float water_fresnel;
+    float water_specular_scale;
+
+    // BGRA color dword 0 ("waterAbsorption" in Gw.exe material constants)
+    uint8_t water_absorption_blue;
+    uint8_t water_absorption_green;
+    uint8_t water_absorption_red;
+    uint8_t water_absorption_alpha;
+
+    // BGRA color dword 1 ("waterPattern" in Gw.exe material constants)
+    uint8_t water_pattern_blue;
+    uint8_t water_pattern_green;
+    uint8_t water_pattern_red;
+    uint8_t water_pattern_alpha;
+
     uint16_t water_color_texture_index;
     uint16_t water_distortion_texture_index;
 
     EnvSubChunk6() = default;
 
     EnvSubChunk6(const unsigned char* data, int& offset) {
-        std::memcpy(unknown, &data[offset], sizeof(unknown));
-        offset += sizeof(unknown);
+        std::memcpy(&water_mode, &data[offset], sizeof(water_mode));
+        offset += sizeof(water_mode);
 
-        std::memcpy(&unknown1, &data[offset], sizeof(unknown1));
-        offset += sizeof(unknown1);
+        std::memcpy(&water_flags, &data[offset], sizeof(water_flags));
+        offset += sizeof(water_flags);
 
-        std::memcpy(&water_distortion_tex_scale, &data[offset], sizeof(water_distortion_tex_scale));
-        offset += sizeof(water_distortion_tex_scale);
+        std::memcpy(unknown_padding, &data[offset], sizeof(unknown_padding));
+        offset += sizeof(unknown_padding);
 
-        std::memcpy(&water_distortion_scale, &data[offset], sizeof(water_distortion_scale));
-        offset += sizeof(water_distortion_scale);
+        std::memcpy(&water_surface_base_height, &data[offset], sizeof(water_surface_base_height));
+        offset += sizeof(water_surface_base_height);
 
-        std::memcpy(&water_distortion_tex_speed, &data[offset], sizeof(water_distortion_tex_speed));
-        offset += sizeof(water_distortion_tex_speed);
+        std::memcpy(&water_surface_reload_sentinel, &data[offset], sizeof(water_surface_reload_sentinel));
+        offset += sizeof(water_surface_reload_sentinel);
 
-        std::memcpy(&water_color_tex_scale, &data[offset], sizeof(water_color_tex_scale));
-        offset += sizeof(water_color_tex_scale);
+        std::memcpy(&water_wave_amplitude, &data[offset], sizeof(water_wave_amplitude));
+        offset += sizeof(water_wave_amplitude);
 
-        std::memcpy(&water_color_tex_speed, &data[offset], sizeof(water_color_tex_speed));
-        offset += sizeof(water_color_tex_speed);
+        std::memcpy(&water_secondary_tex_scale, &data[offset], sizeof(water_secondary_tex_scale));
+        offset += sizeof(water_secondary_tex_scale);
 
-        std::memcpy(&water_color_and_alpha_related, &data[offset], sizeof(water_color_and_alpha_related));
-        offset += sizeof(water_color_and_alpha_related);
+        std::memcpy(&water_wave_scale, &data[offset], sizeof(water_wave_scale));
+        offset += sizeof(water_wave_scale);
 
-        std::memcpy(&water0, &data[offset], sizeof(water0));
-        offset += sizeof(water0);
+        std::memcpy(&water_secondary_speed, &data[offset], sizeof(water_secondary_speed));
+        offset += sizeof(water_secondary_speed);
 
-        std::memcpy(&water1, &data[offset], sizeof(water1));
-        offset += sizeof(water1);
+        std::memcpy(&water_primary_tex_scale, &data[offset], sizeof(water_primary_tex_scale));
+        offset += sizeof(water_primary_tex_scale);
 
-        std::memcpy(&blue_color0, &data[offset], sizeof(blue_color0));
-        offset += sizeof(blue_color0);
+        std::memcpy(&water_primary_speed, &data[offset], sizeof(water_primary_speed));
+        offset += sizeof(water_primary_speed);
 
-        std::memcpy(&green_color0, &data[offset], sizeof(green_color0));
-        offset += sizeof(green_color0);
+        std::memcpy(&water_fresnel, &data[offset], sizeof(water_fresnel));
+        offset += sizeof(water_fresnel);
 
-        std::memcpy(&red_color0, &data[offset], sizeof(red_color0));
-        offset += sizeof(red_color0);
+        std::memcpy(&water_specular_scale, &data[offset], sizeof(water_specular_scale));
+        offset += sizeof(water_specular_scale);
 
-        std::memcpy(&alpha0, &data[offset], sizeof(alpha0));
-        offset += sizeof(alpha0);
+        std::memcpy(&water_absorption_blue, &data[offset], sizeof(water_absorption_blue));
+        offset += sizeof(water_absorption_blue);
 
-        std::memcpy(&blue_color1, &data[offset], sizeof(blue_color1));
-        offset += sizeof(blue_color1);
+        std::memcpy(&water_absorption_green, &data[offset], sizeof(water_absorption_green));
+        offset += sizeof(water_absorption_green);
 
-        std::memcpy(&green_color1, &data[offset], sizeof(green_color1));
-        offset += sizeof(green_color1);
+        std::memcpy(&water_absorption_red, &data[offset], sizeof(water_absorption_red));
+        offset += sizeof(water_absorption_red);
 
-        std::memcpy(&red_color1, &data[offset], sizeof(red_color1));
-        offset += sizeof(red_color1);
+        std::memcpy(&water_absorption_alpha, &data[offset], sizeof(water_absorption_alpha));
+        offset += sizeof(water_absorption_alpha);
 
-        std::memcpy(&alpha1, &data[offset], sizeof(alpha1));
-        offset += sizeof(alpha1);
+        std::memcpy(&water_pattern_blue, &data[offset], sizeof(water_pattern_blue));
+        offset += sizeof(water_pattern_blue);
+
+        std::memcpy(&water_pattern_green, &data[offset], sizeof(water_pattern_green));
+        offset += sizeof(water_pattern_green);
+
+        std::memcpy(&water_pattern_red, &data[offset], sizeof(water_pattern_red));
+        offset += sizeof(water_pattern_red);
+
+        std::memcpy(&water_pattern_alpha, &data[offset], sizeof(water_pattern_alpha));
+        offset += sizeof(water_pattern_alpha);
 
         std::memcpy(&water_color_texture_index, &data[offset], sizeof(water_color_texture_index));
         offset += sizeof(water_color_texture_index);
 
         std::memcpy(&water_distortion_texture_index, &data[offset], sizeof(water_distortion_texture_index));
         offset += sizeof(water_distortion_texture_index);
+    }
+
+    uint32_t ComputeWaterTechnique() const
+    {
+        // Matches MapWater_update_technique in Gw.exe after EnvData_ParseParams/
+        // Env_finalize_sun_and_cloud_layer_data runtime packing:
+        // +0x10 <- water_secondary_tex_scale
+        // +0x20 <- water_primary_speed
+        // +0x24 <- water_fresnel
+        uint32_t technique = 1;
+        if (water_secondary_tex_scale > 0.0f) {
+            technique = 2;
+        }
+        if (water_primary_speed > 0.0f) {
+            technique = (water_fresnel == 0.0f) ? 3u : 4u;
+        }
+
+        return technique;
+    }
+
+    bool AllowsReflectionByAlpha() const
+    {
+        // Matches Env_UpdateWaterReflection alpha checks.
+        return water_absorption_alpha != 0 && water_pattern_alpha != 0xFF;
     }
 };
 

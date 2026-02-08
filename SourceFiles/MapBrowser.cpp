@@ -834,7 +834,7 @@ void MapBrowser::Render()
 
 void MapBrowser::RenderWaterReflection()
 {
-    if (m_map_renderer->GetTerrain() && m_map_renderer->GetWaterMeshId() >= 0 && m_map_renderer->GetShouldRenderWaterReflection()) {
+    if (m_map_renderer->GetTerrain() && m_map_renderer->GetWaterMeshId() >= 0 && m_map_renderer->GetShouldRenderWaterReflectionEffective()) {
         const auto camera_type = m_map_renderer->GetCamera()->GetCameraType();
         const auto camera_pos = m_map_renderer->GetCamera()->GetPosition3f();
         const auto camera_pitch = m_map_renderer->GetCamera()->GetPitch();

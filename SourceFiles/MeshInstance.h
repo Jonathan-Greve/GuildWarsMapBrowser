@@ -130,18 +130,38 @@ public:
             break;
         }
 
+        // Bind all texture ranges first, then clear only slots that are not covered by
+        // any binding. This preserves multi-SRV ranges (for example water t0+t1).
+        bool covered_slots[4] = { false, false, false, false };
         for (int slot = 0; slot < 4; ++slot)
         {
-            if (m_textures[slot].size() > 0)
+            const auto srv_count = static_cast<UINT>(m_textures[slot].size());
+            if (srv_count > 0)
             {
-                context->PSSetShaderResources(slot, m_textures[slot].size(),
-                    m_textures[slot].data()->GetAddressOf());
+                // Convert ComPtr<> vector to raw pointer array for PSSetShaderResources.
+                // Passing ComPtr<> storage directly is undefined and can corrupt bindings.
+                std::vector<ID3D11ShaderResourceView*> raw_srvs;
+                raw_srvs.reserve(srv_count);
+                for (const auto& srv : m_textures[slot])
+                {
+                    raw_srvs.push_back(srv.Get());
+                }
+
+                context->PSSetShaderResources(slot, srv_count, raw_srvs.data());
+                for (UINT i = 0; i < srv_count && (slot + static_cast<int>(i)) < 4; ++i)
+                {
+                    covered_slots[slot + i] = true;
+                }
             }
-            else
+        }
+
+        // Explicitly unbind uncovered slots to avoid stale SRV bindings
+        // (e.g., shadow map from previous map render causing validation errors).
+        ID3D11ShaderResourceView* nullSRV = nullptr;
+        for (int slot = 0; slot < 4; ++slot)
+        {
+            if (!covered_slots[slot])
             {
-                // Explicitly unbind empty slots to avoid stale SRV bindings
-                // (e.g., shadow map from previous map render causing validation errors)
-                ID3D11ShaderResourceView* nullSRV = nullptr;
                 context->PSSetShaderResources(slot, 1, &nullSRV);
             }
         }
