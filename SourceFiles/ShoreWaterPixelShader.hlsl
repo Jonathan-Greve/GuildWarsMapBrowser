@@ -74,6 +74,10 @@ cbuffer PerTerrainCB : register(b3)
     float water_distortion_tex_speed;
     float water_color_tex_scale;
     float water_color_tex_speed;
+    float water_fresnel;
+    float water_specular_scale;
+    uint water_technique;
+    float water_runtime_param_28;
     float4 color0;
     float4 color1;
 };

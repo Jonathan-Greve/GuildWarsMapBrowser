@@ -16,6 +16,8 @@
 #include "DepthStencilStateManager.h"
 #include "DeviceResources.h"
 #include "FFNA_MapFile.h"
+#include <array>
+#include <cmath>
 
 using namespace DirectX;
 
@@ -251,63 +253,82 @@ public:
 
     void UpdateTerrainWaterLevel(float new_water_level)
     {
+        m_has_manual_water_level_override = true;
         m_water_level = new_water_level;
+        if (!m_terrain) {
+            return;
+        }
+
         auto cb = m_terrain->m_per_terrain_cb;
         cb.water_level = m_water_level;
         m_terrain->m_per_terrain_cb = cb;
-
-        D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
-        ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
-        m_deviceContext->Map(m_per_terrain_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
-        memcpy(mappedResourceFrame.pData, &m_terrain->m_per_terrain_cb, sizeof(PerTerrainCB));
-        m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
+        PushPerTerrainCBUpdate();
     }
 
     float GetWaterLevel() { return m_water_level; }
 
     void UpdateTerrainTexturePadding(float padding_x, float padding_y)
     {
+        if (!m_terrain) {
+            return;
+        }
+
         auto cb = m_terrain->m_per_terrain_cb;
         cb.terrain_texture_pad_x = padding_x;
         cb.terrain_texture_pad_y = padding_y;
         m_terrain->m_per_terrain_cb = cb;
-
-        D3D11_MAPPED_SUBRESOURCE mappedResourceFrame;
-        ZeroMemory(&mappedResourceFrame, sizeof(D3D11_MAPPED_SUBRESOURCE));
-        m_deviceContext->Map(m_per_terrain_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceFrame);
-        memcpy(mappedResourceFrame.pData, &m_terrain->m_per_terrain_cb, sizeof(PerTerrainCB));
-        m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
+        PushPerTerrainCBUpdate();
     }
 
-    void UpdateWaterProperties(
-        float water_distortion_tex_scale,
-        float water_distortion_scale,
-        float water_distortion_tex_speed,
-        float water_color_tex_scale,
-        float water_color_tex_speed,
-        DirectX::XMFLOAT4 color0,
-        DirectX::XMFLOAT4 color1
-    )
+    void UpdateWaterProperties(const EnvSubChunk6& water_settings, const EnvSubChunk7* wind_settings = nullptr)
     {
-        auto& cb = m_terrain->m_per_terrain_cb;
-
-        // Update new fields
-        cb.water_distortion_tex_scale = water_distortion_tex_scale;
-        cb.water_distortion_scale = water_distortion_scale;
-        cb.water_distortion_tex_speed = water_distortion_tex_speed;
-        cb.water_color_tex_scale = water_color_tex_scale;
-        cb.water_color_tex_speed = water_color_tex_speed;
-        cb.color0 = color0;
-        cb.color1 = color1;
-
-        D3D11_MAPPED_SUBRESOURCE mappedResource;
-        ZeroMemory(&mappedResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-        HRESULT hr = m_deviceContext->Map(m_per_terrain_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-        if (SUCCEEDED(hr))
-        {
-            memcpy(mappedResource.pData, &cb, sizeof(PerTerrainCB));
-            m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
+        if (!m_terrain) {
+            return;
         }
+
+        m_has_manual_water_level_override = false;
+        m_has_water_settings = true;
+        m_water_surface_base_height = water_settings.water_surface_base_height;
+        m_water_wave_amplitude = water_settings.water_wave_amplitude;
+        m_water_technique = water_settings.ComputeWaterTechnique();
+        m_water_flow_dir = DecodeWaterFlowDirection(wind_settings);
+        m_water_reflection_runtime_allowed =
+            WaterTechniqueSupportsReflection(m_water_technique) &&
+            water_settings.AllowsReflectionByAlpha();
+        m_water_level = m_water_surface_base_height;
+
+        auto& cb = m_terrain->m_per_terrain_cb;
+        cb.water_level = m_water_level;
+        // Match EnvData_ParseParams + Env_finalize_sun_and_cloud_layer_data + MapWater_render:
+        // +0x0C waveAmplitude, +0x10 secondaryTexScale, +0x14 waveScale,
+        // +0x18 secondarySpeed, +0x1C primaryTexScale, +0x20 primarySpeed,
+        // +0x24 fresnel, +0x28 specularScale.
+        cb.water_distortion_tex_scale = water_settings.water_wave_amplitude;
+        cb.water_distortion_scale = water_settings.water_secondary_tex_scale;
+        cb.water_distortion_tex_speed = water_settings.water_wave_scale;
+        cb.water_color_tex_scale = water_settings.water_secondary_speed;
+        cb.water_color_tex_speed = water_settings.water_primary_tex_scale;
+        cb.water_fresnel = water_settings.water_primary_speed;
+        cb.water_specular_scale = water_settings.water_fresnel;
+        cb.water_technique = m_water_technique;
+        cb.water_runtime_param_28 = water_settings.water_specular_scale;
+        cb.color0 = DirectX::XMFLOAT4(
+            water_settings.water_absorption_red / 255.0f,
+            water_settings.water_absorption_green / 255.0f,
+            water_settings.water_absorption_blue / 255.0f,
+            water_settings.water_absorption_alpha / 255.0f);
+        cb.color1 = DirectX::XMFLOAT4(
+            water_settings.water_pattern_red / 255.0f,
+            water_settings.water_pattern_green / 255.0f,
+            water_settings.water_pattern_blue / 255.0f,
+            water_settings.water_pattern_alpha / 255.0f);
+        cb.water_flow_dir[0] = m_water_flow_dir.x;
+        cb.water_flow_dir[1] = m_water_flow_dir.y;
+        cb.water_flow_padding[0] = 0.0f;
+        cb.water_flow_padding[1] = 0.0f;
+
+        m_terrain->m_per_terrain_cb = cb;
+        PushPerTerrainCBUpdate();
     }
 
 
@@ -462,6 +483,11 @@ public:
             m_mesh_manager->RemoveMesh(m_water_mesh_id);
             m_water_mesh_id = -1;
         }
+        m_has_water_settings = false;
+        m_has_manual_water_level_override = false;
+        m_water_reflection_runtime_allowed = false;
+        m_water_technique = 0;
+        m_water_flow_dir = DirectX::XMFLOAT2(0.70710677f, 0.70710677f);
 
         for (const auto mesh_id : m_shore_mesh_ids)
         {
@@ -670,6 +696,10 @@ public:
 
     bool GetShouldRenderShadows() { return m_should_render_shadows; }
     bool GetShouldRenderWaterReflection() { return m_should_render_water_reflection; }
+    bool GetShouldRenderWaterReflectionEffective() const
+    {
+        return m_should_render_water_reflection && m_water_reflection_runtime_allowed;
+    }
     bool GetShouldRenderFog() { return m_should_render_fog; }
     bool GetShouldRerenderShadows() { return m_should_rerender_shadows; }
     bool GetShouldRenderShadowsForModels() { return m_should_render_shadows_for_models; }
@@ -864,7 +894,7 @@ public:
             auto water_per_object_data = water_cb_opt.value();
 
             DirectX::XMFLOAT4X4 water_world_matrix;
-            DirectX::XMStoreFloat4x4(&water_world_matrix, DirectX::XMMatrixTranslation(water_per_object_data.world._31, m_water_level, water_per_object_data.world._33));
+            DirectX::XMStoreFloat4x4(&water_world_matrix, DirectX::XMMatrixTranslation(water_per_object_data.world._41, m_water_level, water_per_object_data.world._43));
             water_per_object_data.world = water_world_matrix;
             m_mesh_manager->UpdateMeshPerObjectData(m_water_mesh_id, water_per_object_data);
         }
@@ -882,7 +912,7 @@ public:
         frameCB.fog_end_y = m_fog_end_y;
         frameCB.should_render_flags = 0;
         frameCB.should_render_flags = frameCB.should_render_flags | (m_should_render_shadows);
-        frameCB.should_render_flags = frameCB.should_render_flags | (m_should_render_water_reflection << 1);
+        frameCB.should_render_flags = frameCB.should_render_flags | (GetShouldRenderWaterReflectionEffective() << 1);
         frameCB.should_render_flags = frameCB.should_render_flags | (m_should_render_fog << 2);
         frameCB.should_render_flags = frameCB.should_render_flags | (m_should_render_shadows_for_models << 3);
 
@@ -1236,6 +1266,60 @@ public:
     }
 
 private:
+    static DirectX::XMFLOAT2 DecodeWaterFlowDirection(const EnvSubChunk7* wind_settings)
+    {
+        if (!wind_settings) {
+            return DirectX::XMFLOAT2(0.70710677f, 0.70710677f);
+        }
+
+        // Matches EnvData_ParseParams + Env_update_frame direction decode.
+        constexpr float kByteDivisor = 255.0f;
+        const float angle0 = static_cast<float>(wind_settings->wind_dir0) * (DirectX::XM_2PI / kByteDivisor);
+        float angle1 = static_cast<float>(wind_settings->wind_dir1) * (DirectX::XM_2PI / kByteDivisor);
+        if (angle1 > DirectX::XM_PI) {
+            angle1 -= DirectX::XM_2PI;
+        }
+
+        const float horizontal_scale = static_cast<float>(std::cos(angle0));
+        const float x = static_cast<float>(std::cos(angle1)) * horizontal_scale;
+        const float y = static_cast<float>(std::sin(angle1)) * horizontal_scale;
+        const float len_sq = x * x + y * y;
+        if (len_sq < 1e-6f) {
+            return DirectX::XMFLOAT2(0.70710677f, 0.70710677f);
+        }
+
+        const float inv_len = 1.0f / std::sqrt(len_sq);
+        return DirectX::XMFLOAT2(x * inv_len, y * inv_len);
+    }
+
+    static bool WaterTechniqueSupportsReflection(uint32_t technique)
+    {
+        static constexpr std::array<bool, 5> kTechniqueHasReflection{
+            false, true, true, true, true
+        };
+
+        if (technique >= kTechniqueHasReflection.size()) {
+            return false;
+        }
+
+        return kTechniqueHasReflection[technique];
+    }
+
+    void PushPerTerrainCBUpdate()
+    {
+        if (!m_terrain || !m_per_terrain_cb) {
+            return;
+        }
+
+        D3D11_MAPPED_SUBRESOURCE mapped_resource{};
+        HRESULT hr = m_deviceContext->Map(
+            m_per_terrain_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped_resource);
+        if (SUCCEEDED(hr)) {
+            memcpy(mapped_resource.pData, &m_terrain->m_per_terrain_cb, sizeof(PerTerrainCB));
+            m_deviceContext->Unmap(m_per_terrain_cb.Get(), 0);
+        }
+    }
+
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_deviceContext;
     InputManager* m_input_manager;
@@ -1311,7 +1395,14 @@ private:
     float m_fog_start_y = 0;
     float m_fog_end_y = 0;
 
-    float m_water_level = 0;
+    float m_water_level = 0.0f;
+    bool m_has_manual_water_level_override = false;
+    bool m_has_water_settings = false;
+    float m_water_surface_base_height = 0.0f;
+    float m_water_wave_amplitude = 0.0f;
+    uint32_t m_water_technique = 0;
+    DirectX::XMFLOAT2 m_water_flow_dir = { 0.70710677f, 0.70710677f };
+    bool m_water_reflection_runtime_allowed = false;
 
     PerCameraCB m_per_camera_cb_data;
 };
