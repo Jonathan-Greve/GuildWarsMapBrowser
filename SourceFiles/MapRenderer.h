@@ -17,6 +17,7 @@
 #include "DeviceResources.h"
 #include "FFNA_MapFile.h"
 #include <array>
+#include <algorithm>
 #include <cmath>
 
 using namespace DirectX;
@@ -203,6 +204,8 @@ public:
         m_deviceContext->PSSetSamplers(1, 1, m_pixel_shaders[PixelShaderType::OldModel]->GetSamplerStateShadow());
 
         m_deviceContext->PSSetShader(m_pixel_shaders[PixelShaderType::OldModel]->GetShader(), nullptr, 0);
+
+        InitializeWaterFresnelLUT();
     }
 
     Camera* GetCamera() { return m_user_camera.get(); }
@@ -299,19 +302,21 @@ public:
 
         auto& cb = m_terrain->m_per_terrain_cb;
         cb.water_level = m_water_level;
-        // Match EnvData_ParseParams + Env_finalize_sun_and_cloud_layer_data + MapWater_render:
-        // +0x0C waveAmplitude, +0x10 secondaryTexScale, +0x14 waveScale,
-        // +0x18 secondarySpeed, +0x1C primaryTexScale, +0x20 primarySpeed,
-        // +0x24 fresnel, +0x28 specularScale.
-        cb.water_distortion_tex_scale = water_settings.water_wave_amplitude;
+        // Water params are stored in the map env chunk (tag 6, size 0x39) and then consumed by MapWater_render.
+        // Our D3D11 water PS reimplements the captured GW ps_1_1(texbem) behavior, so we pass the *file* values
+        // using the same semantics the shader expects:
+        // - secondaryTexScale/secondarySpeed feed stage0 (bump/du-dv) UVs (0.0005 scale, 0.02 anim speed)
+        // - primaryTexScale/primarySpeed feed stage3 (pattern/base) UVs (0.00025 scale, 0.01 anim speed)
+        // - bump-env matrix diagonal uses secondaryTexScale * 0.04 (matches captured D3DTSS_BUMPENVMAT00/11)
+        cb.water_color_tex_scale = water_settings.water_primary_tex_scale;
+        cb.water_color_tex_speed = water_settings.water_primary_speed;
+        cb.water_distortion_tex_scale = water_settings.water_secondary_tex_scale;
+        cb.water_distortion_tex_speed = water_settings.water_secondary_speed;
         cb.water_distortion_scale = water_settings.water_secondary_tex_scale;
-        cb.water_distortion_tex_speed = water_settings.water_wave_scale;
-        cb.water_color_tex_scale = water_settings.water_secondary_speed;
-        cb.water_color_tex_speed = water_settings.water_primary_tex_scale;
-        cb.water_fresnel = water_settings.water_primary_speed;
-        cb.water_specular_scale = water_settings.water_fresnel;
+        cb.water_fresnel = water_settings.water_fresnel;
+        cb.water_specular_scale = water_settings.water_specular_scale;
         cb.water_technique = m_water_technique;
-        cb.water_runtime_param_28 = water_settings.water_specular_scale;
+        cb.water_runtime_param_28 = 0.0f; // unknown GW runtime param (+0x28) used only for technique 4 projection remap
         cb.color0 = DirectX::XMFLOAT4(
             water_settings.water_absorption_red / 255.0f,
             water_settings.water_absorption_green / 255.0f,
@@ -660,6 +665,8 @@ public:
 
     TextureManager* GetTextureManager() { return m_texture_manager.get(); }
     MeshManager* GetMeshManager() { return m_mesh_manager.get(); }
+
+    ID3D11ShaderResourceView* GetWaterFresnelLUTSRV() const { return m_water_fresnel_lut_srv.Get(); }
 
     void SetLODQuality(const LODQuality new_lod_quality) {
         m_lod_quality = new_lod_quality;
@@ -1266,6 +1273,67 @@ public:
     }
 
 private:
+    void InitializeWaterFresnelLUT()
+    {
+        if (m_water_fresnel_lut_srv)
+        {
+            return;
+        }
+
+        // GW builds this at runtime (MapWater_update_technique): 256x4 A8, rows identical.
+        // byte(x) = clamp(255 / pow(1 + x/width, 8.0)).
+        const UINT w = 256;
+        const UINT h = 4;
+        std::vector<uint8_t> pixels(w * h * 4, 0);
+
+        for (UINT y = 0; y < h; ++y)
+        {
+            for (UINT x = 0; x < w; ++x)
+            {
+                const float u = static_cast<float>(x) / static_cast<float>(w);
+                const float a = 1.0f / powf(1.0f + u, 8.0f);
+                const float a255 = std::clamp(a * 255.0f, 0.0f, 255.0f);
+                const uint8_t byte = static_cast<uint8_t>(a255 + 0.5f);
+                const size_t idx = (static_cast<size_t>(y) * w + x) * 4;
+                pixels[idx + 3] = byte; // alpha only (matches D3D9 A8 usage)
+            }
+        }
+
+        D3D11_TEXTURE2D_DESC desc = {};
+        desc.Width = w;
+        desc.Height = h;
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_IMMUTABLE;
+        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+        D3D11_SUBRESOURCE_DATA init = {};
+        init.pSysMem = pixels.data();
+        init.SysMemPitch = w * 4;
+
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> tex;
+        HRESULT hr = m_device->CreateTexture2D(&desc, &init, tex.GetAddressOf());
+        if (FAILED(hr))
+        {
+            OutputDebugStringA("InitializeWaterFresnelLUT: CreateTexture2D failed\n");
+            return;
+        }
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+        srv_desc.Format = desc.Format;
+        srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srv_desc.Texture2D.MipLevels = 1;
+
+        hr = m_device->CreateShaderResourceView(tex.Get(), &srv_desc, m_water_fresnel_lut_srv.GetAddressOf());
+        if (FAILED(hr))
+        {
+            OutputDebugStringA("InitializeWaterFresnelLUT: CreateShaderResourceView failed\n");
+            return;
+        }
+    }
+
     static DirectX::XMFLOAT2 DecodeWaterFlowDirection(const EnvSubChunk7* wind_settings)
     {
         if (!wind_settings) {
@@ -1343,6 +1411,8 @@ private:
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_frame_cb;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_camera_cb;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_terrain_cb;
+
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_water_fresnel_lut_srv;
 
     Terrain* m_terrain = nullptr;
     PixelShaderType m_terrain_current_pixel_shader_type = PixelShaderType::TerrainRev;

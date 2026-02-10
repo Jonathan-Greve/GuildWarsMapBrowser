@@ -1314,6 +1314,8 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				map_renderer->GetMeshManager()->UpdateMeshPerObjectData(water_mesh_id, water_per_object_data);
 
 				map_renderer->GetMeshManager()->SetTexturesForMesh(water_mesh_id, water_textures, 0);
+				map_renderer->GetMeshManager()->SetTexturesForMesh(
+					water_mesh_id, { map_renderer->GetWaterFresnelLUTSRV() }, 3);
 			}
 
 			auto& terrain_texture_filenames = selected_ffna_map_file.terrain_texture_filenames.array;

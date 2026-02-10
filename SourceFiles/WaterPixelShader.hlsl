@@ -3,9 +3,6 @@
 sampler ss : register(s0);
 Texture2D shaderTextures[8] : register(t0);
 
-#define DARKGREEN float3(0.4, 1.0, 0.4)
-#define LIGHTGREEN float3(0.0, 0.5, 0.0)
-
 struct DirectionalLight
 {
     float4 ambient;
@@ -66,17 +63,17 @@ cbuffer PerTerrainCB : register(b3)
     float water_level;
     float terrain_texture_pad_x;
     float terrain_texture_pad_y;
-    float water_distortion_tex_scale;
-    float water_distortion_scale;
-    float water_distortion_tex_speed;
-    float water_color_tex_scale;
-    float water_color_tex_speed;
-    float water_fresnel;
-    float water_specular_scale;
+    float water_distortion_tex_scale; // GW: secondaryTexScale (file EnvWaterParams.secondaryTexScale)
+    float water_distortion_scale;     // GW: secondaryTexScale (duplicated; used to match GW bump-env scale)
+    float water_distortion_tex_speed; // GW: secondarySpeed    (file EnvWaterParams.secondarySpeed)
+    float water_color_tex_scale;      // GW: primaryTexScale   (file EnvWaterParams.primaryTexScale)
+    float water_color_tex_speed;      // GW: primarySpeed      (file EnvWaterParams.primarySpeed)
+    float water_fresnel;             // GW: fresnel           (file EnvWaterParams.fresnel) (not used by the captured PS)
+    float water_specular_scale;      // GW: specularScale     (file EnvWaterParams.specularScale) (not used by the captured PS)
     uint water_technique;
     float water_runtime_param_28;
-    float4 color0;
-    float4 color1;
+    float4 color0; // GW: waterAbsorption (PS c1)  (float RGBA / 255)
+    float4 color1; // GW: waterPattern    (PS c0)  (float RGBA / 255)
     float2 water_flow_dir;
     float2 water_flow_padding;
 };
@@ -104,12 +101,19 @@ struct PSOutput
     float4 rt_1_output : SV_TARGET1; // Goes to second render target
 };
 
-static const float GW_WATER_ANIM_SPEED = 0.01;
+// Constants confirmed in Gw.exe:
+// - MapWater_render: primary scroll uses 0.01, secondary scroll uses 0.02
+// - MapWater_render: primary scale uses 0.00025, secondary scale uses 0.0005
+// - MapWater_render: bump-env matrix scale uses 0.04
+static const float GW_WATER_PRIMARY_ANIM_SPEED = 0.01;
 static const float GW_WATER_SECONDARY_ANIM_SPEED = 0.02;
-static const float GW_WATER_TEX_SCALE = 0.00025;
+static const float GW_WATER_PRIMARY_TEX_SCALE = 0.00025;
 static const float GW_WATER_SECONDARY_TEX_SCALE = 0.0005;
-static const float GW_WATER_ALT_TEX_SCALE = 0.001;
-static const float GW_WATER_WAVE_SCALE = 0.04;
+static const float GW_WATER_BUMPENV_SCALE = 0.04;
+
+// MapWater_update_technique builds a 256x4 A8 fresnel LUT where each row is identical.
+// We generate/bind the same LUT in the custom client and sample it as shaderTextures[3].a
+// (see MapRenderer::InitializeWaterFresnelLUT).
 
 float2 NormalizeOrDefault(float2 value, float2 fallback)
 {
@@ -123,129 +127,106 @@ float2 NormalizeOrDefault(float2 value, float2 fallback)
     return result;
 }
 
-// Main Pixel Shader function
+float GW_FogFactor(float3 world_pos)
+{
+    // In the captured D3D9 pipeline, fog is applied in the PS using v0.w:
+    //   rgb = lerp(fogColor, rgb, v0.w)
+    // Here we approximate v0.w using the engine fog start/end distances.
+    float dist = length(cam_position - world_pos);
+    float denom = max(fog_end - fog_start, 1e-3);
+    return saturate((fog_end - dist) / denom);
+}
+
+// Main Pixel Shader function (GW texbem water PS reimplementation)
 float4 main(PixelInputType input) : SV_TARGET
 {
-    float4 final_color = float4(0, 0, 0, 1);
+    // Textures are bound as:
+    //   shaderTextures[0] = stage3 pattern/base texture (often DXT1)
+    //   shaderTextures[1] = stage0 bump DuDv texture (DDS bump, treated as RG storing du/dv)
+    //   shaderTextures[2] = stage1 reflection render target (SRV)
+    //   shaderTextures[3] = stage2 fresnel LUT (256x4 A8, stored in .a)
+    float4 final = float4(0, 0, 0, 1);
 
-    // Matches MapWater_render transform flow in Gw.exe with runtime-packed params:
-    // +0x0C waveAmplitude, +0x10 secondaryTexScale, +0x14 waveScale,
-    // +0x18 secondarySpeed, +0x1C primaryTexScale.
-    bool has_distortion_layer = water_technique >= 1;
-    bool has_secondary_animation = water_technique >= 2;
-    float2 flow_dir = NormalizeOrDefault(water_flow_dir, normalize(float2(1.0, 1.0)));
+    float4 c0_pattern = color1;
+    float4 c1_absorption = color0;
+    float3 c2_fog_rgb = fog_color_rgb;
+
+    float2 flow_dir = NormalizeOrDefault(water_flow_dir, float2(0.70710677, 0.70710677));
     float2 world_uv = input.world_position.xz;
 
-    float primary_scroll = time_elapsed * GW_WATER_ANIM_SPEED * water_color_tex_speed;
-    float primary_scale = water_color_tex_scale * GW_WATER_TEX_SCALE;
-    // Match MapWater_render matrix + inverse behavior: texture scale applies to
-    // world coordinates, while scroll is an additive layer offset.
-    float2 color_uv = world_uv * primary_scale + flow_dir * primary_scroll;
+    // Captured GW water shader uses:
+    // - Stage0 (t0): bump/du-dv (file: secondary* params; VS uses GW_WATER_SECONDARY_* constants)
+    // - Stage3 (t3): pattern/base (file: primary* params; VS uses GW_WATER_PRIMARY_* constants)
+    float bump_scroll = time_elapsed * GW_WATER_SECONDARY_ANIM_SPEED * water_distortion_tex_speed;
+    float bump_scale = water_distortion_tex_scale * GW_WATER_SECONDARY_TEX_SCALE;
+    float2 uv_bump = world_uv * bump_scale + flow_dir * bump_scroll;
 
-    float2 distortion_uv = float2(0.0, 0.0);
-    if (has_distortion_layer)
-    {
-        if (has_secondary_animation)
-        {
-            float secondary_scroll = time_elapsed * GW_WATER_SECONDARY_ANIM_SPEED * water_distortion_tex_speed;
-            float secondary_scale = water_distortion_scale * GW_WATER_SECONDARY_TEX_SCALE;
-            distortion_uv = world_uv * secondary_scale - flow_dir * secondary_scroll;
-        }
-        else
-        {
-            // Technique 1 uses static perturbation with alternate scale.
-            float alt_scale = water_distortion_tex_scale * GW_WATER_ALT_TEX_SCALE;
-            distortion_uv = world_uv * alt_scale;
-        }
-    }
+    float pattern_scroll = time_elapsed * GW_WATER_PRIMARY_ANIM_SPEED * water_color_tex_speed;
+    float pattern_scale = water_color_tex_scale * GW_WATER_PRIMARY_TEX_SCALE;
+    float2 uv_pattern = world_uv * pattern_scale - flow_dir * pattern_scroll;
 
-    // Sample water texture at two coordinates
-    float4 waterColor0 = shaderTextures[0].Sample(ss, color_uv);
-    float4 normalColor0 =
-        has_distortion_layer ? shaderTextures[1].Sample(ss, distortion_uv) : float4(0.5, 0.5, 1.0, 1.0);
-    final_color = lerp(waterColor0, color0, 0.3);
-    
-    float3 normal = float3(0.0, 1.0, 0.0);
-    float normal_r = 0.0;
-    float normal_g = 0.0;
-    if (has_distortion_layer)
+    // Sample stage0 bump (DuDv). DDS bump formats typically land in RG with neutral at 0.5 after conversion.
+    float4 t0 = shaderTextures[1].Sample(ss, uv_bump);
+    // D3D9 V8U8 is signed bytes; after conversion to UNORM in our loader, recover the signed range.
+    float2 du_dv = ((t0.rg * 255.0) - 128.0) / 127.0;
+    du_dv = clamp(du_dv, -1.0, 1.0);
+
+    // D3D9 texbem uses BUMPENVMAT00..11; observed in captures:
+    //   BUMPENVMAT00 == BUMPENVMAT11 == (secondaryTexScale * 0.04)
+    float bump_mat_diag = water_distortion_scale * GW_WATER_BUMPENV_SCALE;
+    float2 bump_offset = du_dv * bump_mat_diag;
+
+    // Reflection coords (MapBrowser provides projected coords; GW computes equivalent UVs in its VS path)
+    float2 uv_reflect = float2(0.5, 0.5);
+    if (should_render_flags & 2)
     {
-        normal_r = normalColor0.r * 2 - 1; // Convert from [0, 1] range to [-1, 1] 
-        normal_g = normalColor0.g * 2 - 1; // Convert from [0, 1] range to [-1, 1] 
-        // Reconstruct the Z component. Assume normal points out of the water.
-        float normal_y = sqrt(saturate(1.0 - normal_r * normal_r - normal_g * normal_g));
-        normal = normalize(float3(normal_r, normal_y, normal_g));
-    }
-    float3 viewDirection = normalize(cam_position - input.world_position.xyz);
-    
-    
-    bool should_render_water_reflection = should_render_flags & 2;
-    if (should_render_water_reflection)
-    {
-        // ============ REFLECTION START =====================
         float3 ndcPos = input.reflectionSpacePos.xyz / input.reflectionSpacePos.w;
-
-        // Transform position to shadow map texture space
-        float2 reflectionCoord = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
-        // MapWater_render only applies this projection remap for technique 4.
+        uv_reflect = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
+        // GW technique 4 applies an extra projection remap; keep support but default runtime param to 0.
         if (water_technique == 4)
         {
-            float reflection_projection_scale = rcp(max(2.0 * water_runtime_param_28, 0.001));
-            reflectionCoord = (reflectionCoord - 0.5) * reflection_projection_scale + 0.5;
+            float s = rcp(max(2.0 * water_runtime_param_28, 1e-3));
+            uv_reflect = (uv_reflect - 0.5) * s + 0.5;
         }
-        float reflection_perturbation = 0.0;
-        if (has_distortion_layer)
-        {
-            reflection_perturbation =
-                has_secondary_animation
-                    ? max(water_distortion_scale * GW_WATER_WAVE_SCALE, 0.001)
-                    : max(water_distortion_tex_scale * GW_WATER_ALT_TEX_SCALE, 0.001);
-        }
-
-        float2 reflection_offset = float2(normal_r, -normal_g) * (reflection_perturbation * 0.5);
-        // Reflection render target should not wrap; wrapping causes a visible tiled grid
-        // when projection scaling pushes UVs outside [0, 1].
-        float2 reflection_uv = saturate(reflectionCoord + reflection_offset);
-        float4 reflectionColor = shaderTextures[2].Sample(ss, reflection_uv);
-    
-        // Combine the reflection color with the final color
-        // This can be adjusted based on the desired reflection intensity and blending mode
-        final_color = lerp(final_color, lerp(reflectionColor, color1, 0.3), 0.5); // Simple blend for demonstration
-        // ============ REFLECTION END =====================
+        uv_reflect = saturate(uv_reflect + bump_offset);
     }
-    
-    // Ensure directionalLight.direction is normalized
-    float3 lightDir = normalize(-directionalLight.direction);
-    float NdotL = max(dot(normal, lightDir), 0.0);
 
-    float4 ambientComponent = directionalLight.ambient;
-    float4 diffuseComponent = directionalLight.diffuse * NdotL;
+    // Fresnel LUT coordinate:
+    // Captured GW VS: oT2.xy = (-viewDirUp) * primarySpeed, where viewDirUp is the *normalized* camera->point
+    // vector component along the world-up axis (GW uses Z-up; our viewer uses Y-up).
+    float3 v_cam_to_pt = input.world_position.xyz - cam_position;
+    float inv_len = rsqrt(max(dot(v_cam_to_pt, v_cam_to_pt), 1e-12));
+    float view_up = v_cam_to_pt.y * inv_len;
+    float fresnel_u = saturate((-view_up) * water_color_tex_speed);
+    float t2_a = shaderTextures[3].Sample(ss, float2(fresnel_u, 0.5)).a;
 
-    // Compute half vector and ensure normalization
-    float3 halfVector = normalize(lightDir + viewDirection);
-    float NdotH = max(dot(normal, halfVector), 0.0);
+    // texbem stage1 (reflection) and stage3 (pattern)
+    float4 t1 = (should_render_flags & 2) ? shaderTextures[2].Sample(ss, uv_reflect) : float4(0, 0, 0, 0);
+    float4 t3 = shaderTextures[0].Sample(ss, uv_pattern + bump_offset);
 
-    float shininess = 80.0; // Shininess factor
-    float specularIntensity = pow(NdotH, shininess);
-    float4 specularComponent = float4(1, 1, 1, 1) * (specularIntensity * water_specular_scale);
+    // Apply the exact constant usage from ps_1_1:
+    //   t3 *= c0 (pattern)
+    //   t1 *= c1 (absorption)
+    float3 t3_rgb = t3.rgb * c0_pattern.rgb;
+    float  t3_w   = t3.a   * c0_pattern.a;
 
-    // Combine lighting components
-    final_color *= ambientComponent + diffuseComponent * 0.1 + specularComponent * 0.05;
+    float3 t1_rgb = t1.rgb * c1_absorption.rgb;
+    float  t1_w   = (t2_a * c1_absorption.a);
+    t1_rgb *= t1_w;
 
-    // Fog effect
-    bool should_render_fog = should_render_flags & 4;
-    if (should_render_fog)
-    {
-        float distance = length(cam_position - input.world_position.xyz);
-        float fogFactor = (fog_end + 10000 - distance) / (fog_end + 10000 - fog_start);
-        fogFactor = clamp(fogFactor, 0.0, 1.0);
-        float3 fog_color = lerp(fog_color_rgb, final_color.rgb, fogFactor);
-        final_color = lerp(float4(fog_color, 1.0), final_color, fogFactor);
-    }
-    
-    float technique_alpha_floor = (water_technique == 1) ? 0.82 : 0.7;
-    float min_alpha = max(0.5 * (color0.a + color1.a), technique_alpha_floor);
-    float water_alpha = clamp(1.2 - viewDirection.y, min_alpha, 1.0);
+    // lrp r0.xyz, t3.w, t3, t1  => r0 = t3.w*t3 + (1-t3.w)*t1
+    float3 rgb = lerp(t1_rgb, t3_rgb, t3_w);
 
-    return float4(final_color.rgb, water_alpha);
+    // alpha pre-fog: (1-t3.w)*(1-t1.w)
+    float out_a = (1.0 - t3_w) * (1.0 - t1_w);
+
+    // Fog matches ps: rgb = lerp(c2, rgb, fogFactor)
+    float fogFactor = (should_render_flags & 4) ? GW_FogFactor(input.world_position.xyz) : 1.0;
+    rgb = lerp(c2_fog_rgb, rgb, fogFactor);
+
+    // mad r0.w, -out_a, fogFactor, 1 => alpha = 1 - out_a * fogFactor
+    out_a = 1.0 - out_a * fogFactor;
+
+    final = float4(rgb, out_a);
+    return final;
 }
