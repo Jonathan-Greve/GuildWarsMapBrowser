@@ -29,6 +29,98 @@ bool dat_compare_filter_result_changed = false;
 bool custom_file_info_changed = false;
 std::unordered_set<uint32_t> dat_compare_filter_result;
 
+static void draw_compass_overlay(MapRenderer* map_renderer)
+{
+	if (!GuiGlobalConstants::is_compass_open || !map_renderer) {
+		return;
+	}
+
+	Camera* camera = map_renderer->GetCamera();
+	if (!camera) {
+		return;
+	}
+
+	const float yaw = camera->GetYaw();   // radians, 0 = +Z, +90deg = +X
+	const float pitch = camera->GetPitch();
+
+	// Heading: 0 = North (+Z), 90 = East (+X)
+	float heading_deg = yaw * (180.0f / 3.14159265358979323846f);
+	heading_deg = fmodf(heading_deg + 360.0f, 360.0f);
+
+	ImGuiIO& io = ImGui::GetIO();
+	const ImVec2 display = io.DisplaySize;
+
+	const ImGuiWindowFlags flags =
+		ImGuiWindowFlags_NoDecoration |
+		ImGuiWindowFlags_NoDocking |
+		ImGuiWindowFlags_NoSavedSettings |
+		ImGuiWindowFlags_NoFocusOnAppearing |
+		ImGuiWindowFlags_NoNav |
+		ImGuiWindowFlags_AlwaysAutoResize |
+		ImGuiWindowFlags_NoMove;
+
+	ImGui::SetNextWindowPos(
+		ImVec2(display.x * 0.5f, GuiGlobalConstants::menu_bar_height + 10.0f),
+		ImGuiCond_Always,
+		ImVec2(0.5f, 0.0f));
+	ImGui::SetNextWindowBgAlpha(0.35f);
+
+	if (!ImGui::Begin("##compass_overlay", nullptr, flags)) {
+		ImGui::End();
+		return;
+	}
+
+	const float radius = 42.0f;
+	const float canvas_size = radius * 2.0f + 28.0f;
+
+	const ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
+	ImGui::InvisibleButton("##compass_canvas", ImVec2(canvas_size, canvas_size));
+
+	ImDrawList* dl = ImGui::GetWindowDrawList();
+	const ImU32 col_ring = IM_COL32(230, 230, 230, 220);
+	const ImU32 col_text = IM_COL32(255, 255, 255, 220);
+	const ImU32 col_arrow = IM_COL32(80, 200, 255, 255);
+	const ImU32 col_arrow_fill = IM_COL32(80, 200, 255, 200);
+
+	const ImVec2 center = ImVec2(canvas_pos.x + canvas_size * 0.5f, canvas_pos.y + canvas_size * 0.5f);
+
+	dl->AddCircle(center, radius, col_ring, 48, 2.0f);
+
+	// Cardinal labels (N at top, E right, S bottom, W left)
+	dl->AddText(ImVec2(center.x - 4.0f, center.y - radius - 14.0f), col_text, "N");
+	dl->AddText(ImVec2(center.x + radius + 6.0f, center.y - 6.0f), col_text, "E");
+	dl->AddText(ImVec2(center.x - 4.0f, center.y + radius + 2.0f), col_text, "S");
+	dl->AddText(ImVec2(center.x - radius - 14.0f, center.y - 6.0f), col_text, "W");
+
+	// Arrow direction in screen-space: yaw=0 => up, yaw=+90deg => right.
+	const float dx = sinf(yaw);
+	const float dy = -cosf(yaw);
+	const float len = std::max(1e-6f, sqrtf(dx * dx + dy * dy));
+	const float ndx = dx / len;
+	const float ndy = dy / len;
+	const float pdx = -ndy;
+	const float pdy = ndx;
+
+	const float tip_len = radius - 6.0f;
+	const float base_len = radius - 18.0f;
+	const float head_w = 7.0f;
+
+	const ImVec2 tip_pt = ImVec2(center.x + ndx * tip_len, center.y + ndy * tip_len);
+	const ImVec2 base_pt = ImVec2(center.x + ndx * base_len, center.y + ndy * base_len);
+	const ImVec2 left_pt = ImVec2(base_pt.x + pdx * head_w, base_pt.y + pdy * head_w);
+	const ImVec2 right_pt = ImVec2(base_pt.x - pdx * head_w, base_pt.y - pdy * head_w);
+
+	dl->AddTriangleFilled(tip_pt, left_pt, right_pt, col_arrow_fill);
+	dl->AddLine(center, base_pt, col_arrow, 2.0f);
+	dl->AddTriangle(tip_pt, left_pt, right_pt, col_arrow, 1.0f);
+
+	ImGui::Spacing();
+	ImGui::Text("Heading: %.1f deg", heading_deg);
+	ImGui::Text("Pitch:   %.1f deg", pitch * (180.0f / 3.14159265358979323846f));
+
+	ImGui::End();
+}
+
 void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_manager_to_show, MapRenderer* map_renderer, PickingInfo picking_info,
 	std::vector<std::vector<std::string>>& csv_data, int& FPS_target, DX::StepTimer& timer, ExtractPanelInfo& extract_panel_info, bool& msaa_changed,
 	int& msaa_level_index, const std::vector<std::pair<int, int>>& msaa_levels, std::unordered_map<int, std::vector<int>>& hash_index)
@@ -62,6 +154,7 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
 				changed |= ImGui::MenuItem("Audio Controller", NULL, &GuiGlobalConstants::is_audio_controller_open);
 				changed |= ImGui::MenuItem("Model Viewer", NULL, &GuiGlobalConstants::is_model_viewer_panel_open);
 				changed |= ImGui::MenuItem("Text Panel", NULL, &GuiGlobalConstants::is_text_panel_open);
+				changed |= ImGui::MenuItem("Compass", NULL, &GuiGlobalConstants::is_compass_open);
 				ImGui::Separator();
 				changed |= ImGui::MenuItem("Extract Panel", NULL, &GuiGlobalConstants::is_extract_panel_open);
 				changed |= ImGui::MenuItem("Compare Panel", NULL, &GuiGlobalConstants::is_compare_panel_open);
@@ -139,6 +232,9 @@ void draw_ui(std::map<int, std::unique_ptr<DATManager>>& dat_managers, int& dat_
 			draw_model_viewer_panel(map_renderer, dat_managers);
 			draw_text_panel(selected_text_file_str);
 			draw_hex_editor_panel(selected_raw_data.data(), static_cast<int>(selected_raw_data.size()));
+
+			// Overlay HUD widgets
+			draw_compass_overlay(map_renderer);
 		}
 	}
 

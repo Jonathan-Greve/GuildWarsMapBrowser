@@ -32,6 +32,7 @@ public:
 	inline static bool is_pathfinding_panel_open = false;
 	inline static bool is_model_viewer_panel_open = false;
 	inline static bool is_window_controller_open = true;
+	inline static bool is_compass_open = true;
 
 	// Window settings
 	inline static int window_width = -1;
@@ -57,6 +58,7 @@ public:
 	inline static bool prev_is_pathfinding_panel_open;
 	inline static bool prev_is_model_viewer_panel_open;
 	inline static bool prev_is_window_controller_open;
+	inline static bool prev_is_compass_open;
 
 	// Method to save the current state of all panels
 	static void SaveCurrentStates()
@@ -78,6 +80,7 @@ public:
 		prev_is_pathfinding_panel_open = is_pathfinding_panel_open;
 		prev_is_model_viewer_panel_open = is_model_viewer_panel_open;
 		prev_is_window_controller_open = is_window_controller_open;
+		prev_is_compass_open = is_compass_open;
 	}
 
 	// Method to restore the previous state of all panels
@@ -100,6 +103,7 @@ public:
 		is_pathfinding_panel_open = prev_is_pathfinding_panel_open;
 		is_model_viewer_panel_open = prev_is_model_viewer_panel_open;
 		is_window_controller_open = prev_is_window_controller_open;
+		is_compass_open = prev_is_compass_open;
 	}
 
 	// Method to set the hide_all state and update panels accordingly
@@ -127,6 +131,7 @@ public:
 			is_byte_search_panel_open = false;
 			is_pathfinding_panel_open = false;
 			is_model_viewer_panel_open = false;
+			is_compass_open = false;
 		}
 		else
 		{
@@ -156,6 +161,7 @@ public:
 		is_pathfinding_panel_open = false;
 		is_model_viewer_panel_open = false;
 		is_window_controller_open = true;
+		is_compass_open = true;
 	}
 
 	// Helper to clamp a window to stay within screen bounds
@@ -225,6 +231,7 @@ public:
 		file << "pathfinding_panel=" << (is_pathfinding_panel_open ? 1 : 0) << "\n";
 		file << "model_viewer_panel=" << (is_model_viewer_panel_open ? 1 : 0) << "\n";
 		file << "window_controller=" << (is_window_controller_open ? 1 : 0) << "\n";
+		file << "compass=" << (is_compass_open ? 1 : 0) << "\n";
 
 		file << "window_width=" << window_width << "\n";
 		file << "window_height=" << window_height << "\n";
@@ -273,6 +280,7 @@ public:
 			else if (key == "pathfinding_panel") is_pathfinding_panel_open = (value != 0);
 			else if (key == "model_viewer_panel") is_model_viewer_panel_open = (value != 0);
 			else if (key == "window_controller") is_window_controller_open = (value != 0);
+			else if (key == "compass") is_compass_open = (value != 0);
 			else if (key == "window_width") window_width = value;
 			else if (key == "window_height") window_height = value;
 			else if (key == "window_pos_x") window_pos_x = value;
