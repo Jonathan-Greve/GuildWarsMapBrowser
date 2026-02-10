@@ -71,13 +71,18 @@ static void draw_compass_overlay(MapRenderer* map_renderer)
 		return;
 	}
 
+	const float radius = 42.0f;
+	const float canvas_size = radius * 2.0f + 28.0f;
+
 	// Explicit drag handle so it remains movable even with "move from title bar only" configs.
 	{
 		ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 0, 0, 0));
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(255, 255, 255, 25));
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(255, 255, 255, 35));
 
-		const float w = std::max(120.0f, ImGui::GetWindowWidth());
+		// IMPORTANT: keep this width fixed. Using GetWindowWidth() here creates a feedback loop with
+		// ImGuiWindowFlags_AlwaysAutoResize and the window expands every frame.
+		const float w = canvas_size;
 		ImGui::InvisibleButton("##compass_drag", ImVec2(w, 18.0f));
 		const ImVec2 bar_min = ImGui::GetItemRectMin();
 		const ImVec2 bar_max = ImGui::GetItemRectMax();
@@ -106,9 +111,6 @@ static void draw_compass_overlay(MapRenderer* map_renderer)
 
 		ImGui::PopStyleColor(3);
 	}
-
-	const float radius = 42.0f;
-	const float canvas_size = radius * 2.0f + 28.0f;
 
 	const ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
 	ImGui::InvisibleButton("##compass_canvas", ImVec2(canvas_size, canvas_size));
