@@ -1349,7 +1349,8 @@ private:
     static DirectX::XMFLOAT2 DecodeWaterFlowDirection(const EnvSubChunk7* wind_settings)
     {
         if (!wind_settings) {
-            return DirectX::XMFLOAT2(0.70710677f, 0.70710677f);
+            // Default chosen to match the common in-game diagonal flow, with +X east, +Z north.
+            return DirectX::XMFLOAT2(0.70710677f, -0.70710677f);
         }
 
         // For water UV scrolling we only want a stable horizontal 2D direction.
@@ -1359,7 +1360,8 @@ private:
         const float angle = static_cast<float>(wind_settings->wind_dir1) * (DirectX::XM_2PI / kByteDivisor);
 
         const float x = static_cast<float>(std::cos(angle));
-        const float y = static_cast<float>(std::sin(angle));
+        // Negate to account for GW's north/south axis orientation vs our XZ plane usage.
+        const float y = static_cast<float>(-std::sin(angle));
         const float len_sq = x * x + y * y;
         if (len_sq < 1e-6f) {
             return DirectX::XMFLOAT2(0.70710677f, 0.70710677f);
