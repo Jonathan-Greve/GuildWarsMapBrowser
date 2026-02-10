@@ -52,9 +52,11 @@ static void draw_compass_overlay(MapRenderer* map_renderer)
 
 	ImGuiWindowFlags flags =
 		ImGuiWindowFlags_NoDecoration |
+		ImGuiWindowFlags_NoSavedSettings |
 		ImGuiWindowFlags_NoFocusOnAppearing |
 		ImGuiWindowFlags_NoNav |
-		ImGuiWindowFlags_AlwaysAutoResize;
+		ImGuiWindowFlags_AlwaysAutoResize |
+		ImGuiWindowFlags_NoMove;
 
 #ifdef IMGUI_HAS_DOCK
 	flags |= ImGuiWindowFlags_NoDocking;
@@ -62,44 +64,13 @@ static void draw_compass_overlay(MapRenderer* map_renderer)
 
 	ImGui::SetNextWindowPos(
 		ImVec2(display.x * 0.5f, GuiGlobalConstants::menu_bar_height + 10.0f),
-		ImGuiCond_FirstUseEver,
+		ImGuiCond_Always,
 		ImVec2(0.5f, 0.0f));
 	ImGui::SetNextWindowBgAlpha(0.35f);
 
 	if (!ImGui::Begin("##compass_overlay", nullptr, flags)) {
 		ImGui::End();
 		return;
-	}
-
-	// Explicit drag handle so it remains movable even with "move from title bar only" configs.
-	{
-		ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 0, 0, 0));
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(255, 255, 255, 25));
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(255, 255, 255, 35));
-
-		const float w = std::max(120.0f, ImGui::GetWindowWidth());
-		ImGui::InvisibleButton("##compass_drag", ImVec2(w, 18.0f));
-		if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-		{
-			ImGui::SetWindowPos(ImGui::GetWindowPos() + io.MouseDelta);
-		}
-
-		ImGui::SetItemAllowOverlap();
-		ImGui::SetCursorScreenPos(ImVec2(ImGui::GetItemRectMin().x + 6.0f, ImGui::GetItemRectMin().y + 1.0f));
-		ImGui::TextUnformatted("Compass");
-
-		// Close button (top-right)
-		ImGui::SetCursorScreenPos(ImVec2(ImGui::GetItemRectMax().x - 18.0f, ImGui::GetItemRectMin().y));
-		if (ImGui::SmallButton("x"))
-		{
-			GuiGlobalConstants::is_compass_open = false;
-			GuiGlobalConstants::SaveSettings();
-			ImGui::PopStyleColor(3);
-			ImGui::End();
-			return;
-		}
-
-		ImGui::PopStyleColor(3);
 	}
 
 	const float radius = 42.0f;
