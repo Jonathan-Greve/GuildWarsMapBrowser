@@ -50,14 +50,17 @@ static void draw_compass_overlay(MapRenderer* map_renderer)
 	ImGuiIO& io = ImGui::GetIO();
 	const ImVec2 display = io.DisplaySize;
 
-	const ImGuiWindowFlags flags =
+	ImGuiWindowFlags flags =
 		ImGuiWindowFlags_NoDecoration |
-		ImGuiWindowFlags_NoDocking |
 		ImGuiWindowFlags_NoSavedSettings |
 		ImGuiWindowFlags_NoFocusOnAppearing |
 		ImGuiWindowFlags_NoNav |
 		ImGuiWindowFlags_AlwaysAutoResize |
 		ImGuiWindowFlags_NoMove;
+
+#ifdef IMGUI_HAS_DOCK
+	flags |= ImGuiWindowFlags_NoDocking;
+#endif
 
 	ImGui::SetNextWindowPos(
 		ImVec2(display.x * 0.5f, GuiGlobalConstants::menu_bar_height + 10.0f),
