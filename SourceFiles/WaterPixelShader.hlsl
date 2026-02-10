@@ -157,12 +157,14 @@ float4 main(PixelInputType input) : SV_TARGET
     // Captured GW water shader uses:
     // - Stage0 (t0): bump/du-dv (file: secondary* params; VS uses GW_WATER_SECONDARY_* constants)
     // - Stage3 (t3): pattern/base (file: primary* params; VS uses GW_WATER_PRIMARY_* constants)
-    float bump_scroll = time_elapsed * GW_WATER_SECONDARY_ANIM_SPEED * water_distortion_tex_speed;
+    // Scroll is in world-units in the env file; GW multiplies by the scale constant to convert to UV units.
     float bump_scale = water_distortion_tex_scale * GW_WATER_SECONDARY_TEX_SCALE;
-    float2 uv_bump = world_uv * bump_scale + flow_dir * bump_scroll;
+    float bump_scroll = time_elapsed * GW_WATER_SECONDARY_ANIM_SPEED * water_distortion_tex_speed * bump_scale;
+    float2 uv_bump = world_uv * bump_scale - flow_dir * bump_scroll;
 
     float pattern_scroll = time_elapsed * GW_WATER_PRIMARY_ANIM_SPEED * water_color_tex_speed;
     float pattern_scale = water_color_tex_scale * GW_WATER_PRIMARY_TEX_SCALE;
+    pattern_scroll *= pattern_scale;
     float2 uv_pattern = world_uv * pattern_scale - flow_dir * pattern_scroll;
 
     // Sample stage0 bump (DuDv). DDS bump formats typically land in RG with neutral at 0.5 after conversion.
