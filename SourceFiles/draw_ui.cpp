@@ -79,17 +79,19 @@ static void draw_compass_overlay(MapRenderer* map_renderer)
 
 		const float w = std::max(120.0f, ImGui::GetWindowWidth());
 		ImGui::InvisibleButton("##compass_drag", ImVec2(w, 18.0f));
+		const ImVec2 bar_min = ImGui::GetItemRectMin();
+		const ImVec2 bar_max = ImGui::GetItemRectMax();
 		if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 		{
 			ImGui::SetWindowPos(ImGui::GetWindowPos() + io.MouseDelta);
 		}
 
 		ImGui::SetItemAllowOverlap();
-		ImGui::SetCursorScreenPos(ImVec2(ImGui::GetItemRectMin().x + 6.0f, ImGui::GetItemRectMin().y + 1.0f));
+		ImGui::SetCursorScreenPos(ImVec2(bar_min.x + 6.0f, bar_min.y + 1.0f));
 		ImGui::TextUnformatted("Compass");
 
 		// Close button (top-right)
-		ImGui::SetCursorScreenPos(ImVec2(ImGui::GetItemRectMax().x - 18.0f, ImGui::GetItemRectMin().y));
+		ImGui::SetCursorScreenPos(ImVec2(bar_max.x - 18.0f, bar_min.y));
 		if (ImGui::SmallButton("x"))
 		{
 			GuiGlobalConstants::is_compass_open = false;
@@ -98,6 +100,9 @@ static void draw_compass_overlay(MapRenderer* map_renderer)
 			ImGui::End();
 			return;
 		}
+
+		// Continue below the drag bar.
+		ImGui::SetCursorScreenPos(ImVec2(bar_min.x, bar_max.y + 4.0f));
 
 		ImGui::PopStyleColor(3);
 	}
