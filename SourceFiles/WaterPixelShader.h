@@ -6,6 +6,8 @@ struct WaterPixelShader
 #define CHECK_TEXTURE_SET(TYPE) TYPE == texture_type
 
 sampler ss : register(s0);
+SamplerState ssClampLinear : register(s2);
+SamplerState ssWrapLinear : register(s3);
 Texture2D shaderTextures[8] : register(t0);
 
 struct DirectionalLight
@@ -134,12 +136,22 @@ float2 NormalizeOrDefault(float2 value, float2 fallback)
 
 float GW_FogFactor(float3 world_pos)
 {
-    // In the captured D3D9 pipeline, fog is applied in the PS using v0.w:
-    //   rgb = lerp(fogColor, rgb, v0.w)
-    // Here we approximate v0.w using the engine fog start/end distances.
-    float dist = length(cam_position - world_pos);
-    float denom = max(fog_end - fog_start, 1e-3);
-    return saturate((fog_end - dist) / denom);
+    // Captured GW VS computes v0.w from view-depth fog plus a vertical fog clamp.
+    // We approximate that behavior here using map fog distance and height ranges.
+    float4 view_pos = mul(float4(world_pos, 1.0), View);
+    float view_depth = abs(view_pos.z);
+
+    float dist_denom = max(fog_end - fog_start, 1e-3);
+    float dist_factor = saturate((fog_end - view_depth) / dist_denom);
+
+    float height_denom = fog_start_y - fog_end_y;
+    float height_factor = 1.0;
+    if (abs(height_denom) > 1e-3)
+    {
+        height_factor = saturate((world_pos.y - fog_end_y) / height_denom);
+    }
+
+    return min(dist_factor, height_factor);
 }
 
 // Main Pixel Shader function (GW texbem water PS reimplementation)
@@ -169,10 +181,11 @@ float4 main(PixelInputType input) : SV_TARGET
 
     float pattern_scroll = time_elapsed * GW_WATER_PRIMARY_ANIM_SPEED * water_color_tex_speed;
     float pattern_scale = water_color_tex_scale * GW_WATER_PRIMARY_TEX_SCALE;
-    float2 uv_pattern = world_uv * pattern_scale - flow_dir * pattern_scroll;
+    // Captured GW path uses opposite scroll sign for stage3 (pattern) vs stage0 (bump).
+    float2 uv_pattern = world_uv * pattern_scale + flow_dir * pattern_scroll;
 
     // Sample stage0 bump (DuDv). DDS bump formats typically land in RG with neutral at 0.5 after conversion.
-    float4 t0 = shaderTextures[1].Sample(ss, uv_bump);
+    float4 t0 = shaderTextures[1].Sample(ssWrapLinear, uv_bump);
     // D3D9 V8U8 is signed bytes; after conversion to UNORM in our loader, recover the signed range.
     float2 du_dv = ((t0.rg * 255.0) - 128.0) / 127.0;
     du_dv = clamp(du_dv, -1.0, 1.0);
@@ -203,12 +216,12 @@ float4 main(PixelInputType input) : SV_TARGET
     float3 v_cam_to_pt = input.world_position.xyz - cam_position;
     float inv_len = rsqrt(max(dot(v_cam_to_pt, v_cam_to_pt), 1e-12));
     float view_up = v_cam_to_pt.y * inv_len;
-    float fresnel_u = saturate((-view_up) * water_color_tex_speed);
-    float t2_a = shaderTextures[3].Sample(ss, float2(fresnel_u, 0.5)).a;
+    float fresnel_coord = (-view_up) * water_color_tex_speed;
+    float t2_a = shaderTextures[3].Sample(ssClampLinear, float2(fresnel_coord, fresnel_coord)).a;
 
     // texbem stage1 (reflection) and stage3 (pattern)
-    float4 t1 = (should_render_flags & 2) ? shaderTextures[2].Sample(ss, uv_reflect) : float4(0, 0, 0, 0);
-    float4 t3 = shaderTextures[0].Sample(ss, uv_pattern + bump_offset);
+    float4 t1 = (should_render_flags & 2) ? shaderTextures[2].Sample(ssClampLinear, uv_reflect) : float4(0, 0, 0, 0);
+    float4 t3 = shaderTextures[0].Sample(ssWrapLinear, uv_pattern + bump_offset);
 
     // Apply the exact constant usage from ps_1_1:
     //   t3 *= c0 (pattern)

@@ -6,6 +6,8 @@ struct SkyPixelShader
 #define CHECK_TEXTURE_SET(TYPE) TYPE == texture_type
 
 sampler ss : register(s0);
+SamplerState ssClampLinear : register(s2);
+SamplerState ssWrapLinear : register(s3);
 Texture2D shaderTextures[8] : register(t3);
 
 #define DARKGREEN float3(0.4, 1.0, 0.4)
@@ -90,6 +92,8 @@ struct PixelInputType
 float4 main(PixelInputType input) : SV_TARGET
 {
     float4 final_color = float4(0, 0, 0, 1);
+    const float cloud0_strength = 0.55;
+    const float cloud1_strength = 0.45;
     
     bool use_sky_background = texture_types[0][0] == 0;
     bool use_clouds_0 = texture_types[0][1] == 0;
@@ -98,8 +102,8 @@ float4 main(PixelInputType input) : SV_TARGET
     
     if (use_sky_background)
     {
-        float4 sampledTextureColor = shaderTextures[0].Sample(ss, input.tex_coords0);
-        final_color.rgb = sampledTextureColor.rgb * 1.1;
+        float4 sampledTextureColor = shaderTextures[0].Sample(ssWrapLinear, input.tex_coords0);
+        final_color.rgb = sampledTextureColor.rgb;
     }
     
     if (use_clouds_0)
@@ -107,8 +111,8 @@ float4 main(PixelInputType input) : SV_TARGET
         float u = (time_elapsed / 1000) + input.tex_coords0.x;
         float v = input.tex_coords0.y;
         
-        float4 sampledTextureColor = shaderTextures[1].Sample(ss, float2(u, v));
-        final_color.rgb += saturate(sampledTextureColor.rgb) * sampledTextureColor.a;
+        float4 sampledTextureColor = shaderTextures[1].Sample(ssWrapLinear, float2(u, v));
+        final_color.rgb += saturate(sampledTextureColor.rgb) * sampledTextureColor.a * cloud0_strength;
     }
     
     if (use_clouds_1)
@@ -116,26 +120,45 @@ float4 main(PixelInputType input) : SV_TARGET
         float u = (-time_elapsed / 2000) + input.tex_coords0.x;
         float v = input.tex_coords0.y;
         
-        float4 sampledTextureColor = shaderTextures[2].Sample(ss, float2(u, v));
-        final_color.rgb += saturate(sampledTextureColor.rgb) * sampledTextureColor.a;
+        float4 sampledTextureColor = shaderTextures[2].Sample(ssWrapLinear, float2(u, v));
+        final_color.rgb += saturate(sampledTextureColor.rgb) * sampledTextureColor.a * cloud1_strength;
     }
     
-    //if (use_sun)
-    //{
-    //    float4 sampledTextureColor = shaderTextures[3].Sample(ss, input.tex_coords0);
-    //    final_color.rgb = lerp(sampledTextureColor.rgb, final_color.rgb, sampledTextureColor.a);
-    //}
-    
+    if (use_sun)
+    {
+        float3 view_dir = normalize(input.world_position.xyz - cam_position);
+        float3 sun_dir = normalize(-directionalLight.direction);
+
+        float3 basis_up = (abs(sun_dir.y) > 0.98) ? float3(1, 0, 0) : float3(0, 1, 0);
+        float3 sun_right = normalize(cross(basis_up, sun_dir));
+        float3 sun_up = normalize(cross(sun_dir, sun_right));
+
+        const float sun_disk_radius = 0.03;
+        float2 sun_plane = float2(dot(view_dir, sun_right), dot(view_dir, sun_up));
+        float2 sun_uv = sun_plane / sun_disk_radius * 0.5 + 0.5;
+
+        float sun_dot = dot(view_dir, sun_dir);
+        float sun_mask = saturate((sun_dot - cos(0.03)) / max(cos(0.018) - cos(0.03), 1e-5));
+
+        float4 sampledTextureColor = shaderTextures[3].Sample(ssClampLinear, sun_uv);
+        float sun_alpha = sampledTextureColor.a * sun_mask;
+        float3 sun_rgb = max(sampledTextureColor.rgb, directionalLight.diffuse.rgb * 1.2);
+        final_color.rgb = lerp(final_color.rgb, sun_rgb, sun_alpha);
+    }
+
+    final_color.rgb = saturate(final_color.rgb);
+
     
     bool should_render_fog = should_render_flags & 4;
     if (should_render_fog)
     {
-        float fogFactor = (input.world_position.y - fog_end_y) / (fog_end_y - fog_start_y);
-
-        fogFactor = clamp(fogFactor, 0, 1);
-
-        float3 fogColor = lerp(fog_color_rgb, final_color.rgb, fogFactor); // Fog color defined in the constant buffer
-        final_color = lerp(float4(fogColor, final_color.a), final_color, fogFactor);
+        float fogFactor = 1.0;
+        float fog_denom = (fog_start_y - fog_end_y);
+        if (abs(fog_denom) > 1e-5)
+        {
+            fogFactor = clamp((input.world_position.y - fog_end_y) / fog_denom, 0, 1);
+        }
+        final_color.rgb = lerp(fog_color_rgb, final_color.rgb, fogFactor);
     }
     
     return final_color;

@@ -465,13 +465,15 @@ public:
 			}
 			m_deviceContext->PSSetSamplers(0, 1, pixel_shaders[command->pixelShaderType]->GetSamplerState());
 			m_deviceContext->PSSetSamplers(1, 1, pixel_shaders[command->pixelShaderType]->GetSamplerStateShadow());
+			m_deviceContext->PSSetSamplers(2, 1, pixel_shaders[command->pixelShaderType]->GetSamplerStateClampLinear());
+			m_deviceContext->PSSetSamplers(3, 1, pixel_shaders[command->pixelShaderType]->GetSamplerStateWrapLinear());
 
 
 			if (command->should_cull) { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid); }
 			else { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid_NoCull); }
 
 
-			blend_state_manager->SetBlendState(BlendState::AlphaBlend);
+			blend_state_manager->SetBlendState(command->blend_state);
 
 			PerObjectCB transposedData = command->meshInstance->GetPerObjectData();
 
@@ -506,8 +508,6 @@ public:
 
 		m_renderBatch.SortCommands(camera_position);
 
-		blend_state_manager->SetBlendState(BlendState::AlphaBlend);
-
 		for (const RenderCommand& command : m_renderBatch.GetCommands())
 		{
 			if (!command.should_render)
@@ -520,6 +520,8 @@ public:
 					continue;
 				}
 			}
+
+			blend_state_manager->SetBlendState(command.blend_state);
 
 			if (command.primitiveTopology != currentTopology)
 			{
@@ -538,6 +540,8 @@ public:
 			}
 			m_deviceContext->PSSetSamplers(0, 1, pixel_shaders[command.pixelShaderType]->GetSamplerState());
 			m_deviceContext->PSSetSamplers(1, 1, pixel_shaders[command.pixelShaderType]->GetSamplerStateShadow());
+			m_deviceContext->PSSetSamplers(2, 1, pixel_shaders[command.pixelShaderType]->GetSamplerStateClampLinear());
+			m_deviceContext->PSSetSamplers(3, 1, pixel_shaders[command.pixelShaderType]->GetSamplerStateWrapLinear());
 
 
 			if (wireframe) {
