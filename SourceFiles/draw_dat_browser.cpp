@@ -1099,24 +1099,31 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 
 			const auto& environment_info_chunk = selected_ffna_map_file.environment_info_chunk;
+			const EnvSubChunk8* env8 = environment_info_chunk.env_sub_chunk8.empty()
+				? nullptr
+				: &environment_info_chunk.env_sub_chunk8[0];
 
 			// Set ambient and diffuse light
-			if (environment_info_chunk.env_sub_chunk3.size() > 0) {
-				const auto& sub3_0 = environment_info_chunk.env_sub_chunk3[0];
+			if (!environment_info_chunk.env_sub_chunk3.empty()) {
+				const size_t lighting_idx =
+					(env8 && env8->lighting_settings_index < environment_info_chunk.env_sub_chunk3.size())
+					? env8->lighting_settings_index
+					: 0u;
+				const auto& sub3 = environment_info_chunk.env_sub_chunk3[lighting_idx];
 
 				float light_div_factor = 2.0f;
 
-				float ambient_intensity = sub3_0.ambient_intensity / 255.0f;
-				float diffuse_intensity = sub3_0.sun_intensity / 255.0f;
+				float ambient_intensity = sub3.ambient_intensity / 255.0f;
+				float diffuse_intensity = sub3.sun_intensity / 255.0f;
 
 				DirectionalLight directional_light = map_renderer->GetDirectionalLight();
-				directional_light.ambient.x = sub3_0.ambient_red / (255.0f * light_div_factor);
-				directional_light.ambient.y = sub3_0.ambient_green / (255.0f * light_div_factor);
-				directional_light.ambient.z = sub3_0.ambient_blue / (255.0f * light_div_factor);
+				directional_light.ambient.x = sub3.ambient_red / (255.0f * light_div_factor);
+				directional_light.ambient.y = sub3.ambient_green / (255.0f * light_div_factor);
+				directional_light.ambient.z = sub3.ambient_blue / (255.0f * light_div_factor);
 
-				directional_light.diffuse.x = sub3_0.sun_red / (255.0f * light_div_factor);
-				directional_light.diffuse.y = sub3_0.sun_green / (255.0f * light_div_factor);
-				directional_light.diffuse.z = sub3_0.sun_blue / (255.0f * light_div_factor);
+				directional_light.diffuse.x = sub3.sun_red / (255.0f * light_div_factor);
+				directional_light.diffuse.y = sub3.sun_green / (255.0f * light_div_factor);
+				directional_light.diffuse.z = sub3.sun_blue / (255.0f * light_div_factor);
 
 				auto ambient_hls = RGBAtoHSL(directional_light.ambient);
 				auto diffuse_hls = RGBAtoHSL(directional_light.diffuse);
@@ -1131,34 +1138,42 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				map_renderer->SetDirectionalLight(directional_light);
 			}
 
-			uint8_t sky_background_filename_index = 0xFF;
-			uint8_t sky_clouds_texture_filename_index0 = 0xFF;
-			uint8_t sky_clouds_texture_filename_index1 = 0xFF;
-			uint8_t sky_sun_texture_filename_index = 0xFF;
-			uint8_t cloud_texture_filename_index = 0;
-			uint8_t water_color_texture_filename_index = 0xFF;
-			uint8_t water_distortion_texture_filename_index = 0xFF;
-			uint16_t selected_water_settings_index = 0;
-			uint16_t selected_wind_settings_index = 0;
+			uint16_t sky_background_filename_index = 0xFFFF;
+			uint16_t sky_clouds_texture_filename_index0 = 0xFFFF;
+			uint16_t sky_clouds_texture_filename_index1 = 0xFFFF;
+			uint16_t sky_sun_texture_filename_index = 0xFFFF;
+			uint16_t cloud_texture_filename_index = 0;
+			uint16_t water_color_texture_filename_index = 0xFFFF;
+			uint16_t water_distortion_texture_filename_index = 0xFFFF;
 
-			if (!environment_info_chunk.env_sub_chunk8.empty()) {
-				selected_water_settings_index = environment_info_chunk.env_sub_chunk8[0].water_settings_index;
-				selected_wind_settings_index = environment_info_chunk.env_sub_chunk8[0].wind_settings_index;
-			}
+			const uint16_t selected_sky_texture_settings_index =
+				env8 ? env8->sky_texture_settings_index : 0u;
+			const uint16_t selected_water_settings_index =
+				env8 ? env8->water_settings_index : 0u;
+			const uint16_t selected_wind_settings_index =
+				env8 ? env8->wind_settings_index : 0u;
 
-			if (environment_info_chunk.env_sub_chunk5.size() > 0) {
-				const auto& sub5_0 = environment_info_chunk.env_sub_chunk5[0];
-				sky_background_filename_index = sub5_0.sky_background_texture_index;
-				sky_clouds_texture_filename_index0 = sub5_0.sky_clouds_texture_index0;
-				sky_clouds_texture_filename_index1 = sub5_0.sky_clouds_texture_index1;
-				sky_sun_texture_filename_index = sub5_0.sky_sun_texture_index;
+			if (!environment_info_chunk.env_sub_chunk5.empty()) {
+				const size_t sky_idx =
+					(selected_sky_texture_settings_index < environment_info_chunk.env_sub_chunk5.size())
+					? selected_sky_texture_settings_index
+					: 0u;
+				const auto& sub5 = environment_info_chunk.env_sub_chunk5[sky_idx];
+				sky_background_filename_index = sub5.sky_background_texture_index;
+				sky_clouds_texture_filename_index0 = sub5.sky_clouds_texture_index0;
+				sky_clouds_texture_filename_index1 = sub5.sky_clouds_texture_index1;
+				sky_sun_texture_filename_index = sub5.sky_sun_texture_index;
 			}
-			else if (environment_info_chunk.env_sub_chunk5_other.size() > 0) {
-				const auto& sub5_0 = environment_info_chunk.env_sub_chunk5_other[0];
-				sky_background_filename_index = sub5_0.sky_background_texture_index;
-				sky_clouds_texture_filename_index0 = sub5_0.sky_clouds_texture_index0;
-				sky_clouds_texture_filename_index1 = sub5_0.sky_clouds_texture_index1;
-				sky_sun_texture_filename_index = sub5_0.sky_sun_texture_index;
+			else if (!environment_info_chunk.env_sub_chunk5_other.empty()) {
+				const size_t sky_idx =
+					(selected_sky_texture_settings_index < environment_info_chunk.env_sub_chunk5_other.size())
+					? selected_sky_texture_settings_index
+					: 0u;
+				const auto& sub5 = environment_info_chunk.env_sub_chunk5_other[sky_idx];
+				sky_background_filename_index = sub5.sky_background_texture_index;
+				sky_clouds_texture_filename_index0 = sub5.sky_clouds_texture_index0;
+				sky_clouds_texture_filename_index1 = sub5.sky_clouds_texture_index1;
+				sky_sun_texture_filename_index = sub5.sky_sun_texture_index;
 			}
 
 			if (!environment_info_chunk.env_sub_chunk6.empty()) {
@@ -1171,11 +1186,16 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				water_distortion_texture_filename_index = selected_water.water_distortion_texture_index;
 			}
 
-			std::vector<uint8_t> sky_texture_filename_indices{ sky_background_filename_index, sky_clouds_texture_filename_index0, sky_clouds_texture_filename_index1, sky_sun_texture_filename_index };
+			std::vector<uint16_t> sky_texture_filename_indices{
+				sky_background_filename_index,
+				sky_clouds_texture_filename_index0,
+				sky_clouds_texture_filename_index1,
+				sky_sun_texture_filename_index
+			};
 
 			std::vector<ID3D11ShaderResourceView*> sky_textures(sky_texture_filename_indices.size(), nullptr);
 			const auto& environment_info_filenames_chunk = selected_ffna_map_file.environment_info_filenames_chunk;
-			for (int i = 0; i < sky_texture_filename_indices.size(); i++) {
+			for (size_t i = 0; i < sky_texture_filename_indices.size(); i++) {
 				const auto filename_index = sky_texture_filename_indices[i];
 				if (filename_index >= environment_info_filenames_chunk.filenames.size()) {
 					continue;
@@ -1229,10 +1249,10 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			}
 
 			// Add cloud mesh and texture
-			std::vector<uint8_t> cloud_texture_filename_indices{ cloud_texture_filename_index };
+			std::vector<uint16_t> cloud_texture_filename_indices{ cloud_texture_filename_index };
 
-			std::vector<ID3D11ShaderResourceView*> cloud_textures(sky_texture_filename_indices.size(), nullptr);
-			for (int i = 0; i < cloud_texture_filename_indices.size(); i++) {
+			std::vector<ID3D11ShaderResourceView*> cloud_textures(cloud_texture_filename_indices.size(), nullptr);
+			for (size_t i = 0; i < cloud_texture_filename_indices.size(); i++) {
 				const auto filename_index = cloud_texture_filename_indices[i];
 				if (filename_index >= environment_info_filenames_chunk.filenames.size()) {
 					continue;
@@ -1259,10 +1279,10 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				}
 			}
 
-			std::vector<uint8_t> water_texture_filename_indices{ water_color_texture_filename_index, water_distortion_texture_filename_index };
+			std::vector<uint16_t> water_texture_filename_indices{ water_color_texture_filename_index, water_distortion_texture_filename_index };
 
 			std::vector<ID3D11ShaderResourceView*> water_textures(water_texture_filename_indices.size(), nullptr);
-			for (int i = 0; i < water_texture_filename_indices.size(); i++) {
+			for (size_t i = 0; i < water_texture_filename_indices.size(); i++) {
 				const auto filename_index = water_texture_filename_indices[i];
 				if (filename_index >= environment_info_filenames_chunk.filenames.size()) {
 					continue;
@@ -1446,19 +1466,23 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			}
 
 			// Set fog and clear color
-			if (environment_info_chunk.env_sub_chunk2.size() > 0) {
-				const auto& sub2_0 = environment_info_chunk.env_sub_chunk2[0];
+			if (!environment_info_chunk.env_sub_chunk2.empty()) {
+				const size_t fog_idx =
+					(env8 && env8->fog_settings_index < environment_info_chunk.env_sub_chunk2.size())
+					? env8->fog_settings_index
+					: 0u;
+				const auto& sub2 = environment_info_chunk.env_sub_chunk2[fog_idx];
 
 				XMFLOAT4 clear_and_fog_color{
-					static_cast<float>(sub2_0.fog_red) / 255.0f,
-					static_cast<float>(sub2_0.fog_green) / 255.0f,
-					static_cast<float>(sub2_0.fog_blue) / 255.0f,
+					static_cast<float>(sub2.fog_red) / 255.0f,
+					static_cast<float>(sub2.fog_green) / 255.0f,
+					static_cast<float>(sub2.fog_blue) / 255.0f,
 					1.0f
 				};
 
 
-				map_renderer->SetFogStart(std::max((int)sub2_0.fog_distance_start, 3000));
-				map_renderer->SetFogEnd(std::max((float)sub2_0.fog_distance_end, map_renderer->GetFogStart() + 15000));
+				map_renderer->SetFogStart(std::max((int)sub2.fog_distance_start, 3000));
+				map_renderer->SetFogEnd(std::max((float)sub2.fog_distance_end, map_renderer->GetFogStart() + 15000));
 				map_renderer->SetFogStartY(-10000);
 				map_renderer->SetFogEndY(1500);
 
