@@ -465,6 +465,8 @@ public:
 			}
 			m_deviceContext->PSSetSamplers(0, 1, pixel_shaders[command->pixelShaderType]->GetSamplerState());
 			m_deviceContext->PSSetSamplers(1, 1, pixel_shaders[command->pixelShaderType]->GetSamplerStateShadow());
+			m_deviceContext->PSSetSamplers(2, 1, pixel_shaders[command->pixelShaderType]->GetSamplerStateClampLinear());
+			m_deviceContext->PSSetSamplers(3, 1, pixel_shaders[command->pixelShaderType]->GetSamplerStateWrapLinear());
 
 
 			if (command->should_cull) { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid); }
@@ -505,7 +507,6 @@ public:
 		static XMFLOAT3 prev_camera_position{ 0,0,0 };
 
 		m_renderBatch.SortCommands(camera_position);
-
 		blend_state_manager->SetBlendState(BlendState::AlphaBlend);
 
 		for (const RenderCommand& command : m_renderBatch.GetCommands())
@@ -538,6 +539,8 @@ public:
 			}
 			m_deviceContext->PSSetSamplers(0, 1, pixel_shaders[command.pixelShaderType]->GetSamplerState());
 			m_deviceContext->PSSetSamplers(1, 1, pixel_shaders[command.pixelShaderType]->GetSamplerStateShadow());
+			m_deviceContext->PSSetSamplers(2, 1, pixel_shaders[command.pixelShaderType]->GetSamplerStateClampLinear());
+			m_deviceContext->PSSetSamplers(3, 1, pixel_shaders[command.pixelShaderType]->GetSamplerStateWrapLinear());
 
 
 			if (wireframe) {

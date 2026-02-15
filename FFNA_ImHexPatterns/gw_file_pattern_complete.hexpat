@@ -508,24 +508,66 @@ struct AttachmentPoint {
     u32 attachmentType;
 };
 
-// Particle Emitter (88 bytes = 0x58)
-struct ParticleEmitter {
-    u32 emitterType;        // Point, sphere, cylinder, etc.
-    s32 parentBoneIndex;    // -1 for world space
-    u32 flags;
-    float positionX, positionY, positionZ;
-    float directionX, directionY, directionZ;
-    float startSize, endSize;
-    float startSpeed, endSpeed;
-    float lifetime;
-    float emissionRate;
-    u8 startColorR, startColorG, startColorB, startColorA;
-    u8 endColorR, endColorG, endColorB, endColorA;
-    u32 textureIndex;
-    u32 blendMode;
-    u32 unknown_0x50;
-    u8 particlesPerEmission;
-    u8 reserved[3];
+struct FloatRange {
+    float min;
+    float max;
+};
+
+// Cloud definition inside FA0 emitterData block (88 bytes = 0x58)
+// Confirmed via Model_ParseEmitterData + Model_build_particle_clouds.
+struct ParticleCloudDef_FA0 {
+    u32 cloudFlags;                 // 0x00: runtime flags (bit0=quad geometry, bit1=alt orientation mode)
+    s32 emitterTypeOverride;        // 0x04: GrCloud_Create arg0 override; -1 => model fallback
+    u32 materialIndex;              // 0x08: material lookup index (particle texture is model-specific)
+    u32 scaleRampRef;               // 0x0C: optional external scale-ramp reference
+    float particleScale;            // 0x10: base particle scale
+    float reserved_0x14;            // 0x14: present in file, not consumed in model particle build path
+    float createArg5;               // 0x18: GrCloud_Create arg5 -> GrParticle(+0x68)
+    float motionCoeffA[3];          // 0x1C..0x24: GrCloud_Create arg3 -> GrParticle(+0x50), scaled by invMass
+    float motionCoeffB[3];          // 0x28..0x30: GrCloud_Create arg4 -> GrParticle(+0x5C), additive accel term
+    FloatRange particleLifetime;    // 0x34
+    u32 flipbookCellsX;             // 0x3C (0 disables flipbook)
+    u32 flipbookCellsY;             // 0x40
+    u32 flipbookStart;              // 0x44
+    u32 flipbookCount;              // 0x48
+    float flipbookFps;              // 0x4C
+    u32 linkedEmitterCount;         // 0x50
+    u32 particleEntryCount;         // 0x54: collision/obstacle entry count (0x18 bytes each in tail)
+};
+
+// Emitter definition inside FA0 emitterData block (80 bytes = 0x50)
+// Confirmed via Model_ParseEmitterData + GrCloud_AddEmitter/GrParticle_AddEmitter.
+struct ParticleEmitterDef_FA0 {
+    s32 emitterSourceOrMode;        // often -1/0/small mode/index values
+    float localOffsetX;             // local emitter offset payload (mode=1 root emitters can be source-transform driven)
+    float localOffsetY;
+    float localOffsetZ;
+    // Bone-group index (NOT a bone index). Resolved to a bone via bind-pose flag bits 0x1F00.
+    u32 boneGroupIndex;             // 0x10: low byte used for emitter sort/grouping
+    u32 shapeType;                  // 0x14: file enum (0..4), remapped by DAT_00a3722c => 0,1,2,4,3
+    float emissionPeriod;           // 0x18: GrParticle_AddEmitter arg0 (runtime trace)
+    FloatRange shapeRadius;         // 0x1C
+    float basisOrDirection[3];      // 0x24: local basis/direction vector
+    FloatRange velocityJitter;      // 0x30
+    FloatRange radialVelocity;      // 0x38
+    FloatRange tangentialVelocity;  // 0x40
+    FloatRange particleMass;        // 0x48
+};
+
+// Per-cloud collision plane payload in FA0 particle tail.
+// Runtime consumes these as obstacle records in GrParticle_CollideObstacles.
+struct ParticleObstaclePlane_FA0 {
+    float normalX;
+    float normalY;
+    float normalZ;
+    float planeD;
+};
+
+enum ParticleObstacleType_FA0 : u32 {
+    OBSTACLE_REFLECT = 0,           // elastic reflection
+    OBSTACLE_DAMP = 1,              // damp velocity by factor
+    OBSTACLE_STOP = 2,              // zero velocity
+    OBSTACLE_KILL = 3               // kill particle
 };
 
 // Animation Entry (20 bytes = 0x14 header)
@@ -564,23 +606,26 @@ struct BoundingEntryTypeA {
     u32 reserved;           // 0x54: Usually 0
 };
 
-// Bounding Entry Type B (80 bytes) - Bounding cylinder/box definition
+// Bounding Entry Type B (80 bytes) - BB8 weapon emitter entry
+// Observed in BB8 weapon files: this 0x50-byte record matches the
+// ParticleEmitterDef_FA0 layout (same offsets/size) for the fields GW consumes.
 struct BoundingEntryTypeB {
-    u32 entryType;          // 0x00: Type flag (usually 1)
-    float posX;             // 0x04: Position X
-    float posY;             // 0x08: Position Y
-    float posZ;             // 0x0C: Position Z
-    u32 padding1[2];        // 0x10-0x17: Usually zeros
-    float scale;            // 0x18: Scale factor
-    u32 padding2;           // 0x1C: Usually 0
-    float boundsVal0;       // 0x20: Bounds value 0
-    float boundsVal1;       // 0x24: Bounds value 1
-    float boundsVal2;       // 0x28: Bounds value 2
-    u32 padding3[5];        // 0x2C-0x3F: Usually zeros
-    float extentNegX;       // 0x40: Negative X extent
-    float extentPosX;       // 0x44: Positive X extent
-    float scaleX;           // 0x48: Scale X
-    float scaleY;           // 0x4C: Scale Y
+    u32 emitterSourceOrMode;    // 0x00: mode/source selector (observed 0/2 in weapons)
+    float localOffsetX;         // 0x04
+    float localOffsetY;         // 0x08
+    float localOffsetZ;         // 0x0C
+    // Observed in BB8 weapon files:
+    //   emitterMeta[0] = source/mode index (boneGroupIndex in FA0 terms)
+    //   emitterMeta[1] = shape selector (shapeType in FA0 terms)
+    u32 emitterMeta[2];         // 0x10-0x17
+    float emissionPeriod;       // 0x18
+    float shapeRadiusMin;       // 0x1C
+    float shapeRadiusMax;       // 0x20
+    float basisOrDirection[3];  // 0x24-0x2F
+    FloatRange velocityJitter;  // 0x30-0x37
+    FloatRange radialVelocity;  // 0x38-0x3F
+    FloatRange tangentialVelocity; // 0x40-0x47
+    FloatRange particleMass;       // 0x48-0x4F
 };
 
 // ATEX Inline Texture Header
@@ -814,20 +859,20 @@ struct GeometryHeader_FA0 {
     u32 geometryFlags;          // 0x24: Additional flags
     u32 unknown_0x28;           // 0x28
     u32 unknown_0x2C;           // 0x2C
-    u8 boneInfoCount;           // 0x30: Bone info structs (28 bytes each)
-    u8 skeletonBoneCount;       // 0x31: Skeleton bones
-    u8 skeletonWeightCount;     // 0x32: Skeleton weights
-    u8 padding_0x33;            // 0x33
-    u32 emitterDataSize;        // 0x34: Size of emitter data section
-    float boundingSphereX;      // 0x38
-    float boundingSphereY;      // 0x3C
-    float boundingSphereZ;      // 0x40
-    u32 submeshCount;           // 0x44: Number of submeshes
-    u32 animationCount;         // 0x48: Animation entries
-    u16 lodCount;               // 0x4C: LOD entries
-    u16 extLodCount;            // 0x4E: Extended LOD entries
-    u16 boneDataEntryCount;     // 0x50: Bone data entries
-    u16 attachmentPointCount;   // 0x52: Attachment points
+    u8 boneInfoCount;               // 0x30: Bone info structs (28 bytes each)
+    u8 legacyNodeCount;             // 0x31: legacy section A count (0x10-byte entries)
+    u8 legacyNodeDataCount;         // 0x32: legacy section B count (0x54-byte entries)
+    u8 padding_0x33;                // 0x33
+    u32 emitterDataSize;            // 0x34: particle payload size
+    u32 cloudCount;                 // 0x38: count of 0x58 cloud records
+    u32 cloudEmitterCount;          // 0x3C: count of 0x50 emitter records
+    u32 cloudObstacleEntryCount;    // 0x40: count of obstacle entry records
+    u32 submeshCount;               // 0x44
+    u32 animationCount;             // 0x48
+    u16 lodCount;                   // 0x4C
+    u16 reserved_0x4E;              // 0x4E
+    u16 boneDataEntryCount;         // 0x50
+    u16 attachmentPointCount;       // 0x52
 };
 
 // Submesh Header for FA0 (36 bytes = 0x24)
@@ -859,6 +904,34 @@ fn calc_total_index_count(u32 ic1, u32 ic2, u32 ic3) {
         total = total + ic3;
     }
     return total;
+};
+
+// FA0 emitterData payload size, confirmed from runtime parser:
+// cloudCount*0x58 + cloudEmitterCount*0x50 + cloudObstacleEntryCount*0x18
+fn calc_particle_block_size(u32 cloudCount, u32 emitterCount, u32 obstacleEntryCount) {
+    return cloudCount * 0x58 + emitterCount * 0x50 + obstacleEntryCount * 0x18;
+};
+
+struct ParticleDataBlock_FA0<auto cloudCount, auto emitterCount, auto obstacleEntryCount, auto payloadSize> {
+    if (cloudCount > 0 && cloudCount < 0x10000) {
+        ParticleCloudDef_FA0 clouds[cloudCount] [[name("Cloud Definitions (0x58)")]];
+    }
+    if (emitterCount > 0 && emitterCount < 0x10000) {
+        ParticleEmitterDef_FA0 emitters[emitterCount] [[name("Emitter Definitions (0x50)")]];
+    }
+    if (obstacleEntryCount > 0 && obstacleEntryCount < 0x10000) {
+        // File layout is planes + damping + type; runtime repacks each entry to [plane, type, damping].
+        ParticleObstaclePlane_FA0 obstaclePlanes[obstacleEntryCount] [[name("Obstacle Planes (0x10)")]];
+        float obstacleDamping[obstacleEntryCount] [[name("Obstacle Damping (float)")]];
+        ParticleObstacleType_FA0 obstacleType[obstacleEntryCount] [[name("Obstacle Type")]];
+    }
+
+    u32 consumed = $ - g_chunkDataStart;
+    u32 payloadStart = g_chunkDataSize - payloadSize;
+    if (consumed < payloadStart + payloadSize) {
+        u32 remaining = payloadStart + payloadSize - consumed;
+        u8 payloadRemainder[remaining] [[name("Particle Payload Remainder")]];
+    }
 };
 
 // FA0 Submesh with vertex data
@@ -1077,9 +1150,11 @@ fn format_fa1_bind_pose(FA1BindPoseEntry e) {
 //
 struct SequenceEntry_BB9 {
     u32 animationId;        // Animation hash (unknown mapping to names)
-    float boundX;           // Movement bounds (often -0.0)
-    float boundY;           // Movement bounds
-    float boundZ;           // Movement bounds
+    // In BB8 weapon files without usable bind/base positions, bound* can carry
+    // source-indexed emitter anchor vectors (often the negated localOffset vector).
+    float boundX;
+    float boundY;
+    float boundZ;
     u32 frameCount;         // Frames in this sequence (used to calculate time range)
     u32 sequenceIndex;      // Sequence grouping index
 };
@@ -1842,16 +1917,34 @@ struct Chunk_FileReferences_BB {
 struct Chunk_FileReferences_FA {
     u32 chunkId;
     u32 chunkSize;
-    u32 referenceCount;
+    u32 firstDword @ $;
 
-    if (referenceCount > 0 && referenceCount < 256) {
-        FileReferenceEntry references[referenceCount] [[name("File References")]];
-    }
+    // Runtime files are mixed:
+    // - Variant A: [u32 count] + count * 6-byte entries
+    // - Variant B: raw 6-byte entries only (no count prefix)
+    if (firstDword > 0 && firstDword < 0x10000 && (4 + firstDword * 6) <= chunkSize) {
+        u32 referenceCount;
+        if (referenceCount > 0 && referenceCount < 0x10000) {
+            FileReferenceEntry references[referenceCount] [[name("File References")]];
+        }
 
-    u32 expectedSize = 4 + (referenceCount * 6);  // 4 bytes for count + entries
-    if (expectedSize < chunkSize) {
-        u32 remainingSize = chunkSize - expectedSize;
-        u8 remaining[remainingSize] [[name("Remaining Data")]];
+        u32 expectedSize = 4 + (referenceCount * 6);
+        if (expectedSize < chunkSize) {
+            u32 remainingSize = chunkSize - expectedSize;
+            u8 remaining[remainingSize] [[name("Remaining Data")]];
+        }
+    } else {
+        u32 referenceCountRaw = chunkSize / 6;
+        if (referenceCountRaw > 0 && referenceCountRaw < 0x10000) {
+            FileReferenceEntry referencesRaw[referenceCountRaw]
+                [[name("File References (No Count Prefix)")]];
+        }
+
+        u32 parsedSizeRaw = referenceCountRaw * 6;
+        if (parsedSizeRaw < chunkSize) {
+            u32 remainingSizeRaw = chunkSize - parsedSizeRaw;
+            u8 remainingRaw[remainingSizeRaw] [[name("Remaining Data")]];
+        }
     }
 };
 
@@ -2000,6 +2093,7 @@ struct Chunk_FA0_Geometry {
     u32 chunkId;
     u32 chunkSize;
     g_chunkDataStart = $;
+    g_chunkDataSize = chunkSize;
 
     GeometryHeader_FA0 header [[name("Geometry Header (84 bytes)")]];
 
@@ -2080,37 +2174,30 @@ struct Chunk_FA0_Geometry {
         AttachmentPoint attachments[header.attachmentPointCount] [[name("Attachment Points")]];
     }
 
-    // Submeshes with full vertex data
-    // Each submesh header (36 bytes) is followed immediately by its data:
-    // indices (for all 3 LOD levels), UV metadata, vertex buffer, colors, triangle groups
-    if (header.submeshCount > 0 && header.submeshCount < 255) {
-        SubmeshData_FA0 submeshes[header.submeshCount] [[name("Submeshes")]];
+    // Parse the main body conservatively up to emitter payload start.
+    // This keeps parsing deterministic even when submesh internals vary across revisions.
+    u32 emitterPayloadOffset = (header.emitterDataSize <= chunkSize) ? (chunkSize - header.emitterDataSize) : chunkSize;
+    u32 consumedBeforeEmitter = $ - g_chunkDataStart;
+    if (consumedBeforeEmitter < emitterPayloadOffset) {
+        u8 geometryBody[emitterPayloadOffset - consumedBeforeEmitter]
+            [[name("Geometry Body (Submeshes/LOD/Anim/Legacy Sections)")]];
     }
 
-    // LOD entries (if lodCount > 0)
-    // Each LOD entry has variable size based on (indexCount + vertexCount * 6) * 2
-    if (header.lodCount > 0 && header.lodCount < 256) {
-        LODEntry_FA0 lodEntries[header.lodCount] [[name("LOD Entries")]];
-    }
+    // Emitter/particle payload (tail block at end of FA0 chunk)
+    if (header.emitterDataSize > 0 && header.emitterDataSize <= chunkSize) {
+        u32 expectedParticleBytes =
+            calc_particle_block_size(header.cloudCount, header.cloudEmitterCount, header.cloudObstacleEntryCount);
 
-    // Skeleton data (if skeletonBoneCount > 0)
-    // Layout: skeletonBoneCount * 16 bytes + skeletonWeightCount * 0x54 bytes
-    if (header.skeletonBoneCount > 0) {
-        SkeletonNode skeletonNodes[header.skeletonBoneCount] [[name("Skeleton Nodes")]];
-        if (header.skeletonWeightCount > 0) {
-            SkeletonWeightEntry skeletonWeights[header.skeletonWeightCount] [[name("Skeleton Weight Entries")]];
+        if (header.cloudCount < 0x10000 &&
+            header.cloudEmitterCount < 0x10000 &&
+            header.cloudObstacleEntryCount < 0x10000 &&
+            expectedParticleBytes <= header.emitterDataSize) {
+            ParticleDataBlock_FA0<header.cloudCount, header.cloudEmitterCount,
+                                  header.cloudObstacleEntryCount, header.emitterDataSize>
+                emitterData [[name("Emitter/Particle Data")]];
+        } else {
+            u8 emitterDataRaw[header.emitterDataSize] [[name("Emitter/Particle Data (Raw)")]];
         }
-    }
-
-    // Animation frame data (if animationCount > 0)
-    // Each entry is 4 bytes (offset), followed by variable frame data
-    if (header.animationCount > 0 && header.animationCount < 1024) {
-        AnimFrameEntry_FA0 animFrames[header.animationCount] [[name("Animation Frame Offsets")]];
-    }
-
-    // Emitter data (size from emitterDataSize field)
-    if (header.emitterDataSize > 0 && header.emitterDataSize < 0x100000) {
-        u8 emitterData[header.emitterDataSize] [[name("Emitter/Particle Data")]];
     }
 
     // Remaining unparsed data (if any)
@@ -2861,12 +2948,32 @@ struct PathfindingChunk {
     PathfindingTag terminatorTag [[name("Terminator")]];
 };
 
-// 0x10000008 - Pathfinding stub (minimal boundary data only)
+// 0x10000008 - Pathfinding stage-1 (bloat source)
+// Compact boundary representation used by PathData bloat path.
 struct PathfindingChunkStub {
     u32 chunkId [[name("Chunk ID")]];
     u32 chunkSize [[name("Chunk Size")]];
-    u32 signature [[name("Signature")]];  // 0xEEFE704C
-    u8 boundaryData[chunkSize - 4] [[name("Boundary Data")]];
+    u32 chunkEnd = addressof(chunkId) + 8 + chunkSize;
+
+    if (chunkSize >= 19) {
+        u32 signature [[name("Signature")]];          // 0xEEFE704C
+        u8 formatVersion [[name("Format Version")]]; // 0x0C
+        u32 sequence [[name("Sequence")]];
+        u8 tag7 [[name("Boundary Tag")]];             // 0x07
+        u16 boundaryPointCount [[name("Boundary Point Count")]];
+
+        if (($ + boundaryPointCount * 8 + 7) <= chunkEnd) {
+            MapVertex2D boundaryPoints[boundaryPointCount] [[name("Boundary Points")]];
+            u8 tag14 [[name("Tail Tag")]];            // 0x0E
+            u32 boundaryHash [[name("Boundary Hash")]];
+            u8 reserved0 [[name("Reserved")]];        // 0x00
+            u8 terminator [[name("Terminator")]];     // 0xFF
+        } else {
+            u8 boundaryData[chunkEnd - $] [[name("Boundary Data (Raw)")]];
+        }
+    } else {
+        u8 rawData[chunkSize] [[name("Raw Data")]];
+    }
 };
 
 // =============================================================================
@@ -2874,23 +2981,30 @@ struct PathfindingChunkStub {
 // Fog, lighting, sky, water rendering settings
 // =============================================================================
 
-// Lighting mode settings
-struct EnvLightingMode {
-    u8 unknown0;
-    u8 unknown1;
-    s32 unknown2;
-    u8 unknown3;
-    u8 unknown4;
-    u16 unknown5;
+// Tag 0: sky mode table (entry size = 0x0A)
+// Parsed by EnvData_ParseSkyTextureSettings / EnvData_ParseParams into runtime offsets:
+//   +0 byte -> runtime +0x14 (normalized 0..1)
+//   +1 byte -> runtime +0x18 (normalized 0..1)
+//   +2 u32  -> runtime +0x1C (raw cloud alpha value used by Env_create_cloud_texture)
+//   +6 byte -> runtime +0x20 (1 + byte * (15/256))
+//   +7 byte -> runtime +0x24 (normalized 0..1)
+//   +8 u16  -> runtime +0x28 (cloud alpha texture filename index, 0xFFFF = none)
+struct EnvSkyModeParams {
+    u8 layerParam0 [[name("Layer Param 0")]];
+    u8 layerParam1 [[name("Layer Param 1")]];
+    u32 cloudAlphaValueRaw [[name("Cloud Alpha Value (Raw)")]];
+    u8 skyHazeScaleByte [[name("Sky Haze Scale Byte")]];
+    u8 layerBlendByte [[name("Layer Blend Byte")]];
+    u16 cloudAlphaTextureIndex [[name("Cloud Alpha Texture Index")]];
 };
 
-// Sky/atmosphere settings
+// Tag 1: sky color/fog blend settings (entry size = 0x06)
 struct EnvSkySettings {
-    u8 skyBrightness [[name("Sky Brightness")]];
-    u8 skySaturation [[name("Sky Saturation")]];
-    u8 colorScale [[name("Color Scale")]];  // 0xFF = grayscale, 0 = normal
-    u16 unknown0;
-    u8 unknown1;
+    u8 skyBlue [[name("Sky Blue")]];
+    u8 skyGreen [[name("Sky Green")]];
+    u8 skyRed [[name("Sky Red")]];
+    u16 skyRangeParam [[name("Sky Range Param")]];
+    u8 skyAlphaParam [[name("Sky Alpha Param")]];
 };
 
 // Fog settings
@@ -2900,8 +3014,8 @@ struct EnvFogSettings {
     u8 fogRed [[name("Fog Red")]];
     u32 fogDistanceStart [[name("Fog Distance Start")]];
     u32 fogDistanceEnd [[name("Fog Distance End")]];
-    s32 fogZStart [[name("Fog Z Start")]];
-    s32 fogZEnd [[name("Fog Z End")]];
+    s32 fogHeightStart [[name("Fog Height Start")]];
+    s32 fogHeightEnd [[name("Fog Height End")]];
 };
 
 // Ambient and sun lighting
@@ -2916,56 +3030,84 @@ struct EnvLightingSettings {
     u8 sunIntensity [[name("Sun Intensity")]];
 };
 
-// Unknown environment data
-struct EnvUnknownData4 {
-    u8 data[2];
+// Sky reference table (tag 4).
+// Usually indexed by EnvMainSettings.skyTextureRefIndex / EnvSkyLayer.skyTextureRefIndex.
+// 0xFFFF means "no tag4 cloud dome texture"; runtime may still use
+// EnvSkyModeParams.cloudAlphaTextureIndex (tag0) as fallback cloud layer.
+struct EnvSkyRefSettings {
+    u16 cloudTextureIndex [[name("Cloud Dome Texture Index")]];
 };
 
 // Sky texture settings
 struct EnvSkyTextures {
-    u8 cloudCylinderScale [[name("Cloud Cylinder Scale")]];
+    u8 skyLayer0ScaleByte [[name("Sky Layer 0 Scale Byte")]];
     u16 skyBackgroundIndex [[name("Sky Background Index")]];
     u16 skyClouds0Index [[name("Sky Clouds 0 Index")]];
     u16 skyClouds1Index [[name("Sky Clouds 1 Index")]];
     u16 skySunIndex [[name("Sky Sun Index")]];
-    u8 fogSkyHeight [[name("Fog Sky Height")]];
-    s16 skyCylinderHeight [[name("Sky Cylinder Height")]];
-    s16 skyCylinderRadius [[name("Sky Cylinder Radius")]];
-    u8 unknown;
+    u8 skyLayer1ScaleByte [[name("Sky Layer 1 Scale Byte")]];
+    u16 skyScrollVelocityRaw0 [[name("Sky Scroll Velocity Raw 0 (U16)")]];
+    u16 skyScrollVelocityRaw1 [[name("Sky Scroll Velocity Raw 1 (U16)")]];
+    u8 sunSizeScaleByte [[name("Sun Size Scale Byte")]];
 };
 
 // Alternate sky texture format
 struct EnvSkyTexturesAlt {
-    u8 cloudCylinderScale [[name("Cloud Cylinder Scale")]];
+    u8 skyLayer0ScaleByte [[name("Sky Layer 0 Scale Byte")]];
     u16 skyBackgroundIndex [[name("Sky Background Index")]];
     u16 skyClouds0Index [[name("Sky Clouds 0 Index")]];
     u16 skyClouds1Index [[name("Sky Clouds 1 Index")]];
     u16 skySunIndex [[name("Sky Sun Index")]];
-    u8 unknown[7];
+    u8 skyLayer1ScaleByte [[name("Sky Layer 1 Scale Byte")]];
+    u16 skyScrollVelocityRaw0 [[name("Sky Scroll Velocity Raw 0 (U16)")]];
+    u16 skyScrollVelocityRaw1 [[name("Sky Scroll Velocity Raw 1 (U16)")]];
+    u8 sunSizeScaleByte [[name("Sun Size Scale Byte")]];
+    u8 version16ExtraByte [[name("Version16 Extra Byte")]];
 };
 
-// Water rendering settings
-struct EnvWaterSettings {
-    u8 unknown[9];
-    float unknown1;
-    float distortionTexScale [[name("Distortion Tex Scale")]];
-    float distortionScale [[name("Distortion Scale")]];
-    float distortionTexSpeed [[name("Distortion Tex Speed")]];
-    float colorTexScale [[name("Color Tex Scale")]];
-    float colorTexSpeed [[name("Color Tex Speed")]];
-    float transparency [[name("Transparency")]];
-    float unknown2;
-    float unknown3;
-    u8 color0Blue [[name("Color 0 Blue")]];
-    u8 color0Green [[name("Color 0 Green")]];
-    u8 color0Red [[name("Color 0 Red")]];
-    u8 color0Alpha [[name("Color 0 Alpha")]];
-    u8 color1Blue [[name("Color 1 Blue")]];
-    u8 color1Green [[name("Color 1 Green")]];
-    u8 color1Red [[name("Color 1 Red")]];
-    u8 color1Alpha [[name("Color 1 Alpha")]];
-    u16 colorTextureIndex [[name("Color Texture Index")]];
-    u16 distortionTextureIndex [[name("Distortion Texture Index")]];
+// Water rendering settings (per-environment water preset).
+//
+// Notes (confirmed via Gw.exe RE + gwgfxdump captures):
+// - absorption BGRA bytes map to water shader constant "waterAbsorption" (PS c1) after conversion to float RGBA / 255.
+// - pattern BGRA bytes map to water shader constant "waterPattern" (PS c0) after conversion to float RGBA / 255.
+// - fresnel/specularScale influence "waterFresnel" and "waterSpecularColor" constants depending on technique.
+// - texture indices refer to the EnvironmentFilenameChunk (env filenames table) for the active environment:
+//   - patternTextureIndex -> stage3 base/pattern texture (often DXT1)
+//   - bumpDuDvTextureIndex -> stage0 DuDv/bump texture (often V8U8) used for texbem perturbation
+//
+// Layout here is the *file* layout. The runtime typically expands/aligns this into a larger struct and also derives
+// additional values (e.g. scroll direction from wind) before MapWater_render consumes it.
+struct EnvWaterParams {
+    u8 mode [[name("Mode")]];
+    u8 flags [[name("Flags")]];
+    u8 reserved0[3];
+
+    float surfaceBaseHeight [[name("Surface Base Height")]]; // likely water plane height; verify per-map
+    float reloadSentinel [[name("Reload Sentinel")]];        // unknown; often 0.0; sometimes non-zero (forces regen?)
+
+    float waveAmplitude [[name("Wave Amplitude")]];
+    float secondaryTexScale [[name("Secondary Tex Scale")]];
+    float waveScale [[name("Wave Scale")]];
+    float secondarySpeed [[name("Secondary Speed")]];
+    float primaryTexScale [[name("Primary Tex Scale")]];
+    float primarySpeed [[name("Primary Speed")]];
+    float fresnel [[name("Fresnel")]];
+    float specularScale [[name("Specular Scale")]];
+
+    // File is stored BGRA. Runtime constant is float RGBA/255.
+    u8 absorptionB [[name("Absorption B")]];
+    u8 absorptionG [[name("Absorption G")]];
+    u8 absorptionR [[name("Absorption R")]];
+    u8 absorptionA [[name("Absorption A")]];
+
+    // File is stored BGRA. Runtime constant is float RGBA/255.
+    u8 patternB [[name("Pattern B")]];
+    u8 patternG [[name("Pattern G")]];
+    u8 patternR [[name("Pattern R")]];
+    u8 patternA [[name("Pattern A")]];
+
+    u16 patternTextureIndex [[name("Pattern Texture Index (Stage3)")]];
+    u16 bumpDuDvTextureIndex [[name("Bump DuDv Texture Index (Stage0)")]];
 };
 
 // Wind settings
@@ -2976,17 +3118,62 @@ struct EnvWindSettings {
     u8 windSpeed1 [[name("Wind Speed 1")]];
 };
 
-// Additional environment data
-struct EnvExtraData {
-    u8 unknown[9];
-    float unknown1;
-    float unknown2;
-    u8 data[15];
+// Tag 8: Global environment selection (fixed-size 0x11 record)
+struct EnvMainSettings {
+    u16 skyParamsIndex [[name("Sky Params Index")]];
+    u16 fogParamsIndex [[name("Fog Params Index")]];
+    u16 cloudParamsIndex [[name("Cloud Params Index")]];
+    u16 lightParamsIndex [[name("Light Params Index")]];
+    u16 skyTextureRefIndex [[name("Sky Texture Ref Index")]];
+    u16 skyTextureSettingsIndex [[name("Sky Texture Settings Index")]];
+    u16 waterSettingsIndex [[name("Water Settings Index")]];
+    u16 windSettingsIndex [[name("Wind Settings Index")]];
+    u8 skyBrightnessBias [[name("Sky Brightness Bias")]];
+};
+
+// Tag 9: Optional sky layers (size = 0x20 per entry)
+// Runtime semantics (EnvData_ParseParams):
+// - index value 0 means "inherit from global/main env" for that field
+// - non-zero value means "override with indexed table entry"
+// The override mask is stored in the runtime object and consumed by Env_update_frame.
+struct EnvSkyLayer {
+    u16 skyParamsIndex [[name("Sky Params Index")]];
+    u16 fogParamsIndex [[name("Fog Params Index")]];
+    u16 cloudParamsIndex [[name("Cloud Params Index")]];
+    u16 lightParamsIndex [[name("Light Params Index")]];
+    u16 skyTextureRefIndex [[name("Sky Texture Ref Index")]];
+    u16 skyTextureSettingsIndex [[name("Sky Texture Settings Index")]];
+    u16 waterSettingsIndex [[name("Water Settings Index")]];
+    u16 windSettingsIndex [[name("Wind Settings Index")]];
+    s32 offsetX [[name("Offset X")]];
+    s32 offsetY [[name("Offset Y")]];
+    // Used by Map_check_point_in_region as squared-distance thresholds:
+    // - circular regions: distSq <= heightSquared, fade starts at widthSquared
+    // - polygon regions: edge fade weight uses minDistSq / widthSquared
+    u32 widthSquared [[name("Width Squared")]];
+    u32 heightSquared [[name("Height Squared")]];
+};
+
+// Tag 0x0B: environment tag records (5 bytes each)
+// Runtime: (tagId -> envIndex) hash map used by Env_fade_to_tagged.
+// flags bit0 marks the tagged entry as enabled/valid.
+struct EnvTagEntry {
+    u16 tagId [[name("Tag ID")]];
+    u16 envIndex [[name("Environment Index")]];
+    u8 flags [[name("Flags")]];
+};
+
+// Tag 0x0C: environment polygon records (variable size)
+struct EnvPolygonEntry {
+    u8 vertexCount [[name("Vertex Count")]];
+    u16 envIndex [[name("Environment Index")]];
+    MapVertex2D vertices[vertexCount] [[name("Vertices")]];
 };
 
 struct EnvironmentChunk {
     u32 chunkId [[name("Chunk ID")]];
     u32 chunkSize [[name("Chunk Size")]];
+    u32 chunkEnd = addressof(chunkId) + 8 + chunkSize;
 
     u32 signature [[name("Signature")]];  // 0x92991030
     u16 version0 [[name("Version 0")]];
@@ -2994,7 +3181,7 @@ struct EnvironmentChunk {
 
     u8 tag0;
     u16 lightingModeCount [[name("Lighting Mode Count")]];
-    EnvLightingMode lightingModes[lightingModeCount] [[name("Lighting Modes")]];
+    EnvSkyModeParams skyModeParams[lightingModeCount] [[name("Sky Mode Params")]];
 
     u8 tag1;
     u16 skySettingsCount [[name("Sky Settings Count")]];
@@ -3009,8 +3196,8 @@ struct EnvironmentChunk {
     EnvLightingSettings lightingSettings[lightingSettingsCount] [[name("Lighting Settings")]];
 
     u8 tag4;
-    u16 unknownData4Count;
-    EnvUnknownData4 unknownData4[unknownData4Count];
+    u16 skyRefSettingsCount [[name("Sky Ref Settings Count")]];
+    EnvSkyRefSettings skyRefSettings[skyRefSettingsCount] [[name("Sky Ref Settings")]];
 
     u8 tag5;
     u16 skyTextureCount [[name("Sky Texture Count")]];
@@ -3022,26 +3209,44 @@ struct EnvironmentChunk {
 
     u8 tag6;
     u16 waterSettingsCount [[name("Water Settings Count")]];
-    EnvWaterSettings waterSettings[waterSettingsCount] [[name("Water Settings")]];
+    EnvWaterParams waterSettings[waterSettingsCount] [[name("Water Settings")]];
 
     u8 tag7;
     u16 windSettingsCount [[name("Wind Settings Count")]];
     EnvWindSettings windSettings[windSettingsCount] [[name("Wind Settings")]];
 
-    u8 unknown0;
-    u16 unknown1[8];
-    u8 unknown2;
-
+    // Tag 8 has no count, always a single fixed-size record.
     u8 tag8;
-    u8 extraDataCount;
-    EnvExtraData extraData[extraDataCount] [[name("Extra Data")]];
+    EnvMainSettings mainSettings [[name("Main Settings")]];
 
-    u16 unknown3;
-    u16 extraCount;
-    u8 extraBytes[5 * extraCount];
+    // Tag 9 uses standard count + fixed-size entries.
+    u8 tag9;
+    u16 skyLayerCount [[name("Sky Layer Count")]];
+    EnvSkyLayer skyLayers[skyLayerCount] [[name("Sky Layers")]];
 
-    // Variable trailing data
-    u8 trailingData[chunkSize - ($ - addressof(signature))] [[name("Trailing Data")]];
+    // Optional tag 0x0B
+    if (($ < chunkEnd) && (std::mem::read_unsigned($, 1) == 0x0B)) {
+        u8 tag11 [[name("Tag 0x0B")]];
+        u16 tag11Count [[name("Tag 0x0B Count")]];
+        EnvTagEntry tag11Entries[tag11Count] [[name("Environment Tags")]];
+    }
+
+    // Optional tag 0x0C
+    if (($ < chunkEnd) && (std::mem::read_unsigned($, 1) == 0x0C)) {
+        u8 tag12 [[name("Tag 0x0C")]];
+        u16 tag12Count [[name("Tag 0x0C Count")]];
+        EnvPolygonEntry tag12Entries[tag12Count] [[name("Environment Polygons")]];
+    }
+
+    // Optional terminator
+    if (($ < chunkEnd) && (std::mem::read_unsigned($, 1) == 0xFF)) {
+        u8 terminator [[name("Terminator (0xFF)")]];
+    }
+
+    // Any unmodeled bytes left in chunk
+    if ($ < chunkEnd) {
+        u8 trailingData[chunkEnd - $] [[name("Trailing Data")]];
+    }
 };
 
 // =============================================================================
@@ -3051,7 +3256,26 @@ struct EnvironmentChunk {
 struct UnknownChunk0A {
     u32 chunkId [[name("Chunk ID")]];
     u32 chunkSize [[name("Chunk Size")]];
-    u8 data[chunkSize] [[name("Data")]];
+    u32 chunkEnd = addressof(chunkId) + 8 + chunkSize;
+
+    // Observed:
+    // - stage-2 (0x2000000A): 0x090923F8, 0x00000000, 0xFF, 0x00000000
+    // - stage-1 (0x1000000A): 0x090923F8, 0x00000000, 0xFF
+    if (chunkSize >= 8) {
+        u32 signature [[name("Signature")]];          // 0x090923F8
+        u32 version [[name("Version")]];              // observed 0
+        if ($ < chunkEnd) {
+            u8 terminator [[name("Terminator")]];     // 0xFF
+        }
+        if (($ + 4) <= chunkEnd) {
+            u32 trailingZero [[name("Trailing Zero")]];
+        }
+        if ($ < chunkEnd) {
+            u8 trailingData[chunkEnd - $] [[name("Trailing Data")]];
+        }
+    } else {
+        u8 data[chunkSize] [[name("Data")]];
+    }
 };
 
 struct UnknownChunk0E {
@@ -3084,13 +3308,21 @@ struct ShoreSegment {
 struct ShoreChunk {
     u32 chunkId [[name("Chunk ID")]];
     u32 chunkSize [[name("Chunk Size")]];
-    char signature[4] [[name("Signature")]];
-    u32 unknown0;
+    u32 chunkEnd = addressof(chunkId) + 8 + chunkSize;
+
+    char signature[4] [[name("Signature")]];  // "ROHS" ("SHOR")
+    u32 formatVersion [[name("Format Version")]];  // observed 3
     u32 segmentCount [[name("Segment Count")]];
     ShoreSegment segments[segmentCount] [[name("Shore Segments")]];
-    u8 remainingData[chunkSize - 12 - 5 - sizeof(segments)] [[name("Remaining Data")]];
-    u32 unknown1;
-    u8 terminator;
+
+    if (($ + 5) <= chunkEnd) {
+        u8 terminator [[name("Terminator")]];      // 0xFF
+        u32 trailingZero [[name("Trailing Zero")]]; // 0
+    }
+
+    if ($ < chunkEnd) {
+        u8 trailingData[chunkEnd - $] [[name("Trailing Data")]];
+    }
 };
 
 // =============================================================================
@@ -3100,7 +3332,27 @@ struct ShoreChunk {
 struct EnvironmentExtraChunk {
     u32 chunkId [[name("Chunk ID")]];
     u32 chunkSize [[name("Chunk Size")]];
-    u8 data[chunkSize] [[name("Data")]];
+    u32 chunkEnd = addressof(chunkId) + 8 + chunkSize;
+
+    // Signature/version are stable in both stage-2 and stage-1 variants.
+    char signature[4] [[name("Signature")]];  // "THGS"
+    u32 version [[name("Version")]];          // observed 2
+
+    // stage-1 (0x10000011): chunkSize = 9 -> just terminator after header
+    // stage-2 (0x20000011): payload + terminator + trailing zero u32
+    if (($ < chunkEnd) && (chunkSize == 9)) {
+        u8 terminator [[name("Terminator")]]; // 0xFF
+    } else if (($ < chunkEnd) && (chunkSize >= 13)) {
+        if (chunkSize > 13) {
+            u8 data[chunkSize - 13] [[name("Data")]];
+        }
+        u8 terminator [[name("Terminator")]]; // 0xFF
+        u32 trailingZero [[name("Trailing Zero")]]; // 0
+    }
+
+    if ($ < chunkEnd) {
+        u8 trailingData[chunkEnd - $] [[name("Trailing Data")]];
+    }
 };
 
 struct AudioZoneChunk {
@@ -3122,8 +3374,8 @@ struct UnknownChunk14 {
 };
 
 // =============================================================================
-// 0x10xxxxxx - STUB CHUNKS (Lightweight reference files)
-// These contain minimal data - just basic metadata, no full content
+// 0x10xxxxxx - STAGE-1/BLOAT CHUNKS
+// These are compact pre-bloat map payloads used by MapData_BloatAndImport*.
 // =============================================================================
 
 struct MapHeaderChunkStub {
@@ -3135,19 +3387,51 @@ struct MapHeaderChunkStub {
 struct TerrainChunkStub {
     u32 chunkId [[name("Chunk ID")]];
     u32 chunkSize [[name("Chunk Size")]];
-    u8 data[chunkSize] [[name("Stub Data")]];
+    if (chunkSize >= 8) {
+        u32 signature [[name("Signature")]];          // 0x87821134
+        u16 version [[name("Version")]];              // observed 0x0011
+        u16 stripFormat [[name("Strip Format")]];     // observed mostly 0x6088
+        if (chunkSize > 8) {
+            u8 bloatPayload[chunkSize - 8] [[name("Bloat Payload")]];
+        }
+    } else {
+        u8 data[chunkSize] [[name("Stub Data")]];
+    }
 };
 
 struct ZoneChunkStub {
     u32 chunkId [[name("Chunk ID")]];
     u32 chunkSize [[name("Chunk Size")]];
-    u8 data[chunkSize] [[name("Stub Data")]];
+    if (chunkSize >= 18) {
+        u32 signature [[name("Signature")]];           // 0x59220320
+        u16 version [[name("Version")]];               // observed 0x010A
+        u16 stripDataSize [[name("Strip Data Size")]];
+        u16 reserved0 [[name("Reserved 0")]];          // observed 0
+        u16 zonePathCount [[name("Zone Path Count")]]; // matches embedded UTF-16 zone INI refs
+        u16 reserved1 [[name("Reserved 1")]];          // observed 0
+        u16 flags [[name("Flags")]];                   // observed 0x0001 / 0x0102
+        u16 reserved2 [[name("Reserved 2")]];          // observed 0
+        if (chunkSize > 18) {
+            u8 bloatPayload[chunkSize - 18] [[name("Bloat Payload")]];
+        }
+    } else {
+        u8 data[chunkSize] [[name("Stub Data")]];
+    }
 };
 
 struct PropInfoChunkStub {
     u32 chunkId [[name("Chunk ID")]];
     u32 chunkSize [[name("Chunk Size")]];
-    u8 data[chunkSize] [[name("Stub Data")]];
+    if (chunkSize >= 10) {
+        u32 signature [[name("Signature")]];              // 0x39583392
+        u16 version [[name("Version")]];                  // observed 0x0011
+        u32 stripSectionSize [[name("Strip Section Size")]];
+        if (chunkSize > 10) {
+            u8 bloatPayload[chunkSize - 10] [[name("Bloat Payload")]];
+        }
+    } else {
+        u8 data[chunkSize] [[name("Stub Data")]];
+    }
 };
 
 struct EnvironmentChunkStub {
@@ -3363,10 +3647,10 @@ struct Chunk {
         PathfindingChunkStub pathfindingStub [[name("Pathfinding (Stub)")]];
     }
     else if (peekId == 0x10000009) {
-        EnvironmentChunkStub environmentStub [[name("Environment (Stub)")]];
+        EnvironmentChunk environmentStage1 [[name("Environment (Stage-1/Bloat)")]];
     }
     else if (peekId == 0x1000000A) {
-        GenericMapChunkStub unknown0AStub [[name("Unknown 0A (Stub)")]];
+        UnknownChunk0A unknown0AStub [[name("Unknown 0A (Stage-1)")]];
     }
     else if (peekId == 0x1000000C) {
         MapInfoChunk mapInfoStub [[name("Map Info (Stub)")]];
@@ -3378,10 +3662,10 @@ struct Chunk {
         GenericMapChunkStub unknown0FStub [[name("Unknown 0F (Stub)")]];
     }
     else if (peekId == 0x10000010) {
-        ShoreChunkStub shoreStub [[name("Shore (Stub)")]];
+        ShoreChunk shoreStage1 [[name("Shore (Stage-1/Bloat)")]];
     }
     else if (peekId == 0x10000011) {
-        GenericMapChunkStub envExtraStub [[name("Environment Extra (Stub)")]];
+        EnvironmentExtraChunk envExtraStage1 [[name("Environment Extra (Stage-1)")]];
     }
     else if (peekId == 0x10000012) {
         GenericMapChunkStub audioStub [[name("Audio (Stub)")]];
@@ -3421,9 +3705,12 @@ struct FFNAFile {
     char signature[4] [[name("FFNA Signature")]];   // "ffna" (0x616e6666)
     u8 fileType [[name("File Type")]];
 
-    // Different file types have different chunk structures
-    // Ensure at least 8 bytes remain for chunk header
-    Chunk chunks[while($ + 8 <= sizeof($))] [[name("Chunks")]];
+    // Different file types have different chunk structures.
+    // Require a complete chunk header and a declared payload that fits in remaining bytes.
+    Chunk chunks[while(
+        $ + 8 <= sizeof($) &&
+        std::mem::read_unsigned($ + 4, 4) <= (sizeof($) - $ - 8)
+    )] [[name("Chunks")]];
 };
 
 FFNAFile file @ 0;
