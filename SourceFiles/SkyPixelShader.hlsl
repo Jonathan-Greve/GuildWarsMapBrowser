@@ -108,22 +108,26 @@ float4 main(PixelInputType input) : SV_TARGET
     
     if (use_sky_background)
     {
-        float4 sampledTextureColor = shaderTextures[0].Sample(ssWrapLinear, input.tex_coords0);
+        // D3D9 skybox layers use CLAMP sampling in the dumps.
+        float4 sampledTextureColor = shaderTextures[0].Sample(ssClampLinear, input.tex_coords0);
         final_color.rgb = sampledTextureColor.rgb;
     }
     
-    if (use_clouds_0)
+    if (use_clouds_0 && cloud0_params.w > 0.0f)
     {
-        float2 uv = input.tex_coords0 * cloud0_params.x;
+        // Keep tiling an integer to avoid seams when using WRAP.
+        float cloud_scale = max(1.0f, round(cloud0_params.x));
+        float2 uv = input.tex_coords0 * cloud_scale;
         uv += time_elapsed * cloud0_params.yz;
         
         float4 sampledTextureColor = shaderTextures[1].Sample(ssWrapLinear, uv);
         final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a * cloud0_params.w;
     }
     
-    if (use_clouds_1)
+    if (use_clouds_1 && cloud1_params.w > 0.0f)
     {
-        float2 uv = input.tex_coords0 * cloud1_params.x;
+        float cloud_scale = max(1.0f, round(cloud1_params.x));
+        float2 uv = input.tex_coords0 * cloud_scale;
         uv += time_elapsed * cloud1_params.yz;
         
         float4 sampledTextureColor = shaderTextures[2].Sample(ssWrapLinear, uv);

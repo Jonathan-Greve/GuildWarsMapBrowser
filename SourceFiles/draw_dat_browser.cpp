@@ -1194,17 +1194,25 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				sky_sun_texture_filename_index = sub5.sky_sun_texture_index;
 
 				// Decode sky layer params.
-				const float uv_scale = std::max(sub5.unknown0 / 32.0f, 0.01f);
-				// D3D9 dumps show this layer uses a UV translate in the VS (c4.z / c5.z).
-				// These int16 values appear to be fixed-point; /4096 was ~1-2 orders too fast.
-				const float kCloudScrollDenom = 262144.0f; // 4096 * 64
-				const float scroll0_u = static_cast<float>(sub5.unknown1) / kCloudScrollDenom;
-				const float scroll1_u = static_cast<float>(sub5.unknown2) / kCloudScrollDenom;
+				//
+				// D3D9 dumps show the moving cloud layer does a UV translate only in the VS:
+				//   oT0.x = u + c4.z
+				//   oT0.y = v + c5.z
+				// So treat unknown1/unknown2 as scroll U/V for ONE layer (not two independent layers).
+				//
+				// unknown0 appears to influence tiling; if we use a non-integer repeat with WRAP, we get a hard seam at u=0/1.
+				// Round to an integer repeat count to preserve wrapping.
+				const float uv_scale = std::max(1.0f, std::round(sub5.unknown0 / 32.0f));
+				// These int16 values appear fixed-point; /4096 was ~1-2 orders too fast in practice.
+				const float kCloudScrollDenom = 16777216.0f; // 4096 * 4096 (empirical)
+				const float scroll_u = static_cast<float>(sub5.unknown1) / kCloudScrollDenom;
+				const float scroll_v = static_cast<float>(sub5.unknown2) / kCloudScrollDenom;
 				const float sun_scale = sub5.unknown3 / 255.0f;
 				const float sun_disk_radius = (0.01f + sun_scale * 0.05f) * 3.0f;
 
-				sky_cb.cloud0_params = DirectX::XMFLOAT4(uv_scale, scroll0_u, 0.0f, 1.0f);
-				sky_cb.cloud1_params = DirectX::XMFLOAT4(uv_scale, scroll1_u, 0.0f, 1.0f);
+				sky_cb.cloud0_params = DirectX::XMFLOAT4(uv_scale, scroll_u, scroll_v, 1.0f);
+				// Disable the second moving layer for now; we haven't observed a second translated cloud pass in the dumps.
+				sky_cb.cloud1_params = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 				sky_cb.sun_params.x = sun_disk_radius;
 			}
 			else if (!environment_info_chunk.env_sub_chunk5_other.empty()) {
@@ -1228,15 +1236,15 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				std::memcpy(&scroll1_raw, &sub5.unknown[3], sizeof(scroll1_raw));
 				std::memcpy(&sun_byte, &sub5.unknown[5], sizeof(sun_byte));
 
-				const float uv_scale = std::max(scale_byte / 32.0f, 0.01f);
-				const float kCloudScrollDenom = 262144.0f; // 4096 * 64
-				const float scroll0_u = static_cast<float>(scroll0_raw) / kCloudScrollDenom;
-				const float scroll1_u = static_cast<float>(scroll1_raw) / kCloudScrollDenom;
+				const float uv_scale = std::max(1.0f, std::round(scale_byte / 32.0f));
+				const float kCloudScrollDenom = 16777216.0f; // 4096 * 4096 (empirical)
+				const float scroll_u = static_cast<float>(scroll0_raw) / kCloudScrollDenom;
+				const float scroll_v = static_cast<float>(scroll1_raw) / kCloudScrollDenom;
 				const float sun_scale = sun_byte / 255.0f;
 				const float sun_disk_radius = (0.01f + sun_scale * 0.05f) * 3.0f;
 
-				sky_cb.cloud0_params = DirectX::XMFLOAT4(uv_scale, scroll0_u, 0.0f, 1.0f);
-				sky_cb.cloud1_params = DirectX::XMFLOAT4(uv_scale, scroll1_u, 0.0f, 1.0f);
+				sky_cb.cloud0_params = DirectX::XMFLOAT4(uv_scale, scroll_u, scroll_v, 1.0f);
+				sky_cb.cloud1_params = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 				sky_cb.sun_params.x = sun_disk_radius;
 			}
 
