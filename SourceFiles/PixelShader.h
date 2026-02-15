@@ -192,6 +192,36 @@ public:
             return false;
         }
 
+        // D3D9-era linear sampler variants used by reimplemented fixed-function paths
+        // (for example water texbem stages where some samplers are WRAP and others CLAMP).
+        D3D11_SAMPLER_DESC linearWrapDesc = {};
+        linearWrapDesc.Filter = D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+        linearWrapDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+        linearWrapDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+        linearWrapDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+        linearWrapDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+        linearWrapDesc.MinLOD = 0;
+        linearWrapDesc.MaxLOD = D3D11_FLOAT32_MAX;
+        linearWrapDesc.MipLODBias = 0;
+        linearWrapDesc.MaxAnisotropy = 1;
+
+        D3D11_SAMPLER_DESC linearClampDesc = linearWrapDesc;
+        linearClampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+        linearClampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        linearClampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+
+        hr = m_device->CreateSamplerState(&linearClampDesc, m_samplerStateClampLinear.GetAddressOf());
+        if (FAILED(hr))
+        {
+            return false;
+        }
+
+        hr = m_device->CreateSamplerState(&linearWrapDesc, m_samplerStateWrapLinear.GetAddressOf());
+        if (FAILED(hr))
+        {
+            return false;
+        }
+
         hr = m_device->CreateSamplerState(&shadowSamplerDesc, m_samplerStateShadow.GetAddressOf());
         if (FAILED(hr))
         {
@@ -205,11 +235,15 @@ public:
 
     ID3D11SamplerState* const* GetSamplerState() const { return m_samplerState.GetAddressOf(); }
     ID3D11SamplerState* const* GetSamplerStateShadow() const { return m_samplerStateShadow.GetAddressOf(); }
+    ID3D11SamplerState* const* GetSamplerStateClampLinear() const { return m_samplerStateClampLinear.GetAddressOf(); }
+    ID3D11SamplerState* const* GetSamplerStateWrapLinear() const { return m_samplerStateWrapLinear.GetAddressOf(); }
 
 private:
     Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pixelShader;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> m_samplerState;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> m_samplerStateShadow;
+    Microsoft::WRL::ComPtr<ID3D11SamplerState> m_samplerStateClampLinear;
+    Microsoft::WRL::ComPtr<ID3D11SamplerState> m_samplerStateWrapLinear;
 
     ID3D11Device* m_device;
     ID3D11DeviceContext* m_deviceContext;

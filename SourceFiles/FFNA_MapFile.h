@@ -1206,24 +1206,44 @@ struct EnvSubChunk7 {
 };
 
 struct EnvSubChunk8 {
-    uint8_t unknown1[0x9];
-    float unknown2;
-    float unknown3;
-    uint8_t data[15];
+    uint16_t sky_settings_index;
+    uint16_t fog_settings_index;
+    uint16_t cloud_settings_index;
+    uint16_t lighting_settings_index;
+    uint16_t sky_ref_settings_index;
+    uint16_t sky_texture_settings_index;
+    uint16_t water_settings_index;
+    uint16_t wind_settings_index;
+    uint8_t sky_brightness_bias;
 
     EnvSubChunk8() = default;
     EnvSubChunk8(const unsigned char* data, int& offset) {
-        std::memcpy(unknown1, &data[offset], sizeof(unknown1));
-        offset += sizeof(unknown1);
+        std::memcpy(&sky_settings_index, &data[offset], sizeof(sky_settings_index));
+        offset += sizeof(sky_settings_index);
 
-        std::memcpy(&unknown2, &data[offset], sizeof(unknown2));
-        offset += sizeof(unknown2);
+        std::memcpy(&fog_settings_index, &data[offset], sizeof(fog_settings_index));
+        offset += sizeof(fog_settings_index);
 
-        std::memcpy(&unknown3, &data[offset], sizeof(unknown3));
-        offset += sizeof(unknown3);
+        std::memcpy(&cloud_settings_index, &data[offset], sizeof(cloud_settings_index));
+        offset += sizeof(cloud_settings_index);
 
-        std::memcpy(this->data, &data[offset], sizeof(this->data));
-        offset += sizeof(this->data);
+        std::memcpy(&lighting_settings_index, &data[offset], sizeof(lighting_settings_index));
+        offset += sizeof(lighting_settings_index);
+
+        std::memcpy(&sky_ref_settings_index, &data[offset], sizeof(sky_ref_settings_index));
+        offset += sizeof(sky_ref_settings_index);
+
+        std::memcpy(&sky_texture_settings_index, &data[offset], sizeof(sky_texture_settings_index));
+        offset += sizeof(sky_texture_settings_index);
+
+        std::memcpy(&water_settings_index, &data[offset], sizeof(water_settings_index));
+        offset += sizeof(water_settings_index);
+
+        std::memcpy(&wind_settings_index, &data[offset], sizeof(wind_settings_index));
+        offset += sizeof(wind_settings_index);
+
+        std::memcpy(&sky_brightness_bias, &data[offset], sizeof(sky_brightness_bias));
+        offset += sizeof(sky_brightness_bias);
     }
 };
 

@@ -6,6 +6,8 @@ struct SkyPixelShader
 #define CHECK_TEXTURE_SET(TYPE) TYPE == texture_type
 
 sampler ss : register(s0);
+SamplerState ssClampLinear : register(s2);
+SamplerState ssWrapLinear : register(s3);
 Texture2D shaderTextures[8] : register(t3);
 
 #define DARKGREEN float3(0.4, 1.0, 0.4)
@@ -70,6 +72,19 @@ cbuffer PerTerrainCB : register(b3)
     float pad[3];
 };
 
+cbuffer PerSkyCB : register(b4)
+{
+    // (uv_scale, scroll_u, scroll_v, strength)
+    float4 cloud0_params;
+    float4 cloud1_params;
+
+    // (disk_radius, strength, unused, unused)
+    float4 sun_params;
+
+    // (brightness_mul, saturation_mul, brightness_bias_add, unused)
+    float4 color_params;
+};
+
 struct PixelInputType
 {
     float4 position : SV_POSITION;
@@ -98,44 +113,83 @@ float4 main(PixelInputType input) : SV_TARGET
     
     if (use_sky_background)
     {
-        float4 sampledTextureColor = shaderTextures[0].Sample(ss, input.tex_coords0);
-        final_color.rgb = sampledTextureColor.rgb * 1.1;
+        // D3D9 skybox layers use CLAMP sampling in the dumps.
+        float4 sampledTextureColor = shaderTextures[0].Sample(ssClampLinear, input.tex_coords0);
+        final_color.rgb = sampledTextureColor.rgb;
     }
     
-    if (use_clouds_0)
+    if (use_clouds_0 && cloud0_params.w > 0.0f)
     {
-        float u = (time_elapsed / 1000) + input.tex_coords0.x;
-        float v = input.tex_coords0.y;
+        // Keep tiling an integer to avoid seams when using WRAP.
+        float cloud_scale = max(1.0f, round(cloud0_params.x));
+        // Scale U only; scaling V causes vertical repetition artifacts on the skydome.
+        float2 uv = float2(input.tex_coords0.x * cloud_scale, input.tex_coords0.y);
+        uv += time_elapsed * cloud0_params.yz;
         
-        float4 sampledTextureColor = shaderTextures[1].Sample(ss, float2(u, v));
-        final_color.rgb += saturate(sampledTextureColor.rgb) * sampledTextureColor.a;
+        float4 sampledTextureColor = shaderTextures[1].Sample(ssWrapLinear, uv);
+        // Fade clouds out towards the top of the dome (zenith should be just the base sky texture).
+        float v = saturate(input.tex_coords0.y);
+        float cloudMask = smoothstep(0.25, 0.45, v);
+        final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a * cloud0_params.w * cloudMask;
     }
     
-    if (use_clouds_1)
+    if (use_clouds_1 && cloud1_params.w > 0.0f)
     {
-        float u = (-time_elapsed / 2000) + input.tex_coords0.x;
-        float v = input.tex_coords0.y;
+        float cloud_scale = max(1.0f, round(cloud1_params.x));
+        float2 uv = float2(input.tex_coords0.x * cloud_scale, input.tex_coords0.y);
+        uv += time_elapsed * cloud1_params.yz;
         
-        float4 sampledTextureColor = shaderTextures[2].Sample(ss, float2(u, v));
-        final_color.rgb += saturate(sampledTextureColor.rgb) * sampledTextureColor.a;
+        float4 sampledTextureColor = shaderTextures[2].Sample(ssWrapLinear, uv);
+        float v = saturate(input.tex_coords0.y);
+        float cloudMask = smoothstep(0.25, 0.45, v);
+        final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a * cloud1_params.w * cloudMask;
     }
     
-    //if (use_sun)
-    //{
-    //    float4 sampledTextureColor = shaderTextures[3].Sample(ss, input.tex_coords0);
-    //    final_color.rgb = lerp(sampledTextureColor.rgb, final_color.rgb, sampledTextureColor.a);
-    //}
-    
+    if (use_sun)
+    {
+        float3 view_dir = normalize(input.world_position.xyz - cam_position);
+        float3 sun_dir = normalize(-directionalLight.direction);
+
+        float3 basis_up = (abs(sun_dir.y) > 0.98) ? float3(1, 0, 0) : float3(0, 1, 0);
+        float3 sun_right = normalize(cross(basis_up, sun_dir));
+        float3 sun_up = normalize(cross(sun_dir, sun_right));
+
+        float sun_disk_radius = max(sun_params.x, 1e-4);
+        float2 sun_plane = float2(dot(view_dir, sun_right), dot(view_dir, sun_up));
+        float2 sun_uv = sun_plane / sun_disk_radius * 0.5 + 0.5;
+
+        float sun_dot = dot(view_dir, sun_dir);
+        float inner = sun_disk_radius * 0.6;
+        float sun_mask = saturate((sun_dot - cos(sun_disk_radius)) / max(cos(inner) - cos(sun_disk_radius), 1e-5));
+
+        float4 sampledTextureColor = shaderTextures[3].Sample(ssClampLinear, sun_uv);
+        float sun_alpha = sampledTextureColor.a * sun_mask;
+        float3 sun_rgb = max(sampledTextureColor.rgb, directionalLight.diffuse.rgb * 1.2);
+        final_color.rgb += sun_rgb * sun_alpha * sun_params.y;
+    }
+
+    // Apply env brightness/saturation controls.
+    float brightness = color_params.x;
+    float saturation = color_params.y;
+    float bias = color_params.z;
+    float luma = dot(final_color.rgb, float3(0.299, 0.587, 0.114));
+    final_color.rgb = lerp(luma.xxx, final_color.rgb, saturation);
+    final_color.rgb = final_color.rgb * brightness + bias;
+    final_color.rgb = saturate(final_color.rgb);
+
     
     bool should_render_fog = should_render_flags & 4;
     if (should_render_fog)
     {
-        float fogFactor = (input.world_position.y - fog_end_y) / (fog_end_y - fog_start_y);
+        float fog_low = min(fog_start_y, fog_end_y);
+        float fog_high = max(fog_start_y, fog_end_y);
+        float fog_range = max(fog_high - fog_low, 1.0);
+        float fog_band = min(max(fog_range * 0.2, 600.0), 3000.0);
+        float fog_base = max(water_level, fog_low);
 
-        fogFactor = clamp(fogFactor, 0, 1);
-
-        float3 fogColor = lerp(fog_color_rgb, final_color.rgb, fogFactor); // Fog color defined in the constant buffer
-        final_color = lerp(float4(fogColor, final_color.a), final_color, fogFactor);
+        float fogFactor = saturate((input.world_position.y - fog_base) / fog_band);
+        fogFactor = sqrt(fogFactor);
+        final_color.rgb = lerp(fog_color_rgb, final_color.rgb, fogFactor);
     }
     
     return final_color;

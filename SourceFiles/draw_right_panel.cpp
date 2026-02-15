@@ -83,6 +83,33 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
                     water_level = std::clamp(sky_height, -40000.0f, 40000.0f);
                     map_renderer->SetSkyHeight(sky_height);
                 }
+
+                if (ImGui::CollapsingHeader("Sky (debug)"))
+                {
+                    auto sky_cb = map_renderer->GetPerSkyCB();
+                    bool changed = false;
+
+                    changed |= ImGui::SliderFloat("Sky brightness", &sky_cb.color_params.x, 0.0f, 2.0f, "%.2f");
+                    changed |= ImGui::SliderFloat("Sky saturation", &sky_cb.color_params.y, 0.0f, 2.0f, "%.2f");
+                    changed |= ImGui::SliderFloat("Sky bias", &sky_cb.color_params.z, -0.5f, 0.5f, "%.3f");
+
+                    changed |= ImGui::SliderFloat("Cloud0 UV scale", &sky_cb.cloud0_params.x, 0.05f, 8.0f, "%.2f");
+                    changed |= ImGui::SliderFloat("Cloud0 U speed", &sky_cb.cloud0_params.y, -0.05f, 0.05f, "%.5f");
+                    changed |= ImGui::SliderFloat("Cloud0 V speed", &sky_cb.cloud0_params.z, -0.05f, 0.05f, "%.5f");
+                    changed |= ImGui::SliderFloat("Cloud0 strength", &sky_cb.cloud0_params.w, 0.0f, 2.0f, "%.2f");
+
+                    changed |= ImGui::SliderFloat("Cloud1 UV scale", &sky_cb.cloud1_params.x, 0.05f, 8.0f, "%.2f");
+                    changed |= ImGui::SliderFloat("Cloud1 U speed", &sky_cb.cloud1_params.y, -0.05f, 0.05f, "%.5f");
+                    changed |= ImGui::SliderFloat("Cloud1 V speed", &sky_cb.cloud1_params.z, -0.05f, 0.05f, "%.5f");
+                    changed |= ImGui::SliderFloat("Cloud1 strength", &sky_cb.cloud1_params.w, 0.0f, 2.0f, "%.2f");
+
+                    changed |= ImGui::SliderFloat("Sun disk radius", &sky_cb.sun_params.x, 0.001f, 0.12f, "%.4f");
+                    changed |= ImGui::SliderFloat("Sun strength", &sky_cb.sun_params.y, 0.0f, 2.0f, "%.2f");
+
+                    if (changed) {
+                        map_renderer->SetPerSkyCB(sky_cb);
+                    }
+                }
             }
 
             if (ImGui::SliderFloat("Terrain tex pad x", &terrain_tex_pad_x, 0, 0.5, "%.2f", 0))

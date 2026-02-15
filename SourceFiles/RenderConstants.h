@@ -5,5 +5,6 @@
 #define PER_OBJECT_CB_SLOT 1
 #define PER_CAMERA_CB_SLOT 2
 #define PER_TERRAIN_CB_SLOT 3
+#define PER_SKY_CB_SLOT 4
 
 #endif // RENDER_CONSTANTS_H
