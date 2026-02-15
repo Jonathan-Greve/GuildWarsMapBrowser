@@ -332,16 +332,14 @@ public:
         cb.water_flow_padding[0] = 0.0f;
         cb.water_flow_padding[1] = 0.0f;
 
-        // Some maps have visually static/frozen water. In those cases the env data typically
-        // indicates no wave scale and no primary tex scale (pattern), even though speed fields
-        // may contain tiny non-zero values. GW effectively renders these without scrolling.
-        const bool looks_like_frozen_water =
-            (std::fabs(water_settings.water_wave_scale) < 1e-6f) &&
-            (std::fabs(water_settings.water_primary_tex_scale) < 1e-6f);
-        if (looks_like_frozen_water)
-        {
-            cb.water_color_tex_speed = 0.0f;
-            cb.water_distortion_tex_speed = 0.0f;
+        // GW renders with finalized runtime water params, not always raw tag-6 values.
+        // On some maps (including fixed-function water paths) speed fields > 1.0 behave
+        // like period-like encodings and must be inverted to match in-game scroll rates.
+        if (cb.water_distortion_tex_speed > 1.0f) {
+            cb.water_distortion_tex_speed = 1.0f / cb.water_distortion_tex_speed;
+        }
+        if (cb.water_color_tex_speed > 1.0f) {
+            cb.water_color_tex_speed = 1.0f / cb.water_color_tex_speed;
         }
 
         m_terrain->m_per_terrain_cb = cb;
@@ -1359,12 +1357,13 @@ private:
         constexpr float kByteDivisor = 255.0f;
         const float angle = static_cast<float>(wind_settings->wind_dir1) * (DirectX::XM_2PI / kByteDivisor);
 
-        const float x = static_cast<float>(std::cos(angle));
+        // Mirror east/west to match GW world-space orientation.
+        const float x = static_cast<float>(-std::cos(angle));
         // Negate to account for GW's north/south axis orientation vs our XZ plane usage.
         const float y = static_cast<float>(-std::sin(angle));
         const float len_sq = x * x + y * y;
         if (len_sq < 1e-6f) {
-            return DirectX::XMFLOAT2(0.70710677f, 0.70710677f);
+            return DirectX::XMFLOAT2(0.70710677f, -0.70710677f);
         }
 
         const float inv_len = 1.0f / std::sqrt(len_sq);

@@ -473,7 +473,7 @@ public:
 			else { rasterizer_state_manager->SetRasterizerState(RasterizerStateType::Solid_NoCull); }
 
 
-			blend_state_manager->SetBlendState(command->blend_state);
+			blend_state_manager->SetBlendState(BlendState::AlphaBlend);
 
 			PerObjectCB transposedData = command->meshInstance->GetPerObjectData();
 
@@ -507,6 +507,7 @@ public:
 		static XMFLOAT3 prev_camera_position{ 0,0,0 };
 
 		m_renderBatch.SortCommands(camera_position);
+		blend_state_manager->SetBlendState(BlendState::AlphaBlend);
 
 		for (const RenderCommand& command : m_renderBatch.GetCommands())
 		{
@@ -520,8 +521,6 @@ public:
 					continue;
 				}
 			}
-
-			blend_state_manager->SetBlendState(command.blend_state);
 
 			if (command.primitiveTopology != currentTopology)
 			{

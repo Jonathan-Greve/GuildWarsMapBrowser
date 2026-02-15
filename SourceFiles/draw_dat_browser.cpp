@@ -1138,6 +1138,13 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			uint8_t cloud_texture_filename_index = 0;
 			uint8_t water_color_texture_filename_index = 0xFF;
 			uint8_t water_distortion_texture_filename_index = 0xFF;
+			uint16_t selected_water_settings_index = 0;
+			uint16_t selected_wind_settings_index = 0;
+
+			if (!environment_info_chunk.env_sub_chunk8.empty()) {
+				selected_water_settings_index = environment_info_chunk.env_sub_chunk8[0].water_settings_index;
+				selected_wind_settings_index = environment_info_chunk.env_sub_chunk8[0].wind_settings_index;
+			}
 
 			if (environment_info_chunk.env_sub_chunk5.size() > 0) {
 				const auto& sub5_0 = environment_info_chunk.env_sub_chunk5[0];
@@ -1155,9 +1162,13 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			}
 
 			if (!environment_info_chunk.env_sub_chunk6.empty()) {
-				const auto& sub6_0 = environment_info_chunk.env_sub_chunk6[0];
-				water_color_texture_filename_index = sub6_0.water_color_texture_index;
-				water_distortion_texture_filename_index = sub6_0.water_distortion_texture_index;
+				const size_t water_idx =
+					(selected_water_settings_index < environment_info_chunk.env_sub_chunk6.size())
+					? selected_water_settings_index
+					: 0u;
+				const auto& selected_water = environment_info_chunk.env_sub_chunk6[water_idx];
+				water_color_texture_filename_index = selected_water.water_color_texture_index;
+				water_distortion_texture_filename_index = selected_water.water_distortion_texture_index;
 			}
 
 			std::vector<uint8_t> sky_texture_filename_indices{ sky_background_filename_index, sky_clouds_texture_filename_index0, sky_clouds_texture_filename_index1, sky_sun_texture_filename_index };
@@ -1391,10 +1402,21 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 			map_renderer->SetTerrain(terrain.get(), terrain_texture_id);
 
 			if (!environment_info_chunk.env_sub_chunk6.empty()) {
-				const auto& sub6_0 = environment_info_chunk.env_sub_chunk6[0];
-				const EnvSubChunk7* wind_settings =
-					environment_info_chunk.env_sub_chunk7.empty() ? nullptr : &environment_info_chunk.env_sub_chunk7[0];
-				map_renderer->UpdateWaterProperties(sub6_0, wind_settings);
+				const size_t water_idx =
+					(selected_water_settings_index < environment_info_chunk.env_sub_chunk6.size())
+					? selected_water_settings_index
+					: 0u;
+				const auto& selected_water = environment_info_chunk.env_sub_chunk6[water_idx];
+
+				const EnvSubChunk7* wind_settings = nullptr;
+				if (!environment_info_chunk.env_sub_chunk7.empty()) {
+					const size_t wind_idx =
+						(selected_wind_settings_index < environment_info_chunk.env_sub_chunk7.size())
+						? selected_wind_settings_index
+						: 0u;
+					wind_settings = &environment_info_chunk.env_sub_chunk7[wind_idx];
+				}
+				map_renderer->UpdateWaterProperties(selected_water, wind_settings);
 			}
 
 			if (cloud_textures.size() > 0) {

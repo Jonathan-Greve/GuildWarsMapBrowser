@@ -147,12 +147,14 @@ float4 main(PixelInputType input) : SV_TARGET
     bool should_render_fog = should_render_flags & 4;
     if (should_render_fog)
     {
-        float fogFactor = 1.0;
-        float fog_denom = (fog_start_y - fog_end_y);
-        if (abs(fog_denom) > 1e-5)
-        {
-            fogFactor = clamp((input.world_position.y - fog_end_y) / fog_denom, 0, 1);
-        }
+        float fog_low = min(fog_start_y, fog_end_y);
+        float fog_high = max(fog_start_y, fog_end_y);
+        float fog_range = max(fog_high - fog_low, 1.0);
+        float fog_band = min(max(fog_range * 0.2, 600.0), 3000.0);
+        float fog_base = max(water_level, fog_low);
+
+        float fogFactor = saturate((input.world_position.y - fog_base) / fog_band);
+        fogFactor = sqrt(fogFactor);
         final_color.rgb = lerp(fog_color_rgb, final_color.rgb, fogFactor);
     }
     

@@ -108,8 +108,9 @@ struct PSOutput
     float4 rt_1_output : SV_TARGET1; // Goes to second render target
 };
 
-// Constants confirmed in Gw.exe:
-// - MapWater_render: primary scroll uses 0.01, secondary scroll uses 0.02
+// Constants from Gw.exe MapWater_render:
+// - Primary scroll base is 0.01
+// - Secondary scroll base is 0.02
 // - MapWater_render: primary scale uses 0.00025, secondary scale uses 0.0005
 // - MapWater_render: bump-env matrix scale uses 0.04
 static const float GW_WATER_PRIMARY_ANIM_SPEED = 0.01;
@@ -136,22 +137,14 @@ float2 NormalizeOrDefault(float2 value, float2 fallback)
 
 float GW_FogFactor(float3 world_pos)
 {
-    // Captured GW VS computes v0.w from view-depth fog plus a vertical fog clamp.
-    // We approximate that behavior here using map fog distance and height ranges.
+    // Use depth fog for water. Vertical fog attenuation can collapse to near-zero
+    // on some maps and tint the full surface to fog color.
     float4 view_pos = mul(float4(world_pos, 1.0), View);
     float view_depth = abs(view_pos.z);
 
     float dist_denom = max(fog_end - fog_start, 1e-3);
     float dist_factor = saturate((fog_end - view_depth) / dist_denom);
-
-    float height_denom = fog_start_y - fog_end_y;
-    float height_factor = 1.0;
-    if (abs(height_denom) > 1e-3)
-    {
-        height_factor = saturate((world_pos.y - fog_end_y) / height_denom);
-    }
-
-    return min(dist_factor, height_factor);
+    return dist_factor;
 }
 
 // Main Pixel Shader function (GW texbem water PS reimplementation)
@@ -196,18 +189,32 @@ float4 main(PixelInputType input) : SV_TARGET
     float2 bump_offset = du_dv * bump_mat_diag;
 
     // Reflection coords (MapBrowser provides projected coords; GW computes equivalent UVs in its VS path)
+    // Important: Do not clamp invalid projected UVs to the texture border/corners as that creates
+    // large quadrant-like color blocks on water when projection becomes unstable near horizon/clip.
+    bool has_reflection_sample = false;
     float2 uv_reflect = float2(0.5, 0.5);
     if (should_render_flags & 2)
     {
-        float3 ndcPos = input.reflectionSpacePos.xyz / input.reflectionSpacePos.w;
-        uv_reflect = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
-        // GW technique 4 applies an extra projection remap; keep support but default runtime param to 0.
-        if (water_technique == 4)
+        float rw = input.reflectionSpacePos.w;
+        if (rw > 1e-4)
         {
-            float s = rcp(max(2.0 * water_runtime_param_28, 1e-3));
-            uv_reflect = (uv_reflect - 0.5) * s + 0.5;
+            float3 ndcPos = input.reflectionSpacePos.xyz / rw;
+            uv_reflect = float2(ndcPos.x * 0.5 + 0.5, -ndcPos.y * 0.5 + 0.5);
+            // GW technique 4 applies an extra projection remap; keep support but default runtime param to 0.
+            if (water_technique == 4)
+            {
+                float s = rcp(max(2.0 * water_runtime_param_28, 1e-3));
+                uv_reflect = (uv_reflect - 0.5) * s + 0.5;
+            }
+
+            uv_reflect += bump_offset;
+
+            float2 texel_guard = max(reflection_texel_size, float2(0.0, 0.0));
+            float2 uv_min = texel_guard;
+            float2 uv_max = 1.0 - texel_guard;
+            bool in_bounds = all(uv_reflect >= uv_min) && all(uv_reflect <= uv_max);
+            has_reflection_sample = in_bounds;
         }
-        uv_reflect = saturate(uv_reflect + bump_offset);
     }
 
     // Fresnel LUT coordinate:
@@ -220,7 +227,7 @@ float4 main(PixelInputType input) : SV_TARGET
     float t2_a = shaderTextures[3].Sample(ssClampLinear, float2(fresnel_coord, fresnel_coord)).a;
 
     // texbem stage1 (reflection) and stage3 (pattern)
-    float4 t1 = (should_render_flags & 2) ? shaderTextures[2].Sample(ssClampLinear, uv_reflect) : float4(0, 0, 0, 0);
+    float4 t1 = has_reflection_sample ? shaderTextures[2].Sample(ssClampLinear, uv_reflect) : float4(0, 0, 0, 0);
     float4 t3 = shaderTextures[0].Sample(ssWrapLinear, uv_pattern + bump_offset);
 
     // Apply the exact constant usage from ps_1_1:
