@@ -9,6 +9,7 @@
 #include "PerFrameCB.h"
 #include "PerCameraCB.h"
 #include "PerTerrainCB.h"
+#include "PerSkyCB.h"
 #include "CheckerboardTexture.h"
 #include "Terrain.h"
 #include "BlendStateManager.h"
@@ -187,6 +188,9 @@ public:
         buffer_desc.ByteWidth = sizeof(PerTerrainCB);
         m_device->CreateBuffer(&buffer_desc, nullptr, m_per_terrain_cb.GetAddressOf());
 
+        buffer_desc.ByteWidth = sizeof(PerSkyCB);
+        m_device->CreateBuffer(&buffer_desc, nullptr, m_per_sky_cb.GetAddressOf());
+
         //
         m_deviceContext->VSSetConstantBuffers(PER_FRAME_CB_SLOT, 1, m_per_frame_cb.GetAddressOf());
         m_deviceContext->VSSetConstantBuffers(PER_CAMERA_CB_SLOT, 1, m_per_camera_cb.GetAddressOf());
@@ -198,6 +202,7 @@ public:
         m_deviceContext->PSSetConstantBuffers(PER_FRAME_CB_SLOT, 1, m_per_frame_cb.GetAddressOf());
         m_deviceContext->PSSetConstantBuffers(PER_CAMERA_CB_SLOT, 1, m_per_camera_cb.GetAddressOf());
         m_deviceContext->PSSetConstantBuffers(PER_TERRAIN_CB_SLOT, 1, m_per_terrain_cb.GetAddressOf());
+        m_deviceContext->PSSetConstantBuffers(PER_SKY_CB_SLOT, 1, m_per_sky_cb.GetAddressOf());
 
         // Set the pixel shader and sampler state
         m_deviceContext->PSSetSamplers(0, 1, m_pixel_shaders[PixelShaderType::OldModel]->GetSamplerState());
@@ -253,6 +258,9 @@ public:
 
 
     const DirectionalLight GetDirectionalLight() { return m_directionalLight; }
+
+    PerSkyCB GetPerSkyCB() const { return m_per_sky_cb_data; }
+    void SetPerSkyCB(const PerSkyCB& sky_cb) { m_per_sky_cb_data = sky_cb; }
 
     void UpdateTerrainWaterLevel(float new_water_level)
     {
@@ -941,6 +949,12 @@ public:
         memcpy(mappedResourceFrame.pData, &frameCB, sizeof(PerFrameCB));
         m_deviceContext->Unmap(m_per_frame_cb.Get(), 0);
 
+        // Update per sky CB (only used by sky PS)
+        D3D11_MAPPED_SUBRESOURCE mappedResourceSky{};
+        m_deviceContext->Map(m_per_sky_cb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResourceSky);
+        memcpy(mappedResourceSky.pData, &m_per_sky_cb_data, sizeof(PerSkyCB));
+        m_deviceContext->Unmap(m_per_sky_cb.Get(), 0);
+
         // Update camera CB - use override if active (model viewer mode)
         if (m_cameraOverrideActive)
         {
@@ -1421,6 +1435,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_frame_cb;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_camera_cb;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_terrain_cb;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_per_sky_cb;
 
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_water_fresnel_lut_srv;
 
@@ -1446,6 +1461,12 @@ private:
 
     DirectionalLight m_directionalLight;
     bool m_per_frame_cb_changed = true;
+    PerSkyCB m_per_sky_cb_data{
+        { 1.0f, 0.001f, 0.0f, 1.0f },
+        { 1.0f, -0.0005f, 0.0f, 1.0f },
+        { 0.03f, 1.0f, 0.0f, 0.0f },
+        { 1.0f, 1.0f, 0.0f, 0.0f },
+    };
 
     LODQuality m_lod_quality = LODQuality::High;
 

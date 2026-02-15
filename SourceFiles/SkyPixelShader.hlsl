@@ -67,6 +67,19 @@ cbuffer PerTerrainCB : register(b3)
     float pad[3];
 };
 
+cbuffer PerSkyCB : register(b4)
+{
+    // (uv_scale, scroll_u, scroll_v, strength)
+    float4 cloud0_params;
+    float4 cloud1_params;
+
+    // (disk_radius, strength, unused, unused)
+    float4 sun_params;
+
+    // (brightness_mul, saturation_mul, brightness_bias_add, unused)
+    float4 color_params;
+};
+
 struct PixelInputType
 {
     float4 position : SV_POSITION;
@@ -87,8 +100,6 @@ struct PixelInputType
 float4 main(PixelInputType input) : SV_TARGET
 {
     float4 final_color = float4(0, 0, 0, 1);
-    const float cloud0_strength = 0.55;
-    const float cloud1_strength = 0.45;
     
     bool use_sky_background = texture_types[0][0] == 0;
     bool use_clouds_0 = texture_types[0][1] == 0;
@@ -103,20 +114,20 @@ float4 main(PixelInputType input) : SV_TARGET
     
     if (use_clouds_0)
     {
-        float u = (time_elapsed / 1000) + input.tex_coords0.x;
-        float v = input.tex_coords0.y;
+        float2 uv = input.tex_coords0 * cloud0_params.x;
+        uv += time_elapsed * cloud0_params.yz;
         
-        float4 sampledTextureColor = shaderTextures[1].Sample(ssWrapLinear, float2(u, v));
-        final_color.rgb += saturate(sampledTextureColor.rgb) * sampledTextureColor.a * cloud0_strength;
+        float4 sampledTextureColor = shaderTextures[1].Sample(ssWrapLinear, uv);
+        final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a * cloud0_params.w;
     }
     
     if (use_clouds_1)
     {
-        float u = (-time_elapsed / 2000) + input.tex_coords0.x;
-        float v = input.tex_coords0.y;
+        float2 uv = input.tex_coords0 * cloud1_params.x;
+        uv += time_elapsed * cloud1_params.yz;
         
-        float4 sampledTextureColor = shaderTextures[2].Sample(ssWrapLinear, float2(u, v));
-        final_color.rgb += saturate(sampledTextureColor.rgb) * sampledTextureColor.a * cloud1_strength;
+        float4 sampledTextureColor = shaderTextures[2].Sample(ssWrapLinear, uv);
+        final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a * cloud1_params.w;
     }
     
     if (use_sun)
@@ -128,19 +139,27 @@ float4 main(PixelInputType input) : SV_TARGET
         float3 sun_right = normalize(cross(basis_up, sun_dir));
         float3 sun_up = normalize(cross(sun_dir, sun_right));
 
-        const float sun_disk_radius = 0.03;
+        float sun_disk_radius = max(sun_params.x, 1e-4);
         float2 sun_plane = float2(dot(view_dir, sun_right), dot(view_dir, sun_up));
         float2 sun_uv = sun_plane / sun_disk_radius * 0.5 + 0.5;
 
         float sun_dot = dot(view_dir, sun_dir);
-        float sun_mask = saturate((sun_dot - cos(0.03)) / max(cos(0.018) - cos(0.03), 1e-5));
+        float inner = sun_disk_radius * 0.6;
+        float sun_mask = saturate((sun_dot - cos(sun_disk_radius)) / max(cos(inner) - cos(sun_disk_radius), 1e-5));
 
         float4 sampledTextureColor = shaderTextures[3].Sample(ssClampLinear, sun_uv);
         float sun_alpha = sampledTextureColor.a * sun_mask;
         float3 sun_rgb = max(sampledTextureColor.rgb, directionalLight.diffuse.rgb * 1.2);
-        final_color.rgb = lerp(final_color.rgb, sun_rgb, sun_alpha);
+        final_color.rgb += sun_rgb * sun_alpha * sun_params.y;
     }
 
+    // Apply env brightness/saturation controls.
+    float brightness = color_params.x;
+    float saturation = color_params.y;
+    float bias = color_params.z;
+    float luma = dot(final_color.rgb, float3(0.299, 0.587, 0.114));
+    final_color.rgb = lerp(luma.xxx, final_color.rgb, saturation);
+    final_color.rgb = final_color.rgb * brightness + bias;
     final_color.rgb = saturate(final_color.rgb);
 
     

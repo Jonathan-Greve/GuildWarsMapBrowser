@@ -1103,6 +1103,35 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				? nullptr
 				: &environment_info_chunk.env_sub_chunk8[0];
 
+			// Sky shader params (defaults). We'll override from env chunks when available.
+			PerSkyCB sky_cb = map_renderer->GetPerSkyCB();
+
+			// Brightness/saturation are in the sky settings (EnvSubChunk1).
+			{
+				float brightness = 1.0f;
+				float saturation = 1.0f;
+				float bias_add = 0.0f;
+
+				if (!environment_info_chunk.env_sub_chunk1.empty()) {
+					const size_t sky_settings_idx =
+						(env8 && env8->sky_settings_index < environment_info_chunk.env_sub_chunk1.size())
+						? env8->sky_settings_index
+						: 0u;
+					const auto& sub1 = environment_info_chunk.env_sub_chunk1[sky_settings_idx];
+
+					// Interpret bytes as centered at 128 (neutral).
+					brightness = std::clamp(sub1.sky_brightness_maybe / 128.0f, 0.0f, 2.0f);
+					saturation = std::clamp(sub1.sky_saturaion_maybe / 128.0f, 0.0f, 2.0f);
+				}
+
+				if (env8) {
+					bias_add = (static_cast<int>(env8->sky_brightness_bias) - 128) / 128.0f;
+					bias_add = std::clamp(bias_add * 0.15f, -0.25f, 0.25f);
+				}
+
+				sky_cb.color_params = DirectX::XMFLOAT4(brightness, saturation, bias_add, 0.0f);
+			}
+
 			// Set ambient and diffuse light
 			if (!environment_info_chunk.env_sub_chunk3.empty()) {
 				const size_t lighting_idx =
@@ -1163,6 +1192,17 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				sky_clouds_texture_filename_index0 = sub5.sky_clouds_texture_index0;
 				sky_clouds_texture_filename_index1 = sub5.sky_clouds_texture_index1;
 				sky_sun_texture_filename_index = sub5.sky_sun_texture_index;
+
+				// Decode sky layer params.
+				const float uv_scale = std::max(sub5.unknown0 / 32.0f, 0.01f);
+				const float scroll0_u = static_cast<float>(sub5.unknown1) / 4096.0f;
+				const float scroll1_u = static_cast<float>(sub5.unknown2) / 4096.0f;
+				const float sun_scale = sub5.unknown3 / 255.0f;
+				const float sun_disk_radius = 0.01f + sun_scale * 0.05f;
+
+				sky_cb.cloud0_params = DirectX::XMFLOAT4(uv_scale, scroll0_u, 0.0f, 1.0f);
+				sky_cb.cloud1_params = DirectX::XMFLOAT4(uv_scale, scroll1_u, 0.0f, 1.0f);
+				sky_cb.sun_params.x = sun_disk_radius;
 			}
 			else if (!environment_info_chunk.env_sub_chunk5_other.empty()) {
 				const size_t sky_idx =
@@ -1174,7 +1214,29 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				sky_clouds_texture_filename_index0 = sub5.sky_clouds_texture_index0;
 				sky_clouds_texture_filename_index1 = sub5.sky_clouds_texture_index1;
 				sky_sun_texture_filename_index = sub5.sky_sun_texture_index;
+
+				// Best-effort decode of the "other" layout (unknown[7]) as (scale, int16, int16, sunSize, ...).
+				uint8_t scale_byte = 0;
+				int16_t scroll0_raw = 0;
+				int16_t scroll1_raw = 0;
+				uint8_t sun_byte = 0;
+				std::memcpy(&scale_byte, &sub5.unknown[0], sizeof(scale_byte));
+				std::memcpy(&scroll0_raw, &sub5.unknown[1], sizeof(scroll0_raw));
+				std::memcpy(&scroll1_raw, &sub5.unknown[3], sizeof(scroll1_raw));
+				std::memcpy(&sun_byte, &sub5.unknown[5], sizeof(sun_byte));
+
+				const float uv_scale = std::max(scale_byte / 32.0f, 0.01f);
+				const float scroll0_u = static_cast<float>(scroll0_raw) / 4096.0f;
+				const float scroll1_u = static_cast<float>(scroll1_raw) / 4096.0f;
+				const float sun_scale = sun_byte / 255.0f;
+				const float sun_disk_radius = 0.01f + sun_scale * 0.05f;
+
+				sky_cb.cloud0_params = DirectX::XMFLOAT4(uv_scale, scroll0_u, 0.0f, 1.0f);
+				sky_cb.cloud1_params = DirectX::XMFLOAT4(uv_scale, scroll1_u, 0.0f, 1.0f);
+				sky_cb.sun_params.x = sun_disk_radius;
 			}
+
+			map_renderer->SetPerSkyCB(sky_cb);
 
 			if (!environment_info_chunk.env_sub_chunk6.empty()) {
 				const size_t water_idx =
