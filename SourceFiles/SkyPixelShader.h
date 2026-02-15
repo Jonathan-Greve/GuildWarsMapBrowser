@@ -122,21 +122,27 @@ float4 main(PixelInputType input) : SV_TARGET
     {
         // Keep tiling an integer to avoid seams when using WRAP.
         float cloud_scale = max(1.0f, round(cloud0_params.x));
-        float2 uv = input.tex_coords0 * cloud_scale;
+        // Scale U only; scaling V causes vertical repetition artifacts on the skydome.
+        float2 uv = float2(input.tex_coords0.x * cloud_scale, input.tex_coords0.y);
         uv += time_elapsed * cloud0_params.yz;
         
         float4 sampledTextureColor = shaderTextures[1].Sample(ssWrapLinear, uv);
-        final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a * cloud0_params.w;
+        // Fade clouds out towards the top of the dome (zenith should be just the base sky texture).
+        float v = saturate(input.tex_coords0.y);
+        float cloudMask = smoothstep(0.25, 0.45, v);
+        final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a * cloud0_params.w * cloudMask;
     }
     
     if (use_clouds_1 && cloud1_params.w > 0.0f)
     {
         float cloud_scale = max(1.0f, round(cloud1_params.x));
-        float2 uv = input.tex_coords0 * cloud_scale;
+        float2 uv = float2(input.tex_coords0.x * cloud_scale, input.tex_coords0.y);
         uv += time_elapsed * cloud1_params.yz;
         
         float4 sampledTextureColor = shaderTextures[2].Sample(ssWrapLinear, uv);
-        final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a * cloud1_params.w;
+        float v = saturate(input.tex_coords0.y);
+        float cloudMask = smoothstep(0.25, 0.45, v);
+        final_color.rgb += sampledTextureColor.rgb * sampledTextureColor.a * cloud1_params.w * cloudMask;
     }
     
     if (use_sun)
