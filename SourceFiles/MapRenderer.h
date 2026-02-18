@@ -324,7 +324,11 @@ public:
         cb.water_fresnel = water_settings.water_fresnel;
         cb.water_specular_scale = water_settings.water_specular_scale;
         cb.water_technique = m_water_technique;
-        cb.water_runtime_param_28 = 0.0f; // unknown GW runtime param (+0x28) used only for technique 4 projection remap
+        // Runtime parameter usage in GW differs by path:
+        // - technique 4: projection remap scalar (+0x28)
+        // - fixed-function legacy path (mode 0 + no primary layer): we use this as a boolean marker
+        //   for shader-side alpha behavior parity in GWMB's single-pass approximation.
+        cb.water_runtime_param_28 = water_settings.UsesLegacyFixedFunctionWaterPath() ? 1.0f : 0.0f;
         cb.color0 = DirectX::XMFLOAT4(
             water_settings.water_absorption_red / 255.0f,
             water_settings.water_absorption_green / 255.0f,
