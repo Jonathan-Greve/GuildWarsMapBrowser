@@ -260,6 +260,22 @@ void draw_right_panel(MapRenderer* map_renderer, int& FPS_target, DX::StepTimer&
         float frustum_width = camera->GetViewWidth();
         float frustum_height = camera->GetViewHeight();
 
+        ImGui::TextDisabled("GW gameplay camera: perspective mode 2");
+        ImGui::TextDisabled("Default FoV %.1f, zFar %.0f",
+            MapRenderer::kGwDefaultCameraFovDegrees,
+            MapRenderer::kGwDefaultCameraFarZ);
+        if (ImGui::Button("Reset Projection To GW Defaults", ImVec2(-FLT_MIN, 0.0f)))
+        {
+            map_renderer->SetPerspectiveToGwGameplayDefaults();
+            camera_type = camera->GetCameraType();
+            fovY = camera->GetFovY() * 180 / XM_PI;
+            aspect_ratio = camera->GetAspectRatio();
+            near_z = camera->GetNearZ();
+            far_z = camera->GetFarZ();
+            frustum_width = camera->GetViewWidth();
+            frustum_height = camera->GetViewHeight();
+        }
+
         if (camera_type == CameraType::Perspective)
         {
             if (ImGui::SliderFloat("Vertical FoV", &fovY, 1, 179))
