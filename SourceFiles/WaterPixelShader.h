@@ -109,14 +109,22 @@ struct PSOutput
 };
 
 // Constants from Gw.exe MapWater_render:
-// - Primary scroll base is 0.01
-// - Secondary scroll base is 0.02
-// - MapWater_render: primary scale uses 0.00025, secondary scale uses 0.0005
+// Notes from gwgfxdump captures (see update-water-shader work):
+// - There are at least two UV generation paths:
+//   - "moving" water: primaryTexScale > 0, uses different base scales/speeds
+//   - "still" water:  primaryTexScale == 0, uses secondaryTexScale for both stages and does not scroll
+// - These bases are *not* 1:1 with the raw tag-6 floats without additional runtime logic.
 // - MapWater_render: bump-env matrix scale uses 0.04
-static const float GW_WATER_PRIMARY_ANIM_SPEED = 0.01;
-static const float GW_WATER_SECONDARY_ANIM_SPEED = 0.02;
-static const float GW_WATER_PRIMARY_TEX_SCALE = 0.00025;
-static const float GW_WATER_SECONDARY_TEX_SCALE = 0.0005;
+// "moving" preset bases (matches selected_dump_20260216_002220 sequence for a moving-water map)
+static const float GW_WATER_MOVING_PRIMARY_ANIM_SPEED = 0.03;
+static const float GW_WATER_MOVING_SECONDARY_ANIM_SPEED = 0.06;
+static const float GW_WATER_MOVING_PRIMARY_TEX_SCALE = 0.000112;
+static const float GW_WATER_MOVING_SECONDARY_TEX_SCALE = 0.00055;
+
+// "still" preset bases (matches selected_dump_20260216_003150 where primaryTexScale==0)
+static const float GW_WATER_STILL_PATTERN_TEX_SCALE = 0.0000806;
+static const float GW_WATER_STILL_BUMP_TEX_SCALE = 0.000163;
+
 static const float GW_WATER_BUMPENV_SCALE = 0.04;
 
 // MapWater_update_technique builds a 256x4 A8 fresnel LUT where each row is identical.
@@ -137,14 +145,26 @@ float2 NormalizeOrDefault(float2 value, float2 fallback)
 
 float GW_FogFactor(float3 world_pos)
 {
-    // Use depth fog for water. Vertical fog attenuation can collapse to near-zero
-    // on some maps and tint the full surface to fog color.
+    // Use depth fog plus vertical fog from the map file.
+    // Keep denominator guards so maps with degenerate fog ranges do not explode.
     float4 view_pos = mul(float4(world_pos, 1.0), View);
     float view_depth = abs(view_pos.z);
 
-    float dist_denom = max(fog_end - fog_start, 1e-3);
-    float dist_factor = saturate((fog_end - view_depth) / dist_denom);
-    return dist_factor;
+    float dist_factor = 1.0;
+    float dist_denom = fog_end - fog_start;
+    if (abs(dist_denom) >= 1e-3)
+    {
+        dist_factor = saturate((fog_end - view_depth) / dist_denom);
+    }
+
+    float height_factor = 1.0;
+    float height_denom = fog_end_y - fog_start_y;
+    if (abs(height_denom) >= 1e-3)
+    {
+        height_factor = saturate((fog_end_y - world_pos.y) / height_denom);
+    }
+
+    return min(dist_factor, height_factor);
 }
 
 // Main Pixel Shader function (GW texbem water PS reimplementation)
@@ -164,16 +184,19 @@ float4 main(PixelInputType input) : SV_TARGET
     float2 flow_dir = NormalizeOrDefault(water_flow_dir, float2(0.70710677, 0.70710677));
     float2 world_uv = input.world_position.xz;
 
+    const bool has_primary_uv = (water_color_tex_scale > 0.0);
+
     // Captured GW water shader uses:
     // - Stage0 (t0): bump/du-dv (file: secondary* params; VS uses GW_WATER_SECONDARY_* constants)
     // - Stage3 (t3): pattern/base (file: primary* params; VS uses GW_WATER_PRIMARY_* constants)
     // Scroll is in UV units (after the GW constant multipliers); do not multiply by the scale again.
-    float bump_scale = water_distortion_tex_scale * GW_WATER_SECONDARY_TEX_SCALE;
-    float bump_scroll = time_elapsed * GW_WATER_SECONDARY_ANIM_SPEED * water_distortion_tex_speed;
+    float bump_scale = water_distortion_tex_scale * (has_primary_uv ? GW_WATER_MOVING_SECONDARY_TEX_SCALE : GW_WATER_STILL_BUMP_TEX_SCALE);
+    float bump_scroll = has_primary_uv ? (time_elapsed * GW_WATER_MOVING_SECONDARY_ANIM_SPEED * water_distortion_tex_speed) : 0.0;
     float2 uv_bump = world_uv * bump_scale - flow_dir * bump_scroll;
 
-    float pattern_scroll = time_elapsed * GW_WATER_PRIMARY_ANIM_SPEED * water_color_tex_speed;
-    float pattern_scale = water_color_tex_scale * GW_WATER_PRIMARY_TEX_SCALE;
+    float pattern_scroll = has_primary_uv ? (time_elapsed * GW_WATER_MOVING_PRIMARY_ANIM_SPEED * water_color_tex_speed) : 0.0;
+    float pattern_scale = (has_primary_uv ? water_color_tex_scale : water_distortion_tex_scale) *
+        (has_primary_uv ? GW_WATER_MOVING_PRIMARY_TEX_SCALE : GW_WATER_STILL_PATTERN_TEX_SCALE);
     // Captured GW path uses opposite scroll sign for stage3 (pattern) vs stage0 (bump).
     float2 uv_pattern = world_uv * pattern_scale + flow_dir * pattern_scroll;
 
@@ -252,6 +275,14 @@ float4 main(PixelInputType input) : SV_TARGET
 
     // mad r0.w, -out_a, fogFactor, 1 => alpha = 1 - out_a * fogFactor
     out_a = 1.0 - out_a * fogFactor;
+
+    // Legacy fixed-function water path (mode 0 + no primary layer) is rendered by GW in two passes:
+    // an opaque base pass and then a pattern/detail pass. In GWMB we approximate in one pass, so keep
+    // alpha from becoming too transparent by clamping to the pattern constant alpha.
+    if (water_runtime_param_28 > 0.5)
+    {
+        out_a = max(out_a, c0_pattern.a);
+    }
 
     final = float4(rgb, out_a);
     return final;
