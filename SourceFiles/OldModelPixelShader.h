@@ -271,7 +271,21 @@ PSOutput main(PixelInputType input)
     {
         float distance = length(cam_position - input.world_position.xyz);
 
-        float fogFactor = (fog_end - distance) / (fog_end - fog_start);
+        float fogFactorDistance = 1.0;
+        float fogDistanceDenom = fog_end - fog_start;
+        if (abs(fogDistanceDenom) >= 1e-3)
+        {
+            fogFactorDistance = saturate((fog_end - distance) / fogDistanceDenom);
+        }
+
+        float fogFactorHeight = 1.0;
+        float fogHeightDenom = fog_end_y - fog_start_y;
+        if (abs(fogHeightDenom) >= 1e-3)
+        {
+            fogFactorHeight = saturate((fog_end_y - input.world_position.y) / fogHeightDenom);
+        }
+
+        float fogFactor = min(fogFactorDistance, fogFactorHeight);
         fogFactor = clamp(fogFactor, 0.20, 1);
 
         float3 fogColor = fog_color_rgb; // Fog color defined in the constant buffer

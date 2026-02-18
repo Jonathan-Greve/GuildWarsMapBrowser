@@ -176,14 +176,27 @@ float4 main(PixelInputType input) : SV_TARGET
     bool should_render_fog = should_render_flags & 4;
     if (should_render_fog)
     {
-        float fog_low = min(fog_start_y, fog_end_y);
-        float fog_high = max(fog_start_y, fog_end_y);
-        float fog_range = max(fog_high - fog_low, 1.0);
-        float fog_band = min(max(fog_range * 0.2, 600.0), 3000.0);
-        float fog_base = max(water_level, fog_low);
+        // Sky dome world-space Y is not a reliable physical altitude signal in GWMB.
+        // Apply vertical fog along the dome (horizon->zenith), with thickness driven by
+        // map fog height range.
+        float fog_top = min(fog_start_y, fog_end_y);
+        float fog_bottom = max(fog_start_y, fog_end_y);
+        float fog_range = max(fog_bottom - fog_top, 1.0);
 
-        float fogFactor = saturate((input.world_position.y - fog_base) / fog_band);
-        fogFactor = sqrt(fogFactor);
+        float fog_band = saturate(fog_range / 2200.0);
+        fog_band = clamp(fog_band, 0.06, 0.60);
+
+        float v = saturate(input.tex_coords0.y); // ~1 at horizon/sea level, ~0 near zenith
+        const float sky_dome_height_units = 33941.0;
+        const float fog_lower_offset_units = 1000.0;
+        float horizon_to_zenith = 1.0 - v;
+        float lowered_horizon_to_zenith = horizon_to_zenith + (fog_lower_offset_units / sky_dome_height_units);
+
+        // Keep sea level locked to full fog (factor 0) to avoid water/sky seams,
+        // then apply the lowered fog profile above that anchor.
+        float sea_level_bias = smoothstep(0.0, fog_band, fog_lower_offset_units / sky_dome_height_units);
+        float fogFactorShifted = smoothstep(0.0, fog_band, lowered_horizon_to_zenith);
+        float fogFactor = saturate((fogFactorShifted - sea_level_bias) / max(1.0 - sea_level_bias, 1e-3));
         final_color.rgb = lerp(fog_color_rgb, final_color.rgb, fogFactor);
     }
     

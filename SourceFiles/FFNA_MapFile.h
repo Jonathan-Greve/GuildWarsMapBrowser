@@ -1181,6 +1181,13 @@ struct EnvSubChunk6 {
         // Matches Env_UpdateWaterReflection alpha checks.
         return water_absorption_alpha != 0 && water_pattern_alpha != 0xFF;
     }
+
+    bool UsesLegacyFixedFunctionWaterPath() const
+    {
+        // Captures show mode 0 with no primary layer (scale/speed == 0) goes through
+        // a fixed-function two-pass water path in Gw.exe rather than the ps_1_1 path.
+        return water_mode == 0 && water_primary_tex_scale == 0.0f && water_primary_speed == 0.0f;
+    }
 };
 
 struct EnvSubChunk7 {

@@ -1555,10 +1555,16 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 				};
 
 
-				map_renderer->SetFogStart(std::max((int)sub2.fog_distance_start, 3000));
-				map_renderer->SetFogEnd(std::max((float)sub2.fog_distance_end, map_renderer->GetFogStart() + 15000));
-				map_renderer->SetFogStartY(-10000);
-				map_renderer->SetFogEndY(1500);
+				// Use fog values from the map file directly.
+				// GWMB uses an inverted up/down convention, so signed fog heights must be
+				// preserved as-is (e.g. -1000 is higher than 40 in GWMB space).
+				const float fog_start = static_cast<float>(sub2.fog_distance_start);
+				const float fog_end_raw = static_cast<float>(sub2.fog_distance_end);
+				const float fog_end = (fog_end_raw > fog_start + 1.0f) ? fog_end_raw : (fog_start + 1.0f);
+				map_renderer->SetFogStart(fog_start);
+				map_renderer->SetFogEnd(fog_end);
+				map_renderer->SetFogStartY(static_cast<float>(sub2.fog_z_start_maybe));
+				map_renderer->SetFogEndY(static_cast<float>(sub2.fog_z_end_maybe));
 
 				map_renderer->SetClearColor(clear_and_fog_color);
 			}
