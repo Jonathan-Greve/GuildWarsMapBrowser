@@ -26,6 +26,11 @@ using namespace DirectX;
 class MapRenderer
 {
 public:
+    // Reconstructed from Gw.exe gameplay camera path (GmView_UpdateCameraFrustum + Frame_SetCameraFovAndZFar).
+    static constexpr float kGwDefaultCameraFovDegrees = 50.0f;
+    static constexpr float kGwDefaultCameraNearZ = 10.0f;
+    static constexpr float kGwDefaultCameraFarZ = 48000.0f;
+
     MapRenderer(ID3D11Device* device, ID3D11DeviceContext* deviceContext, InputManager* input_manager)
         : m_device(device)
         , m_deviceContext(deviceContext)
@@ -42,10 +47,14 @@ public:
     void Initialize(const float viewport_width, const float viewport_height)
     {
         // Initialize cameras
-        float fov_degrees = 60.0f;
+        float fov_degrees = kGwDefaultCameraFovDegrees;
         float aspect_ratio = viewport_width / viewport_height;
-        m_user_camera->SetFrustumAsPerspective(static_cast<float>(fov_degrees * XM_PI / 180.0), aspect_ratio,
-            10.0f, 200000);
+        m_user_camera->SetFrustumAsPerspective(
+            static_cast<float>(fov_degrees * XM_PI / 180.0f),
+            aspect_ratio,
+            kGwDefaultCameraNearZ,
+            kGwDefaultCameraFarZ,
+            true);
         const auto pos = FXMVECTOR{ 0, 8500, 0, 0 };
         const auto target = FXMVECTOR{ 1000, 6000, 1000, 0 };
         const auto world_up = FXMVECTOR{ 0, 1, 0, 0 };
@@ -235,6 +244,16 @@ public:
                                  bool reverse_z = true)
     {
         m_user_camera->SetFrustumAsPerspective(fovY, aspectRatio, zNear, zFar, reverse_z);
+    }
+
+    void SetPerspectiveToGwGameplayDefaults()
+    {
+        m_user_camera->SetFrustumAsPerspective(
+            static_cast<float>(kGwDefaultCameraFovDegrees * XM_PI / 180.0f),
+            m_user_camera->GetAspectRatio(),
+            kGwDefaultCameraNearZ,
+            kGwDefaultCameraFarZ,
+            true);
     }
     void SetFrustumAsOrthographic(float view_width, float view_height, float near_z, float far_z,
                                   bool reverse_z = true)

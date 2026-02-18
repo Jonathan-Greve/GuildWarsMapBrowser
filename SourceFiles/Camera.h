@@ -82,7 +82,7 @@ private:
     void UpdateProjectionMatrix();
 
     // Set for perspective projection
-    float m_fov = 70 * XM_PI / 180;
+    float m_fov = 50 * XM_PI / 180;
     float m_aspectRatio = 1;
 
     // Set for orthographic projection
@@ -91,7 +91,7 @@ private:
 
     // Set for both projection types
     float m_nearZ = 10;
-    float m_farZ = 200000;
+    float m_farZ = 48000;
     bool m_use_reverse_z = true;
 
     XMFLOAT3 m_position;
