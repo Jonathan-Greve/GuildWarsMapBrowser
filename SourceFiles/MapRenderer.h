@@ -29,7 +29,7 @@ public:
     // Reconstructed from Gw.exe gameplay camera path (GmView_UpdateCameraFrustum + Frame_SetCameraFovAndZFar).
     static constexpr float kGwDefaultCameraFovDegrees = 50.0f;
     static constexpr float kGwDefaultCameraNearZ = 10.0f;
-    static constexpr float kGwDefaultCameraFarZ = 48000.0f;
+    static constexpr float kGwDefaultCameraFarZ = 200000.0f;
 
     MapRenderer(ID3D11Device* device, ID3D11DeviceContext* deviceContext, InputManager* input_manager)
         : m_device(device)

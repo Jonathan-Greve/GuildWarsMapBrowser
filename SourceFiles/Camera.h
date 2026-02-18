@@ -91,7 +91,7 @@ private:
 
     // Set for both projection types
     float m_nearZ = 10;
-    float m_farZ = 48000;
+    float m_farZ = 200000;
     bool m_use_reverse_z = true;
 
     XMFLOAT3 m_position;
