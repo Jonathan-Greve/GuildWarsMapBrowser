@@ -60,9 +60,22 @@ void ActivateModelViewer(MapRenderer* mapRenderer)
     // Defer camera fit to first frame when viewport is properly set
     g_modelViewerState.needsCameraFit = true;
 
-    // Enable bone visualization by default in model viewer
-    g_animationState.visualization.showBones = true;
-    g_modelViewerState.options.showBones = true;
+    // Re-apply persistent model viewer visualization settings whenever a new model is loaded.
+    auto& vis = g_animationState.visualization;
+    const auto& options = g_modelViewerState.options;
+    vis.showMesh = options.showMesh;
+    vis.wireframeMode = options.showWireframe;
+    vis.meshAlpha = options.meshAlpha;
+    vis.showBones = options.showBones;
+    vis.jointRadius = options.boneRadius;
+    vis.lockRootPosition = options.lockRootPosition;
+    vis.colorByBoneIndex = options.colorByBoneIndex;
+    vis.showRawBoneIndex = options.showRawBoneIndex;
+
+    if (g_animationState.controller)
+    {
+        g_animationState.controller->SetLockRootPosition(vis.lockRootPosition);
+    }
 }
 
 void DeactivateModelViewer(MapRenderer* mapRenderer)

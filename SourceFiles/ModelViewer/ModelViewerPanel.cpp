@@ -130,6 +130,13 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
     auto& options = state.options;
     auto& vis = g_animationState.visualization;
 
+    // Keep newly created animation controllers aligned with persisted model viewer settings.
+    if (g_animationState.controller &&
+        g_animationState.controller->IsRootPositionLocked() != vis.lockRootPosition)
+    {
+        g_animationState.controller->SetLockRootPosition(vis.lockRootPosition);
+    }
+
     // Sync bone info from animation state
     if (g_animationState.clip && g_animationState.clip->boneTracks.size() != state.bones.size())
     {
@@ -1042,7 +1049,10 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
 
             // Mesh alpha
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-            ImGui::SliderFloat("##MeshAlpha", &vis.meshAlpha, 0.0f, 1.0f, "Mesh Alpha: %.2f");
+            if (ImGui::SliderFloat("##MeshAlpha", &vis.meshAlpha, 0.0f, 1.0f, "Mesh Alpha: %.2f"))
+            {
+                options.meshAlpha = vis.meshAlpha;
+            }
 
             // Lock root position option
             if (g_animationState.hasAnimation && g_animationState.controller)
@@ -1051,6 +1061,7 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                 if (ImGui::Checkbox("Lock Root Position", &lockRoot))
                 {
                     vis.lockRootPosition = lockRoot;
+                    options.lockRootPosition = lockRoot;
                     g_animationState.controller->SetLockRootPosition(lockRoot);
                 }
                 if (ImGui::IsItemHovered())
@@ -1064,7 +1075,10 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
             ImGui::Spacing();
 
             // Debug: color by bone index
-            ImGui::Checkbox("Color by Bone Index", &vis.colorByBoneIndex);
+            if (ImGui::Checkbox("Color by Bone Index", &vis.colorByBoneIndex))
+            {
+                options.colorByBoneIndex = vis.colorByBoneIndex;
+            }
             if (ImGui::IsItemHovered())
             {
                 ImGui::SetTooltip("Color vertices by bone index.\nUseful for debugging bone assignments.");
@@ -1075,7 +1089,7 @@ void draw_model_viewer_panel(MapRenderer* mapRenderer, std::map<int, std::unique
                 ImGui::SameLine();
                 if (ImGui::Checkbox("Raw", &vis.showRawBoneIndex))
                 {
-                    // No rebuild needed, just changes shader mode
+                    options.showRawBoneIndex = vis.showRawBoneIndex;
                 }
                 if (ImGui::IsItemHovered())
                 {

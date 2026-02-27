@@ -38,6 +38,10 @@ struct ModelViewerOptions
     bool showWireframe = false;
     bool showBones = true;
     bool showBoneLabels = true;
+    float meshAlpha = 1.0f;
+    bool lockRootPosition = false;
+    bool colorByBoneIndex = false;
+    bool showRawBoneIndex = false; // Default to remapped skeleton bone indices.
 
     // Background color
     DirectX::XMFLOAT4 backgroundColor = { 0.1f, 0.1f, 0.15f, 1.0f };
