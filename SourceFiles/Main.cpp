@@ -120,6 +120,7 @@ extern LPFNBASSCHANNELSETATTRIBUTE lpfnBassChannelSetAttribute = nullptr;
 
 // BASS_FX
 extern LPFNBASSFXTMPOCREATE lpfnBassFxTempoCreate = nullptr;
+extern std::string audio_backend_status = "Audio backend not initialized.";
 
 using namespace DirectX;
 
@@ -136,6 +137,93 @@ extern HMODULE hBassFxDll = 0;
 
 namespace
 {
+    std::string FormatWindowsErrorMessage(DWORD error)
+    {
+        if (error == ERROR_SUCCESS)
+        {
+            return {};
+        }
+
+        LPSTR buffer = nullptr;
+        const DWORD size = FormatMessageA(
+            FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+            nullptr,
+            error,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            reinterpret_cast<LPSTR>(&buffer),
+            0,
+            nullptr);
+
+        std::string message = size > 0 && buffer
+            ? std::string(buffer, size)
+            : std::format("Windows error {}", error);
+
+        if (buffer)
+        {
+            LocalFree(buffer);
+        }
+
+        while (!message.empty() && (message.back() == '\r' || message.back() == '\n'))
+        {
+            message.pop_back();
+        }
+
+        return message;
+    }
+
+    const char* DescribeBassError(int code)
+    {
+        switch (code)
+        {
+        case BASS_OK: return "No error";
+        case BASS_ERROR_MEM: return "Memory error";
+        case BASS_ERROR_FILEOPEN: return "File open failed";
+        case BASS_ERROR_DRIVER: return "Audio device/driver unavailable";
+        case BASS_ERROR_BUFLOST: return "Buffer lost";
+        case BASS_ERROR_HANDLE: return "Invalid handle";
+        case BASS_ERROR_FORMAT: return "Unsupported sample format";
+        case BASS_ERROR_POSITION: return "Invalid playback position";
+        case BASS_ERROR_INIT: return "BASS not initialized";
+        case BASS_ERROR_START: return "BASS start failed";
+        case BASS_ERROR_NOTAUDIO: return "Data is not audio";
+        case BASS_ERROR_NOCHAN: return "No free playback channel";
+        case BASS_ERROR_ILLTYPE: return "Illegal stream type";
+        case BASS_ERROR_ILLPARAM: return "Illegal parameter";
+        case BASS_ERROR_DEVICE: return "Illegal device number";
+        case BASS_ERROR_NOPLAY: return "Playback unavailable";
+        case BASS_ERROR_FREQ: return "Illegal sample rate";
+        case BASS_ERROR_NOTFILE: return "Not a file stream";
+        case BASS_ERROR_NOHW: return "No hardware voices available";
+        case BASS_ERROR_EMPTY: return "No sample data";
+        case BASS_ERROR_NOTAVAIL: return "Requested feature unavailable";
+        case BASS_ERROR_DECODE: return "Invalid decoding channel state";
+        case BASS_ERROR_FILEFORM: return "Unsupported file format";
+        case BASS_ERROR_VERSION: return "Invalid BASS/BASS_FX version";
+        case BASS_ERROR_CODEC: return "Codec unavailable";
+        case BASS_ERROR_BUSY: return "Audio device busy";
+        default: return "Unknown BASS error";
+        }
+    }
+
+    bool AreBassFunctionsLoaded()
+    {
+        return lpfnBassStreamCreateFile &&
+            lpfnBassChannelPlay &&
+            lpfnBassChannelPause &&
+            lpfnBassChannelStop &&
+            lpfnBassChannelBytes2Seconds &&
+            lpfnBassChannelGetLength &&
+            lpfnBassStreamGetFilePosition &&
+            lpfnBassChannelGetInfo &&
+            lpfnBassChannelFlags &&
+            lpfnBassStreamFree &&
+            lpfnBassChannelSetPosition &&
+            lpfnBassChannelGetPosition &&
+            lpfnBassChannelSeconds2Bytes &&
+            lpfnBassChannelSetAttribute &&
+            lpfnBassFxTempoCreate;
+    }
+
     std::unique_ptr<MapBrowser> g_map_browser;
     std::unique_ptr<InputManager> g_input_manager;
 
@@ -236,29 +324,77 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         RECT rc;
         GetClientRect(hwnd, &rc);
 
-        std::filesystem::path exePath = std::filesystem::current_path();
-        std::filesystem::path bass_dllPath = exePath / "bass.dll";
-        if (std::filesystem::exists(bass_dllPath) || extract_bass_dll_resource())
+        if (const auto exeDirOpt = get_executable_directory())
         {
-            std::filesystem::path bass_fx_dllPath = exePath / "bass_fx.dll";
-            if (std::filesystem::exists(bass_fx_dllPath) || extract_bass_fx_dll_resource())
+            const std::filesystem::path bassDllPath = *exeDirOpt / "bass.dll";
+            const std::filesystem::path bassFxDllPath = *exeDirOpt / "bass_fx.dll";
+
+            DWORD bassLoadError = ERROR_SUCCESS;
+            DWORD bassFxLoadError = ERROR_SUCCESS;
+
+            hBassDll = LoadLibraryW(bassDllPath.c_str());
+            if (hBassDll == NULL)
             {
-
-                hBassDll = LoadLibrary(TEXT("bass.dll"));
-                hBassFxDll = LoadLibrary(TEXT("bass_fx.dll"));
-
-                // Load the DLL
-                if (hBassDll != NULL && hBassFxDll != NULL)
+                bassLoadError = GetLastError();
+                if (extract_bass_dll_resource())
                 {
-                    // Get a pointer to the BASS_Init function
-                    LPFNBASSINIT lpfnBassInit = (LPFNBASSINIT)GetProcAddress(hBassDll, "BASS_Init");
-                    if (lpfnBassInit != NULL)
+                    hBassDll = LoadLibraryW(bassDllPath.c_str());
+                    if (hBassDll == NULL)
                     {
-                        // Call BASS_Init through the function pointer
-                        is_bass_working = lpfnBassInit(-1, 44100, 0, hwnd, NULL);
+                        bassLoadError = GetLastError();
                     }
+                }
+            }
 
-                    if (is_bass_working)
+            hBassFxDll = LoadLibraryW(bassFxDllPath.c_str());
+            if (hBassFxDll == NULL)
+            {
+                bassFxLoadError = GetLastError();
+                if (extract_bass_fx_dll_resource())
+                {
+                    hBassFxDll = LoadLibraryW(bassFxDllPath.c_str());
+                    if (hBassFxDll == NULL)
+                    {
+                        bassFxLoadError = GetLastError();
+                    }
+                }
+            }
+
+            if (hBassDll == NULL)
+            {
+                audio_backend_status = std::format(
+                    "Failed to load bass.dll from '{}': {}",
+                    bassDllPath.string(),
+                    FormatWindowsErrorMessage(bassLoadError));
+            }
+            else if (hBassFxDll == NULL)
+            {
+                audio_backend_status = std::format(
+                    "Failed to load bass_fx.dll from '{}': {}",
+                    bassFxDllPath.string(),
+                    FormatWindowsErrorMessage(bassFxLoadError));
+            }
+            else
+            {
+                const auto lpfnBassInit = (LPFNBASSINIT)GetProcAddress(hBassDll, "BASS_Init");
+                const auto lpfnBassErrorGetCode = (LPFNBASSERRORGETCODE)GetProcAddress(hBassDll, "BASS_ErrorGetCode");
+
+                if (lpfnBassInit == nullptr)
+                {
+                    audio_backend_status = "Loaded BASS DLLs, but BASS_Init could not be resolved.";
+                }
+                else
+                {
+                    is_bass_working = lpfnBassInit(-1, 44100, 0, hwnd, NULL);
+                    if (!is_bass_working)
+                    {
+                        const int bassErrorCode = lpfnBassErrorGetCode ? lpfnBassErrorGetCode() : BASS_ERROR_UNKNOWN;
+                        audio_backend_status = std::format(
+                            "BASS_Init failed: {} (code {}).",
+                            DescribeBassError(bassErrorCode),
+                            bassErrorCode);
+                    }
+                    else
                     {
                         lpfnBassStreamCreateFile =
                             (LPFNBASSSTREAMCREATEFILE)GetProcAddress(hBassDll, "BASS_StreamCreateFile");
@@ -289,9 +425,23 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
                             (LPFNBASSCHANNELSETATTRIBUTE)GetProcAddress(hBassDll, "BASS_ChannelSetAttribute");
                         lpfnBassFxTempoCreate =
                             (LPFNBASSFXTMPOCREATE)GetProcAddress(hBassFxDll, "BASS_FX_TempoCreate");
+
+                        if (AreBassFunctionsLoaded())
+                        {
+                            audio_backend_status = "Audio backend ready.";
+                        }
+                        else
+                        {
+                            is_bass_working = false;
+                            audio_backend_status = "Loaded BASS DLLs, but one or more required functions were missing.";
+                        }
                     }
                 }
             }
+        }
+        else
+        {
+            audio_backend_status = "Unable to resolve the executable directory for audio backend initialization.";
         }
 
         g_map_browser->Initialize(hwnd, rc.right - rc.left, rc.bottom - rc.top);

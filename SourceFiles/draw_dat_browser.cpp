@@ -33,6 +33,8 @@ extern LPFNBASSCHANNELSETATTRIBUTE lpfnBassChannelSetAttribute;
 
 // BASS_FX
 extern LPFNBASSFXTMPOCREATE lpfnBassFxTempoCreate;
+extern bool is_bass_working;
+extern std::string audio_backend_status;
 
 extern bool repeat_audio;
 extern float playback_speed;
@@ -79,6 +81,22 @@ GWVertex get_shore_vertex_for_2_points(Vertex2 point1, Vertex2 point2, float hei
 GWVertex get_shore_vertex_for_3_points(Vertex2 point1, Vertex2 point2, Vertex2 point3, float height = 5);
 void generate_shore_mesh(const XMFLOAT2& point1, const XMFLOAT2& point2, Terrain* terrain, std::vector<Mesh>& meshes, float height = 5);
 
+static bool IsAudioPlaybackReady()
+{
+	return is_bass_working &&
+		lpfnBassStreamCreateFile &&
+		lpfnBassChannelBytes2Seconds &&
+		lpfnBassChannelGetLength &&
+		lpfnBassStreamGetFilePosition &&
+		lpfnBassChannelGetInfo &&
+		lpfnBassChannelPlay &&
+		lpfnBassChannelStop &&
+		lpfnBassStreamFree &&
+		lpfnBassChannelFlags &&
+		lpfnBassChannelSetAttribute &&
+		lpfnBassFxTempoCreate;
+}
+
 void apply_filter(const std::vector<int>& new_filter, std::unordered_set<int>& intersection)
 {
 	if (intersection.empty()) { intersection.insert(new_filter.begin(), new_filter.end()); }
@@ -107,13 +125,28 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 
 	if (selected_audio_stream_handle != 0)
 	{
-		lpfnBassChannelStop(selected_audio_stream_handle);
-		lpfnBassStreamFree(selected_audio_stream_handle);
+		if (lpfnBassChannelStop)
+		{
+			lpfnBassChannelStop(selected_audio_stream_handle);
+		}
+		if (lpfnBassStreamFree)
+		{
+			lpfnBassStreamFree(selected_audio_stream_handle);
+		}
+		selected_audio_stream_handle = 0;
 	}
+	audio_info.clear();
 
 	unsigned char* raw_data = dat_manager->read_file(index);
-	selected_raw_data = std::vector<uint8_t>(raw_data, raw_data + entry->uncompressedSize);
-	delete raw_data;
+	if (!raw_data && entry->uncompressedSize > 0)
+	{
+		selected_raw_data.clear();
+		return false;
+	}
+	selected_raw_data = raw_data
+		? std::vector<uint8_t>(raw_data, raw_data + entry->uncompressedSize)
+		: std::vector<uint8_t>{};
+	delete[] raw_data;
 
 	if (entry->type != FFNA_Type3)
 	{
@@ -135,25 +168,49 @@ bool parse_file(DATManager* dat_manager, int index, MapRenderer* map_renderer,
 	{
 		if (selected_raw_data.size() > 0)
 		{
+			if (!IsAudioPlaybackReady())
+			{
+				audio_info = audio_backend_status.empty()
+					? "Audio playback unavailable."
+					: audio_backend_status;
+				success = true;
+				break;
+			}
+
 			// create the original stream
 			HSTREAM orig_stream = lpfnBassStreamCreateFile(TRUE, // mem
 				selected_raw_data.data(), // file
 				0, // offset
 				entry->uncompressedSize, // length
 				BASS_STREAM_PRESCAN | BASS_STREAM_DECODE); // flags
+			if (orig_stream == 0)
+			{
+				audio_info = "Unable to create an audio stream for this file.";
+				success = true;
+				break;
+			}
 
 			// create the tempo stream from the original stream
 			selected_audio_stream_handle = lpfnBassFxTempoCreate(orig_stream, BASS_FX_FREESOURCE);
+			if (selected_audio_stream_handle == 0)
+			{
+				lpfnBassStreamFree(orig_stream);
+				audio_info = "Unable to prepare the audio stream for playback.";
+				success = true;
+				break;
+			}
 
-			float time = lpfnBassChannelBytes2Seconds(
+			const double time = lpfnBassChannelBytes2Seconds(
 				selected_audio_stream_handle,
 				lpfnBassChannelGetLength(selected_audio_stream_handle,
 					BASS_POS_BYTE)); // playback duration
-			DWORD len =
+			const DWORD len =
 				lpfnBassStreamGetFilePosition(selected_audio_stream_handle, BASS_FILEPOS_END); // file length
-			DWORD bitrate = static_cast<DWORD>(len / (125 * time) + 0.5); // bitrate (Kbps)
+			const DWORD bitrate = time > 0.0
+				? static_cast<DWORD>(len / (125 * time) + 0.5)
+				: 0; // bitrate (Kbps)
 
-			BASS_CHANNELINFO info;
+			BASS_CHANNELINFO info{};
 			lpfnBassChannelGetInfo(selected_audio_stream_handle, &info);
 
 			audio_info = "Bitrate: " + std::to_string(bitrate) +

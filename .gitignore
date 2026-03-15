@@ -35,6 +35,15 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+!SourceFiles/ThirdParty/
+!SourceFiles/ThirdParty/BASS/
+!SourceFiles/ThirdParty/BASS/Win32/
+!SourceFiles/ThirdParty/BASS/Win32/bass.dll
+!SourceFiles/ThirdParty/BASS/Win32/bass_fx.dll
+!SourceFiles/ThirdParty/BASS/x64/
+!SourceFiles/ThirdParty/BASS/x64/bass.dll
+!SourceFiles/ThirdParty/BASS/x64/bass_fx.dll
+
 # Visual Studio temp compilation artifacts that can leak into the repo
 enc_temp_folder/
 

@@ -80,6 +80,7 @@
 
 #include "bass.h"
 typedef BOOL(__stdcall* LPFNBASSINIT)(int, DWORD, DWORD, HWND, const void*);
+typedef int(WINAPI* LPFNBASSERRORGETCODE)(void);
 typedef HSTREAM(WINAPI* LPFNBASSSTREAMCREATEFILE)(BOOL mem, const void* file, QWORD offset, QWORD length,
                                                   DWORD flags);
 typedef BOOL(WINAPI* LPFNBASSCHANNELPLAY)(DWORD handle, BOOL restart);

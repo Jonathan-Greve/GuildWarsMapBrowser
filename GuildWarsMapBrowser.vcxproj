@@ -114,6 +114,9 @@
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
+    <ResourceCompile>
+      <PreprocessorDefinitions>BASS_RESOURCE_X86;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -137,6 +140,9 @@
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
+    <ResourceCompile>
+      <PreprocessorDefinitions>BASS_RESOURCE_X64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -168,6 +174,9 @@
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
+    <ResourceCompile>
+      <PreprocessorDefinitions>BASS_RESOURCE_X86;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -197,6 +206,9 @@
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
+    <ResourceCompile>
+      <PreprocessorDefinitions>BASS_RESOURCE_X64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="DearImGui\imconfig.h" />
@@ -668,8 +680,10 @@
     <None Include="ImGuiFileDialog-Lib_Only\dirent\README.md" />
     <None Include="ImGuiFileDialog-Lib_Only\LICENSE" />
     <None Include="ImGuiFileDialog-Lib_Only\README.md" />
-    <None Include="SourceFiles\bass.dll" />
-    <None Include="SourceFiles\bass_fx.dll" />
+    <None Include="SourceFiles\ThirdParty\BASS\Win32\bass.dll" />
+    <None Include="SourceFiles\ThirdParty\BASS\Win32\bass_fx.dll" />
+    <None Include="SourceFiles\ThirdParty\BASS\x64\bass.dll" />
+    <None Include="SourceFiles\ThirdParty\BASS\x64\bass_fx.dll" />
     <None Include="SourceFiles\dll1.bin" />
     <None Include="SourceFiles\imgui.ini" />
   </ItemGroup>

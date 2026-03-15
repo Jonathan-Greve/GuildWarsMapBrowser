@@ -4,6 +4,7 @@
 #include <GuiGlobalConstants.h>
 
 extern bool is_bass_working;
+extern std::string audio_backend_status;
 extern std::string audio_info;
 extern bool repeat_audio = false;
 extern float playback_speed = 1.0f;
@@ -22,6 +23,21 @@ extern LPFNBASSCHANNELGETPOSITION lpfnBassChannelGetPosition;
 extern LPFNBASSCHANNELSECONDS2BYTES lpfnBassChannelSeconds2Bytes;
 extern LPFNBASSCHANNELSETATTRIBUTE lpfnBassChannelSetAttribute;
 
+static bool IsAudioControllerReady()
+{
+    return is_bass_working &&
+        lpfnBassChannelFlags &&
+        lpfnBassChannelBytes2Seconds &&
+        lpfnBassChannelGetLength &&
+        lpfnBassChannelPlay &&
+        lpfnBassChannelPause &&
+        lpfnBassChannelStop &&
+        lpfnBassChannelSetPosition &&
+        lpfnBassChannelGetPosition &&
+        lpfnBassChannelSeconds2Bytes &&
+        lpfnBassChannelSetAttribute;
+}
+
 void draw_audio_controller_panel(HSTREAM streamHandle)
 {
     if (!GuiGlobalConstants::is_audio_controller_open) return;
@@ -29,9 +45,9 @@ void draw_audio_controller_panel(HSTREAM streamHandle)
     if (ImGui::Begin("Audio Control", &GuiGlobalConstants::is_audio_controller_open, ImGuiWindowFlags_NoFocusOnAppearing)) {
         GuiGlobalConstants::ClampWindowToScreen();
 
-        if (!is_bass_working) {
+        if (!IsAudioControllerReady()) {
             ImGui::TextWrapped("Audio system not available.");
-            ImGui::TextWrapped("BASS audio library could not be initialized.");
+            ImGui::TextWrapped("%s", audio_backend_status.c_str());
         }
         else if (streamHandle == 0) {
             ImGui::TextWrapped("No audio loaded.");
